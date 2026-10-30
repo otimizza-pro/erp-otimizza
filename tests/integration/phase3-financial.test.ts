@@ -18,7 +18,7 @@ import {
   getPayableById,
 } from "@/modules/financial/service";
 
-describe("Fase 3: Motor Financeiro, Contas a Pagar/Receber, Baixas e Fluxo de Caixa", () => {
+describe("Motor Financeiro, Contas a Pagar/Receber, Baixas e Fluxo de Caixa", () => {
   let clientId: string;
   let serviceId: string;
   let contractId: string;
@@ -58,13 +58,13 @@ describe("Fase 3: Motor Financeiro, Contas a Pagar/Receber, Baixas e Fluxo de Ca
         await query("DELETE FROM clients WHERE id = $1", [clientId]);
       }
     } catch (err) {
-      console.warn("Aviso na limpeza da Fase 3:", err);
+      console.warn("Aviso na limpeza do teste financeiro:", err);
     }
   });
 
   it("cria contas financeiras para movimentações e transferências", async () => {
     const acc1 = await createFinancialAccount({
-      name: "Banco Santander Teste Fase 3",
+      name: "Banco Santander - Conta Corrente Teste",
       bankName: "Santander",
       accountType: "CHECKING",
       initialBalance: 5000.0,
@@ -74,7 +74,7 @@ describe("Fase 3: Motor Financeiro, Contas a Pagar/Receber, Baixas e Fluxo de Ca
     account1Id = acc1.id;
 
     const acc2 = await createFinancialAccount({
-      name: "Caixa Pequeno Teste Fase 3",
+      name: "Caixa Físico / Pequeno Caixa Teste",
       accountType: "CASH",
       initialBalance: 500.0,
     });
@@ -82,7 +82,7 @@ describe("Fase 3: Motor Financeiro, Contas a Pagar/Receber, Baixas e Fluxo de Ca
     account2Id = acc2.id;
   });
 
-  it("configura cliente e contratação recorrente de R$ 1.000 da Fase 2", async () => {
+  it("configura cliente e contratação recorrente de R$ 1.000", async () => {
     const doc = "60701190000104";
     const existingClient = await query("SELECT id FROM clients WHERE document = $1 AND status = 'ACTIVE'", [doc]);
     if (existingClient.rowCount && existingClient.rowCount > 0) {
@@ -107,7 +107,7 @@ describe("Fase 3: Motor Financeiro, Contas a Pagar/Receber, Baixas e Fluxo de Ca
 
     const contract = await createContract({
       clientId,
-      title: "Contrato Recorrente Teste Fase 3",
+      title: "Contrato Recorrente de Consultoria",
       billingPeriod: "MONTHLY",
       dueDay: 10,
       startDate: "2026-03-01",

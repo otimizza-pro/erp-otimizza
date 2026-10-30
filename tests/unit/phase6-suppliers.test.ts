@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { CreateSupplierSchema, CreateAllocationSchema } from "@/modules/suppliers/types";
 
-describe("Fase 6: Validações Unitárias de Fornecedores e Rateios", () => {
+describe("Validações Unitárias de Fornecedores e Rateios", () => {
   it("valida cadastro de fornecedor PJ com dados válidos", () => {
     const validPj = {
       personType: "PJ" as const,

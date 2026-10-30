@@ -3,7 +3,7 @@ import { getContractProjections } from "@/modules/contracts/service";
 import { ContractRecord } from "@/modules/contracts/types";
 import { calculateEffectiveDueDate, generateBillingPeriodKey } from "@/shared/recurrence";
 
-describe("Fase 2: Regras Unitárias de Contratações, Versões e Recorrência", () => {
+describe("Regras Unitárias de Contratações, Versões e Recorrência", () => {
   it("calcula ajuste de dia de vencimento para anos bissextos e meses curtos", () => {
     // 2028 é bissexto -> 29 dias em fevereiro
     expect(calculateEffectiveDueDate(31, 2028, 2)).toBe("2028-02-29");

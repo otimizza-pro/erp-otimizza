@@ -1,6 +1,6 @@
 # Testes End-to-End (E2E) com Playwright
 
-Esta pasta é reservada para a suíte de testes de ponta a ponta que será introduzida na Fase 9 do roadmap (após o desenvolvimento das telas de autenticação, clientes e financeiro).
+Esta pasta é reservada para a suíte de testes de ponta a ponta (após o desenvolvimento completo das telas de autenticação, clientes e financeiro).
 
 ## Cenários de Teste E2E Planejados
 1. **Fluxo de Login & Sessão:** Login de usuário, persistência de cookie e redirecionamento.

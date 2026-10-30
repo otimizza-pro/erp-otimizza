@@ -6,7 +6,7 @@ import { createService } from "@/modules/catalog/service";
 import { createContract } from "@/modules/contracts/service";
 import { createPayable } from "@/modules/financial/service";
 
-describe("Fase 6: Fornecedores, Custos Vinculados, Rateios e Apropriação por Competência", () => {
+describe("Fornecedores, Custos Vinculados, Rateios e Apropriação por Competência", () => {
   let supplierId: string;
   let supplierName: string;
   let clientId: string;

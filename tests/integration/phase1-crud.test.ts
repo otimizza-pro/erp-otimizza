@@ -16,7 +16,7 @@ import {
   archiveService,
 } from "@/modules/catalog/service";
 
-describe("Fase 1: Integração com Banco PostgreSQL (CRUD Real)", () => {
+describe("Clientes e Catálogo de Serviços (Banco PostgreSQL)", () => {
   let createdClientId: string;
   let createdService1Id: string;
   let createdService2Id: string;

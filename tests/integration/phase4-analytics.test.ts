@@ -23,7 +23,7 @@ import {
   getDashboardPreferences,
 } from "@/modules/analytics/service";
 
-describe("Fase 4: Integração de Dashboard Executivo, BI e Indicadores", () => {
+describe("Dashboard Executivo, BI e Indicadores", () => {
   let clientId: string;
   let serviceId: string;
   let contractId: string;
@@ -55,7 +55,7 @@ describe("Fase 4: Integração de Dashboard Executivo, BI e Indicadores", () => 
         await query("DELETE FROM clients WHERE id = $1", [clientId]);
       }
     } catch (e) {
-      console.warn("Aviso na limpeza da Fase 4:", e);
+      console.warn("Aviso na limpeza do teste de analytics:", e);
     }
   });
 

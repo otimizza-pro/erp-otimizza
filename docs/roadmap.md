@@ -1,29 +1,29 @@
-# Roadmap de Implementação Sequencial do ERP
+# Roadmap de Implementação Modular do ERP
 
-Este documento estabelece o cronograma em fases, os pré-requisitos, os entregáveis e os critérios de aceitação para o desenvolvimento incremental do Sistema ERP.
+Este documento estabelece o cronograma modular, os pré-requisitos, os entregáveis e os critérios de aceitação para o desenvolvimento do Sistema ERP.
 
 ---
 
-## Visão Geral das Fases
+## Visão Geral dos Módulos
 
 ```mermaid
 graph LR
-    F0[Fase 0: Fundação Técnica & Docs] --> F1[Fase 1: Banco, Auth & Usuários]
-    F1 --> F2[Fase 2: Gestão de Clientes]
-    F2 --> F3[Fase 3: Catálogo Produtos/Serviços]
-    F3 --> F4[Fase 4: Vendas & Contratações]
-    F4 --> F5[Fase 5: Faturamento & Recorrências]
-    F5 --> F6[Fase 6: Pagamentos & Títulos]
-    F6 --> F7[Fase 7: Caixa & Conciliação]
-    F7 --> F8[Fase 8: Dashboard & Relatórios]
-    F8 --> F9[Fase 9: Hardening & Produção]
+    M0[Fundação Técnica & Docs] --> M1[Banco, Auth & Usuários]
+    M1 --> M2[Gestão de Clientes]
+    M2 --> M3[Catálogo Produtos/Serviços]
+    M3 --> M4[Vendas & Contratações]
+    M4 --> M5[Faturamento & Recorrências]
+    M5 --> M6[Pagamentos, Títulos & Fornecedores]
+    M6 --> M7[Caixa & Conciliação]
+    M7 --> M8[Dashboard & Relatórios]
+    M8 --> M9[Hardening & Produção]
 ```
 
 ---
 
-## Detalhamento das Fases
+## Detalhamento dos Módulos
 
-### Fase 0: Descoberta, Arquitetura e Fundação Técnica (Atual)
+### Módulo: Fundação Técnica, Arquitetura e Setup
 - **Objetivo:** Estabelecer a base técnica, a infraestrutura de código, os padrões de teste, as skills de IA e toda a documentação canônica.
 - **Pré-requisitos:** Ambiente Node.js e Git.
 - **Entregáveis:**
@@ -36,9 +36,9 @@ graph LR
 
 ---
 
-### Fase 1: Banco, Autenticação e Usuários
+### Módulo: Banco, Autenticação e Usuários
 - **Objetivo:** Criar a estrutura inicial de banco de dados para segurança e gestão de usuários.
-- **Pré-requisitos:** Fase 0 concluída; banco PostgreSQL local ativo.
+- **Pré-requisitos:** Fundação concluída; banco PostgreSQL local/remoto ativo.
 - **Entregáveis:**
   - Migration inicial da tabela `users` e `audit_logs`.
   - Serviço de hash de senha seguro e autenticação baseada em cookies HttpOnly/SameSite.
@@ -48,9 +48,9 @@ graph LR
 
 ---
 
-### Fase 2: Clientes (PF e PJ)
+### Módulo: Clientes (PF e PJ)
 - **Objetivo:** Gestão cadastral de pessoas físicas e jurídicas.
-- **Pré-requisitos:** Fase 1 concluída.
+- **Pré-requisitos:** Banco e Autenticação ativos.
 - **Entregáveis:**
   - Migration da tabela `clients` com índices parciais de unicidade.
   - Validador formal de CPF e CNPJ (Módulo 11) com normalização na persistência.
@@ -61,46 +61,45 @@ graph LR
 
 ---
 
-### Fase 3: Catálogo de Produtos e Serviços
+### Módulo: Catálogo de Produtos e Serviços
 - **Objetivo:** Cadastro unificado de itens negociáveis.
-- **Pré-requisitos:** Fase 1 concluída.
+- **Pré-requisitos:** Banco de dados ativo.
 - **Entregáveis:**
-  - Migration das tabelas `products` e `product_variants`.
-  - Casos de uso para criação de produto simples, produto com variações e serviços.
-  - Regras de unicidade de SKU por variação.
+  - Migration das tabelas `services`, `service_categories`, `combos` e `combo_items`.
+  - Casos de uso para criação de serviços, combos e precificação associada.
   - Interface de gestão do catálogo com filtros por tipo e status.
-- **Critérios de Conclusão:** Testes garantindo que uma variação não exista sem o produto pai e que atributos em JSONB sejam válidos.
+- **Critérios de Conclusão:** Testes garantindo que os componentes do combo somem exatamente o valor do combo e sem perdas de arredondamento.
 
 ---
 
-### Fase 4: Vendas e Contratações
+### Módulo: Vendas e Contratações
 - **Objetivo:** Formalização de orçamentos, vendas avulsas e contratos de fornecimento contínuo.
-- **Pré-requisitos:** Fases 2 e 3 concluídas.
+- **Pré-requisitos:** Clientes e Catálogo ativos.
 - **Entregáveis:**
-  - Migration das tabelas `sales`, `sale_items`, `contracts` e `contract_items`.
+  - Migration das tabelas `contracts` e `contract_items`.
   - Lançamento de vendas com snapshot congelado de preços unitários.
   - Contratações com periodicidades `ONE_TIME`, `MONTHLY` e `YEARLY` e dia de vencimento definido.
-  - Máquina de estados para ciclo de vida do contrato (`DRAFT`, `ACTIVE`, `SUSPENDED`, `CANCELED`, `COMPLETED`).
+  - Máquina de estados para ciclo de vida do contrato (`DRAFT`, `ACTIVE`, `ENDED`, `CANCELED`).
 - **Critérios de Conclusão:** Testes comprovando imutabilidade: alteração de preço no catálogo não altera vendas ou contratos emitidos.
 
 ---
 
-### Fase 5: Faturamento e Geração de Recorrências
+### Módulo: Faturamento e Geração de Recorrências
 - **Objetivo:** Motor de geração de cobranças periódicas com idempotência estrita.
-- **Pré-requisitos:** Fase 4 concluída.
+- **Pré-requisitos:** Contratações ativas.
 - **Entregáveis:**
-  - Migration da tabela `financial_titles` e constraint de unicidade `uq_contract_period`.
+  - Migration da tabela `receivables` com constraint de idempotência por competência.
   - Serviço de faturamento mensal com regra de vencimento para dias 29, 30 e 31 em meses curtos.
   - Rotina idempotente de processamento de lote de faturamento.
 - **Critérios de Conclusão:** Testes automatizados executando faturamento duplicado para o mesmo período confirmando bloqueio de cobrança redundante.
 
 ---
 
-### Fase 6: Pagamentos, Contas a Pagar e Contas a Receber
-- **Objetivo:** Gestão de títulos em aberto e liquidações parciais ou integrais.
-- **Pré-requisitos:** Fase 5 concluída.
+### Módulo: Pagamentos, Contas a Pagar, Contas a Receber e Fornecedores
+- **Objetivo:** Gestão de títulos em aberto, fornecedores, rateios e liquidações parciais ou integrais.
+- **Pré-requisitos:** Faturamento e Contas ativas.
 - **Entregáveis:**
-  - Migration das tabelas `financial_accounts`, `financial_categories` e `financial_settlements`.
+  - Migration das tabelas `suppliers`, `payables`, `payable_allocations` e liquidações financeiras.
   - Registro de liquidação com cálculo de juros, multa, desconto e saldo restante.
   - Suporte a múltiplos pagamentos parciais para o mesmo título.
   - Rotina de estorno auditável (`REVERSAL`) sem exclusão física de registros.
@@ -108,11 +107,11 @@ graph LR
 
 ---
 
-### Fase 7: Caixa, Extrato e Conciliação Básica
+### Módulo: Caixa, Extrato e Conciliação Básica
 - **Objetivo:** Rastreabilidade de saldos reais e movimentações entre contas.
-- **Pré-requisitos:** Fase 6 concluída.
+- **Pré-requisitos:** Contas financeiras ativas.
 - **Entregáveis:**
-  - Migration da tabela `financial_movements`.
+  - Tabela `financial_accounts` com atualização atômica de saldos.
   - Registro automático de créditos e débitos a partir de liquidações confirmadas.
   - Lançamento de transferências internas entre contas bancárias (débito + crédito casados).
   - Tela de extrato financeiro com cálculo de saldo dinâmico.
@@ -120,23 +119,23 @@ graph LR
 
 ---
 
-### Fase 8: Dashboard Executivo e Relatórios
+### Módulo: Dashboard Executivo e Relatórios
 - **Objetivo:** Visão analítica, indicadores gerenciais e projeção de fluxo de caixa.
-- **Pré-requisitos:** Fases 2, 6 e 7 concluídas.
+- **Pré-requisitos:** Módulos operacionais ativos.
 - **Entregáveis:**
   - Cards de indicadores reais: clientes ativos/inativos, faturamento realizado, títulos a vencer e saldo total em contas.
   - Gráfico de fluxo de caixa realizado (passado) versus projetado (futuro de títulos em aberto).
-  - Relatório exportável em CSV de títulos a receber e inadimplência.
+  - Relatório de lucratividade por serviço e fornecedor.
 - **Critérios de Conclusão:** Consultas analíticas agregadas via SQL sem N+1 queries; testes de coerência entre cards e extratos.
 
 ---
 
-### Fase 9: Hardening de Segurança, Qualidade e Preparação para Produção
+### Módulo: Hardening de Segurança, Qualidade e Preparação para Produção
 - **Objetivo:** Auditoria final, performance, segurança e checklist de liberação.
-- **Pré-requisitos:** Todas as fases anteriores concluídas.
+- **Pré-requisitos:** Todos os módulos anteriores operando.
 - **Entregáveis:**
-  - Suíte de testes E2E com Playwright cobrindo o fluxo crítico completo.
+  - Suíte de testes com cobertura completa de regras de negócio.
   - Revisão de segurança OWASP (proteção CSRF, headers de segurança CSP/HSTS, rate limiting).
   - Otimização de índices e análise de planos de execução (`EXPLAIN ANALYZE`).
   - Documentação final de deploy e rotina de backup/restore do PostgreSQL.
-- **Critérios de Conclusão:** 100% dos testes E2E passando; zero vulnerabilidades críticas em auditoria; plano de contingência documentado.
+- **Critérios de Conclusão:** 100% dos testes passando; zero vulnerabilidades críticas em auditoria; plano de contingência documentado.

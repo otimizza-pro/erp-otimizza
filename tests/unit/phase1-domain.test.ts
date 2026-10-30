@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { normalizeDocument, validateCPF, validateCNPJ } from "@/shared/cpf-cnpj";
 
-describe("Fase 1: Regras de Validação de Documentos e Contatos", () => {
+describe("Regras de Validação de Documentos e Contatos", () => {
   it("valida e normaliza CPF de pessoa física", () => {
     const raw = "529.982.247-25";
     const clean = normalizeDocument(raw);
@@ -32,7 +32,7 @@ describe("Fase 1: Regras de Validação de Documentos e Contatos", () => {
   });
 });
 
-describe("Fase 1: Regras Comerciais de Combos de Serviços", () => {
+describe("Regras Comerciais de Combos de Serviços", () => {
   it("soma exatamente os componentes de um combo sem erros de ponto flutuante", () => {
     const items = [
       { serviceId: "s1", componentPrice: 450.55 },

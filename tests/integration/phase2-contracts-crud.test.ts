@@ -11,7 +11,7 @@ import {
 } from "@/modules/contracts/service";
 import { query } from "@/lib/db/pool";
 
-describe("Fase 2: Integração com Banco PostgreSQL (Contratos, Versões e Histórico)", () => {
+describe("Contratos, Versões e Histórico (Banco PostgreSQL)", () => {
   let clientId: string;
   let serviceMetaAdsId: string;
   let serviceGoogleAdsId: string;
@@ -53,7 +53,7 @@ describe("Fase 2: Integração com Banco PostgreSQL (Contratos, Versões e Hist�
     }
   });
 
-  it("configura cliente e catálogo da Fase 1 necessários para a contratação", async () => {
+  it("configura cliente e catálogo necessários para a contratação", async () => {
     const doc = "19131243000197";
     const existing = await query("SELECT id FROM clients WHERE document = $1 AND status = 'ACTIVE'", [doc]);
     if (existing.rowCount && existing.rowCount > 0) {

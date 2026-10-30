@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { computeNormalizedMrr } from "@/modules/analytics/service";
 
-describe("Fase 4: Testes Unitários de Métricas Analíticas e BI", () => {
+describe("Testes Unitários de Métricas Analíticas e BI", () => {
   it("contrato mensal de R$ 1.000 compõe R$ 1.000 no MRR", () => {
     const mrr = computeNormalizedMrr("MONTHLY", 1000.0);
     expect(mrr).toBe(1000.0);

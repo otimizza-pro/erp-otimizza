@@ -6,10 +6,12 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { ArrowLeft, Save, Plus, Trash2, AlertCircle } from "lucide-react";
 import { ServiceItem } from "@/modules/catalog/types";
+import { Autocomplete } from "@/components/ui/autocomplete";
 import { formatBRL } from "@/shared/money";
 
 interface ComboItemForm {
   serviceId: string;
+  serviceName?: string;
   componentPrice: string;
 }
 
@@ -33,11 +35,12 @@ export default function NewComboPage() {
       .catch((e) => console.error(e));
   }, []);
 
-  const handleServiceChange = (index: number, serviceId: string) => {
+  const handleServiceChange = (index: number, serviceId: string, serviceName?: string) => {
     const service = availableServices.find((s) => s.id === serviceId);
     const updated = [...items];
     updated[index].serviceId = serviceId;
-    if (service) {
+    updated[index].serviceName = serviceName || (service ? service.name : "");
+    if (service && !updated[index].componentPrice) {
       // Sugere o preço padrão do serviço, permitindo negociação
       updated[index].componentPrice = String(service.defaultPrice);
     }
@@ -51,7 +54,7 @@ export default function NewComboPage() {
   };
 
   const addItem = () => {
-    setItems([...items, { serviceId: "", componentPrice: "" }]);
+    setItems([...items, { serviceId: "", serviceName: "", componentPrice: "" }]);
   };
 
   const removeItem = (index: number) => {
@@ -196,22 +199,28 @@ export default function NewComboPage() {
                 className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/80 grid grid-cols-1 sm:grid-cols-5 gap-3 text-xs items-end"
               >
                 <div className="sm:col-span-3">
-                  <label className="block text-[11px] font-medium text-zinc-600">
+                  <label className="block text-[11px] font-medium text-zinc-600 mb-1">
                     Serviço #{idx + 1} *
                   </label>
-                  <select
+                  <Autocomplete
+                    value={item.serviceName || ""}
+                    selectedId={item.serviceId}
+                    onChange={(val, opt) => {
+                      if (opt) {
+                        handleServiceChange(idx, opt.id, opt.label);
+                      } else {
+                        handleServiceChange(idx, "", val);
+                      }
+                    }}
+                    options={availableServices.map((svc) => ({
+                      id: svc.id,
+                      label: svc.name,
+                      sublabel: `Preço Tabela: R$ ${svc.defaultPrice.toFixed(2)}`,
+                    }))}
+                    placeholder="Digite para buscar serviço..."
+                    allowCustom={false}
                     required
-                    value={item.serviceId}
-                    onChange={(e) => handleServiceChange(idx, e.target.value)}
-                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white border border-zinc-200 text-zinc-900"
-                  >
-                    <option value="">Selecione um serviço do catálogo...</option>
-                    {availableServices.map((svc) => (
-                      <option key={svc.id} value={svc.id}>
-                        {svc.name} (Tabela: R$ {svc.defaultPrice.toFixed(2)})
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
 
                 <div>

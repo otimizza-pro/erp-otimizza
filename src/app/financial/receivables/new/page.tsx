@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { ArrowLeft, Save, AlertCircle, Info, Calendar, DollarSign, User } from "lucide-react";
+import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
 
 interface ClientOption {
   id: string;
@@ -29,6 +30,8 @@ export default function NewReceivablePage() {
 
   // Form fields
   const [clientId, setClientId] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [clientOptions, setClientOptions] = useState<AutocompleteOption[]>([]);
   const [contractId, setContractId] = useState("");
   const [description, setDescription] = useState("");
   const [competency, setCompetency] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
@@ -42,7 +45,14 @@ export default function NewReceivablePage() {
         const res = await fetch("/api/clients?limit=100");
         if (res.ok) {
           const json = await res.json();
-          setClients(json.clients || []);
+          const clientList: ClientOption[] = json.clients || [];
+          setClients(clientList);
+          const opts: AutocompleteOption[] = clientList.map((c) => ({
+            id: c.id,
+            label: c.name,
+            sublabel: c.document ? `Documento: ${c.document}` : null,
+          }));
+          setClientOptions(opts);
         }
       } catch (err) {
         console.error("Erro ao carregar clientes:", err);
@@ -52,6 +62,21 @@ export default function NewReceivablePage() {
     }
     loadData();
   }, []);
+
+  const fetchClients = async (q: string): Promise<AutocompleteOption[]> => {
+    try {
+      const res = await fetch(`/api/clients?search=${encodeURIComponent(q)}&limit=20`);
+      if (!res.ok) return [];
+      const json = await res.json();
+      return (json.clients || []).map((c: ClientOption) => ({
+        id: c.id,
+        label: c.name,
+        sublabel: c.document ? `Documento: ${c.document}` : null,
+      }));
+    } catch {
+      return [];
+    }
+  };
 
   // When client changes, optionally load active contracts
   useEffect(() => {
@@ -178,20 +203,20 @@ export default function NewReceivablePage() {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
                   Cliente <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  disabled={loadingInitial || saving}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                <Autocomplete
+                  value={clientName}
+                  selectedId={clientId}
+                  onChange={(val, opt) => {
+                    setClientName(val);
+                    setClientId(opt?.id || "");
+                  }}
+                  fetchOptions={fetchClients}
+                  options={clientOptions}
+                  placeholder="Digite nome, razão social ou CNPJ do cliente..."
                   required
-                >
-                  <option value="">Selecione o cliente...</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} {c.document ? `(${c.document})` : ""}
-                    </option>
-                  ))}
-                </select>
+                  allowCustom={false}
+                  disabled={loadingInitial || saving}
+                />
               </div>
 
               <div>

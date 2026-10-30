@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { ArrowLeft, Save, AlertCircle, Info, Calendar, DollarSign, Building2, Tag } from "lucide-react";
 import { FinancialCategoryRecord } from "@/modules/financial/types";
+import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
 
 interface ServiceOption {
   id: string;
@@ -28,7 +29,9 @@ export default function NewPayablePage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   // Form fields
+  const [supplierId, setSupplierId] = useState<string | null>(null);
   const [supplierName, setSupplierName] = useState("");
+  const [supplierOptions, setSupplierOptions] = useState<AutocompleteOption[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [contractId, setContractId] = useState("");
@@ -56,6 +59,18 @@ export default function NewPayablePage() {
           const jsonCont = await resCont.json();
           setContracts(jsonCont.contracts || []);
         }
+
+        const resSup = await fetch("/api/suppliers?status=ACTIVE&limit=100");
+        if (resSup.ok) {
+          const jsonSup = await resSup.json();
+          const opts: AutocompleteOption[] = (jsonSup.suppliers || []).map((s: { id: string; name: string; supplierCode: string; document?: string; category?: string; personType: string }) => ({
+            id: s.id,
+            label: s.name,
+            sublabel: `${s.supplierCode}${s.document ? ` • ${s.document}` : ""}${s.category ? ` • ${s.category}` : ""}`,
+            badge: s.personType,
+          }));
+          setSupplierOptions(opts);
+        }
       } catch (err) {
         console.error("Erro ao carregar dados auxiliares:", err);
       } finally {
@@ -64,6 +79,22 @@ export default function NewPayablePage() {
     }
     loadData();
   }, []);
+
+  const fetchSuppliers = async (q: string): Promise<AutocompleteOption[]> => {
+    try {
+      const res = await fetch(`/api/suppliers?search=${encodeURIComponent(q)}&status=ACTIVE&limit=20`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.suppliers || []).map((s: { id: string; name: string; supplierCode: string; document?: string; category?: string; personType: string }) => ({
+        id: s.id,
+        label: s.name,
+        sublabel: `${s.supplierCode}${s.document ? ` • ${s.document}` : ""}${s.category ? ` • ${s.category}` : ""}`,
+        badge: s.personType,
+      }));
+    } catch {
+      return [];
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,6 +128,7 @@ export default function NewPayablePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          supplierId: supplierId || undefined,
           supplierName: supplierName.trim(),
           categoryId: categoryId || undefined,
           serviceId: serviceId || undefined,
@@ -171,15 +203,23 @@ export default function NewPayablePage() {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
                   Fornecedor / Beneficiário <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
+                <Autocomplete
                   value={supplierName}
-                  onChange={(e) => setSupplierName(e.target.value)}
-                  placeholder="Ex: AWS Cloud, Aluguel Imobiliária, Consultor Externo"
-                  disabled={saving}
-                  className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  selectedId={supplierId}
+                  onChange={(val, opt) => {
+                    setSupplierName(val);
+                    setSupplierId(opt?.id || null);
+                  }}
+                  fetchOptions={fetchSuppliers}
+                  options={supplierOptions}
+                  placeholder="Digite para buscar fornecedor (nome, código ou CNPJ)..."
                   required
+                  disabled={saving}
+                  allowCustom={true}
                 />
+                <span className="text-[11px] text-slate-400 mt-1 block">
+                  Selecione um fornecedor cadastrado com autocomplete ou digite um novo beneficiário avulso.
+                </span>
               </div>
 
               <div>

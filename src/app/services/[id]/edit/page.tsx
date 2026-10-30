@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { ArrowLeft, Save, AlertCircle } from "lucide-react";
 import { ServiceCategory, BillingUnit } from "@/modules/catalog/types";
+import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
 
 export default function EditServicePage() {
   const params = useParams();
@@ -24,6 +25,9 @@ export default function EditServicePage() {
   const [defaultCost, setDefaultCost] = useState("");
   const [billingUnit, setBillingUnit] = useState<BillingUnit>("MES");
   const [status, setStatus] = useState<"ACTIVE" | "ARCHIVED">("ACTIVE");
+  const [defaultSupplierId, setDefaultSupplierId] = useState<string | null>(null);
+  const [defaultSupplierName, setDefaultSupplierName] = useState("");
+  const [defaultCostPeriodicity, setDefaultCostPeriodicity] = useState<"MONTHLY" | "ONE_TIME" | "YEARLY">("MONTHLY");
 
   useEffect(() => {
     Promise.all([
@@ -38,6 +42,9 @@ export default function EditServicePage() {
         setDefaultCost(String(serviceData.defaultCost || "0"));
         setBillingUnit(serviceData.billingUnit || "MES");
         setStatus(serviceData.status || "ACTIVE");
+        setDefaultSupplierId(serviceData.defaultSupplierId || null);
+        setDefaultSupplierName(serviceData.defaultSupplierName || "");
+        setDefaultCostPeriodicity(serviceData.defaultCostPeriodicity || "MONTHLY");
         setCategories(categoriesData || []);
       })
       .catch((e) => setError("Erro ao carregar dados do serviço"))
@@ -71,6 +78,8 @@ export default function EditServicePage() {
           defaultCost: costNum,
           billingUnit,
           status,
+          defaultSupplierId: defaultSupplierId || null,
+          defaultCostPeriodicity,
         }),
       });
 
@@ -85,6 +94,21 @@ export default function EditServicePage() {
       setError(err instanceof Error ? err.message : "Erro desconhecido.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const fetchSuppliers = async (q: string): Promise<AutocompleteOption[]> => {
+    try {
+      const res = await fetch(`/api/suppliers?search=${encodeURIComponent(q)}&status=ACTIVE&limit=20`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.suppliers || []).map((s: { id: string; name: string; supplierCode: string; document?: string }) => ({
+        id: s.id,
+        label: s.name,
+        sublabel: `${s.supplierCode}${s.document ? ` • ${s.document}` : ""}`,
+      }));
+    } catch {
+      return [];
     }
   };
 
@@ -224,6 +248,37 @@ export default function EditServicePage() {
                 onChange={(e) => setDefaultCost(e.target.value)}
                 className="mt-1 w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900 font-mono"
               />
+            </div>
+
+            <div>
+              <label className="block font-medium text-zinc-700">Fornecedor Padrão (Custo Vinculado)</label>
+              <Autocomplete
+                value={defaultSupplierName}
+                selectedId={defaultSupplierId}
+                onChange={(val, opt) => {
+                  setDefaultSupplierName(val);
+                  setDefaultSupplierId(opt?.id || null);
+                }}
+                fetchOptions={fetchSuppliers}
+                placeholder="Buscar fornecedor por nome, código ou CNPJ..."
+                allowCustom={false}
+              />
+              <span className="text-[10px] text-zinc-400 mt-0.5 block">
+                Fornecedor de referência herdado automaticamente em novas contratações.
+              </span>
+            </div>
+
+            <div>
+              <label className="block font-medium text-zinc-700">Periodicidade do Custo</label>
+              <select
+                value={defaultCostPeriodicity}
+                onChange={(e) => setDefaultCostPeriodicity(e.target.value as "MONTHLY" | "ONE_TIME" | "YEARLY")}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900 text-xs"
+              >
+                <option value="MONTHLY">Mensal (Custo Recorrente)</option>
+                <option value="ONE_TIME">Pontual / Único</option>
+                <option value="YEARLY">Anual</option>
+              </select>
             </div>
 
             <div className="md:col-span-2">

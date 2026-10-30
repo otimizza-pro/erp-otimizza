@@ -16,6 +16,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { ContractBillingPeriod, ContractItemInput } from "@/modules/contracts/types";
+import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
 
 interface ClientOption {
   id: string;
@@ -56,6 +57,8 @@ export default function NewContractPage() {
 
   // Formulário do contrato
   const [clientId, setClientId] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [clientOptions, setClientOptions] = useState<AutocompleteOption[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [billingPeriod, setBillingPeriod] = useState<ContractBillingPeriod>("MONTHLY");
@@ -78,7 +81,14 @@ export default function NewContractPage() {
         ]);
         if (cRes.ok) {
           const cData = await cRes.json();
-          setClients(cData.clients || []);
+          const list: ClientOption[] = cData.clients || [];
+          setClients(list);
+          const opts: AutocompleteOption[] = list.map((c) => ({
+            id: c.id,
+            label: c.name,
+            sublabel: c.tradeName ? `Fantasia: ${c.tradeName}` : null,
+          }));
+          setClientOptions(opts);
         }
         if (sRes.ok) {
           const sData = await sRes.json();
@@ -277,19 +287,19 @@ export default function NewContractPage() {
                 <label className="block text-xs font-medium text-zinc-700 mb-1">
                   Cliente Contratante *
                 </label>
-                <select
-                  value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900"
+                <Autocomplete
+                  value={clientName}
+                  selectedId={clientId}
+                  onChange={(val, opt) => {
+                    setClientName(val);
+                    setClientId(opt?.id || "");
+                  }}
+                  options={clientOptions}
+                  placeholder="Digite para buscar cliente..."
                   required
-                >
-                  <option value="">Selecione um cliente ativo...</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} {c.tradeName ? `(${c.tradeName})` : ""}
-                    </option>
-                  ))}
-                </select>
+                  allowCustom={false}
+                  disabled={loadingInitial || saving}
+                />
               </div>
 
               <div>

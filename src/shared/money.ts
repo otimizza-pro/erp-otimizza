@@ -38,6 +38,39 @@ export function formatBRL(cents: number): string {
 }
 
 /**
+ * Formata um valor numérico em reais (ex: 1500.50 -> "R$ 1.500,50")
+ */
+export function formatMoney(amount: number | string | null | undefined): string {
+  if (amount === null || amount === undefined || amount === "") return "R$ 0,00";
+  const num = typeof amount === "number" ? amount : parseMoney(amount);
+  if (isNaN(num)) return "R$ 0,00";
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(num);
+}
+
+/**
+ * Converte qualquer representação em string/número para float limpo
+ */
+export function parseMoney(val: string | number | null | undefined): number {
+  if (val === null || val === undefined) return 0;
+  if (typeof val === "number") return isNaN(val) ? 0 : val;
+  const str = String(val).trim();
+  if (!str) return 0;
+  const cleaned = str.replace(/[^\d.,-]/g, "");
+  if (!cleaned) return 0;
+  let normalized: string;
+  if (cleaned.includes(",")) {
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else {
+    normalized = cleaned;
+  }
+  const parsed = parseFloat(normalized);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
+/**
  * Divide um valor total em N parcelas exatas em centavos.
  * Eventuais centavos residuais gerados pela divisão não-exata são distribuídos
  * deterministicamente na primeira parcela, garantindo que a soma seja 100% idêntica ao total.

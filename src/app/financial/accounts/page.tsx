@@ -12,6 +12,8 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { FinancialAccountRecord, AccountType } from "@/modules/financial/types";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { formatMoney } from "@/shared/money";
 
 export default function FinancialAccountsPage() {
   const [accounts, setAccounts] = useState<FinancialAccountRecord[]>([]);
@@ -273,13 +275,12 @@ export default function FinancialAccountsPage() {
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-zinc-700 mb-1">Saldo Inicial (R$)</label>
-                  <input
-                    type="number"
-                    step={0.01}
+                  <label className="block font-semibold text-zinc-700 mb-1">Saldo Inicial</label>
+                  <CurrencyInput
                     value={initialBalance}
-                    onChange={(e) => setInitialBalance(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg font-bold"
+                    onChangeValue={(val) => setInitialBalance(val)}
+                    placeholder="0,00"
+                    className="w-full py-2 bg-zinc-50 border border-zinc-200 rounded-lg font-bold"
                   />
                 </div>
               </div>
@@ -322,7 +323,7 @@ export default function FinancialAccountsPage() {
                   >
                     {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.name} (R$ {a.currentBalance.toFixed(2)})
+                        {a.name} ({formatMoney(a.currentBalance)})
                       </option>
                     ))}
                   </select>
@@ -346,14 +347,12 @@ export default function FinancialAccountsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-zinc-700 mb-1">Valor da Transferência (R$) *</label>
-                  <input
-                    type="number"
-                    step={0.01}
-                    min={0.01}
+                  <label className="block font-semibold text-zinc-700 mb-1">Valor da Transferência *</label>
+                  <CurrencyInput
                     value={transferAmount}
-                    onChange={(e) => setTransferAmount(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg font-bold"
+                    onChangeValue={(val) => setTransferAmount(val)}
+                    placeholder="0,00"
+                    className="w-full py-2 bg-zinc-50 border border-zinc-200 rounded-lg font-bold"
                     required
                   />
                 </div>

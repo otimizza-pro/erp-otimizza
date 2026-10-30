@@ -24,6 +24,7 @@ import {
   RecurrenceProjection,
   ContractItemInput,
 } from "@/modules/contracts/types";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 export default function ContractDetailsPage() {
   const params = useParams();
@@ -731,31 +732,25 @@ export default function ContractDetailsPage() {
                             />
                           </td>
                           <td className="p-2.5">
-                            <input
-                              type="number"
-                              step={0.01}
-                              min={0}
+                            <CurrencyInput
                               value={it.unitPrice}
-                              onChange={(e) => {
+                              onChangeValue={(val) => {
                                 const copy = [...newVerItems];
-                                copy[idx].unitPrice = Number(e.target.value);
+                                copy[idx].unitPrice = val;
                                 setNewVerItems(copy);
                               }}
-                              className="w-28 px-2 py-1 bg-zinc-50 border rounded text-xs font-semibold"
+                              className="w-28 py-1 bg-zinc-50 border rounded text-xs font-semibold focus:bg-white"
                             />
                           </td>
                           <td className="p-2.5">
-                            <input
-                              type="number"
-                              step={0.01}
-                              min={0}
+                            <CurrencyInput
                               value={it.unitCost}
-                              onChange={(e) => {
+                              onChangeValue={(val) => {
                                 const copy = [...newVerItems];
-                                copy[idx].unitCost = Number(e.target.value);
+                                copy[idx].unitCost = val;
                                 setNewVerItems(copy);
                               }}
-                              className="w-28 px-2 py-1 bg-zinc-50 border rounded text-xs text-zinc-600"
+                              className="w-28 py-1 bg-zinc-50 border rounded text-xs text-zinc-600 focus:bg-white"
                             />
                           </td>
                         </tr>

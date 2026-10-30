@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ArrowLeft, Save, AlertCircle, Info, Calendar, DollarSign, Building2, Tag } from "lucide-react";
 import { FinancialCategoryRecord } from "@/modules/financial/types";
 import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface ServiceOption {
   id: string;
@@ -301,17 +302,14 @@ export default function NewPayablePage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                  Valor a Pagar (R$) <span className="text-red-500">*</span>
+                  Valor a Pagar <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
+                <CurrencyInput
                   value={originalAmount}
-                  onChange={(e) => setOriginalAmount(e.target.value)}
+                  onChangeValue={(val) => setOriginalAmount(val)}
                   placeholder="0,00"
                   disabled={saving}
-                  className="w-full px-3.5 py-2.5 text-sm font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full py-2.5 text-sm font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   required
                 />
               </div>

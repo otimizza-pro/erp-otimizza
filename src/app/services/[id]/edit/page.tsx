@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { ArrowLeft, Save, AlertCircle } from "lucide-react";
 import { ServiceCategory, BillingUnit } from "@/modules/catalog/types";
 import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 export default function EditServicePage() {
   const params = useParams();
@@ -229,24 +230,24 @@ export default function EditServicePage() {
             </div>
 
             <div>
-              <label className="block font-medium text-zinc-700">Preço Padrão de Venda (R$) *</label>
-              <input
-                type="text"
+              <label className="block font-medium text-zinc-700">Preço Padrão de Venda *</label>
+              <CurrencyInput
                 required
                 value={defaultPrice}
-                onChange={(e) => setDefaultPrice(e.target.value)}
-                className="mt-1 w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900 font-mono"
+                onChangeValue={(val) => setDefaultPrice(String(val))}
+                placeholder="0,00"
+                className="mt-1 w-full py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900 font-mono"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-zinc-700">Custo Padrão Estimado (R$) *</label>
-              <input
-                type="text"
+              <label className="block font-medium text-zinc-700">Custo Padrão Estimado *</label>
+              <CurrencyInput
                 required
                 value={defaultCost}
-                onChange={(e) => setDefaultCost(e.target.value)}
-                className="mt-1 w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900 font-mono"
+                onChangeValue={(val) => setDefaultCost(String(val))}
+                placeholder="0,00"
+                className="mt-1 w-full py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900 font-mono"
               />
             </div>
 

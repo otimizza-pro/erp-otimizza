@@ -16,6 +16,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { ReceivableRecord, FinancialStatus } from "@/modules/financial/types";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { formatMoney } from "@/shared/money";
 
 export default function ReceivablesListPage() {
   const [receivables, setReceivables] = useState<ReceivableRecord[]>([]);
@@ -446,18 +448,15 @@ export default function ReceivablesListPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-zinc-700 mb-1">Valor do Recebimento (R$) *</label>
-                  <input
-                    type="number"
-                    step={0.01}
-                    min={0.01}
-                    max={selectedReceivable.balanceAmount}
+                  <label className="block font-semibold text-zinc-700 mb-1">Valor do Recebimento *</label>
+                  <CurrencyInput
                     value={settleAmount}
-                    onChange={(e) => setSettleAmount(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg font-bold"
+                    onChangeValue={(val) => setSettleAmount(val)}
+                    placeholder="0,00"
+                    className="w-full py-2 bg-zinc-50 border border-zinc-200 rounded-lg font-bold"
                     required
                   />
-                  <span className="text-[10px] text-zinc-400">Saldo: R$ {selectedReceivable.balanceAmount.toFixed(2)}</span>
+                  <span className="text-[10px] text-zinc-400">Saldo: {formatMoney(selectedReceivable.balanceAmount)}</span>
                 </div>
 
                 <div>

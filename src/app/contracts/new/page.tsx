@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { ContractBillingPeriod, ContractItemInput } from "@/modules/contracts/types";
 import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
+import { CurrencyInput } from "@/components/ui/currency-input";
+import { formatMoney } from "@/shared/money";
 
 interface ClientOption {
   id: string;
@@ -456,7 +458,7 @@ export default function NewContractPage() {
                   </option>
                   {services.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} (R$ {s.defaultPrice.toFixed(2)})
+                      {s.name} ({formatMoney(s.defaultPrice)})
                     </option>
                   ))}
                 </select>
@@ -476,7 +478,7 @@ export default function NewContractPage() {
                   </option>
                   {combos.map((cb) => (
                     <option key={cb.id} value={cb.id}>
-                      {cb.name} (Total: R$ {cb.totalPrice.toFixed(2)})
+                      {cb.name} (Total: {formatMoney(cb.totalPrice)})
                     </option>
                   ))}
                 </select>
@@ -497,8 +499,8 @@ export default function NewContractPage() {
                     <tr>
                       <th className="px-4 py-2.5">Serviço / Origem</th>
                       <th className="px-4 py-2.5 w-24">Qtd</th>
-                      <th className="px-4 py-2.5 w-36">Preço Negociado (R$)</th>
-                      <th className="px-4 py-2.5 w-36">Custo Específico (R$)</th>
+                      <th className="px-4 py-2.5 w-36">Preço Negociado</th>
+                      <th className="px-4 py-2.5 w-36">Custo Específico</th>
                       <th className="px-4 py-2.5 w-32 text-right">Subtotal</th>
                       <th className="px-4 py-2.5 w-12 text-center">Excluir</th>
                     </tr>
@@ -532,35 +534,25 @@ export default function NewContractPage() {
                             onChange={(e) =>
                               handleUpdateItem(idx, "quantity", Number(e.target.value))
                             }
-                            className="w-16 px-2 py-1 bg-zinc-50 border border-zinc-200 rounded text-xs"
+                            className="w-16 px-2 py-1 bg-zinc-50 border border-zinc-200 rounded text-xs focus:bg-white"
                           />
                         </td>
                         <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            min={0}
-                            step={0.01}
+                          <CurrencyInput
                             value={it.unitPrice}
-                            onChange={(e) =>
-                              handleUpdateItem(idx, "unitPrice", Number(e.target.value))
-                            }
-                            className="w-28 px-2 py-1 bg-zinc-50 border border-zinc-200 rounded text-xs font-semibold"
+                            onChangeValue={(val) => handleUpdateItem(idx, "unitPrice", val)}
+                            className="w-28 py-1 bg-zinc-50 border border-zinc-200 rounded text-xs font-semibold focus:bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900"
                           />
                         </td>
                         <td className="px-4 py-3">
-                          <input
-                            type="number"
-                            min={0}
-                            step={0.01}
+                          <CurrencyInput
                             value={it.unitCost}
-                            onChange={(e) =>
-                              handleUpdateItem(idx, "unitCost", Number(e.target.value))
-                            }
-                            className="w-28 px-2 py-1 bg-zinc-50 border border-zinc-200 rounded text-xs text-zinc-600"
+                            onChangeValue={(val) => handleUpdateItem(idx, "unitCost", val)}
+                            className="w-28 py-1 bg-zinc-50 border border-zinc-200 rounded text-xs text-zinc-600 focus:bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900"
                           />
                         </td>
                         <td className="px-4 py-3 text-right font-semibold text-zinc-900">
-                          R$ {((it.quantity || 1) * (it.unitPrice || 0)).toFixed(2)}
+                          {formatMoney((it.quantity || 1) * (it.unitPrice || 0))}
                         </td>
                         <td className="px-4 py-3 text-center">
                           <button
@@ -583,7 +575,7 @@ export default function NewContractPage() {
               <div className="text-xs text-zinc-500">
                 <span>Custo Total Operacional Estimado: </span>
                 <span className="font-semibold text-zinc-700">
-                  R$ {totalCost.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  {formatMoney(totalCost)}
                 </span>
               </div>
               <div className="text-right">
@@ -591,7 +583,7 @@ export default function NewContractPage() {
                   Valor Contratado Total (Soma dos Itens)
                 </span>
                 <span className="text-xl font-bold text-zinc-950">
-                  R$ {totalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  {formatMoney(totalAmount)}
                 </span>
               </div>
             </div>

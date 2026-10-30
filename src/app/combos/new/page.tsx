@@ -8,6 +8,7 @@ import { ArrowLeft, Save, Plus, Trash2, AlertCircle } from "lucide-react";
 import { ServiceItem } from "@/modules/catalog/types";
 import { Autocomplete } from "@/components/ui/autocomplete";
 import { formatBRL } from "@/shared/money";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 interface ComboItemForm {
   serviceId: string;
@@ -225,15 +226,14 @@ export default function NewComboPage() {
 
                 <div>
                   <label className="block text-[11px] font-medium text-zinc-600">
-                    Preço Atribuído (R$) *
+                    Preço Atribuído *
                   </label>
-                  <input
-                    type="text"
+                  <CurrencyInput
                     required
                     value={item.componentPrice}
-                    onChange={(e) => handlePriceChange(idx, e.target.value)}
+                    onChangeValue={(val) => handlePriceChange(idx, String(val))}
                     placeholder="0,00"
-                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white border border-zinc-200 text-zinc-900 font-mono"
+                    className="mt-1 w-full py-2 rounded-lg bg-white border border-zinc-200 text-zinc-900 font-mono"
                   />
                 </div>
 

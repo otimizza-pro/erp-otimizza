@@ -19,6 +19,7 @@ import {
   Building2,
 } from "lucide-react";
 import { ReceivableRecord, FinancialAccountRecord } from "@/modules/financial/types";
+import { CurrencyInput } from "@/components/ui/currency-input";
 
 export default function ReceivableDetailPage({
   params,
@@ -496,16 +497,13 @@ export default function ReceivableDetailPage({
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Valor Recebido (R$)
+                    Valor Recebido
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    max={receivable.balanceAmount}
+                  <CurrencyInput
                     value={settleAmount}
-                    onChange={(e) => setSettleAmount(e.target.value)}
-                    className="w-full px-3 py-2 font-bold border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 text-emerald-700"
+                    onChangeValue={(val) => setSettleAmount(String(val))}
+                    placeholder="0,00"
+                    className="w-full py-2 font-bold border border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 text-emerald-700"
                     required
                   />
                 </div>

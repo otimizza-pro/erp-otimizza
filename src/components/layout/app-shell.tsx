@@ -19,11 +19,29 @@ import {
   DollarSign,
   BarChart3,
   Truck,
+  TrendingUp,
 } from "lucide-react";
 
 interface AppShellProps {
   children: React.ReactNode;
-  activeSection?: "dashboard" | "clients" | "suppliers" | "catalog" | "combos" | "contracts" | "receivables" | "payables" | "accounts" | "cashflow" | "reports" | "settings";
+  activeSection?:
+    | "dashboard"
+    | "crm"
+    | "crm_leads"
+    | "crm_pipelines"
+    | "crm_opportunities"
+    | "crm_activities"
+    | "clients"
+    | "contracts"
+    | "suppliers"
+    | "catalog"
+    | "combos"
+    | "receivables"
+    | "payables"
+    | "accounts"
+    | "cashflow"
+    | "reports"
+    | "settings";
 }
 
 export function AppShell({ children, activeSection = "dashboard" }: AppShellProps) {
@@ -33,7 +51,11 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
 
   const currentSection = React.useMemo(() => {
     if (pathname) {
-      if (pathname.startsWith("/reports")) return "reports";
+      if (pathname.startsWith("/crm/leads")) return "crm_leads";
+      if (pathname.startsWith("/crm/pipelines")) return "crm_pipelines";
+      if (pathname.startsWith("/crm/opportunities")) return "crm_opportunities";
+      if (pathname.startsWith("/crm/activities")) return "crm_activities";
+      if (pathname === "/crm" || pathname.startsWith("/crm/")) return "crm";
       if (pathname.startsWith("/clients")) return "clients";
       if (pathname.startsWith("/suppliers")) return "suppliers";
       if (pathname.startsWith("/contracts")) return "contracts";
@@ -43,6 +65,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
       if (pathname.startsWith("/financial/accounts")) return "accounts";
       if (pathname.startsWith("/services")) return "catalog";
       if (pathname.startsWith("/combos")) return "combos";
+      if (pathname.startsWith("/reports")) return "reports";
       if (pathname.startsWith("/settings")) return "settings";
       if (pathname === "/") return "dashboard";
     }
@@ -65,19 +88,54 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
     }
   };
 
-  const navItems = [
-    { id: "dashboard", label: "Visão Geral", href: "/", icon: LayoutDashboard },
-    { id: "clients", label: "Clientes", href: "/clients", icon: Users },
-    { id: "suppliers", label: "Fornecedores", href: "/suppliers", icon: Truck },
-    { id: "contracts", label: "Contratações", href: "/contracts", icon: RefreshCw },
-    { id: "receivables", label: "Contas a Receber", href: "/financial/receivables", icon: DollarSign },
-    { id: "payables", label: "Contas a Pagar", href: "/financial/payables", icon: Layers },
-    { id: "cashflow", label: "Fluxo de Caixa", href: "/financial/cashflow", icon: Database },
-    { id: "reports", label: "Relatórios & BI", href: "/reports", icon: BarChart3 },
-    { id: "accounts", label: "Contas & Bancos", href: "/financial/accounts", icon: ShieldCheck },
-    { id: "catalog", label: "Catálogo de Serviços", href: "/services", icon: Package },
-    { id: "combos", label: "Combos Comerciais", href: "/combos", icon: Layers },
-    { id: "settings", label: "Configurações", href: "/settings", icon: Settings },
+  const navGroups = [
+    {
+      group: "Visão Geral",
+      items: [
+        { id: "dashboard", label: "Dashboard Executivo", href: "/", icon: LayoutDashboard },
+      ],
+    },
+    {
+      group: "Comercial & CRM",
+      items: [
+        { id: "crm", label: "Painel do CRM", href: "/crm", icon: TrendingUp },
+        { id: "crm_pipelines", label: "Funis & Kanban", href: "/crm/pipelines", icon: Layers },
+        { id: "crm_leads", label: "Leads", href: "/crm/leads", icon: Users },
+        { id: "crm_opportunities", label: "Oportunidades", href: "/crm/opportunities", icon: RefreshCw },
+        { id: "crm_activities", label: "Atividades & Agenda", href: "/crm/activities", icon: ShieldCheck },
+        { id: "clients", label: "Clientes", href: "/clients", icon: Users },
+        { id: "contracts", label: "Contratações", href: "/contracts", icon: RefreshCw },
+      ],
+    },
+    {
+      group: "Catálogo",
+      items: [
+        { id: "catalog", label: "Serviços", href: "/services", icon: Package },
+        { id: "combos", label: "Combos Comerciais", href: "/combos", icon: Layers },
+      ],
+    },
+    {
+      group: "Financeiro",
+      items: [
+        { id: "receivables", label: "Contas a Receber", href: "/financial/receivables", icon: DollarSign },
+        { id: "payables", label: "Contas a Pagar", href: "/financial/payables", icon: Layers },
+        { id: "cashflow", label: "Fluxo de Caixa", href: "/financial/cashflow", icon: Database },
+        { id: "accounts", label: "Contas & Bancos", href: "/financial/accounts", icon: ShieldCheck },
+        { id: "suppliers", label: "Fornecedores", href: "/suppliers", icon: Truck },
+      ],
+    },
+    {
+      group: "Dados & BI",
+      items: [
+        { id: "reports", label: "Relatórios & BI", href: "/reports", icon: BarChart3 },
+      ],
+    },
+    {
+      group: "Configurações",
+      items: [
+        { id: "settings", label: "Configurações", href: "/settings", icon: Settings },
+      ],
+    },
   ];
 
   return (
@@ -115,32 +173,36 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
             </button>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
-            <div className="px-3 py-2 text-[10px] font-semibold tracking-wider uppercase text-zinc-400">
-              Módulos do Sistema
-            </div>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentSection === item.id;
-              return (
-                <Link
-                  key={item.id}
-                  href={item.href}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all duration-150 ${
-                    isActive
-                      ? "bg-zinc-900 text-white shadow-xs font-semibold"
-                      : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/80"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-zinc-500"}`} />
-                    <span>{item.label}</span>
-                  </div>
-                  {isActive && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
-                </Link>
-              );
-            })}
+          {/* Navigation Links agrupados */}
+          <nav className="p-3 space-y-4 flex-1 overflow-y-auto">
+            {navGroups.map((group) => (
+              <div key={group.group} className="space-y-1">
+                <div className="px-3 py-1 text-[10px] font-bold tracking-wider uppercase text-zinc-400">
+                  {group.group}
+                </div>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentSection === item.id;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.href}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all duration-150 ${
+                        isActive
+                          ? "bg-zinc-900 text-white shadow-xs font-semibold"
+                          : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/80"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon className={`w-4 h-4 ${isActive ? "text-white" : "text-zinc-500"}`} />
+                        <span>{item.label}</span>
+                      </div>
+                      {isActive && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
 
           {/* Footer Info */}

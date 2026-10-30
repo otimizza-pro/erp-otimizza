@@ -13,8 +13,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sistema ERP Comercial e Financeiro",
-  description: "ERP web modular, confiável, seguro e escalável de gestão comercial e financeira.",
+  title: {
+    default: "Otimizza ERP | Gestão Financeira & Comercial",
+    template: "%s | Otimizza ERP",
+  },
+  description: "Plataforma empresarial integrada de gestão financeira, contratos recorrentes e BI da Otimizza.",
+  icons: {
+    icon: [
+      { url: "/brand/favicon-512.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/favicon-512.png", sizes: "192x192", type: "image/png" },
+      { url: "/brand/favicon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/brand/avatar-escuro.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
 };
 
 export default function RootLayout({

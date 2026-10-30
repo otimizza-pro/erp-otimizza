@@ -38,9 +38,9 @@ describe("Fase 2: Integração com Banco PostgreSQL (Contratos, Versões e Hist�
       }
       if (clientId) {
         // Excluir qualquer contrato residual do cliente de teste
-        const cRes = await query("SELECT id FROM contracts WHERE client_id = $1", [clientId]);
+        const cRes = await query<{ id: string }>("SELECT id FROM contracts WHERE client_id = $1", [clientId]);
         if (cRes.rowCount && cRes.rowCount > 0) {
-          const cIds = cRes.rows.map((r: { id: string }) => r.id);
+          const cIds = cRes.rows.map((r) => r.id);
           await query("DELETE FROM contract_items WHERE contract_version_id IN (SELECT id FROM contract_versions WHERE contract_id = ANY($1::uuid[]))", [cIds]);
           await query("DELETE FROM contract_versions WHERE contract_id = ANY($1::uuid[])", [cIds]);
           await query("DELETE FROM contracts WHERE id = ANY($1::uuid[])", [cIds]);

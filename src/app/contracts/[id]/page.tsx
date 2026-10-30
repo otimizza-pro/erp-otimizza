@@ -522,18 +522,18 @@ export default function ContractDetailsPage() {
           </div>
         )}
 
-        {/* TAB 3: Projeção de Recorrências (Preparação para Fase 3) */}
+        {/* TAB 3: Projeção de Recorrências e Faturamento Programado */}
         {activeTab === "projections" && (
           <div className="bg-white p-6 rounded-xl border border-zinc-200/80 shadow-xs space-y-4">
             <div className="border-b border-zinc-100 pb-3">
-              <span className="text-[10px] font-mono text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                Regras de Recorrência • Preparação para Fase 3
+              <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Motor de Recorrência • Faturamento Programado
               </span>
               <h2 className="text-base font-semibold text-zinc-900 mt-2">
                 Previsão de Competências Futuras
               </h2>
               <p className="text-xs text-zinc-500 mt-1">
-                Demonstração das competências, datas de vencimento ajustadas e chaves canônicas de idempotência que alimentarão o motor financeiro na Fase 3.
+                Demonstração das competências, datas de vencimento ajustadas e chaves canônicas de idempotência que alimentam o Contas a Receber.
               </p>
             </div>
 
@@ -575,7 +575,7 @@ export default function ContractDetailsPage() {
                           </span>
                         ) : (
                           <span className="text-[10px] text-emerald-700 font-medium">
-                            Aguardando Fase 3
+                            Programado / Ativo
                           </span>
                         )}
                       </td>

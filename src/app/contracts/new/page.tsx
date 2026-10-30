@@ -247,7 +247,7 @@ export default function NewContractPage() {
         {/* Title */}
         <div className="border-b border-zinc-200 pb-4">
           <span className="text-xs font-mono font-medium text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-            Fase 2 • Formalização de Contrato
+            Contratos • Formalização de Contrato
           </span>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 mt-2">
             Nova Contratação de Serviços

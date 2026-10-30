@@ -112,7 +112,7 @@ export default function ContractsListPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-medium text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Fase 2 • Vigências & Recorrência
+                Contratos • Vigências & Recorrência
               </span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 mt-2">

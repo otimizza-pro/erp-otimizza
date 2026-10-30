@@ -284,14 +284,11 @@ export default function ClientDetailsPage() {
           )}
         </div>
 
-        {/* Contratações do Cliente (Fase 2) */}
+        {/* Contratações do Cliente */}
         <div className="p-6 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline space-y-4">
           <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-medium text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  Fase 2
-                </span>
                 <h2 className="text-sm font-semibold text-zinc-900">Contratações & Recorrências</h2>
               </div>
               <p className="text-xs text-zinc-500 mt-0.5">

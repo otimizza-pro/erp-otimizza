@@ -200,7 +200,7 @@ export default function ReceivablesListPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-6">
           <div>
             <span className="text-xs font-mono font-medium text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              Fase 3 • Contas a Receber
+              Financeiro • Contas a Receber
             </span>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 mt-2">
               Gestão de Recebimentos

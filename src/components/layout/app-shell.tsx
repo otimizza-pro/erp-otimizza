@@ -79,7 +79,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
           {/* Navigation Links */}
           <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
             <div className="px-3 py-2 text-[10px] font-semibold tracking-wider uppercase text-zinc-400">
-              Módulos Ativos (Fase 1)
+              Módulos do Sistema
             </div>
             {navItems.map((item) => {
               const Icon = item.icon;

@@ -16,6 +16,9 @@ import {
   getServiceProfitabilityReport,
   getClientProfitabilityReport,
   getReceivablesDefaultReport,
+  getPayablesReport,
+  getCashflowComparisonReport,
+  getMrrEvolutionReport,
   saveDashboardPreferences,
   getDashboardPreferences,
 } from "@/modules/analytics/service";
@@ -169,12 +172,16 @@ describe("Fase 4: Integração de Dashboard Executivo, BI e Indicadores", () => 
       visibleWidgets: ["kpis_summary", "financial_evolution_chart"],
       widgetOrder: ["financial_evolution_chart", "kpis_summary"],
       collapsedWidgets: ["kpis_summary"],
+      widgetSizes: {
+        top_services_profitability: "full" as const,
+      },
     };
 
     await saveDashboardPreferences(testUserId, customPrefs);
     const loaded = await getDashboardPreferences(testUserId);
     expect(loaded.visibleWidgets).toEqual(["kpis_summary", "financial_evolution_chart"]);
     expect(loaded.widgetOrder).toEqual(["financial_evolution_chart", "kpis_summary"]);
+    expect(loaded.widgetSizes?.top_services_profitability).toBe("full");
   });
 
   it("relatório de inadimplência lista títulos vencidos com dias de atraso calculados", async () => {
@@ -184,5 +191,21 @@ describe("Fase 4: Integração de Dashboard Executivo, BI e Indicadores", () => 
     expect(item).toBeDefined();
     expect(item?.balanceAmount).toBe(400.0);
     expect(item?.daysOverdue).toBeGreaterThan(0);
+  });
+
+  it("relatório de fluxo de caixa previsto vs realizado calcula variações mensais", async () => {
+    const report = await getCashflowComparisonReport(3);
+    expect(report.length).toBe(3);
+    expect(report[0]).toHaveProperty("projectedInflow");
+    expect(report[0]).toHaveProperty("realizedInflow");
+    expect(report[0]).toHaveProperty("netVariance");
+  });
+
+  it("relatório de evolução de MRR calcula métricas de crescimento e churn", async () => {
+    const report = await getMrrEvolutionReport(3);
+    expect(report.length).toBe(3);
+    expect(report[0]).toHaveProperty("mrr");
+    expect(report[0]).toHaveProperty("activeContractsCount");
+    expect(report[0]).toHaveProperty("newContractsCount");
   });
 });

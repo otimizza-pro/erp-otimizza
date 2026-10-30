@@ -64,12 +64,13 @@ export default function ExecutiveDashboardPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  // Filtros Globais
+  // Filtros Globais e Comparações Históricas
   const [startDate, setStartDate] = useState(
     new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
   );
   const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10));
   const [presetPeriod, setPresetPeriod] = useState<"MONTH" | "QUARTER" | "YEAR" | "CUSTOM">("MONTH");
+  const [comparisonType, setComparisonType] = useState<"PREVIOUS_PERIOD" | "SAME_PERIOD_LAST_YEAR">("PREVIOUS_PERIOD");
 
   // Modal de Personalização de Widgets
   const [customizingWidgets, setCustomizingWidgets] = useState(false);
@@ -79,7 +80,7 @@ export default function ExecutiveDashboardPage() {
     setErrorMsg("");
     try {
       const [resKpis, resEvol, resServ, resCli, resPref] = await Promise.all([
-        fetch(`/api/analytics/overview?type=kpis&startDate=${startDate}&endDate=${endDate}`),
+        fetch(`/api/analytics/overview?type=kpis&startDate=${startDate}&endDate=${endDate}&comparisonType=${comparisonType}`),
         fetch(`/api/analytics/overview?type=evolution&months=6`),
         fetch(`/api/analytics/overview?type=services_profitability`),
         fetch(`/api/analytics/overview?type=clients_profitability`),
@@ -105,7 +106,7 @@ export default function ExecutiveDashboardPage() {
 
   useEffect(() => {
     loadDashboardData();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, comparisonType]);
 
   const handleApplyPreset = (preset: "MONTH" | "QUARTER" | "YEAR") => {
     setPresetPeriod(preset);
@@ -140,6 +141,30 @@ export default function ExecutiveDashboardPage() {
       });
     } catch (e) {
       console.error("Falha ao salvar preferência no banco:", e);
+    }
+  };
+
+  const handleToggleWidgetSize = async (widgetId: string) => {
+    const currentSizes = preferences.widgetSizes || {};
+    const currentSize = currentSizes[widgetId] || "half";
+    const newSize: "full" | "half" = currentSize === "half" ? "full" : "half";
+    const updated: DashboardLayoutPreferences = {
+      ...preferences,
+      widgetSizes: {
+        ...currentSizes,
+        [widgetId]: newSize,
+      },
+    };
+    setPreferences(updated);
+
+    try {
+      await fetch("/api/analytics/overview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save_preferences", preferences: updated }),
+      });
+    } catch (e) {
+      console.error("Falha ao salvar tamanho no banco:", e);
     }
   };
 
@@ -217,11 +242,29 @@ export default function ExecutiveDashboardPage() {
               />
             </div>
 
+            {/* Comparação Histórica */}
+            <div className="inline-flex bg-zinc-100 p-1 rounded-xl border border-zinc-200/80 text-xs font-semibold">
+              <button
+                onClick={() => setComparisonType("PREVIOUS_PERIOD")}
+                className={`px-2.5 py-1.5 rounded-lg transition ${comparisonType === "PREVIOUS_PERIOD" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-600 hover:text-zinc-900"}`}
+                title="Comparar com o período imediatamente anterior de mesma duração"
+              >
+                vs. Período Anterior
+              </button>
+              <button
+                onClick={() => setComparisonType("SAME_PERIOD_LAST_YEAR")}
+                className={`px-2.5 py-1.5 rounded-lg transition ${comparisonType === "SAME_PERIOD_LAST_YEAR" ? "bg-white text-zinc-900 shadow-xs" : "text-zinc-600 hover:text-zinc-900"}`}
+                title="Comparar com as mesmas datas do ano anterior"
+              >
+                vs. Ano Anterior
+              </button>
+            </div>
+
             {/* Botão Personalizar Widgets */}
             <button
               onClick={() => setCustomizingWidgets(!customizingWidgets)}
               className="px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 flex items-center gap-1.5 transition"
-              title="Personalizar quais cards e gráficos exibir no dashboard"
+              title="Personalizar quais cards e gráficos exibir e redimensionar no dashboard"
             >
               <SlidersHorizontal className="w-3.5 h-3.5" />
               Personalizar Layout
@@ -253,7 +296,7 @@ export default function ExecutiveDashboardPage() {
                 Fechar
               </button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
               {[
                 { id: "kpis_summary", label: "Cards de KPIs Financeiros" },
                 { id: "financial_evolution_chart", label: "Evolução Mensal (Receita x Despesa)" },
@@ -262,17 +305,33 @@ export default function ExecutiveDashboardPage() {
                 { id: "revenue_composition", label: "Composição de Resultados" },
                 { id: "top_services_profitability", label: "Rentabilidade por Serviço" },
                 { id: "top_clients_ranking", label: "Ranking de Clientes" },
-              ].map((w) => (
-                <label key={w.id} className="flex items-center gap-2 cursor-pointer text-zinc-700">
-                  <input
-                    type="checkbox"
-                    checked={preferences.visibleWidgets.includes(w.id)}
-                    onChange={() => handleToggleWidget(w.id)}
-                    className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-                  />
-                  <span>{w.label}</span>
-                </label>
-              ))}
+              ].map((w) => {
+                const isFull = preferences.widgetSizes?.[w.id] === "full";
+                return (
+                  <div key={w.id} className="flex items-center justify-between p-2.5 bg-zinc-50 border border-zinc-200/60 rounded-xl">
+                    <label className="flex items-center gap-2 cursor-pointer text-zinc-700">
+                      <input
+                        type="checkbox"
+                        checked={preferences.visibleWidgets.includes(w.id)}
+                        onChange={() => handleToggleWidget(w.id)}
+                        className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="font-medium">{w.label}</span>
+                    </label>
+                    <button
+                      onClick={() => handleToggleWidgetSize(w.id)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
+                        isFull
+                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          : "bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-100"
+                      }`}
+                      title="Alternar entre largura normal e largura inteira (100%)"
+                    >
+                      {isFull ? "Largura Total (100%)" : "Padrão (50%)"}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -518,7 +577,7 @@ export default function ExecutiveDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Top Serviços por Margem e Faturamento */}
           {isWidgetVisible("top_services_profitability") && (
-            <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className={`bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs space-y-4 ${preferences.widgetSizes?.["top_services_profitability"] === "full" ? "lg:col-span-2" : ""}`}>
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
                   <span className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
@@ -564,7 +623,7 @@ export default function ExecutiveDashboardPage() {
 
           {/* Top Clientes */}
           {isWidgetVisible("top_clients_ranking") && (
-            <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className={`bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs space-y-4 ${preferences.widgetSizes?.["top_clients_ranking"] === "full" ? "lg:col-span-2" : ""}`}>
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
                   <span className="p-1.5 rounded-lg bg-blue-50 text-blue-600">

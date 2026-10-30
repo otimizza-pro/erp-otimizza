@@ -104,8 +104,44 @@ export interface ReceivablesDefaultReportItem {
   daysOverdue: number;
 }
 
+export interface PayablesReportItem {
+  id: string;
+  payableNumber: string;
+  supplierName: string;
+  categoryName?: string;
+  competency: string;
+  dueDate: string;
+  originalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  status: string;
+  daysOverdue: number;
+}
+
+export interface CashflowComparisonReportItem {
+  period: string; // YYYY-MM
+  projectedInflow: number;
+  realizedInflow: number;
+  inflowVariance: number;
+  projectedOutflow: number;
+  realizedOutflow: number;
+  outflowVariance: number;
+  projectedNet: number;
+  realizedNet: number;
+  netVariance: number;
+}
+
+export interface MrrEvolutionReportItem {
+  period: string; // YYYY-MM
+  mrr: number;
+  activeContractsCount: number;
+  newContractsCount: number;
+  churnedContractsCount: number;
+}
+
 export interface DashboardLayoutPreferences {
   visibleWidgets: string[];
   widgetOrder: string[];
   collapsedWidgets: string[];
+  widgetSizes?: Record<string, "full" | "half">; // Suporte a redimensionamento
 }

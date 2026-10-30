@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { processContractRecurrence, processPayableRecurrence } from "@/modules/financial/service";
+import { requireAdminUser } from "@/lib/auth/require-auth";
 
 export async function POST(request: Request) {
   try {
@@ -9,8 +10,11 @@ export async function POST(request: Request) {
     const isCronAuthorized = cronSecret && authHeader === `Bearer ${cronSecret}`;
 
     if (!isCronAuthorized) {
-      // Se não for chave de cron dedicada, deve ser chamada autenticada interna
-      // No ambiente de produção, este endpoint é protegido contra chamadas anônimas externas
+      try {
+        await requireAdminUser();
+      } catch {
+        return NextResponse.json({ error: "Acesso não autorizado. Chave de cron ou login administrativo exigidos." }, { status: 401 });
+      }
     }
 
     const { searchParams } = new URL(request.url);

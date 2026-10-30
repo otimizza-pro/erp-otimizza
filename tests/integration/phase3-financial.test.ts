@@ -47,6 +47,13 @@ describe("Fase 3: Motor Financeiro, Contas a Pagar/Receber, Baixas e Fluxo de Ca
         await query("DELETE FROM services WHERE id = $1", [serviceId]);
       }
       if (clientId) {
+        const cRes = await query("SELECT id FROM contracts WHERE client_id = $1", [clientId]);
+        if (cRes.rowCount && cRes.rowCount > 0) {
+          const cIds = cRes.rows.map((r: { id: string }) => r.id);
+          await query("DELETE FROM contract_items WHERE contract_version_id IN (SELECT id FROM contract_versions WHERE contract_id = ANY($1::uuid[]))", [cIds]);
+          await query("DELETE FROM contract_versions WHERE contract_id = ANY($1::uuid[])", [cIds]);
+          await query("DELETE FROM contracts WHERE id = ANY($1::uuid[])", [cIds]);
+        }
         await query("DELETE FROM client_contacts WHERE client_id = $1", [clientId]);
         await query("DELETE FROM clients WHERE id = $1", [clientId]);
       }

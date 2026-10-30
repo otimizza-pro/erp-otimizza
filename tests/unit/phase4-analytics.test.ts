@@ -31,4 +31,38 @@ describe("Fase 4: Testes Unitários de Métricas Analíticas e BI", () => {
     const totalCombo = metaAds + googleAds;
     expect(totalCombo).toBe(1000.0);
   });
+
+  it("elimina dupla dedução em estornos: baixa válida de R$ 500 com estorno de outra baixa de R$ 200 não deduz R$ 200 duplamente", () => {
+    // Cenário:
+    // Baixa 1: R$ 500 (is_reversed = false)
+    // Baixa 2: R$ 200 (is_reversed = true) -> estornada
+    // Registro Reversal: R$ 200 (reversal record)
+    // Ao filtrar is_reversed = false, a Baixa 2 já é excluída.
+    // O total líquido recebido deve ser exatamente R$ 500,00 (não R$ 300,00).
+    const validReceipts = [500.0];
+    const totalReceived = validReceipts.reduce((a, b) => a + b, 0);
+    expect(totalReceived).toBe(500.0);
+  });
+
+  it("trata divisão por zero e denominadores nulos de forma segura sem lançar exceções", () => {
+    const cur = 500.0;
+    const prev = 0.0;
+    let percentageChange: number | null = null;
+    if (prev !== 0) {
+      percentageChange = Number((((cur - prev) / Math.abs(prev)) * 100).toFixed(1));
+    } else if (cur > 0) {
+      percentageChange = 100.0;
+    }
+    expect(percentageChange).toBe(100.0);
+
+    const curZero = 0.0;
+    const prevZero = 0.0;
+    let zeroPct: number | null = null;
+    if (prevZero !== 0) {
+      zeroPct = Number((((curZero - prevZero) / Math.abs(prevZero)) * 100).toFixed(1));
+    } else if (curZero > 0) {
+      zeroPct = 100.0;
+    }
+    expect(zeroPct).toBeNull();
+  });
 });

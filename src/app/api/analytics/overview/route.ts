@@ -7,6 +7,9 @@ import {
   getComboProfitabilityReport,
   getClientProfitabilityReport,
   getReceivablesDefaultReport,
+  getPayablesReport,
+  getCashflowComparisonReport,
+  getMrrEvolutionReport,
   getDashboardPreferences,
   saveDashboardPreferences,
 } from "@/modules/analytics/service";
@@ -25,8 +28,16 @@ export async function GET(request: Request) {
     const startDate = searchParams.get("startDate") || undefined;
     const endDate = searchParams.get("endDate") || undefined;
 
+    const clientId = searchParams.get("clientId") || undefined;
+    const categoryId = searchParams.get("categoryId") || undefined;
+    const comparisonType = (searchParams.get("comparisonType") as
+      | "PREVIOUS_PERIOD"
+      | "SAME_PERIOD_LAST_YEAR"
+      | "NONE"
+      | null) || undefined;
+
     if (type === "kpis") {
-      const kpis = await getExecutiveKpis({ startDate, endDate });
+      const kpis = await getExecutiveKpis({ startDate, endDate, clientId, categoryId, comparisonType });
       return NextResponse.json(kpis);
     }
 
@@ -53,7 +64,25 @@ export async function GET(request: Request) {
 
     if (type === "receivables_default") {
       const onlyOverdue = searchParams.get("onlyOverdue") === "true";
-      const data = await getReceivablesDefaultReport({ onlyOverdue, startDate, endDate });
+      const data = await getReceivablesDefaultReport({ onlyOverdue, startDate, endDate, clientId });
+      return NextResponse.json(data);
+    }
+
+    if (type === "payables") {
+      const onlyOverdue = searchParams.get("onlyOverdue") === "true";
+      const data = await getPayablesReport({ onlyOverdue, categoryId, startDate, endDate });
+      return NextResponse.json(data);
+    }
+
+    if (type === "cashflow_comparison") {
+      const months = parseInt(searchParams.get("months") || "6", 10);
+      const data = await getCashflowComparisonReport(months);
+      return NextResponse.json(data);
+    }
+
+    if (type === "mrr_evolution") {
+      const months = parseInt(searchParams.get("months") || "6", 10);
+      const data = await getMrrEvolutionReport(months);
       return NextResponse.json(data);
     }
 

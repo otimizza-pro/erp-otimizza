@@ -8,6 +8,9 @@ import {
   ComboProfitabilityReportItem,
   ClientProfitabilityReportItem,
   ReceivablesDefaultReportItem,
+  PayablesReportItem,
+  CashflowComparisonReportItem,
+  MrrEvolutionReportItem,
   DashboardLayoutPreferences,
 } from "./types";
 
@@ -100,37 +103,72 @@ export async function getExecutiveKpis(filters: AnalyticsFilterParams = {}): Pro
   const start = filters.startDate || `${todayStr.slice(0, 7)}-01`;
   const end = filters.endDate || todayStr;
 
-  // 1. Receita Efetivamente Recebida (Baixas do tipo RECEIPT válidas no período, abatendo estornos)
+  // Montar condições dinâmicas de filtro para as consultas
+  const clientFilter = filters.clientId ? "AND r.client_id = $3" : "";
+  const filterParams: unknown[] = [start, end];
+  if (filters.clientId) {
+    filterParams.push(filters.clientId);
+  }
+
+  // 1. Receita Efetivamente Recebida
+  // AUDITORIA: Baixas válidas (is_reversed = FALSE) já excluem liquidações estornadas.
+  // NÃO subtraímos registros de REVERSAL novamente, pois causaria dupla dedução.
   const receiptsSql = `
     SELECT 
-      COALESCE(SUM(CASE WHEN settlement_type = 'RECEIPT' AND is_reversed = FALSE THEN amount ELSE 0 END), 0) -
-      COALESCE(SUM(CASE WHEN settlement_type = 'REVERSAL' AND receivable_id IS NOT NULL THEN amount ELSE 0 END), 0) as total_received
-    FROM financial_settlements
-    WHERE settlement_date >= $1 AND settlement_date <= $2
+      COALESCE(SUM(fs.amount), 0) as total_received
+    FROM financial_settlements fs
+    LEFT JOIN receivables r ON r.id = fs.receivable_id
+    WHERE fs.settlement_type = 'RECEIPT' 
+      AND fs.is_reversed = FALSE
+      AND fs.settlement_date >= $1 AND fs.settlement_date <= $2
+      ${filters.clientId ? "AND r.client_id = $3" : ""}
   `;
-  const receiptsRes = await query<{ total_received: string }>(receiptsSql, [start, end]);
+  const receiptsRes = await query<{ total_received: string }>(receiptsSql, filterParams);
   const currentReceived = Number(receiptsRes.rows[0]?.total_received || 0);
 
-  // Período anterior para comparação
-  const daysDiff = Math.max(1, Math.round((new Date(end).getTime() - new Date(start).getTime()) / (1000 * 3600 * 24)));
-  const prevEnd = new Date(new Date(start).getTime() - 24 * 3600 * 1000).toISOString().slice(0, 10);
-  const prevStart = new Date(new Date(prevEnd).getTime() - daysDiff * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  // Período anterior para comparação (Imediatamente anterior ou mesmo período do ano anterior)
+  let prevStart: string;
+  let prevEnd: string;
 
-  const prevReceiptsRes = await query<{ total_received: string }>(receiptsSql, [prevStart, prevEnd]);
+  if (filters.comparisonType === "SAME_PERIOD_LAST_YEAR") {
+    const sDate = new Date(start);
+    const eDate = new Date(end);
+    prevStart = new Date(sDate.getFullYear() - 1, sDate.getMonth(), sDate.getDate()).toISOString().slice(0, 10);
+    prevEnd = new Date(eDate.getFullYear() - 1, eDate.getMonth(), eDate.getDate()).toISOString().slice(0, 10);
+  } else {
+    // PREVIOUS_PERIOD equivalente
+    const daysDiff = Math.max(1, Math.round((new Date(end).getTime() - new Date(start).getTime()) / (1000 * 3600 * 24)));
+    prevEnd = new Date(new Date(start).getTime() - 24 * 3600 * 1000).toISOString().slice(0, 10);
+    prevStart = new Date(new Date(prevEnd).getTime() - daysDiff * 24 * 3600 * 1000).toISOString().slice(0, 10);
+  }
+
+  const prevFilterParams: unknown[] = [prevStart, prevEnd];
+  if (filters.clientId) prevFilterParams.push(filters.clientId);
+
+  const prevReceiptsRes = await query<{ total_received: string }>(receiptsSql, prevFilterParams);
   const prevReceived = Number(prevReceiptsRes.rows[0]?.total_received || 0);
 
-  // 2. Despesas Pagas (Baixas PAYMENT válidas no período, abatendo estornos)
+  // 2. Despesas Pagas
+  // AUDITORIA: Baixas de PAYMENT com is_reversed = FALSE representam exatamente o valor líquido pago.
   const expensesSql = `
     SELECT 
-      COALESCE(SUM(CASE WHEN settlement_type = 'PAYMENT' AND is_reversed = FALSE THEN amount ELSE 0 END), 0) -
-      COALESCE(SUM(CASE WHEN settlement_type = 'REVERSAL' AND payable_id IS NOT NULL THEN amount ELSE 0 END), 0) as total_paid
-    FROM financial_settlements
-    WHERE settlement_date >= $1 AND settlement_date <= $2
+      COALESCE(SUM(fs.amount), 0) as total_paid
+    FROM financial_settlements fs
+    LEFT JOIN payables p ON p.id = fs.payable_id
+    WHERE fs.settlement_type = 'PAYMENT' 
+      AND fs.is_reversed = FALSE
+      AND fs.settlement_date >= $1 AND fs.settlement_date <= $2
+      ${filters.categoryId ? "AND p.category_id = $3" : ""}
   `;
-  const expensesRes = await query<{ total_paid: string }>(expensesSql, [start, end]);
+  const expenseParams: unknown[] = [start, end];
+  if (filters.categoryId) expenseParams.push(filters.categoryId);
+
+  const expensesRes = await query<{ total_paid: string }>(expensesSql, expenseParams);
   const currentPaid = Number(expensesRes.rows[0]?.total_paid || 0);
 
-  const prevExpensesRes = await query<{ total_paid: string }>(expensesSql, [prevStart, prevEnd]);
+  const prevExpenseParams: unknown[] = [prevStart, prevEnd];
+  if (filters.categoryId) prevExpenseParams.push(filters.categoryId);
+  const prevExpensesRes = await query<{ total_paid: string }>(expensesSql, prevExpenseParams);
   const prevPaid = Number(prevExpensesRes.rows[0]?.total_paid || 0);
 
   // 3. Resultado Realizado (Recebimentos - Pagamentos)
@@ -141,20 +179,24 @@ export async function getExecutiveKpis(filters: AnalyticsFilterParams = {}): Pro
   // 4. Receita Prevista por Vencimento e por Competência
   const projDueSql = `
     SELECT COALESCE(SUM(balance_amount), 0) as total_proj
-    FROM receivables
-    WHERE due_date >= $1 AND due_date <= $2 AND status <> 'CANCELED'
+    FROM receivables r
+    WHERE r.due_date >= $1 AND r.due_date <= $2 AND r.status <> 'CANCELED'
+      ${filters.clientId ? "AND r.client_id = $3" : ""}
   `;
-  const projDueRes = await query<{ total_proj: string }>(projDueSql, [start, end]);
+  const projDueRes = await query<{ total_proj: string }>(projDueSql, filterParams);
   const projectedRevenueDue = Number(Number(projDueRes.rows[0]?.total_proj || 0).toFixed(2));
 
   const startMonth = start.slice(0, 7);
   const endMonth = end.slice(0, 7);
   const projCompSql = `
     SELECT COALESCE(SUM(original_amount), 0) as total_comp
-    FROM receivables
-    WHERE competency >= $1 AND competency <= $2 AND status <> 'CANCELED'
+    FROM receivables r
+    WHERE r.competency >= $1 AND r.competency <= $2 AND r.status <> 'CANCELED'
+      ${filters.clientId ? "AND r.client_id = $3" : ""}
   `;
-  const projCompRes = await query<{ total_comp: string }>(projCompSql, [startMonth, endMonth]);
+  const compParams: unknown[] = [startMonth, endMonth];
+  if (filters.clientId) compParams.push(filters.clientId);
+  const projCompRes = await query<{ total_comp: string }>(projCompSql, compParams);
   const projectedRevenueCompetency = Number(Number(projCompRes.rows[0]?.total_comp || 0).toFixed(2));
 
   // 5. Despesas Previstas por Vencimento
@@ -258,23 +300,21 @@ export async function getMonthlyEvolution(monthsCount = 6): Promise<MonthlyEvolu
     const startOfMonth = `${monthStr}-01`;
     const lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
 
-    // Recebido
+    // Recebido (apenas baixas válidas is_reversed = FALSE, sem dupla dedução)
     const recRes = await query<{ val: string }>(
-      `SELECT 
-        COALESCE(SUM(CASE WHEN settlement_type = 'RECEIPT' AND is_reversed = FALSE THEN amount ELSE 0 END), 0) -
-        COALESCE(SUM(CASE WHEN settlement_type = 'REVERSAL' AND receivable_id IS NOT NULL THEN amount ELSE 0 END), 0) as val
+      `SELECT COALESCE(SUM(amount), 0) as val
        FROM financial_settlements
-       WHERE settlement_date >= $1 AND settlement_date <= $2`,
+       WHERE settlement_type = 'RECEIPT' AND is_reversed = FALSE
+         AND settlement_date >= $1 AND settlement_date <= $2`,
       [startOfMonth, lastDayOfMonth]
     );
 
-    // Pago
+    // Pago (apenas baixas válidas is_reversed = FALSE, sem dupla dedução)
     const pagRes = await query<{ val: string }>(
-      `SELECT 
-        COALESCE(SUM(CASE WHEN settlement_type = 'PAYMENT' AND is_reversed = FALSE THEN amount ELSE 0 END), 0) -
-        COALESCE(SUM(CASE WHEN settlement_type = 'REVERSAL' AND payable_id IS NOT NULL THEN amount ELSE 0 END), 0) as val
+      `SELECT COALESCE(SUM(amount), 0) as val
        FROM financial_settlements
-       WHERE settlement_date >= $1 AND settlement_date <= $2`,
+       WHERE settlement_type = 'PAYMENT' AND is_reversed = FALSE
+         AND settlement_date >= $1 AND settlement_date <= $2`,
       [startOfMonth, lastDayOfMonth]
     );
 
@@ -555,4 +595,203 @@ export async function getReceivablesDefaultReport(filters: {
     status: r.status,
     daysOverdue: parseInt(r.days_overdue || "0", 10),
   }));
+}
+
+// 4.5 Relatório de Contas a Pagar
+export async function getPayablesReport(filters: {
+  onlyOverdue?: boolean;
+  categoryId?: string;
+  startDate?: string;
+  endDate?: string;
+} = {}): Promise<PayablesReportItem[]> {
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const conditions: string[] = ["p.status <> 'CANCELED'"];
+  const params: unknown[] = [];
+  let idx = 1;
+
+  if (filters.onlyOverdue) {
+    conditions.push(`p.due_date < $${idx++} AND p.balance_amount > 0`);
+    params.push(todayStr);
+  }
+  if (filters.categoryId) {
+    conditions.push(`p.category_id = $${idx++}`);
+    params.push(filters.categoryId);
+  }
+  if (filters.startDate) {
+    conditions.push(`p.due_date >= $${idx++}`);
+    params.push(filters.startDate);
+  }
+  if (filters.endDate) {
+    conditions.push(`p.due_date <= $${idx++}`);
+    params.push(filters.endDate);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+  const sql = `
+    SELECT 
+      p.id,
+      p.payable_number,
+      p.supplier_name,
+      fc.name as category_name,
+      p.competency,
+      p.due_date,
+      p.original_amount,
+      p.paid_amount,
+      p.balance_amount,
+      p.status,
+      GREATEST(0, (CURRENT_DATE - p.due_date)) as days_overdue
+    FROM payables p
+    LEFT JOIN financial_categories fc ON fc.id = p.category_id
+    ${whereClause}
+    ORDER BY p.due_date ASC, p.balance_amount DESC
+  `;
+
+  const res = await query(sql, params);
+  return res.rows.map((r) => ({
+    id: r.id,
+    payableNumber: r.payable_number,
+    supplierName: r.supplier_name,
+    categoryName: r.category_name || "Geral",
+    competency: r.competency,
+    dueDate: typeof r.due_date === "string" ? r.due_date.slice(0, 10) : r.due_date.toISOString().slice(0, 10),
+    originalAmount: Number(r.original_amount),
+    paidAmount: Number(r.paid_amount),
+    balanceAmount: Number(r.balance_amount),
+    status: r.status,
+    daysOverdue: parseInt(r.days_overdue || "0", 10),
+  }));
+}
+
+// 4.6 Relatório de Fluxo de Caixa: Previsto versus Realizado
+export async function getCashflowComparisonReport(monthsCount = 6): Promise<CashflowComparisonReportItem[]> {
+  const result: CashflowComparisonReportItem[] = [];
+  const now = new Date();
+
+  for (let i = monthsCount - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthStr = d.toISOString().slice(0, 7);
+    const startOfMonth = `${monthStr}-01`;
+    const lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+
+    // Previsto Inflow (Receitas por vencimento)
+    const projInRes = await query<{ val: string }>(
+      `SELECT COALESCE(SUM(original_amount), 0) as val
+       FROM receivables
+       WHERE due_date >= $1 AND due_date <= $2 AND status <> 'CANCELED'`,
+      [startOfMonth, lastDayOfMonth]
+    );
+
+    // Realizado Inflow (Baixas válidas)
+    const realInRes = await query<{ val: string }>(
+      `SELECT COALESCE(SUM(amount), 0) as val
+       FROM financial_settlements
+       WHERE settlement_type = 'RECEIPT' AND is_reversed = FALSE
+         AND settlement_date >= $1 AND settlement_date <= $2`,
+      [startOfMonth, lastDayOfMonth]
+    );
+
+    // Previsto Outflow (Despesas por vencimento)
+    const projOutRes = await query<{ val: string }>(
+      `SELECT COALESCE(SUM(original_amount), 0) as val
+       FROM payables
+       WHERE due_date >= $1 AND due_date <= $2 AND status <> 'CANCELED'`,
+      [startOfMonth, lastDayOfMonth]
+    );
+
+    // Realizado Outflow (Baixas de pagamentos válidas)
+    const realOutRes = await query<{ val: string }>(
+      `SELECT COALESCE(SUM(amount), 0) as val
+       FROM financial_settlements
+       WHERE settlement_type = 'PAYMENT' AND is_reversed = FALSE
+         AND settlement_date >= $1 AND settlement_date <= $2`,
+      [startOfMonth, lastDayOfMonth]
+    );
+
+    const pIn = Number(projInRes.rows[0]?.val || 0);
+    const rIn = Number(realInRes.rows[0]?.val || 0);
+    const inVar = rIn - pIn;
+
+    const pOut = Number(projOutRes.rows[0]?.val || 0);
+    const rOut = Number(realOutRes.rows[0]?.val || 0);
+    const outVar = rOut - pOut;
+
+    const pNet = pIn - pOut;
+    const rNet = rIn - rOut;
+    const netVar = rNet - pNet;
+
+    result.push({
+      period: monthStr,
+      projectedInflow: Number(pIn.toFixed(2)),
+      realizedInflow: Number(rIn.toFixed(2)),
+      inflowVariance: Number(inVar.toFixed(2)),
+      projectedOutflow: Number(pOut.toFixed(2)),
+      realizedOutflow: Number(rOut.toFixed(2)),
+      outflowVariance: Number(outVar.toFixed(2)),
+      projectedNet: Number(pNet.toFixed(2)),
+      realizedNet: Number(rNet.toFixed(2)),
+      netVariance: Number(netVar.toFixed(2)),
+    });
+  }
+
+  return result;
+}
+
+// 4.7 Relatório de MRR e Evolução de Contratações
+export async function getMrrEvolutionReport(monthsCount = 6): Promise<MrrEvolutionReportItem[]> {
+  const result: MrrEvolutionReportItem[] = [];
+  const now = new Date();
+
+  for (let i = monthsCount - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthStr = d.toISOString().slice(0, 7);
+    const startOfMonth = `${monthStr}-01`;
+    const lastDayOfMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+
+    // MRR e contratos ativos no encerramento daquele mês
+    const mrrRes = await query<{ billing_period: string; total_amount: string }>(
+      `WITH active_versions AS (
+        SELECT DISTINCT ON (c.id) 
+          c.id, cv.billing_period, cv.total_amount
+        FROM contracts c
+        JOIN contract_versions cv ON cv.contract_id = c.id
+        WHERE c.status = 'ACTIVE' 
+          AND cv.start_date <= $1
+          AND (cv.end_date IS NULL OR cv.end_date >= $1)
+          AND cv.effective_date <= $1
+        ORDER BY c.id, cv.version_number DESC
+      )
+      SELECT billing_period, total_amount FROM active_versions`,
+      [lastDayOfMonth]
+    );
+
+    let monthMrr = 0;
+    for (const r of mrrRes.rows) {
+      monthMrr += computeNormalizedMrr(r.billing_period, Number(r.total_amount));
+    }
+
+    // Contratos novos iniciados no mês (baseado na versão inicial v1)
+    const newRes = await query<{ count: string }>(
+      `SELECT COUNT(DISTINCT cv.contract_id) as count 
+       FROM contract_versions cv 
+       WHERE cv.version_number = 1 AND cv.start_date >= $1 AND cv.start_date <= $2`,
+      [startOfMonth, lastDayOfMonth]
+    );
+
+    // Contratos cancelados no mês
+    const churnRes = await query<{ count: string }>(
+      `SELECT COUNT(id) as count FROM contracts WHERE status = 'CANCELED' AND updated_at >= $1 AND updated_at <= $2`,
+      [startOfMonth, `${lastDayOfMonth} 23:59:59`]
+    );
+
+    result.push({
+      period: monthStr,
+      mrr: Number(monthMrr.toFixed(2)),
+      activeContractsCount: mrrRes.rowCount || 0,
+      newContractsCount: parseInt(newRes.rows[0]?.count || "0", 10),
+      churnedContractsCount: parseInt(churnRes.rows[0]?.count || "0", 10),
+    });
+  }
+
+  return result;
 }

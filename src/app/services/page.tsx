@@ -14,6 +14,10 @@ import {
   Archive,
   Layers,
   ChevronRight,
+  Trash2,
+  AlertCircle,
+  CheckCircle2,
+  X,
 } from "lucide-react";
 import { formatBRL } from "@/shared/money";
 
@@ -24,6 +28,7 @@ export default function ServicesPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "ARCHIVED">("ACTIVE");
   const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -48,6 +53,28 @@ export default function ServicesPage() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteService = async (service: ServiceItem) => {
+    if (
+      !window.confirm(
+        `Tem certeza que deseja excluir o serviço "${service.name}"? Se ele possuir vínculos históricos, será arquivado para preservar os registros contábeis.`
+      )
+    ) {
+      return;
+    }
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/services/${service.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao excluir serviço");
+      setFeedback({ type: "success", msg: data.message || "Serviço excluído com sucesso!" });
+      loadData();
+    } catch (err: unknown) {
+      setFeedback({ type: "error", msg: err instanceof Error ? err.message : "Erro ao excluir serviço" });
     }
   };
 
@@ -95,6 +122,29 @@ export default function ServicesPage() {
             </Link>
           </div>
         </div>
+
+        {/* Notificações de Feedback */}
+        {feedback && (
+          <div
+            className={`p-4 rounded-xl border text-xs flex items-center justify-between ${
+              feedback.type === "success"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                : "bg-rose-50 border-rose-200 text-rose-700"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {feedback.type === "success" ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0" />
+              )}
+              <span>{feedback.msg}</span>
+            </div>
+            <button onClick={() => setFeedback(null)} className="hover:opacity-70 cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Filtros e Busca */}
         <div className="p-4 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline flex flex-col md:flex-row items-center justify-between gap-4">
@@ -240,13 +290,23 @@ export default function ServicesPage() {
                         </span>
                       </td>
                       <td className="py-3.5 px-3 text-right">
-                        <Link
-                          href={`/services/${s.id}/edit`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-medium border border-zinc-200 transition"
-                        >
-                          Editar
-                          <ChevronRight className="w-3 h-3 text-zinc-400" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/services/${s.id}/edit`}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-medium border border-zinc-200 transition"
+                          >
+                            Editar
+                            <ChevronRight className="w-3 h-3 text-zinc-400" />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteService(s)}
+                            title="Excluir ou Arquivar Serviço"
+                            className="p-1.5 rounded-full border border-rose-200 text-rose-600 hover:text-rose-800 hover:bg-rose-50 transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

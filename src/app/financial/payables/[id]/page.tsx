@@ -16,6 +16,7 @@ import {
   RotateCcw,
   FileText,
   Tag,
+  Trash2,
 } from "lucide-react";
 import { PayableRecord, FinancialAccountRecord } from "@/modules/financial/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -32,6 +33,32 @@ export default function PayableDetailPage({
   const [accounts, setAccounts] = useState<FinancialAccountRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [deletingPayable, setDeletingPayable] = useState(false);
+
+  const handleDeletePayable = async () => {
+    if (!payable) return;
+    if (
+      !window.confirm(
+        `Tem certeza que deseja excluir o título a pagar ${payable.payableNumber} (${payable.description})?`
+      )
+    ) {
+      return;
+    }
+    setDeletingPayable(true);
+    try {
+      const res = await fetch(`/api/financial/payables/${payable.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao excluir título.");
+      alert(data.message || "Título excluído com sucesso!");
+      router.push("/financial/payables");
+      router.refresh();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao excluir título.");
+      setDeletingPayable(false);
+    }
+  };
 
   // Modal de Baixa / Pagamento
   const [isSettleModalOpen, setIsSettleModalOpen] = useState(false);
@@ -246,10 +273,21 @@ export default function PayableDetailPage({
           </div>
 
           <div className="flex items-center gap-3">
+            {payable.paidAmount === 0 && (
+              <button
+                type="button"
+                onClick={handleDeletePayable}
+                disabled={deletingPayable}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold rounded-xl transition cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {deletingPayable ? "Excluindo..." : "Excluir Título"}
+              </button>
+            )}
             {payable.balanceAmount > 0 && payable.status !== "CANCELED" && (
               <button
                 onClick={handleOpenSettle}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-sm transition"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-sm transition cursor-pointer"
               >
                 <CheckCircle className="w-4 h-4" />
                 Registrar Pagamento / Baixa

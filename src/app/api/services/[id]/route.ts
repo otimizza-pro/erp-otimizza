@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServiceById, updateService, archiveService, reactivateService } from "@/modules/catalog/service";
+import { getServiceById, updateService, archiveService, reactivateService, deleteService } from "@/modules/catalog/service";
 
 export async function GET(
   _request: Request,
@@ -58,3 +58,18 @@ export async function PATCH(
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const result = await deleteService(id);
+    return NextResponse.json(result);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro ao excluir serviço.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+

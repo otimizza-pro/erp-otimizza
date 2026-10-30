@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
-import { ArrowLeft, Save, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, Trash2 } from "lucide-react";
 import { ServiceCategory, BillingUnit } from "@/modules/catalog/types";
 import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -16,6 +16,7 @@ export default function EditServicePage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
@@ -51,6 +52,31 @@ export default function EditServicePage() {
       .catch((e) => setError("Erro ao carregar dados do serviço"))
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleDelete = async () => {
+    if (
+      !window.confirm(
+        `Tem certeza que deseja excluir o serviço "${name}"? Se houver contratos ou despesas vinculadas, ele será arquivado para preservar o histórico contábil.`
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/services/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao excluir serviço.");
+      alert(data.message || "Operação realizada com sucesso!");
+      router.push("/services");
+      router.refresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro ao excluir serviço.");
+      setDeleting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -295,21 +321,33 @@ export default function EditServicePage() {
         </div>
 
         {/* Ações no Final da Página */}
-        <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-200">
-          <Link
-            href="/services"
-            className="px-5 py-2.5 rounded-full border border-zinc-200 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 transition shadow-2xs"
-          >
-            Cancelar
-          </Link>
+        <div className="flex items-center justify-between gap-3 pt-4 border-t border-zinc-200">
           <button
-            type="submit"
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition shadow-xs disabled:opacity-50 active:scale-[0.98]"
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting || saving}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold transition shadow-2xs disabled:opacity-50 cursor-pointer"
           >
-            <Save className="w-4 h-4" />
-            <span>{saving ? "Salvando..." : "Salvar Alterações"}</span>
+            <Trash2 className="w-4 h-4" />
+            <span>{deleting ? "Excluindo..." : "Excluir Serviço"}</span>
           </button>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/services"
+              className="px-5 py-2.5 rounded-full border border-zinc-200 text-xs font-semibold text-zinc-600 hover:bg-zinc-100 transition shadow-2xs"
+            >
+              Cancelar
+            </Link>
+            <button
+              type="submit"
+              disabled={saving || deleting}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition shadow-xs disabled:opacity-50 active:scale-[0.98] cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>{saving ? "Salvando..." : "Salvar Alterações"}</span>
+            </button>
+          </div>
         </div>
       </form>
     </AppShell>

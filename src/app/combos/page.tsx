@@ -12,6 +12,10 @@ import {
   Archive,
   ChevronRight,
   Sparkles,
+  Trash2,
+  AlertCircle,
+  CheckCircle2,
+  X,
 } from "lucide-react";
 import { formatBRL } from "@/shared/money";
 
@@ -20,6 +24,7 @@ export default function CombosPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "ARCHIVED">("ACTIVE");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
   const loadCombos = async () => {
     setLoading(true);
@@ -31,6 +36,45 @@ export default function CombosPage() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleArchive = async (id: string, currentStatus: string) => {
+    const isArchiving = currentStatus === "ACTIVE";
+    if (!window.confirm(isArchiving ? "Deseja realmente arquivar este combo?" : "Deseja reativar este combo?")) {
+      return;
+    }
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/combos/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: isArchiving ? "ARCHIVE" : "REACTIVATE" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao alterar status do combo");
+      setFeedback({ type: "success", msg: data.message || "Status alterado com sucesso!" });
+      loadCombos();
+    } catch (err: unknown) {
+      setFeedback({ type: "error", msg: err instanceof Error ? err.message : "Erro ao alterar status" });
+    }
+  };
+
+  const handleDeleteCombo = async (combo: Combo) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o combo "${combo.name}"? Se ele já tiver contratos vinculados, será arquivado com segurança.`)) {
+      return;
+    }
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/combos/${combo.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao excluir combo");
+      setFeedback({ type: "success", msg: data.message || "Combo excluído com sucesso!" });
+      loadCombos();
+    } catch (err: unknown) {
+      setFeedback({ type: "error", msg: err instanceof Error ? err.message : "Erro ao excluir combo" });
     }
   };
 
@@ -69,6 +113,29 @@ export default function CombosPage() {
             Novo Combo
           </Link>
         </div>
+
+        {/* Notificações de Feedback */}
+        {feedback && (
+          <div
+            className={`p-4 rounded-xl border text-xs flex items-center justify-between ${
+              feedback.type === "success"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                : "bg-rose-50 border-rose-200 text-rose-700"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {feedback.type === "success" ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0" />
+              )}
+              <span>{feedback.msg}</span>
+            </div>
+            <button onClick={() => setFeedback(null)} className="hover:opacity-70 cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Filtros e Busca */}
         <div className="p-4 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline flex flex-col md:flex-row items-center justify-between gap-4">
@@ -190,6 +257,24 @@ export default function CombosPage() {
                     <span className="text-lg font-bold font-mono text-zinc-950">
                       {formatBRL(Math.round(combo.totalPrice * 100))}
                     </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleArchive(combo.id, combo.status)}
+                      title={combo.status === "ACTIVE" ? "Arquivar Combo" : "Reativar Combo"}
+                      className="p-2 rounded-xl border border-zinc-200 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer"
+                    >
+                      <Archive className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCombo(combo)}
+                      title="Excluir Combo"
+                      className="p-2 rounded-xl border border-rose-200 text-rose-600 hover:text-rose-800 hover:bg-rose-50 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>

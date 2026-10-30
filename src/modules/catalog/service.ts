@@ -117,6 +117,99 @@ export async function createServiceCategory(data: {
   };
 }
 
+export async function updateServiceCategory(
+  id: string,
+  data: {
+    name?: string;
+    description?: string | null;
+    parentId?: string | null;
+    status?: "ACTIVE" | "ARCHIVED" | "INACTIVE";
+  }
+): Promise<ServiceCategory> {
+  const existingRes = await query<DbCategoryRow>("SELECT * FROM service_categories WHERE id = $1", [id]);
+  if (existingRes.rows.length === 0) throw new Error("Categoria não encontrada.");
+  const existing = existingRes.rows[0];
+
+  const name = data.name !== undefined ? data.name.trim() : existing.name;
+  if (!name) throw new Error("O nome da categoria não pode ser vazio.");
+  const description = data.description !== undefined ? data.description?.trim() || null : existing.description;
+  const parentId = data.parentId !== undefined ? data.parentId || null : existing.parent_id;
+  const status = data.status !== undefined ? data.status : existing.status;
+
+  if (parentId === id) {
+    throw new Error("Uma categoria não pode ter a si mesma como categoria pai.");
+  }
+
+  const res = await query<DbCategoryRow>(
+    `UPDATE service_categories
+     SET name = $1, description = $2, parent_id = $3, status = $4, updated_at = CURRENT_TIMESTAMP
+     WHERE id = $5
+     RETURNING *`,
+    [name, description, parentId, status, id]
+  );
+
+  await query(
+    `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
+     VALUES ($1, $2, $3, $4)`,
+    ["service_categories", id, "UPDATE", JSON.stringify({ name, parentId, status })]
+  );
+
+  return {
+    id: res.rows[0].id,
+    name: res.rows[0].name,
+    description: res.rows[0].description,
+    parentId: res.rows[0].parent_id,
+    status: res.rows[0].status,
+    createdAt: res.rows[0].created_at.toISOString(),
+    updatedAt: res.rows[0].updated_at.toISOString(),
+  };
+}
+
+export async function deleteServiceCategory(id: string): Promise<{ action: "deleted" | "archived"; message: string }> {
+  // Check child categories
+  const childCheck = await query<{ count: string }>(
+    "SELECT COUNT(*) as count FROM service_categories WHERE parent_id = $1",
+    [id]
+  );
+  const childCount = parseInt(childCheck.rows[0]?.count || "0", 10);
+  if (childCount > 0) {
+    throw new Error(`Não é possível excluir esta categoria pois ela possui ${childCount} subcategoria(s) vinculada(s). Remova ou reatribua as subcategorias primeiro.`);
+  }
+
+  // Check referenced services
+  const svcCheck = await query<{ count: string }>(
+    "SELECT COUNT(*) as count FROM services WHERE category_id = $1",
+    [id]
+  );
+  const svcCount = parseInt(svcCheck.rows[0]?.count || "0", 10);
+
+  if (svcCount > 0) {
+    // Soft delete / archive to avoid breaking FK
+    await query("UPDATE service_categories SET status = 'ARCHIVED', updated_at = CURRENT_TIMESTAMP WHERE id = $1", [id]);
+    await query(
+      `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
+       VALUES ($1, $2, $3, $4)`,
+      ["service_categories", id, "UPDATE", JSON.stringify({ action: "ARCHIVED", reason: "Has linked services" })]
+    );
+    return {
+      action: "archived",
+      message: `Categoria arquivada com sucesso! Ela foi desativada pois possui ${svcCount} serviço(s) vinculado(s).`,
+    };
+  }
+
+  await query("DELETE FROM service_categories WHERE id = $1", [id]);
+  await query(
+    `INSERT INTO audit_logs (entity_name, entity_id, action, old_data)
+     VALUES ($1, $2, $3, $4)`,
+    ["service_categories", id, "DELETE", JSON.stringify({ id })]
+  );
+
+  return {
+    action: "deleted",
+    message: "Categoria excluída permanentemente com sucesso!",
+  };
+}
+
 // -----------------------------------------------------------------------------
 // SERVIÇOS
 // -----------------------------------------------------------------------------
@@ -324,6 +417,50 @@ export async function reactivateService(id: string): Promise<void> {
   );
 }
 
+export async function deleteService(id: string): Promise<{ action: "deleted" | "archived"; message: string }> {
+  // Check usage in contracts
+  const contractCheck = await query<{ count: string }>(
+    "SELECT COUNT(*) as count FROM contract_items WHERE service_id = $1",
+    [id]
+  );
+  // Check usage in combos
+  const comboCheck = await query<{ count: string }>(
+    "SELECT COUNT(*) as count FROM combo_items WHERE service_id = $1",
+    [id]
+  );
+  // Check usage in payables
+  const payableCheck = await query<{ count: string }>(
+    "SELECT COUNT(*) as count FROM payables WHERE service_id = $1",
+    [id]
+  );
+
+  const contractCount = parseInt(contractCheck.rows[0]?.count || "0", 10);
+  const comboCount = parseInt(comboCheck.rows[0]?.count || "0", 10);
+  const payableCount = parseInt(payableCheck.rows[0]?.count || "0", 10);
+
+  if (contractCount > 0 || comboCount > 0 || payableCount > 0) {
+    await archiveService(id);
+    return {
+      action: "archived",
+      message: `Serviço arquivado com sucesso! Como possui movimentações históricas (${contractCount} contratos, ${comboCount} combos, ${payableCount} despesas), ele foi mantido como inativo para preservar a rastreabilidade contábil.`,
+    };
+  }
+
+  // If clean, remove bindings and delete
+  await query("DELETE FROM supplier_cost_bindings WHERE service_id = $1", [id]);
+  await query("DELETE FROM services WHERE id = $1", [id]);
+  await query(
+    `INSERT INTO audit_logs (entity_name, entity_id, action, old_data)
+     VALUES ($1, $2, $3, $4)`,
+    ["services", id, "DELETE", JSON.stringify({ id })]
+  );
+
+  return {
+    action: "deleted",
+    message: "Serviço excluído permanentemente com sucesso!",
+  };
+}
+
 // -----------------------------------------------------------------------------
 // COMBOS (AGRUPAMENTOS COMERCIAIS REUTILIZÁVEIS)
 // -----------------------------------------------------------------------------
@@ -502,3 +639,33 @@ export async function reactivateCombo(id: string): Promise<void> {
     [id]
   );
 }
+
+export async function deleteCombo(id: string): Promise<{ action: "deleted" | "archived"; message: string }> {
+  const contractCheck = await query<{ count: string }>(
+    "SELECT COUNT(*) as count FROM contract_items WHERE combo_id = $1",
+    [id]
+  );
+  const contractCount = parseInt(contractCheck.rows[0]?.count || "0", 10);
+  if (contractCount > 0) {
+    await archiveCombo(id);
+    return {
+      action: "archived",
+      message: `Combo arquivado com sucesso! Como já foi vinculado a ${contractCount} contrato(s), ele foi desativado para preservar os contratos.`,
+    };
+  }
+
+  return await withTransaction(async (client) => {
+    await client.query("DELETE FROM combo_items WHERE combo_id = $1", [id]);
+    await client.query("DELETE FROM combos WHERE id = $1", [id]);
+    await client.query(
+      `INSERT INTO audit_logs (entity_name, entity_id, action, old_data)
+       VALUES ($1, $2, $3, $4)`,
+      ["combos", id, "DELETE", JSON.stringify({ id })]
+    );
+    return {
+      action: "deleted",
+      message: "Combo excluído permanentemente com sucesso!",
+    };
+  });
+}
+

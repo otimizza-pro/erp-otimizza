@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getComboById, archiveCombo, reactivateCombo } from "@/modules/catalog/service";
+import { getComboById, archiveCombo, reactivateCombo, deleteCombo } from "@/modules/catalog/service";
 
 export async function GET(
   _request: Request,
@@ -39,3 +39,18 @@ export async function PATCH(
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const result = await deleteCombo(id);
+    return NextResponse.json(result);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro ao excluir combo.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+

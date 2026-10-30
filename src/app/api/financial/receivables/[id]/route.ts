@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getReceivableById, settleReceivable } from "@/modules/financial/service";
+import { getReceivableById, settleReceivable, deleteReceivable } from "@/modules/financial/service";
 
 export async function GET(
   request: Request,
@@ -46,3 +46,18 @@ export async function POST(
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  props: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await props.params;
+    const result = await deleteReceivable(id);
+    return NextResponse.json(result);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Erro ao excluir título.";
+    return NextResponse.json({ error: msg }, { status: 400 });
+  }
+}
+

@@ -10,6 +10,9 @@ import {
   DollarSign,
   AlertCircle,
   CheckCircle2,
+  Pencil,
+  Trash2,
+  Power,
 } from "lucide-react";
 import { FinancialAccountRecord, AccountType } from "@/modules/financial/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -27,6 +30,19 @@ export default function FinancialAccountsPage() {
   const [initialBalance, setInitialBalance] = useState<number>(0);
   const [savingAcc, setSavingAcc] = useState(false);
   const [accError, setAccError] = useState("");
+
+  // Modal Editar Conta
+  const [editAccModalOpen, setEditAccModalOpen] = useState(false);
+  const [editingAccId, setEditingAccId] = useState("");
+  const [editAccName, setEditAccName] = useState("");
+  const [editBankName, setEditBankName] = useState("");
+  const [editAccType, setEditAccType] = useState<"CHECKING" | "SAVINGS" | "CASH" | "INVESTMENT">("CHECKING");
+  const [editStatus, setEditStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
+  const [savingEditAcc, setSavingEditAcc] = useState(false);
+  const [editAccError, setEditAccError] = useState("");
+
+  // Filtro de Status
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ACTIVE");
 
   // Modal Transferência
   const [transferModalOpen, setTransferModalOpen] = useState(false);
@@ -97,6 +113,71 @@ export default function FinancialAccountsPage() {
       setAccError(msg);
     } finally {
       setSavingAcc(false);
+    }
+  };
+
+  const handleOpenEditModal = (acc: FinancialAccountRecord) => {
+    setEditingAccId(acc.id);
+    setEditAccName(acc.name);
+    setEditBankName(acc.bankName || "");
+    setEditAccType(acc.accountType);
+    setEditStatus(acc.status === "ACTIVE" ? "ACTIVE" : "INACTIVE");
+    setEditAccError("");
+    setEditAccModalOpen(true);
+  };
+
+  const handleUpdateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditAccError("");
+    if (!editAccName.trim()) {
+      setEditAccError("O nome da conta é obrigatório.");
+      return;
+    }
+
+    setSavingEditAcc(true);
+    try {
+      const res = await fetch(`/api/financial/accounts/${editingAccId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editAccName.trim(),
+          bankName: editBankName.trim() || null,
+          accountType: editAccType,
+          status: editStatus,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Erro ao atualizar conta.");
+      }
+
+      setEditAccModalOpen(false);
+      loadAccounts();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erro inesperado.";
+      setEditAccError(msg);
+    } finally {
+      setSavingEditAcc(false);
+    }
+  };
+
+  const handleDeleteAccount = async (acc: FinancialAccountRecord) => {
+    const confirmMsg = `Deseja realmente excluir ou desativar a conta "${acc.name}"?\n\n• Se ela não possuir movimentações, será apagada definitivamente.\n• Se possuir histórico contábil, será desativada para não receber novos lançamentos.`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      const res = await fetch(`/api/financial/accounts/${acc.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Erro ao excluir conta.");
+      }
+      alert(data.message || "Operação realizada com sucesso.");
+      loadAccounts();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao excluir conta.");
     }
   };
 
@@ -197,36 +278,116 @@ export default function FinancialAccountsPage() {
           </div>
         </div>
 
-        {/* Grid de Contas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {accounts.map((acc) => (
-            <div
-              key={acc.id}
-              className="bg-white p-5 rounded-xl border border-zinc-200/80 shadow-xs flex flex-col justify-between space-y-4"
-            >
-              <div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 font-semibold uppercase">
-                    {acc.accountType}
-                  </span>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                </div>
-                <h3 className="font-bold text-zinc-900 mt-2 text-base">{acc.name}</h3>
-                {acc.bankName && <p className="text-xs text-zinc-500">{acc.bankName}</p>}
-              </div>
-
-              <div className="border-t border-zinc-100 pt-3">
-                <span className="text-xs text-zinc-500 block">Saldo Atual Disponível</span>
-                <span className="text-xl font-bold text-zinc-950">
-                  R$ {acc.currentBalance.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                </span>
-                <span className="text-[11px] text-zinc-400 block mt-0.5">
-                  Saldo Inicial: R$ {acc.initialBalance.toFixed(2)}
-                </span>
-              </div>
+        {/* Filtros de Contas */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-600">Filtrar:</span>
+            <div className="flex items-center rounded-lg bg-zinc-100 p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setStatusFilter("ACTIVE")}
+                className={`px-3 py-1 rounded-md font-medium transition ${
+                  statusFilter === "ACTIVE"
+                    ? "bg-white text-zinc-900 shadow-2xs font-semibold"
+                    : "text-zinc-600 hover:text-zinc-900"
+                }`}
+              >
+                Ativas ({accounts.filter((a) => a.status === "ACTIVE").length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("INACTIVE")}
+                className={`px-3 py-1 rounded-md font-medium transition ${
+                  statusFilter === "INACTIVE"
+                    ? "bg-white text-zinc-900 shadow-2xs font-semibold"
+                    : "text-zinc-600 hover:text-zinc-900"
+                }`}
+              >
+                Inativas ({accounts.filter((a) => a.status === "INACTIVE").length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("ALL")}
+                className={`px-3 py-1 rounded-md font-medium transition ${
+                  statusFilter === "ALL"
+                    ? "bg-white text-zinc-900 shadow-2xs font-semibold"
+                    : "text-zinc-600 hover:text-zinc-900"
+                }`}
+              >
+                Todas ({accounts.length})
+              </button>
             </div>
-          ))}
+          </div>
         </div>
+
+        {/* Grid de Contas */}
+        {accounts.filter((a) => statusFilter === "ALL" || a.status === statusFilter).length === 0 ? (
+          <div className="p-12 text-center bg-white rounded-xl border border-zinc-200 text-xs text-zinc-500">
+            Nenhuma conta financeira encontrada para o filtro selecionado.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {accounts
+              .filter((a) => statusFilter === "ALL" || a.status === statusFilter)
+              .map((acc) => (
+                <div
+                  key={acc.id}
+                  className={`p-5 rounded-xl border shadow-xs flex flex-col justify-between space-y-4 transition ${
+                    acc.status === "INACTIVE" ? "bg-zinc-50 border-zinc-200 opacity-75" : "bg-white border-zinc-200/80"
+                  }`}
+                >
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 font-semibold uppercase">
+                        {acc.accountType}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                          acc.status === "ACTIVE"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-zinc-200 text-zinc-600 border-zinc-300"
+                        }`}
+                      >
+                        {acc.status === "ACTIVE" ? "ATIVA" : "INATIVA"}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-zinc-900 mt-2 text-base">{acc.name}</h3>
+                    {acc.bankName && <p className="text-xs text-zinc-500">{acc.bankName}</p>}
+                  </div>
+
+                  <div className="border-t border-zinc-100 pt-3 flex items-end justify-between">
+                    <div>
+                      <span className="text-xs text-zinc-500 block">Saldo Atual Disponível</span>
+                      <span className="text-xl font-bold text-zinc-950 font-mono">
+                        {formatMoney(acc.currentBalance)}
+                      </span>
+                      <span className="text-[11px] text-zinc-400 block mt-0.5">
+                        Saldo Inicial: {formatMoney(acc.initialBalance)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditModal(acc)}
+                        title="Editar Conta"
+                        className="p-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAccount(acc)}
+                        title="Excluir ou Desativar Conta"
+                        className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:text-rose-800 hover:bg-rose-50 transition cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
       </div>
 
       {/* Modal Nova Conta */}
@@ -299,6 +460,83 @@ export default function FinancialAccountsPage() {
                   className="px-4 py-2 font-medium text-white bg-zinc-950 hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
                 >
                   {savingAcc ? "Salvando..." : "Salvar Conta"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Conta */}
+      {editAccModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-zinc-200 space-y-4">
+            <h3 className="font-bold text-zinc-950 text-base">Editar Conta Financeira</h3>
+            {accError && <div className="p-3 rounded-lg bg-rose-50 text-rose-700 text-xs">{accError}</div>}
+            <form onSubmit={handleUpdateAccount} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-zinc-700 mb-1">Nome de Identificação *</label>
+                <input
+                  type="text"
+                  value={editAccName}
+                  onChange={(e) => setEditAccName(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-zinc-700 mb-1">Banco / Instituição</label>
+                <input
+                  type="text"
+                  value={editBankName}
+                  onChange={(e) => setEditBankName(e.target.value)}
+                  className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">Tipo de Conta *</label>
+                  <select
+                    value={editAccType}
+                    onChange={(e) => setEditAccType(e.target.value as AccountType)}
+                    className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900"
+                  >
+                    <option value="CHECKING">Conta Corrente</option>
+                    <option value="SAVINGS">Poupança</option>
+                    <option value="CASH">Caixa Físico</option>
+                    <option value="INVESTMENT">Aplicação</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">Status</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value as "ACTIVE" | "INACTIVE")}
+                    className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900"
+                  >
+                    <option value="ACTIVE">Ativa</option>
+                    <option value="INACTIVE">Inativa</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditAccModalOpen(false)}
+                  className="px-4 py-2 font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEditAcc}
+                  className="px-4 py-2 font-medium text-white bg-zinc-950 hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {savingEditAcc ? "Salvando..." : "Salvar Alterações"}
                 </button>
               </div>
             </form>

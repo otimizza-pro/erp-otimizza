@@ -77,6 +77,108 @@ export async function createFinancialAccount(data: {
   };
 }
 
+export async function getFinancialAccountById(id: string): Promise<FinancialAccountRecord | null> {
+  const res = await query(`SELECT * FROM financial_accounts WHERE id = $1`, [id]);
+  if (res.rows.length === 0) return null;
+  const r = res.rows[0];
+  return {
+    id: r.id,
+    name: r.name,
+    bankName: r.bank_name,
+    accountType: r.account_type,
+    initialBalance: Number(r.initial_balance),
+    currentBalance: Number(r.current_balance),
+    status: r.status,
+    createdAt: r.created_at.toISOString(),
+    updatedAt: r.updated_at.toISOString(),
+  };
+}
+
+export async function updateFinancialAccount(
+  id: string,
+  data: {
+    name?: string;
+    bankName?: string | null;
+    accountType?: "CHECKING" | "SAVINGS" | "CASH" | "INVESTMENT";
+    status?: "ACTIVE" | "INACTIVE";
+  }
+): Promise<FinancialAccountRecord> {
+  const existing = await getFinancialAccountById(id);
+  if (!existing) throw new Error("Conta financeira não encontrada.");
+
+  const name = data.name !== undefined ? data.name.trim() : existing.name;
+  const bankName = data.bankName !== undefined ? (data.bankName ? data.bankName.trim() : null) : existing.bankName;
+  const accountType = data.accountType || existing.accountType;
+  const status = data.status || existing.status;
+
+  const sql = `
+    UPDATE financial_accounts
+    SET name = $1, bank_name = $2, account_type = $3, status = $4, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $5
+    RETURNING *
+  `;
+  const res = await query(sql, [name, bankName, accountType, status, id]);
+  const r = res.rows[0];
+
+  await query(
+    `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
+     VALUES ($1, $2, $3, $4)`,
+    ["financial_accounts", id, "UPDATE", JSON.stringify({ name, bankName, accountType, status })]
+  );
+
+  return {
+    id: r.id,
+    name: r.name,
+    bankName: r.bank_name,
+    accountType: r.account_type,
+    initialBalance: Number(r.initial_balance),
+    currentBalance: Number(r.current_balance),
+    status: r.status,
+    createdAt: r.created_at.toISOString(),
+    updatedAt: r.updated_at.toISOString(),
+  };
+}
+
+export async function deleteFinancialAccount(
+  id: string
+): Promise<{ action: "DELETED" | "ARCHIVED"; message: string }> {
+  const existing = await getFinancialAccountById(id);
+  if (!existing) throw new Error("Conta financeira não encontrada.");
+
+  // Verificar se há liquidações ou extrato nesta conta
+  const settlements = await query(`SELECT COUNT(*) FROM financial_settlements WHERE financial_account_id = $1`, [id]);
+  const hasSettlements = parseInt(settlements.rows[0].count, 10) > 0;
+
+  const statements = await query(`SELECT COUNT(*) FROM bank_statements WHERE account_id = $1`, [id]);
+  const hasStatements = parseInt(statements.rows[0].count, 10) > 0;
+
+  if (hasSettlements || hasStatements) {
+    // Para manter a integridade histórica de caixa exigida pelos princípios financeiros, desativa
+    await query(`UPDATE financial_accounts SET status = 'INACTIVE', updated_at = CURRENT_TIMESTAMP WHERE id = $1`, [id]);
+    await query(
+      `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
+       VALUES ($1, $2, $3, $4)`,
+      ["financial_accounts", id, "DEACTIVATE", JSON.stringify({ reason: "Conta possui lançamentos históricos e foi desativada." })]
+    );
+    return {
+      action: "ARCHIVED",
+      message: "A conta possui movimentações financeiras no histórico e foi desativada com sucesso para não receber novos lançamentos.",
+    };
+  }
+
+  // Sem movimentações vinculadas: exclusão física permitida
+  await query(`DELETE FROM financial_accounts WHERE id = $1`, [id]);
+  await query(
+    `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
+     VALUES ($1, $2, $3, $4)`,
+    ["financial_accounts", id, "DELETE", JSON.stringify({ name: existing.name })]
+  );
+  return {
+    action: "DELETED",
+    message: "Conta financeira excluída definitivamente.",
+  };
+}
+
 export async function transferBetweenAccounts(data: {
   fromAccountId: string;
   toAccountId: string;
@@ -1153,3 +1255,60 @@ function mapPayableRow(r: Record<string, unknown>): PayableRecord {
     updatedAt: r.updated_at instanceof Date ? r.updated_at.toISOString() : String(r.updated_at),
   };
 }
+
+export async function deletePayable(id: string): Promise<{ success: boolean; message: string }> {
+  return await withTransaction(async (client) => {
+    const payRes = await client.query("SELECT * FROM payables WHERE id = $1 FOR UPDATE", [id]);
+    if (payRes.rowCount === 0) throw new Error("Título a pagar não encontrado.");
+    const pay = payRes.rows[0];
+
+    const setRes = await client.query(
+      "SELECT COUNT(*) as count FROM financial_settlements WHERE payable_id = $1 AND is_reversed = false",
+      [id]
+    );
+    const setCount = parseInt(setRes.rows[0]?.count || "0", 10);
+    if (setCount > 0 || Number(pay.paid_amount) > 0) {
+      throw new Error("Não é possível excluir título que possui pagamentos registrados. Estorne as baixas primeiro.");
+    }
+
+    // Delete allocations if any
+    await client.query("DELETE FROM payable_allocations WHERE payable_id = $1", [id]);
+    await client.query("DELETE FROM payables WHERE id = $1", [id]);
+
+    await client.query(
+      `INSERT INTO audit_logs (entity_name, entity_id, action, old_data)
+       VALUES ('payables', $1, 'DELETE', $2)`,
+      [id, JSON.stringify({ payableNumber: pay.payable_number, description: pay.description, amount: pay.original_amount })]
+    );
+
+    return { success: true, message: `Título ${pay.payable_number} excluído com sucesso!` };
+  });
+}
+
+export async function deleteReceivable(id: string): Promise<{ success: boolean; message: string }> {
+  return await withTransaction(async (client) => {
+    const recRes = await client.query("SELECT * FROM receivables WHERE id = $1 FOR UPDATE", [id]);
+    if (recRes.rowCount === 0) throw new Error("Título a receber não encontrado.");
+    const rec = recRes.rows[0];
+
+    const setRes = await client.query(
+      "SELECT COUNT(*) as count FROM financial_settlements WHERE receivable_id = $1 AND is_reversed = false",
+      [id]
+    );
+    const setCount = parseInt(setRes.rows[0]?.count || "0", 10);
+    if (setCount > 0 || Number(rec.paid_amount) > 0) {
+      throw new Error("Não é possível excluir título que possui recebimentos registrados. Estorne as baixas primeiro.");
+    }
+
+    await client.query("DELETE FROM receivables WHERE id = $1", [id]);
+
+    await client.query(
+      `INSERT INTO audit_logs (entity_name, entity_id, action, old_data)
+       VALUES ('receivables', $1, 'DELETE', $2)`,
+      [id, JSON.stringify({ receivableNumber: rec.receivable_number, description: rec.description, amount: rec.original_amount })]
+    );
+
+    return { success: true, message: `Título ${rec.receivable_number} excluído com sucesso!` };
+  });
+}
+

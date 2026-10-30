@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
@@ -26,8 +27,27 @@ interface AppShellProps {
 }
 
 export function AppShell({ children, activeSection = "dashboard" }: AppShellProps) {
+  const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  const currentSection = React.useMemo(() => {
+    if (pathname) {
+      if (pathname.startsWith("/reports")) return "reports";
+      if (pathname.startsWith("/clients")) return "clients";
+      if (pathname.startsWith("/suppliers")) return "suppliers";
+      if (pathname.startsWith("/contracts")) return "contracts";
+      if (pathname.startsWith("/financial/receivables")) return "receivables";
+      if (pathname.startsWith("/financial/payables")) return "payables";
+      if (pathname.startsWith("/financial/cashflow")) return "cashflow";
+      if (pathname.startsWith("/financial/accounts")) return "accounts";
+      if (pathname.startsWith("/services")) return "catalog";
+      if (pathname.startsWith("/combos")) return "combos";
+      if (pathname.startsWith("/settings")) return "settings";
+      if (pathname === "/") return "dashboard";
+    }
+    return activeSection || "dashboard";
+  }, [pathname, activeSection]);
 
   const handleLogout = async () => {
     if (typeof window !== "undefined" && !window.confirm("Deseja realmente sair do sistema?")) {
@@ -102,7 +122,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
             </div>
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = activeSection === item.id;
+              const isActive = currentSection === item.id;
               return (
                 <Link
                   key={item.id}

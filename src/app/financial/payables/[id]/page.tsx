@@ -220,7 +220,7 @@ export default function PayableDetailPage({
 
   if (loading) {
     return (
-      <AppShell>
+      <AppShell activeSection="payables">
         <div className="py-20 text-center text-slate-500 text-sm">
           Carregando informações da conta a pagar...
         </div>
@@ -230,7 +230,7 @@ export default function PayableDetailPage({
 
   if (errorMsg || !payable) {
     return (
-      <AppShell>
+      <AppShell activeSection="payables">
         <div className="max-w-xl mx-auto py-12 text-center space-y-4">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto" />
           <h2 className="text-xl font-bold text-slate-800">Erro ao Abrir Despesa</h2>
@@ -247,7 +247,7 @@ export default function PayableDetailPage({
   }
 
   return (
-    <AppShell>
+    <AppShell activeSection="payables">
       <div className="max-w-5xl mx-auto space-y-6 pb-12">
         {/* Header Breadcrumbs & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

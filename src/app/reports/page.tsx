@@ -125,7 +125,7 @@ export default function ReportsHubPage() {
     }), { orig: 0, paid: 0, bal: 0 });
 
   return (
-    <AppShell activeSection="dashboard">
+    <AppShell activeSection="reports">
       <div className="space-y-6 pb-16">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-xs">

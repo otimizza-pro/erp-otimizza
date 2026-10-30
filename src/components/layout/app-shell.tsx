@@ -59,18 +59,11 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
           {/* Logo & Brand Header */}
           <div className="p-6 pb-4 border-b border-zinc-100 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-zinc-950 flex items-center justify-center font-bold text-white text-xs tracking-wider shadow-sm">
-                ERP
-              </div>
-              <div>
-                <h1 className="font-semibold text-sm tracking-tight text-zinc-950 flex items-center gap-1.5">
-                  Otimizza ERP
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-mono font-medium">
-                    v1.0
-                  </span>
-                </h1>
-                <p className="text-[11px] text-zinc-500 font-normal">Empresa: Otimizza</p>
-              </div>
+              <img
+                src="/brand/principal-cor.png"
+                alt="Otimizza ERP"
+                className="h-8 w-auto object-contain"
+              />
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -151,9 +144,11 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
             </div>
 
             <div className="flex items-center gap-2 pl-3 border-l border-zinc-200">
-              <div className="w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center font-semibold text-xs shadow-xs">
-                OT
-              </div>
+              <img
+                src="/brand/avatar-claro.png"
+                alt="Avatar"
+                className="w-8 h-8 rounded-full object-cover border border-zinc-200 shadow-xs"
+              />
               <div className="hidden lg:block text-left">
                 <div className="text-xs font-semibold text-zinc-900">Administrador</div>
                 <div className="text-[10px] text-zinc-400">otimizzapro@gmail.com</div>

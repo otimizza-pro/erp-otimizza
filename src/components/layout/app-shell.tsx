@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   Users,
@@ -26,6 +27,23 @@ interface AppShellProps {
 
 export function AppShell({ children, activeSection = "dashboard" }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (typeof window !== "undefined" && !window.confirm("Deseja realmente sair do sistema?")) {
+      return;
+    }
+    setLoggingOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (err) {
+      console.error("Erro ao encerrar sessão:", err);
+    } finally {
+      window.location.href = "/login";
+    }
+  };
 
   const navItems = [
     { id: "dashboard", label: "Visão Geral", href: "/", icon: LayoutDashboard },
@@ -120,6 +138,15 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
               <span>Usuário Único</span>
               <span className="text-zinc-600 font-medium">ADMIN</span>
             </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="w-full mt-2 flex items-center justify-center gap-2 py-2 px-3 rounded-xl border border-zinc-200/80 bg-white hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-zinc-600 text-xs font-semibold transition shadow-2xs cursor-pointer disabled:opacity-50"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>{loggingOut ? "Encerrando sessão..." : "Sair do Sistema"}</span>
+            </button>
           </div>
         </div>
       </aside>
@@ -157,6 +184,17 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
                 <div className="text-[10px] text-zinc-400">otimizzapro@gmail.com</div>
               </div>
             </div>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={loggingOut}
+              title="Sair do sistema"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-zinc-200 text-zinc-600 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 text-xs font-semibold transition cursor-pointer disabled:opacity-50"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{loggingOut ? "Saindo..." : "Sair"}</span>
+            </button>
           </div>
         </header>
 

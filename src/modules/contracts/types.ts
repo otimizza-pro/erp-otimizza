@@ -1,29 +1,104 @@
-import { BillingPeriod } from "../catalog/types";
+export type ContractStatus = "DRAFT" | "ACTIVE" | "ENDED" | "CANCELED";
 
-export type ContractStatus = "DRAFT" | "ACTIVE" | "SUSPENDED" | "CANCELED" | "COMPLETED";
+export type ContractBillingPeriod = "ONE_TIME" | "MONTHLY" | "YEARLY";
 
-export interface ContractItem {
-  id: string;
-  contractId: string;
-  productId?: string | null;
-  variantId?: string | null;
-  description: string;
+export interface ContractItemInput {
+  serviceId: string;
+  serviceName?: string;
+  comboId?: string | null;
+  comboName?: string | null;
   quantity: number;
-  unitPriceInCents: number;
-  totalPriceInCents: number;
+  unitPrice: number;
+  unitCost: number;
 }
 
-export interface Contract {
+export interface ContractItemRecord {
   id: string;
-  clientId: string;
+  contractVersionId: string;
+  serviceId: string;
+  serviceName: string;
+  comboId: string | null;
+  comboName: string | null;
+  quantity: number;
+  unitPrice: number;
+  unitCost: number;
+  totalPrice: number;
+  createdAt: string;
+}
+
+export interface ContractVersionRecord {
+  id: string;
+  contractId: string;
+  versionNumber: number;
   title: string;
-  billingPeriod: BillingPeriod;
-  dueDay: number; // 1 a 31
+  description?: string | null;
+  billingPeriod: ContractBillingPeriod;
+  dueDay: number;
   startDate: string; // YYYY-MM-DD
   endDate?: string | null; // YYYY-MM-DD
+  isIndefinite: boolean;
+  effectiveDate: string; // YYYY-MM-DD
+  totalAmount: number;
+  notes?: string | null;
+  createdAt: string;
+  items?: ContractItemRecord[];
+}
+
+export interface ContractRecord {
+  id: string;
+  clientId: string;
+  clientName?: string;
+  clientTradeName?: string | null;
+  clientDocument?: string | null;
+  contractNumber: string;
   status: ContractStatus;
-  totalRecurringAmountInCents: number;
-  items: ContractItem[];
-  createdAt: Date;
-  updatedAt: Date;
+  cancellationReason?: string | null;
+  canceledAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  currentVersion?: ContractVersionRecord;
+  versions?: ContractVersionRecord[];
+}
+
+export interface CreateContractInput {
+  clientId: string;
+  title: string;
+  description?: string;
+  billingPeriod: ContractBillingPeriod;
+  dueDay: number;
+  startDate: string; // YYYY-MM-DD
+  endDate?: string | null;
+  isIndefinite?: boolean;
+  notes?: string;
+  status?: ContractStatus; // Default ACTIVE
+  items: ContractItemInput[];
+}
+
+export interface CreateContractVersionInput {
+  contractId: string;
+  title?: string;
+  description?: string;
+  billingPeriod: ContractBillingPeriod;
+  dueDay: number;
+  startDate: string;
+  endDate?: string | null;
+  isIndefinite?: boolean;
+  effectiveDate: string; // Data a partir da qual esta versão vigora
+  notes?: string;
+  items: ContractItemInput[];
+}
+
+export interface CancelContractInput {
+  contractId: string;
+  cancellationReason: string;
+  canceledAt?: string; // Default now
+}
+
+export interface RecurrenceProjection {
+  competency: string; // YYYY-MM ou YYYY
+  effectiveDueDate: string; // YYYY-MM-DD
+  idempotencyKey: string; // contractId_YYYY-MM
+  amount: number;
+  versionNumber: number;
+  isPastOrCanceled: boolean;
 }

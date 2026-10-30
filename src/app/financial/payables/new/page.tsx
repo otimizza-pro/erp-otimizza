@@ -52,12 +52,12 @@ export default function NewPayablePage() {
 
         if (resServ.ok) {
           const jsonServ = await resServ.json();
-          setServices(jsonServ.services || []);
+          setServices(Array.isArray(jsonServ) ? jsonServ : (jsonServ.services || []));
         }
 
         if (resCont.ok) {
           const jsonCont = await resCont.json();
-          setContracts(jsonCont.contracts || []);
+          setContracts(Array.isArray(jsonCont) ? jsonCont : (jsonCont.contracts || []));
         }
 
         const resSup = await fetch("/api/suppliers?status=ACTIVE&limit=100");

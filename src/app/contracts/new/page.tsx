@@ -31,6 +31,9 @@ interface ServiceOption {
   defaultPrice: number;
   defaultCost: number;
   billingUnit: string;
+  defaultSupplierId?: string | null;
+  defaultSupplierName?: string | null;
+  defaultCostPeriodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
 }
 
 interface ComboOption {
@@ -81,7 +84,7 @@ export default function NewContractPage() {
         ]);
         if (cRes.ok) {
           const cData = await cRes.json();
-          const list: ClientOption[] = cData.clients || [];
+          const list: ClientOption[] = Array.isArray(cData) ? cData : (cData.clients || []);
           setClients(list);
           const opts: AutocompleteOption[] = list.map((c) => ({
             id: c.id,
@@ -92,11 +95,13 @@ export default function NewContractPage() {
         }
         if (sRes.ok) {
           const sData = await sRes.json();
-          setServices(sData.services || []);
+          const list: ServiceOption[] = Array.isArray(sData) ? sData : (sData.services || []);
+          setServices(list);
         }
         if (cbRes.ok) {
           const cbData = await cbRes.json();
-          setCombos(cbData.combos || []);
+          const list: ComboOption[] = Array.isArray(cbData) ? cbData : (cbData.combos || []);
+          setCombos(list);
         }
       } catch (err) {
         console.error("Erro ao carregar catálogo e clientes:", err);
@@ -117,6 +122,9 @@ export default function NewContractPage() {
       {
         serviceId: svc.id,
         serviceName: svc.name,
+        supplierId: svc.defaultSupplierId || null,
+        supplierNameSnapshot: svc.defaultSupplierName || null,
+        costPeriodicity: svc.defaultCostPeriodicity || "MONTHLY",
         quantity: 1,
         unitPrice: svc.defaultPrice,
         unitCost: svc.defaultCost,
@@ -138,9 +146,12 @@ export default function NewContractPage() {
             const originalService = services.find((s) => s.id === ci.serviceId);
             return {
               serviceId: ci.serviceId,
-              serviceName: ci.serviceName,
+              serviceName: ci.serviceName || originalService?.name || "Serviço",
               comboId: fullCombo.id,
               comboName: fullCombo.name,
+              supplierId: originalService?.defaultSupplierId || null,
+              supplierNameSnapshot: originalService?.defaultSupplierName || null,
+              costPeriodicity: originalService?.defaultCostPeriodicity || "MONTHLY",
               quantity: 1,
               unitPrice: ci.componentPrice,
               unitCost: originalService?.defaultCost || 0,
@@ -429,34 +440,40 @@ export default function NewContractPage() {
               </div>
 
               {/* Botões de Adicionar */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
+                  value=""
                   onChange={(e) => {
                     if (e.target.value) {
                       handleAddService(e.target.value);
-                      e.target.value = "";
                     }
                   }}
-                  className="px-3 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg hover:bg-zinc-100 cursor-pointer"
+                  disabled={services.length === 0}
+                  className="px-3 py-1.5 text-xs bg-zinc-50 border border-zinc-200 rounded-lg hover:bg-zinc-100 cursor-pointer font-medium text-zinc-700 disabled:opacity-50"
                 >
-                  <option value="">+ Adicionar Serviço...</option>
+                  <option value="" disabled>
+                    + Adicionar Serviço {services.length > 0 ? `(${services.length})` : "(0 cadastrados)"}
+                  </option>
                   {services.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} (Padrão: R$ {s.defaultPrice.toFixed(2)})
+                      {s.name} (R$ {s.defaultPrice.toFixed(2)})
                     </option>
                   ))}
                 </select>
 
                 <select
+                  value=""
                   onChange={(e) => {
                     if (e.target.value) {
                       handleAddCombo(e.target.value);
-                      e.target.value = "";
                     }
                   }}
-                  className="px-3 py-1.5 text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg hover:bg-emerald-100 cursor-pointer"
+                  disabled={combos.length === 0}
+                  className="px-3 py-1.5 text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg hover:bg-emerald-100 cursor-pointer font-medium disabled:opacity-50"
                 >
-                  <option value="">+ Importar Combo...</option>
+                  <option value="" disabled>
+                    + Importar Combo {combos.length > 0 ? `(${combos.length})` : "(0 cadastrados)"}
+                  </option>
                   {combos.map((cb) => (
                     <option key={cb.id} value={cb.id}>
                       {cb.name} (Total: R$ {cb.totalPrice.toFixed(2)})
@@ -493,11 +510,18 @@ export default function NewContractPage() {
                           <span className="font-semibold text-zinc-900 block">
                             {it.serviceName}
                           </span>
-                          {it.comboName && (
-                            <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 inline-block mt-0.5">
-                              Do {it.comboName}
-                            </span>
-                          )}
+                          <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                            {it.comboName && (
+                              <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100 inline-block">
+                                Do {it.comboName}
+                              </span>
+                            )}
+                            {it.supplierNameSnapshot && (
+                              <span className="text-[10px] text-zinc-600 bg-zinc-100 px-1.5 py-0.5 rounded border border-zinc-200 inline-block">
+                                Forn: {it.supplierNameSnapshot}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <input

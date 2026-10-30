@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
-import { ArrowLeft, Save, AlertCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, Trash2, Plus, X } from "lucide-react";
 import { ServiceCategory, BillingUnit } from "@/modules/catalog/types";
 import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -31,7 +31,13 @@ export default function EditServicePage() {
   const [defaultSupplierName, setDefaultSupplierName] = useState("");
   const [defaultCostPeriodicity, setDefaultCostPeriodicity] = useState<"MONTHLY" | "ONE_TIME" | "YEARLY">("MONTHLY");
 
-  useEffect(() => {
+  // Quick category creation
+  const [newCatModalOpen, setNewCatModalOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatDesc, setNewCatDesc] = useState("");
+  const [savingCat, setSavingCat] = useState(false);
+
+  const loadData = () => {
     Promise.all([
       fetch(`/api/services/${id}`).then((r) => r.json()),
       fetch("/api/services?type=categories").then((r) => r.json()),
@@ -51,7 +57,39 @@ export default function EditServicePage() {
       })
       .catch((e) => setError("Erro ao carregar dados do serviço"))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadData();
   }, [id]);
+
+  const handleQuickCreateCategory = async () => {
+    if (!newCatName.trim()) return;
+    setSavingCat(true);
+    try {
+      const res = await fetch("/api/services", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "CATEGORY",
+          name: newCatName.trim(),
+          description: newCatDesc.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao criar categoria.");
+
+      setCategoryId(data.id);
+      setNewCatModalOpen(false);
+      setNewCatName("");
+      setNewCatDesc("");
+      loadData();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao criar categoria.");
+    } finally {
+      setSavingCat(false);
+    }
+  };
 
   const handleDelete = async () => {
     if (
@@ -225,11 +263,20 @@ export default function EditServicePage() {
             </div>
 
             <div>
-              <label className="block font-medium text-zinc-700">Categoria Vinculada</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-medium text-zinc-700">Categoria Vinculada</label>
+                <button
+                  type="button"
+                  onClick={() => setNewCatModalOpen(true)}
+                  className="text-[11px] font-semibold text-zinc-900 hover:text-zinc-600 underline underline-offset-2 flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" /> Nova Categoria
+                </button>
+              </div>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
-                className="mt-1 w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
               >
                 <option value="">Sem categoria (Geral)</option>
                 {categories.map((cat) => (
@@ -278,7 +325,23 @@ export default function EditServicePage() {
             </div>
 
             <div>
-              <label className="block font-medium text-zinc-700">Fornecedor Padrão (Custo Vinculado)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-medium text-zinc-700">
+                  Fornecedor Padrão <span className="text-zinc-400 font-normal">(Opcional)</span>
+                </label>
+                {defaultSupplierId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDefaultSupplierId(null);
+                      setDefaultSupplierName("");
+                    }}
+                    className="text-[11px] font-medium text-rose-600 hover:text-rose-800 flex items-center gap-1 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" /> Limpar fornecedor
+                  </button>
+                )}
+              </div>
               <Autocomplete
                 value={defaultSupplierName}
                 selectedId={defaultSupplierId}
@@ -287,11 +350,13 @@ export default function EditServicePage() {
                   setDefaultSupplierId(opt?.id || null);
                 }}
                 fetchOptions={fetchSuppliers}
-                placeholder="Buscar fornecedor por nome, código ou CNPJ..."
+                placeholder="Buscar fornecedor por nome, código ou CNPJ (ou deixe em branco)..."
                 allowCustom={false}
               />
               <span className="text-[10px] text-zinc-400 mt-0.5 block">
-                Fornecedor de referência herdado automaticamente em novas contratações.
+                {defaultSupplierId
+                  ? "Fornecedor vinculado. O custo estimado gerará contas a pagar correspondentes."
+                  : "Sem fornecedor vinculado (serviço interno / sem custo de terceiro)."}
               </span>
             </div>
 
@@ -300,7 +365,7 @@ export default function EditServicePage() {
               <select
                 value={defaultCostPeriodicity}
                 onChange={(e) => setDefaultCostPeriodicity(e.target.value as "MONTHLY" | "ONE_TIME" | "YEARLY")}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900 text-xs"
+                className="mt-1 w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900 text-xs"
               >
                 <option value="MONTHLY">Mensal (Custo Recorrente)</option>
                 <option value="ONE_TIME">Pontual / Único</option>
@@ -350,6 +415,56 @@ export default function EditServicePage() {
           </div>
         </div>
       </form>
+
+      {/* Modal Rápido de Nova Categoria */}
+      {newCatModalOpen && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-zinc-200 space-y-4">
+            <h3 className="font-bold text-zinc-950 text-base">Nova Categoria de Serviços</h3>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-zinc-700 mb-1">Nome da Categoria *</label>
+                <input
+                  type="text"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  placeholder="Ex: Tráfego Pago, Social Media..."
+                  className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-zinc-700 mb-1">Descrição</label>
+                <input
+                  type="text"
+                  value={newCatDesc}
+                  onChange={(e) => setNewCatDesc(e.target.value)}
+                  placeholder="Ex: Campanhas de anúncios e mídia de performance"
+                  className="w-full px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setNewCatModalOpen(false)}
+                  className="px-3 py-1.5 font-medium text-zinc-600 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={savingCat || !newCatName.trim()}
+                  onClick={handleQuickCreateCategory}
+                  className="px-4 py-1.5 font-medium text-white bg-zinc-950 hover:bg-zinc-800 rounded-lg disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {savingCat ? "Salvando..." : "Criar Categoria"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

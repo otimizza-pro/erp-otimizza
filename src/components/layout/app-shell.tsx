@@ -39,6 +39,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
     { id: "accounts", label: "Contas & Bancos", href: "/financial/accounts", icon: ShieldCheck },
     { id: "catalog", label: "Catálogo de Serviços", href: "/services", icon: Package },
     { id: "combos", label: "Combos Comerciais", href: "/combos", icon: Layers },
+    { id: "settings", label: "Configurações", href: "/settings", icon: Settings },
   ];
 
   return (

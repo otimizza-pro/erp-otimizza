@@ -49,6 +49,10 @@ interface DbContractItemRow {
   service_name: string;
   combo_id: string | null;
   combo_name: string | null;
+  supplier_id?: string | null;
+  supplier_name_snapshot?: string | null;
+  cost_periodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
+  is_legacy_cost?: boolean;
   quantity: string | number;
   unit_price: string | number;
   unit_cost: string | number;
@@ -72,6 +76,10 @@ function mapItemRow(row: DbContractItemRow): ContractItemRecord {
     serviceName: row.service_name,
     comboId: row.combo_id,
     comboName: row.combo_name,
+    supplierId: row.supplier_id || null,
+    supplierNameSnapshot: row.supplier_name_snapshot || null,
+    costPeriodicity: row.cost_periodicity || "MONTHLY",
+    isLegacyCost: Boolean(row.is_legacy_cost),
     quantity: Number(row.quantity),
     unitPrice: Number(row.unit_price),
     unitCost: Number(row.unit_cost),
@@ -167,14 +175,39 @@ export async function createContract(input: CreateContractInput): Promise<Contra
     ]);
     const contractDb = contractRes.rows[0];
 
-    // 3. Buscar nomes dos serviços para o snapshot imutável
+    // 3. Buscar nomes dos serviços e fornecedores para o snapshot imutável
     const serviceIds = input.items.map((it) => it.serviceId);
-    const servicesRes = await client.query<{ id: string; name: string }>(
-      `SELECT id, name FROM services WHERE id = ANY($1::uuid[])`,
+    const servicesRes = await client.query<{
+      id: string;
+      name: string;
+      default_supplier_id?: string | null;
+      default_cost_periodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
+    }>(
+      `SELECT id, name, default_supplier_id, default_cost_periodicity FROM services WHERE id = ANY($1::uuid[])`,
       [serviceIds]
     );
-    const serviceNameMap = new Map<string, string>();
-    servicesRes.rows.forEach((s) => serviceNameMap.set(s.id, s.name));
+    const serviceMap = new Map<string, {
+      name: string;
+      defaultSupplierId?: string | null;
+      defaultCostPeriodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
+    }>();
+    servicesRes.rows.forEach((s) => serviceMap.set(s.id, {
+      name: s.name,
+      defaultSupplierId: s.default_supplier_id,
+      defaultCostPeriodicity: s.default_cost_periodicity,
+    }));
+
+    const supplierIds = input.items
+      .map((it) => it.supplierId || serviceMap.get(it.serviceId)?.defaultSupplierId)
+      .filter((id): id is string => Boolean(id));
+    const supplierNameMap = new Map<string, string>();
+    if (supplierIds.length > 0) {
+      const supRes = await client.query<{ id: string; name: string }>(
+        `SELECT id, name FROM suppliers WHERE id = ANY($1::uuid[])`,
+        [supplierIds]
+      );
+      supRes.rows.forEach((sp) => supplierNameMap.set(sp.id, sp.name));
+    }
 
     // 4. Calcular valor total dos itens com precisão
     let totalVersionAmount = 0;
@@ -185,7 +218,12 @@ export async function createContract(input: CreateContractInput): Promise<Contra
       const itemTotal = Number((qty * uPrice).toFixed(2));
       totalVersionAmount = Number((totalVersionAmount + itemTotal).toFixed(2));
 
-      const serviceName = item.serviceName || serviceNameMap.get(item.serviceId) || "Serviço";
+      const sInfo = serviceMap.get(item.serviceId);
+      const serviceName = item.serviceName || sInfo?.name || "Serviço";
+      const supplierId = item.supplierId || sInfo?.defaultSupplierId || null;
+      const supplierNameSnapshot = item.supplierNameSnapshot || (supplierId ? supplierNameMap.get(supplierId) : null) || null;
+      const costPeriodicity = item.costPeriodicity || sInfo?.defaultCostPeriodicity || "MONTHLY";
+
       return {
         ...item,
         quantity: qty,
@@ -193,6 +231,9 @@ export async function createContract(input: CreateContractInput): Promise<Contra
         unitCost: uCost,
         totalPrice: itemTotal,
         serviceName,
+        supplierId,
+        supplierNameSnapshot,
+        costPeriodicity,
       };
     });
 
@@ -226,8 +267,9 @@ export async function createContract(input: CreateContractInput): Promise<Contra
       const insertItemSql = `
         INSERT INTO contract_items (
           contract_version_id, service_id, service_name, combo_id, combo_name,
-          quantity, unit_price, unit_cost, total_price
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          quantity, unit_price, unit_cost, total_price,
+          supplier_id, supplier_name_snapshot, cost_periodicity, is_legacy_cost
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false)
         RETURNING *
       `;
       const itemRes = await client.query<DbContractItemRow>(insertItemSql, [
@@ -240,6 +282,9 @@ export async function createContract(input: CreateContractInput): Promise<Contra
         item.unitPrice,
         item.unitCost,
         item.totalPrice,
+        item.supplierId,
+        item.supplierNameSnapshot,
+        item.costPeriodicity,
       ]);
       itemRecords.push(mapItemRow(itemRes.rows[0]));
     }
@@ -293,14 +338,39 @@ export async function createContractVersion(
     );
     const newVersionNumber = maxVerRes.rows[0].max_ver + 1;
 
-    // 3. Buscar nomes dos serviços
+    // 3. Buscar nomes dos serviços e fornecedores
     const serviceIds = input.items.map((it) => it.serviceId);
-    const servicesRes = await client.query<{ id: string; name: string }>(
-      `SELECT id, name FROM services WHERE id = ANY($1::uuid[])`,
+    const servicesRes = await client.query<{
+      id: string;
+      name: string;
+      default_supplier_id?: string | null;
+      default_cost_periodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
+    }>(
+      `SELECT id, name, default_supplier_id, default_cost_periodicity FROM services WHERE id = ANY($1::uuid[])`,
       [serviceIds]
     );
-    const serviceNameMap = new Map<string, string>();
-    servicesRes.rows.forEach((s) => serviceNameMap.set(s.id, s.name));
+    const serviceMap = new Map<string, {
+      name: string;
+      defaultSupplierId?: string | null;
+      defaultCostPeriodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
+    }>();
+    servicesRes.rows.forEach((s) => serviceMap.set(s.id, {
+      name: s.name,
+      defaultSupplierId: s.default_supplier_id,
+      defaultCostPeriodicity: s.default_cost_periodicity,
+    }));
+
+    const supplierIds = input.items
+      .map((it) => it.supplierId || serviceMap.get(it.serviceId)?.defaultSupplierId)
+      .filter((id): id is string => Boolean(id));
+    const supplierNameMap = new Map<string, string>();
+    if (supplierIds.length > 0) {
+      const supRes = await client.query<{ id: string; name: string }>(
+        `SELECT id, name FROM suppliers WHERE id = ANY($1::uuid[])`,
+        [supplierIds]
+      );
+      supRes.rows.forEach((sp) => supplierNameMap.set(sp.id, sp.name));
+    }
 
     // 4. Calcular total
     let totalVersionAmount = 0;
@@ -311,7 +381,12 @@ export async function createContractVersion(
       const itemTotal = Number((qty * uPrice).toFixed(2));
       totalVersionAmount = Number((totalVersionAmount + itemTotal).toFixed(2));
 
-      const serviceName = item.serviceName || serviceNameMap.get(item.serviceId) || "Serviço";
+      const sInfo = serviceMap.get(item.serviceId);
+      const serviceName = item.serviceName || sInfo?.name || "Serviço";
+      const supplierId = item.supplierId || sInfo?.defaultSupplierId || null;
+      const supplierNameSnapshot = item.supplierNameSnapshot || (supplierId ? supplierNameMap.get(supplierId) : null) || null;
+      const costPeriodicity = item.costPeriodicity || sInfo?.defaultCostPeriodicity || "MONTHLY";
+
       return {
         ...item,
         quantity: qty,
@@ -319,6 +394,9 @@ export async function createContractVersion(
         unitCost: uCost,
         totalPrice: itemTotal,
         serviceName,
+        supplierId,
+        supplierNameSnapshot,
+        costPeriodicity,
       };
     });
 
@@ -353,8 +431,9 @@ export async function createContractVersion(
       const insertItemSql = `
         INSERT INTO contract_items (
           contract_version_id, service_id, service_name, combo_id, combo_name,
-          quantity, unit_price, unit_cost, total_price
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          quantity, unit_price, unit_cost, total_price,
+          supplier_id, supplier_name_snapshot, cost_periodicity, is_legacy_cost
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false)
         RETURNING *
       `;
       const itemRes = await client.query<DbContractItemRow>(insertItemSql, [
@@ -367,6 +446,9 @@ export async function createContractVersion(
         item.unitPrice,
         item.unitCost,
         item.totalPrice,
+        item.supplierId,
+        item.supplierNameSnapshot,
+        item.costPeriodicity,
       ]);
       itemRecords.push(mapItemRow(itemRes.rows[0]));
     }

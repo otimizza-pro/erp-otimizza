@@ -26,6 +26,10 @@ import {
   CashflowComparisonReportItem,
   MrrEvolutionReportItem,
 } from "@/modules/analytics/types";
+import {
+  SupplierExpenseSummary,
+  ManagerialProfitabilityItem,
+} from "@/modules/suppliers/types";
 
 export default function ReportsHubPage() {
   const [activeTab, setActiveTab] = useState<
@@ -36,6 +40,8 @@ export default function ReportsHubPage() {
     | "client_profitability"
     | "cashflow_comparison"
     | "mrr_evolution"
+    | "suppliers_expenses"
+    | "managerial_profitability"
   >("receivables_default");
 
   const [receivablesData, setReceivablesData] = useState<ReceivablesDefaultReportItem[]>([]);
@@ -45,6 +51,9 @@ export default function ReportsHubPage() {
   const [combosData, setCombosData] = useState<ComboProfitabilityReportItem[]>([]);
   const [cashflowData, setCashflowData] = useState<CashflowComparisonReportItem[]>([]);
   const [mrrData, setMrrData] = useState<MrrEvolutionReportItem[]>([]);
+  const [suppliersData, setSuppliersData] = useState<SupplierExpenseSummary[]>([]);
+  const [profitabilityData, setProfitabilityData] = useState<{ items: ManagerialProfitabilityItem[]; totals: Record<string, number> }>({ items: [], totals: {} });
+  const [profitabilityMonth, setProfitabilityMonth] = useState("2026-11");
   const [loading, setLoading] = useState(true);
 
   // Filtros
@@ -75,6 +84,12 @@ export default function ReportsHubPage() {
       } else if (activeTab === "mrr_evolution") {
         const res = await fetch("/api/analytics/overview?type=mrr_evolution&months=12");
         if (res.ok) setMrrData(await res.json());
+      } else if (activeTab === "suppliers_expenses") {
+        const res = await fetch("/api/analytics/suppliers?type=expenses");
+        if (res.ok) setSuppliersData(await res.json());
+      } else if (activeTab === "managerial_profitability") {
+        const res = await fetch(`/api/analytics/profitability?competency=${profitabilityMonth}`);
+        if (res.ok) setProfitabilityData(await res.json());
       }
     } catch (e) {
       console.error("Erro ao carregar dados do relatório:", e);
@@ -85,7 +100,7 @@ export default function ReportsHubPage() {
 
   useEffect(() => {
     loadData();
-  }, [activeTab, onlyOverdue]);
+  }, [activeTab, onlyOverdue, profitabilityMonth]);
 
   const formatBRL = (val: number | undefined) => {
     if (val === undefined || isNaN(val)) return "R$ 0,00";
@@ -152,6 +167,8 @@ export default function ReportsHubPage() {
           {[
             { id: "receivables_default", label: "Contas a Receber e Inadimplência" },
             { id: "payables", label: "Contas a Pagar" },
+            { id: "suppliers_expenses", label: "Gastos por Fornecedor" },
+            { id: "managerial_profitability", label: "Rentabilidade por Competência" },
             { id: "service_profitability", label: "Rentabilidade por Serviço" },
             { id: "combo_profitability", label: "Rentabilidade por Combo" },
             { id: "client_profitability", label: "Receitas por Cliente" },
@@ -489,7 +506,7 @@ export default function ReportsHubPage() {
                 </tbody>
               </table>
             </div>
-          ) : (
+          ) : activeTab === "mrr_evolution" ? (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
@@ -513,6 +530,98 @@ export default function ReportsHubPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          ) : activeTab === "suppliers_expenses" ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-zinc-200 bg-zinc-50/75 text-[11px] font-semibold text-zinc-500 uppercase">
+                    <th className="py-3 px-4">Código / Fornecedor</th>
+                    <th className="py-3 px-4">Categoria</th>
+                    <th className="py-3 px-4 text-right">Total Despesas</th>
+                    <th className="py-3 px-4 text-right">Total Pago</th>
+                    <th className="py-3 px-4 text-right">Saldo Aberto</th>
+                    <th className="py-3 px-4 text-right">Alocado a Contratos</th>
+                    <th className="py-3 px-4 text-center">Contratos</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {suppliersData.map((s) => (
+                    <tr key={s.supplierId} className="hover:bg-zinc-50/60 transition">
+                      <td className="py-3 px-4 font-semibold text-zinc-900">
+                        {s.supplierName} <span className="font-mono text-[10px] text-zinc-400 font-normal">({s.supplierCode})</span>
+                      </td>
+                      <td className="py-3 px-4 text-zinc-600">{s.category}</td>
+                      <td className="py-3 px-4 text-right font-mono font-semibold text-zinc-950">{formatBRL(s.totalOriginalPayables)}</td>
+                      <td className="py-3 px-4 text-right font-mono text-emerald-700">{formatBRL(s.totalPaid)}</td>
+                      <td className="py-3 px-4 text-right font-mono text-amber-700 font-semibold">{formatBRL(s.totalOpenPayables)}</td>
+                      <td className="py-3 px-4 text-right font-mono text-blue-700 font-bold">{formatBRL(s.totalAllocatedToContracts)}</td>
+                      <td className="py-3 px-4 text-center font-mono">{s.activeContractsCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl flex items-center justify-between text-xs">
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-zinc-700">Competência de Apuração:</span>
+                  <input
+                    type="month"
+                    value={profitabilityMonth}
+                    onChange={(e) => setProfitabilityMonth(e.target.value)}
+                    className="px-3 py-1.5 rounded-lg border border-zinc-300 bg-white font-mono text-xs text-zinc-900"
+                  />
+                </div>
+                <div className="text-[11px] text-zinc-500">
+                  Regime de Competência: Receita reconhecida no período vs Custos apropriados
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-zinc-200 bg-zinc-50/75 text-[11px] font-semibold text-zinc-500 uppercase">
+                      <th className="py-3 px-4">Serviço / Cliente</th>
+                      <th className="py-3 px-4 text-right">Rec. Contratada</th>
+                      <th className="py-3 px-4 text-right">Rec. Faturada</th>
+                      <th className="py-3 px-4 text-right">Rec. Recebida</th>
+                      <th className="py-3 px-4 text-right">Rec. Reconhecida</th>
+                      <th className="py-3 px-4 text-right">Custo Estimado</th>
+                      <th className="py-3 px-4 text-right">Custo Apropriado</th>
+                      <th className="py-3 px-4 text-right">Custo Legado</th>
+                      <th className="py-3 px-4 text-right">Margem Realizada</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {profitabilityData.items?.map((item: ManagerialProfitabilityItem, idx: number) => (
+                      <tr key={`${item.serviceId}-${idx}`} className="hover:bg-zinc-50/60 transition">
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-zinc-900">{item.serviceName}</div>
+                          <div className="text-[10px] text-zinc-400">{item.clientName}</div>
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono text-zinc-600">{formatBRL(item.contractedRevenue)}</td>
+                        <td className="py-3 px-4 text-right font-mono text-zinc-600">{formatBRL(item.invoicedRevenue)}</td>
+                        <td className="py-3 px-4 text-right font-mono text-zinc-600">{formatBRL(item.receivedRevenue)}</td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-zinc-950">{formatBRL(item.recognizedRevenue)}</td>
+                        <td className="py-3 px-4 text-right font-mono text-zinc-500">{formatBRL(item.estimatedDirectCost)}</td>
+                        <td className="py-3 px-4 text-right font-mono font-semibold text-red-700">{formatBRL(item.accruedRealCost)}</td>
+                        <td className="py-3 px-4 text-right font-mono text-amber-700">
+                          {item.unclassifiedLegacyCost > 0 ? (
+                            <span title="Custo legado sem periodicidade classificada">{formatBRL(item.unclassifiedLegacyCost)}*</span>
+                          ) : (
+                            "-"
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right font-mono font-extrabold text-emerald-700">
+                          {formatBRL(item.realizedGrossMargin)} ({item.realizedMarginPct}%)
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

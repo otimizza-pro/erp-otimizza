@@ -371,7 +371,9 @@ export async function createPayableTemplate(data: {
 
 export async function createPayable(data: {
   payableTemplateId?: string;
+  supplierId?: string;
   supplierName: string;
+  supplierNameSnapshot?: string;
   categoryId?: string;
   contractId?: string;
   serviceId?: string;
@@ -394,21 +396,33 @@ export async function createPayable(data: {
       }
     }
 
+    const finalSupplierId = data.supplierId || null;
+    let finalSupplierSnapshot = data.supplierNameSnapshot || data.supplierName.trim();
+    if (finalSupplierId && !data.supplierNameSnapshot) {
+      const supQ = await client.query<{ name: string }>("SELECT name FROM suppliers WHERE id = $1", [finalSupplierId]);
+      if (supQ.rows.length > 0) {
+        finalSupplierSnapshot = supQ.rows[0].name;
+      }
+    }
+
     const seqRes = await client.query<{ next_val: string }>("SELECT nextval('payable_number_seq') AS next_val");
     const pagNumber = `PAG-${String(seqRes.rows[0].next_val).padStart(5, "0")}`;
     const initialStatus = computeStatus(data.dueDate, origAmount, 0, false);
 
     const sql = `
       INSERT INTO payables (
-        payable_template_id, supplier_name, category_id, contract_id, service_id,
-        payable_number, description, competency, due_date, original_amount,
-        paid_amount, balance_amount, status, idempotency_key, notes
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 0.00, $10, $11, $12, $13)
+        payable_template_id, supplier_id, supplier_name, supplier_name_snapshot,
+        category_id, contract_id, service_id, payable_number, description,
+        competency, due_date, original_amount, paid_amount, balance_amount,
+        allocated_amount, unallocated_amount, status, idempotency_key, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 0.00, $12, 0.00, $12, $13, $14, $15)
       RETURNING *
     `;
     const res = await client.query(sql, [
       data.payableTemplateId || null,
+      finalSupplierId,
       data.supplierName.trim(),
+      finalSupplierSnapshot,
       data.categoryId || null,
       data.contractId || null,
       data.serviceId || null,
@@ -1113,7 +1127,9 @@ function mapPayableRow(r: Record<string, unknown>): PayableRecord {
   return {
     id: String(r.id),
     payableTemplateId: r.payable_template_id ? String(r.payable_template_id) : null,
+    supplierId: r.supplier_id ? String(r.supplier_id) : null,
     supplierName: String(r.supplier_name),
+    supplierNameSnapshot: r.supplier_name_snapshot ? String(r.supplier_name_snapshot) : null,
     categoryId: r.category_id ? String(r.category_id) : null,
     categoryName: r.category_name ? String(r.category_name) : undefined,
     contractId: r.contract_id ? String(r.contract_id) : null,
@@ -1126,6 +1142,8 @@ function mapPayableRow(r: Record<string, unknown>): PayableRecord {
     originalAmount: Number(r.original_amount),
     paidAmount: Number(r.paid_amount),
     balanceAmount: Number(r.balance_amount),
+    allocatedAmount: Number(r.allocated_amount || 0),
+    unallocatedAmount: Number(r.unallocated_amount || 0),
     status: r.status as FinancialStatus,
     idempotencyKey: r.idempotency_key ? String(r.idempotency_key) : null,
     cancellationReason: r.cancellation_reason ? String(r.cancellation_reason) : null,

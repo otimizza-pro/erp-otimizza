@@ -24,6 +24,9 @@ interface DbServiceRow {
   id: string;
   category_id: string | null;
   category_name?: string | null;
+  default_supplier_id?: string | null;
+  default_supplier_name?: string | null;
+  default_cost_periodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
   name: string;
   description: string | null;
   default_price: string;
@@ -144,9 +147,10 @@ export async function listServices(options?: {
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const sql = `
-    SELECT s.*, c.name as category_name
+    SELECT s.*, c.name as category_name, sup.name as default_supplier_name
     FROM services s
     LEFT JOIN service_categories c ON s.category_id = c.id
+    LEFT JOIN suppliers sup ON s.default_supplier_id = sup.id
     ${whereClause}
     ORDER BY s.name ASC
   `;
@@ -156,6 +160,9 @@ export async function listServices(options?: {
     id: r.id,
     categoryId: r.category_id,
     categoryName: r.category_name || null,
+    defaultSupplierId: r.default_supplier_id || null,
+    defaultSupplierName: r.default_supplier_name || null,
+    defaultCostPeriodicity: r.default_cost_periodicity || "MONTHLY",
     name: r.name,
     description: r.description,
     defaultPrice: parseFloat(r.default_price || "0"),
@@ -170,9 +177,10 @@ export async function listServices(options?: {
 
 export async function getServiceById(id: string): Promise<ServiceItem | null> {
   const res = await query<DbServiceRow>(
-    `SELECT s.*, c.name as category_name
+    `SELECT s.*, c.name as category_name, sup.name as default_supplier_name
      FROM services s
      LEFT JOIN service_categories c ON s.category_id = c.id
+     LEFT JOIN suppliers sup ON s.default_supplier_id = sup.id
      WHERE s.id = $1`,
     [id]
   );
@@ -182,6 +190,9 @@ export async function getServiceById(id: string): Promise<ServiceItem | null> {
     id: r.id,
     categoryId: r.category_id,
     categoryName: r.category_name || null,
+    defaultSupplierId: r.default_supplier_id || null,
+    defaultSupplierName: r.default_supplier_name || null,
+    defaultCostPeriodicity: r.default_cost_periodicity || "MONTHLY",
     name: r.name,
     description: r.description,
     defaultPrice: parseFloat(r.default_price || "0"),
@@ -207,8 +218,9 @@ export async function createService(data: CreateServiceDTO): Promise<ServiceItem
 
   const res = await query<DbServiceRow>(
     `INSERT INTO services (
-      category_id, name, description, default_price, default_cost, billing_unit, status
-    ) VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE')
+      category_id, name, description, default_price, default_cost, billing_unit, status,
+      default_supplier_id, default_cost_periodicity
+    ) VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE', $7, $8)
     RETURNING *`,
     [
       data.categoryId || null,
@@ -217,6 +229,8 @@ export async function createService(data: CreateServiceDTO): Promise<ServiceItem
       data.defaultPrice,
       data.defaultCost,
       data.billingUnit,
+      data.defaultSupplierId || null,
+      data.defaultCostPeriodicity || "MONTHLY",
     ]
   );
 
@@ -230,6 +244,8 @@ export async function createService(data: CreateServiceDTO): Promise<ServiceItem
   return {
     id: r.id,
     categoryId: r.category_id,
+    defaultSupplierId: r.default_supplier_id || null,
+    defaultCostPeriodicity: r.default_cost_periodicity || "MONTHLY",
     name: r.name,
     description: r.description,
     defaultPrice: parseFloat(r.default_price || "0"),

@@ -87,7 +87,9 @@ export interface PayableTemplateRecord {
 export interface PayableRecord {
   id: string;
   payableTemplateId: string | null;
+  supplierId?: string | null;
   supplierName: string;
+  supplierNameSnapshot?: string | null;
   categoryId: string | null;
   categoryName?: string;
   contractId: string | null;
@@ -100,6 +102,8 @@ export interface PayableRecord {
   originalAmount: number;
   paidAmount: number;
   balanceAmount: number;
+  allocatedAmount?: number;
+  unallocatedAmount?: number;
   status: FinancialStatus;
   idempotencyKey: string | null;
   cancellationReason: string | null;

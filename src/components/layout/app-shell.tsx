@@ -16,11 +16,12 @@ import {
   LogOut,
   DollarSign,
   BarChart3,
+  Truck,
 } from "lucide-react";
 
 interface AppShellProps {
   children: React.ReactNode;
-  activeSection?: "dashboard" | "clients" | "catalog" | "combos" | "contracts" | "receivables" | "payables" | "accounts" | "cashflow" | "settings";
+  activeSection?: "dashboard" | "clients" | "suppliers" | "catalog" | "combos" | "contracts" | "receivables" | "payables" | "accounts" | "cashflow" | "reports" | "settings";
 }
 
 export function AppShell({ children, activeSection = "dashboard" }: AppShellProps) {
@@ -29,6 +30,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
   const navItems = [
     { id: "dashboard", label: "Visão Geral", href: "/", icon: LayoutDashboard },
     { id: "clients", label: "Clientes", href: "/clients", icon: Users },
+    { id: "suppliers", label: "Fornecedores", href: "/suppliers", icon: Truck },
     { id: "contracts", label: "Contratações", href: "/contracts", icon: RefreshCw },
     { id: "receivables", label: "Contas a Receber", href: "/financial/receivables", icon: DollarSign },
     { id: "payables", label: "Contas a Pagar", href: "/financial/payables", icon: Layers },

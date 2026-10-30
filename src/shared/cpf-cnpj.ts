@@ -81,3 +81,11 @@ export function formatDocument(docRaw: string): string {
   }
   return docRaw;
 }
+
+export function validateDocument(docRaw: string): boolean {
+  const doc = normalizeDocument(docRaw);
+  if (doc.length === 11) return validateCPF(doc);
+  if (doc.length === 14) return validateCNPJ(doc);
+  return false;
+}
+

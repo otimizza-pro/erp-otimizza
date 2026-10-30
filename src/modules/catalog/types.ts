@@ -18,6 +18,9 @@ export interface ServiceItem {
   id: string;
   categoryId?: string | null;
   categoryName?: string | null;
+  defaultSupplierId?: string | null;
+  defaultSupplierName?: string | null;
+  defaultCostPeriodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
   name: string;
   description?: string | null;
   defaultPrice: number; // Em reais com 2 decimais (ex: 1500.00)
@@ -52,6 +55,8 @@ export interface Combo {
 
 export interface CreateServiceDTO {
   categoryId?: string | null;
+  defaultSupplierId?: string | null;
+  defaultCostPeriodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
   name: string;
   description?: string | null;
   defaultPrice: number;

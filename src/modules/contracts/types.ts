@@ -7,6 +7,9 @@ export interface ContractItemInput {
   serviceName?: string;
   comboId?: string | null;
   comboName?: string | null;
+  supplierId?: string | null;
+  supplierNameSnapshot?: string | null;
+  costPeriodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
   quantity: number;
   unitPrice: number;
   unitCost: number;
@@ -19,6 +22,10 @@ export interface ContractItemRecord {
   serviceName: string;
   comboId: string | null;
   comboName: string | null;
+  supplierId?: string | null;
+  supplierNameSnapshot?: string | null;
+  costPeriodicity: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
+  isLegacyCost: boolean;
   quantity: number;
   unitPrice: number;
   unitCost: number;

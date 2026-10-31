@@ -643,15 +643,16 @@ export class DocumentService {
     pdfBuffer: Buffer,
     actor?: { id?: string; name?: string }
   ): Promise<DocumentRecord> {
-    const filename = `${proposalCode}_v${versionNumber}.pdf`;
-    const title = `Proposta Comercial ${proposalCode} (Versão ${versionNumber})`;
+    const code = proposalCode || "PROP";
+    const filename = `${code}_v${versionNumber}.pdf`;
+    const title = `Proposta Comercial ${code} (Versão ${versionNumber})`;
 
     return await this.createDocument(
       {
         title,
-        description: `Documento PDF gerado para a Proposta Comercial ${proposalCode} - Versão ${versionNumber}.`,
+        description: `Documento PDF gerado para a Proposta Comercial ${code} - Versão ${versionNumber}.`,
         categoryId: "PROPOSAL",
-        tags: ["proposta", "comercial", proposalCode.toLowerCase()],
+        tags: ["proposta", "comercial", code.toLowerCase()],
         originalFilename: filename,
         mimeType: "application/pdf",
         links: [

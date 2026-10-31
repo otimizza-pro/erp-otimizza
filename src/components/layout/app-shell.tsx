@@ -38,6 +38,7 @@ interface AppShellProps {
     | "clients"
     | "contracts"
     | "suppliers"
+    | "service_categories"
     | "catalog"
     | "combos"
     | "receivables"
@@ -79,6 +80,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
       if (pathname.startsWith("/financial/cost-centers")) return "cost_centers";
       if (pathname.startsWith("/financial/cashflow")) return "cashflow";
       if (pathname.startsWith("/financial/accounts")) return "accounts";
+      if (pathname.startsWith("/services/categories")) return "service_categories";
       if (pathname.startsWith("/services")) return "catalog";
       if (pathname.startsWith("/combos")) return "combos";
       if (pathname.startsWith("/reports")) return "reports";
@@ -108,58 +110,59 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
     {
       group: "Visão Geral",
       items: [
-        { id: "dashboard", label: "Dashboard Executivo", href: "/", icon: LayoutDashboard },
+        { id: "dashboard", label: "Dashboard", href: "/", icon: LayoutDashboard },
       ],
     },
     {
-      group: "Comercial & CRM",
+      group: "Comercial",
       items: [
-        { id: "crm", label: "Painel do CRM", href: "/crm", icon: TrendingUp },
-        { id: "crm_pipelines", label: "Funis & Kanban", href: "/crm/pipelines", icon: Layers },
+        { id: "crm", label: "CRM", href: "/crm", icon: TrendingUp },
         { id: "crm_leads", label: "Leads", href: "/crm/leads", icon: Users },
         { id: "crm_opportunities", label: "Oportunidades", href: "/crm/opportunities", icon: RefreshCw },
-        { id: "proposals", label: "Propostas Comerciais", href: "/proposals", icon: FileText },
-        { id: "crm_activities", label: "Atividades & Agenda", href: "/crm/activities", icon: ShieldCheck },
+        { id: "crm_pipelines", label: "Funis", href: "/crm/pipelines", icon: Layers },
+        { id: "crm_activities", label: "Atividades Comerciais", href: "/crm/activities", icon: ShieldCheck },
         { id: "clients", label: "Clientes", href: "/clients", icon: Users },
+        { id: "proposals", label: "Propostas Comerciais", href: "/proposals", icon: FileText },
       ],
     },
     {
       group: "Catálogo",
       items: [
+        { id: "service_categories", label: "Categorias", href: "/services/categories", icon: Layers },
         { id: "catalog", label: "Serviços", href: "/services", icon: Package },
-        { id: "combos", label: "Combos Comerciais", href: "/combos", icon: Layers },
+        { id: "combos", label: "Combos", href: "/combos", icon: Layers },
       ],
     },
     {
       group: "Financeiro",
       items: [
+        { id: "contracts", label: "Assinaturas / Contratos", href: "/contracts", icon: RefreshCw },
         { id: "receivables", label: "Contas a Receber", href: "/financial/receivables", icon: DollarSign },
-        { id: "contracts", label: "Assinaturas", href: "/contracts", icon: RefreshCw },
         { id: "payables", label: "Contas a Pagar", href: "/financial/payables", icon: Layers },
-        { id: "dre", label: "DRE Gerencial", href: "/financial/dre", icon: TrendingUp },
-        { id: "cost_centers", label: "Centros de Custo", href: "/financial/cost-centers", icon: Layers },
-        { id: "cashflow", label: "Fluxo de Caixa", href: "/financial/cashflow", icon: Database },
-        { id: "accounts", label: "Contas & Bancos", href: "/financial/accounts", icon: ShieldCheck },
         { id: "suppliers", label: "Fornecedores", href: "/suppliers", icon: Truck },
-      ],
-    },
-    {
-      group: "Projetos & Operações",
-      items: [
-        { id: "projects", label: "Projetos", href: "/projects", icon: Briefcase },
-        { id: "project_templates", label: "Modelos / Templates", href: "/projects/templates", icon: Layers },
+        { id: "accounts", label: "Contas Financeiras", href: "/financial/accounts", icon: ShieldCheck },
+        { id: "cashflow", label: "Fluxo de Caixa", href: "/financial/cashflow", icon: Database },
+        { id: "cost_centers", label: "Centros de Custo", href: "/financial/cost-centers", icon: Layers },
+        { id: "dre", label: "DRE Gerencial", href: "/financial/dre", icon: TrendingUp },
       ],
     },
     {
       group: "Dados & BI",
       items: [
-        { id: "reports", label: "Relatórios & BI", href: "/reports", icon: BarChart3 },
+        { id: "reports", label: "Indicadores & Relatórios", href: "/reports", icon: BarChart3 },
+      ],
+    },
+    {
+      group: "Projetos",
+      items: [
+        { id: "projects", label: "Projetos", href: "/projects", icon: Briefcase },
+        { id: "project_templates", label: "Modelos", href: "/projects/templates", icon: Layers },
       ],
     },
     {
       group: "Documentos",
       items: [
-        { id: "documents", label: "Repositório de Arquivos", href: "/documents", icon: FileText },
+        { id: "documents", label: "Repositório", href: "/documents", icon: FileText },
       ],
     },
     {

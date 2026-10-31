@@ -44,3 +44,4 @@ next-env.d.ts
 # backups & scratch audit tools
 database/backups/
 scratch/
+supabase/.temp/

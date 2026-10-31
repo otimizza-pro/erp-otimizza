@@ -263,20 +263,20 @@ export default function NewContractPage() {
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-900 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Voltar para Contratações
+            Voltar para Assinaturas
           </Link>
         </div>
 
         {/* Title */}
         <div className="border-b border-zinc-200 pb-4">
           <span className="text-xs font-mono font-medium text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-            Contratos • Formalização de Contrato
+            Financeiro • Nova Assinatura
           </span>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 mt-2">
-            Nova Contratação de Serviços
+            Nova Assinatura de Serviços & Planos
           </h1>
           <p className="text-sm text-zinc-600 mt-1">
-            Defina o cliente, regras de vigência, dia de vencimento e componha os serviços com preços e custos customizados.
+            Defina o cliente, regras de recorrência e vigência, dia de vencimento e componha os serviços com preços e custos customizados.
           </p>
         </div>
 
@@ -317,7 +317,7 @@ export default function NewContractPage() {
 
               <div>
                 <label className="block text-xs font-medium text-zinc-700 mb-1">
-                  Título da Contratação *
+                  Título da Assinatura *
                 </label>
                 <input
                   type="text"
@@ -603,7 +603,7 @@ export default function NewContractPage() {
               className="inline-flex items-center gap-2 px-5 py-2 text-sm font-medium text-white bg-zinc-950 hover:bg-zinc-800 rounded-lg shadow-sm transition-colors disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              {saving ? "Salvando Contrato..." : "Salvar e Ativar Contratação"}
+              {saving ? "Salvando Assinatura..." : "Salvar e Ativar Assinatura"}
             </button>
           </div>
         </form>

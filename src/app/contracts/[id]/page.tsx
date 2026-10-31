@@ -211,10 +211,17 @@ export default function ContractDetailsPage() {
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-900 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Voltar para Contratações
+            Voltar para Assinaturas
           </Link>
 
           <div className="flex items-center gap-3">
+            <Link
+              href={`/financial/receivables?contractId=${contract.id}`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-xs font-semibold border border-emerald-200 transition-colors"
+            >
+              <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+              Ver Faturas / Títulos a Receber
+            </Link>
             {contract.status === "ACTIVE" && (
               <>
                 <button
@@ -233,7 +240,7 @@ export default function ContractDetailsPage() {
                   className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-medium border border-rose-200 transition-colors"
                 >
                   <XCircle className="w-3.5 h-3.5" />
-                  Cancelar Contratação
+                  Cancelar Assinatura
                 </button>
               </>
             )}
@@ -598,7 +605,7 @@ export default function ContractDetailsPage() {
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="font-bold text-zinc-950">Cancelar Contratação</h3>
+                <h3 className="font-bold text-zinc-950">Cancelar Assinatura</h3>
                 <p className="text-xs text-zinc-500">Ação irreversível de encerramento</p>
               </div>
             </div>

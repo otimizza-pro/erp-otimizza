@@ -284,22 +284,22 @@ export default function ClientDetailsPage() {
           )}
         </div>
 
-        {/* Contratações do Cliente */}
+        {/* Assinaturas do Cliente */}
         <div className="p-6 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline space-y-4">
           <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-semibold text-zinc-900">Contratações & Recorrências</h2>
+                <h2 className="text-sm font-semibold text-zinc-900">Assinaturas & Recorrência</h2>
               </div>
               <p className="text-xs text-zinc-500 mt-0.5">
-                Contratos independentes, vigências ativas e histórico de serviços deste cliente
+                Contratos independentes, vigências ativas e histórico de planos deste cliente
               </p>
             </div>
             <Link
               href="/contracts/new"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-950 text-white text-xs font-medium hover:bg-zinc-800 transition-colors"
             >
-              + Nova Contratação
+              + Nova Assinatura
             </Link>
           </div>
 
@@ -346,15 +346,15 @@ function ClientContractsSection({ clientId }: { clientId: string }) {
   }, [clientId]);
 
   if (loading) {
-    return <p className="text-xs text-zinc-400">Carregando contratações...</p>;
+    return <p className="text-xs text-zinc-400">Carregando assinaturas...</p>;
   }
 
   if (contracts.length === 0) {
     return (
       <div className="p-4 rounded-xl bg-zinc-50 border border-dashed border-zinc-200 text-center">
-        <p className="text-xs text-zinc-600 font-medium">Nenhuma contratação vinculada a este cliente.</p>
+        <p className="text-xs text-zinc-600 font-medium">Nenhuma assinatura vinculada a este cliente.</p>
         <p className="text-[11px] text-zinc-400 mt-0.5">
-          Clique no botão acima para registrar a primeira contratação ou combo.
+          Clique no botão acima para registrar a primeira assinatura ou combo.
         </p>
       </div>
     );

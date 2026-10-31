@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
@@ -48,6 +49,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const router = useRouter();
 
   const currentSection = React.useMemo(() => {
     if (pathname) {
@@ -84,7 +86,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
     } catch (err) {
       console.error("Erro ao encerrar sessão:", err);
     } finally {
-      window.location.href = "/login";
+      router.push("/login");
     }
   };
 
@@ -104,7 +106,6 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
         { id: "crm_opportunities", label: "Oportunidades", href: "/crm/opportunities", icon: RefreshCw },
         { id: "crm_activities", label: "Atividades & Agenda", href: "/crm/activities", icon: ShieldCheck },
         { id: "clients", label: "Clientes", href: "/clients", icon: Users },
-        { id: "contracts", label: "Contratações", href: "/contracts", icon: RefreshCw },
       ],
     },
     {
@@ -118,6 +119,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
       group: "Financeiro",
       items: [
         { id: "receivables", label: "Contas a Receber", href: "/financial/receivables", icon: DollarSign },
+        { id: "contracts", label: "Assinaturas", href: "/contracts", icon: RefreshCw },
         { id: "payables", label: "Contas a Pagar", href: "/financial/payables", icon: Layers },
         { id: "cashflow", label: "Fluxo de Caixa", href: "/financial/cashflow", icon: Database },
         { id: "accounts", label: "Contas & Bancos", href: "/financial/accounts", icon: ShieldCheck },
@@ -158,9 +160,12 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
           {/* Logo & Brand Header */}
           <div className="p-6 pb-4 border-b border-zinc-100 flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
-              <img
+              <Image
                 src="/brand/principal-cor.png"
                 alt="Otimizza ERP"
+                width={140}
+                height={32}
+                priority
                 className="h-8 w-auto object-contain"
               />
             </Link>
@@ -256,9 +261,11 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
             </div>
 
             <div className="flex items-center gap-2 pl-3 border-l border-zinc-200">
-              <img
+              <Image
                 src="/brand/avatar-claro.png"
                 alt="Avatar"
+                width={32}
+                height={32}
                 className="w-8 h-8 rounded-full object-cover border border-zinc-200 shadow-xs"
               />
               <div className="hidden lg:block text-left">

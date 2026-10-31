@@ -112,23 +112,30 @@ export default function ContractsListPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-medium text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                Contratos • Vigências & Recorrência
+                Financeiro • Assinaturas & Recorrência
               </span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 mt-2">
-              Contratações & Serviços
+              Assinaturas & Planos Recorrentes
             </h1>
             <p className="text-sm text-zinc-600 mt-1">
-              Gestão de contratos independentes por cliente, versões de vigência, combos customizados e histórico de preços.
+              Gestão de contratos e assinaturas recorrentes por cliente, controle de vigências, combos e integração com o Contas a Receber.
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              href="/financial/receivables"
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white border border-zinc-200 text-zinc-700 text-sm font-medium hover:bg-zinc-50 transition-colors shadow-xs"
+            >
+              <DollarSign className="w-4 h-4 text-emerald-600" />
+              Ver Contas a Receber
+            </Link>
             <Link
               href="/contracts/new"
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-950 text-white text-sm font-medium hover:bg-zinc-800 transition-colors shadow-sm"
             >
               <Plus className="w-4 h-4" />
-              Nova Contratação
+              Nova Assinatura
             </Link>
           </div>
         </div>
@@ -138,7 +145,7 @@ export default function ContractsListPage() {
           <div className="bg-white p-4 rounded-xl border border-zinc-200/80 shadow-xs flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                Total de Contratações
+                Total de Assinaturas
               </p>
               <p className="text-2xl font-bold text-zinc-900 mt-1">{total}</p>
             </div>
@@ -149,7 +156,7 @@ export default function ContractsListPage() {
           <div className="bg-white p-4 rounded-xl border border-zinc-200/80 shadow-xs flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                Contratos Ativos
+                Assinaturas Ativas
               </p>
               <p className="text-2xl font-bold text-emerald-800 mt-1">
                 {contracts.filter((c) => c.status === "ACTIVE").length}
@@ -162,7 +169,7 @@ export default function ContractsListPage() {
           <div className="bg-white p-4 rounded-xl border border-zinc-200/80 shadow-xs flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
-                Receita Contratada Ativa
+                Receita Recorrente (MRR)
               </p>
               <p className="text-2xl font-bold text-zinc-900 mt-1">
                 R${" "}
@@ -184,7 +191,7 @@ export default function ContractsListPage() {
             <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Buscar por número do contrato, cliente ou título..."
+              placeholder="Buscar por número da assinatura, cliente ou título..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 text-sm bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900"
@@ -219,21 +226,21 @@ export default function ContractsListPage() {
         <div className="bg-white rounded-xl border border-zinc-200/80 shadow-xs overflow-hidden">
           {loading ? (
             <div className="p-12 text-center text-zinc-500 text-sm">
-              Carregando contratações...
+              Carregando assinaturas...
             </div>
           ) : contracts.length === 0 ? (
             <div className="p-12 text-center">
               <AlertCircle className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
-              <p className="text-zinc-800 font-medium">Nenhuma contratação encontrada</p>
+              <p className="text-zinc-800 font-medium">Nenhuma assinatura encontrada</p>
               <p className="text-zinc-500 text-xs mt-1">
-                Cadastre a primeira contratação para este cliente ou ajuste os filtros.
+                Cadastre a primeira assinatura para este cliente ou ajuste os filtros.
               </p>
               <Link
                 href="/contracts/new"
                 className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800"
               >
                 <Plus className="w-3.5 h-3.5" />
-                Criar Contratação
+                Criar Assinatura
               </Link>
             </div>
           ) : (
@@ -241,11 +248,11 @@ export default function ContractsListPage() {
               <table className="w-full text-left text-sm">
                 <thead className="bg-zinc-50/80 border-b border-zinc-200 text-xs font-medium text-zinc-500 uppercase tracking-wider">
                   <tr>
-                    <th className="px-6 py-3">Contrato / Número</th>
+                    <th className="px-6 py-3">Assinatura / Número</th>
                     <th className="px-6 py-3">Cliente</th>
                     <th className="px-6 py-3">Periodicidade & Venc.</th>
                     <th className="px-6 py-3">Versão & Vigência</th>
-                    <th className="px-6 py-3">Valor Contratado</th>
+                    <th className="px-6 py-3">Valor da Assinatura</th>
                     <th className="px-6 py-3">Status</th>
                     <th className="px-6 py-3 text-right">Ação</th>
                   </tr>

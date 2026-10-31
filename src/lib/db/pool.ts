@@ -178,8 +178,12 @@ export function getDbPool(): pg.Pool {
 
 export function getMigrationDbPool(): pg.Pool {
   const env = getEnv();
-  // Para migrations, preferir DIRECT_URL (porta 5432 / session mode no Supabase) se configurada
-  const connString = env.DIRECT_URL || env.DATABASE_URL;
+  // Em ambiente de teste, aplicar migrations estritamente no banco de teste isolado
+  const connString =
+    process.env.NODE_ENV === "test"
+      ? env.DATABASE_URL_TEST
+      : env.DIRECT_URL || env.DATABASE_URL;
+
   assertSafeEnvironmentDatabase(connString);
   return new Pool({
     ...createPoolConfig(connString),

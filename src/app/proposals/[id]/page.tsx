@@ -31,6 +31,7 @@ import {
   ProposalStatus,
   ProposalPeriodicity,
 } from "@/modules/proposals/types";
+import { DocumentAttachmentSection } from "@/components/documents/document-attachment-section";
 
 export default function ProposalDetailPage() {
   const params = useParams();
@@ -824,6 +825,13 @@ export default function ProposalDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Gestão Documental da Proposta */}
+        <DocumentAttachmentSection
+          entityType="PROPOSAL"
+          entityId={proposal.id}
+          entityTitle={`Proposta ${proposal.proposalCode}`}
+        />
 
         {/* Audit Timeline */}
         {proposal.events && proposal.events.length > 0 && (

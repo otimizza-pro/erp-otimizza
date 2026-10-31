@@ -55,6 +55,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
 
   const currentSection = React.useMemo(() => {
     if (pathname) {
+      if (pathname.startsWith("/documents")) return "documents";
       if (pathname.startsWith("/proposals")) return "proposals";
       if (pathname.startsWith("/crm/leads")) return "crm_leads";
       if (pathname.startsWith("/crm/pipelines")) return "crm_pipelines";
@@ -134,6 +135,12 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
       group: "Dados & BI",
       items: [
         { id: "reports", label: "Relatórios & BI", href: "/reports", icon: BarChart3 },
+      ],
+    },
+    {
+      group: "Documentos",
+      items: [
+        { id: "documents", label: "Repositório de Arquivos", href: "/documents", icon: FileText },
       ],
     },
     {

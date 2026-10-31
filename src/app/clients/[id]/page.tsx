@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Client } from "@/modules/clients/types";
 import { formatDocument } from "@/shared/cpf-cnpj";
+import { DocumentAttachmentSection } from "@/components/documents/document-attachment-section";
 
 export default function ClientDetailsPage() {
   const params = useParams();
@@ -324,6 +325,13 @@ export default function ClientDetailsPage() {
             </p>
           </div>
         )}
+
+        {/* Gestão Documental do Cliente */}
+        <DocumentAttachmentSection
+          entityType="CLIENT"
+          entityId={client.id}
+          entityTitle={client.name}
+        />
       </div>
     </AppShell>
   );

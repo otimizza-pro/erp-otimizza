@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ProposalService } from "@/modules/proposals/service";
 import { generateProposalPdf } from "@/modules/proposals/pdf";
+import { DocumentService } from "@/modules/documents/service";
 
 export async function GET(
   request: Request,
@@ -31,6 +32,24 @@ export async function GET(
 
     const pdfBuffer = await generateProposalPdf(proposal, version);
     const filename = `proposta-${proposal.proposalCode}-v${version.versionNumber}.pdf`;
+
+    // Integrar ao repositório documental (Fase 9)
+    try {
+      const existingDocs = await DocumentService.getDocumentsForEntity("PROPOSAL", proposal.id);
+      const isAlreadyAttached = existingDocs.some(
+        (d) => d.title.includes(`Versão ${version.versionNumber}`) || d.title.includes(`v${version.versionNumber}`)
+      );
+      if (!isAlreadyAttached) {
+        await DocumentService.attachProposalPdf(
+          proposal.id,
+          version.versionNumber,
+          proposal.proposalCode,
+          pdfBuffer
+        );
+      }
+    } catch (docErr) {
+      console.warn("Aviso: Falha ao arquivar PDF da proposta na Gestão Documental:", docErr);
+    }
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,

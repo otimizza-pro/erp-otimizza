@@ -150,6 +150,13 @@ export default function ClientDetailsPage() {
               {client.status === "ACTIVE" ? "Arquivar Cliente" : "Reativar Cliente"}
             </button>
             <Link
+              href={`/proposals/new?clientId=${client.id}`}
+              className="px-4 py-2 rounded-full bg-indigo-600 text-white text-xs font-semibold hover:bg-indigo-700 transition shadow-xs flex items-center gap-1.5"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Nova Proposta
+            </Link>
+            <Link
               href={`/clients/${client.id}/edit`}
               className="px-4 py-2 rounded-full bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition shadow-xs flex items-center gap-1.5"
             >

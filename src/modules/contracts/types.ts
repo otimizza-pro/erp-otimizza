@@ -58,6 +58,9 @@ export interface ContractRecord {
   clientTradeName?: string | null;
   clientDocument?: string | null;
   contractNumber: string;
+  billingPeriod?: string;
+  proposalId?: string | null;
+  proposalCode?: string | null;
   status: ContractStatus;
   cancellationReason?: string | null;
   canceledAt?: string | null;
@@ -69,6 +72,8 @@ export interface ContractRecord {
 
 export interface CreateContractInput {
   clientId: string;
+  proposalId?: string | null;
+  proposalCode?: string | null;
   title: string;
   description?: string;
   billingPeriod: ContractBillingPeriod;

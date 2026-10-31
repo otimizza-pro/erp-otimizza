@@ -26,6 +26,7 @@ import {
   ChevronRight,
   AlertCircle,
   FileCheck,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -330,6 +331,14 @@ export default function OpportunityDetailPage() {
                 Abrir Funil {pipeline.name}
               </Link>
             )}
+
+            <Link
+              href={`/proposals/new?opportunityId=${opp.id}${opp.leadId ? `&leadId=${opp.leadId}` : ""}${opp.clientId ? `&clientId=${opp.clientId}` : ""}`}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition-colors"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Criar Proposta
+            </Link>
 
             {opp.status === "OPEN" ? (
               <>

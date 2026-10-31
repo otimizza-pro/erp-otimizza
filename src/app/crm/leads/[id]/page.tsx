@@ -23,6 +23,7 @@ import {
   Archive,
   ArrowRight,
   ShieldCheck,
+  FileText,
 } from "lucide-react";
 import { LeadRecord, OpportunityRecord, ActivityRecord, LeadStatus, ActivityType } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
@@ -245,6 +246,13 @@ export default function LeadDetailPage() {
                 <CheckCircle2 className="w-4 h-4" /> Converter em Cliente
               </button>
             )}
+
+            <Link
+              href={`/proposals/new?leadId=${lead.id}`}
+              className="px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 flex items-center gap-1.5 transition shadow-2xs"
+            >
+              <FileText className="w-4 h-4" /> Criar Proposta
+            </Link>
 
             <Link
               href={`/crm/opportunities/new?leadId=${lead.id}`}

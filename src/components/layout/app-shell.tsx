@@ -21,6 +21,7 @@ import {
   BarChart3,
   Truck,
   TrendingUp,
+  FileText,
 } from "lucide-react";
 
 interface AppShellProps {
@@ -32,6 +33,7 @@ interface AppShellProps {
     | "crm_pipelines"
     | "crm_opportunities"
     | "crm_activities"
+    | "proposals"
     | "clients"
     | "contracts"
     | "suppliers"
@@ -53,6 +55,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
 
   const currentSection = React.useMemo(() => {
     if (pathname) {
+      if (pathname.startsWith("/proposals")) return "proposals";
       if (pathname.startsWith("/crm/leads")) return "crm_leads";
       if (pathname.startsWith("/crm/pipelines")) return "crm_pipelines";
       if (pathname.startsWith("/crm/opportunities")) return "crm_opportunities";
@@ -104,6 +107,7 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
         { id: "crm_pipelines", label: "Funis & Kanban", href: "/crm/pipelines", icon: Layers },
         { id: "crm_leads", label: "Leads", href: "/crm/leads", icon: Users },
         { id: "crm_opportunities", label: "Oportunidades", href: "/crm/opportunities", icon: RefreshCw },
+        { id: "proposals", label: "Propostas Comerciais", href: "/proposals", icon: FileText },
         { id: "crm_activities", label: "Atividades & Agenda", href: "/crm/activities", icon: ShieldCheck },
         { id: "clients", label: "Clientes", href: "/clients", icon: Users },
       ],

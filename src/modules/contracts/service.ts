@@ -1,3 +1,4 @@
+import type pg from "pg";
 import { query, withTransaction } from "@/lib/db/pool";
 import { calculateEffectiveDueDate, generateBillingPeriodKey } from "@/shared/recurrence";
 import {
@@ -15,6 +16,8 @@ interface DbContractRow {
   id: string;
   client_id: string;
   contract_number: string;
+  proposal_id?: string | null;
+  proposal_code?: string | null;
   status: ContractStatus;
   cancellation_reason: string | null;
   canceled_at: Date | null;
@@ -116,6 +119,8 @@ function mapContractRow(
   return {
     id: row.id,
     clientId: row.client_id,
+    proposalId: row.proposal_id || null,
+    proposalCode: row.proposal_code || null,
     clientName: row.client_name,
     clientTradeName: row.client_trade_name,
     clientDocument: row.client_document,
@@ -133,7 +138,10 @@ function mapContractRow(
 /**
  * Cria uma nova contratação independente para um cliente com a primeira versão (v1).
  */
-export async function createContract(input: CreateContractInput): Promise<ContractRecord> {
+export async function createContract(
+  input: CreateContractInput,
+  externalClient?: pg.PoolClient
+): Promise<ContractRecord> {
   if (!input.clientId) {
     throw new Error("Cliente é obrigatório para criar uma contratação.");
   }
@@ -153,7 +161,7 @@ export async function createContract(input: CreateContractInput): Promise<Contra
     throw new Error("Informe a data de término ou marque como vigência indeterminada.");
   }
 
-  return await withTransaction(async (client) => {
+  const runWithClient = async (client: pg.PoolClient) => {
     // 1. Gerar número de contrato sequencial formatado CTR-00001
     const seqRes = await client.query<{ next_val: string }>(
       "SELECT nextval('contract_number_seq') AS next_val"
@@ -164,14 +172,16 @@ export async function createContract(input: CreateContractInput): Promise<Contra
     // 2. Inserir cabeçalho do contrato
     const contractStatus = input.status || "ACTIVE";
     const insertContractSql = `
-      INSERT INTO contracts (client_id, contract_number, status)
-      VALUES ($1, $2, $3)
-      RETURNING id, client_id, contract_number, status, cancellation_reason, canceled_at, created_at, updated_at
+      INSERT INTO contracts (client_id, contract_number, status, proposal_id, proposal_code)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, client_id, contract_number, status, cancellation_reason, canceled_at, proposal_id, proposal_code, created_at, updated_at
     `;
     const contractRes = await client.query<DbContractRow>(insertContractSql, [
       input.clientId,
       contractNumber,
       contractStatus,
+      input.proposalId || null,
+      input.proposalCode || null,
     ]);
     const contractDb = contractRes.rows[0];
 
@@ -298,7 +308,12 @@ export async function createContract(input: CreateContractInput): Promise<Contra
 
     const versionRecord = mapVersionRow(versionDb, itemRecords);
     return mapContractRow(contractDb, versionRecord, [versionRecord]);
-  });
+  };
+
+  if (externalClient) {
+    return await runWithClient(externalClient);
+  }
+  return await withTransaction(runWithClient);
 }
 
 /**

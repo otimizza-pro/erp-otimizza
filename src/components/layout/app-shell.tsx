@@ -43,8 +43,11 @@ interface AppShellProps {
     | "payables"
     | "accounts"
     | "cashflow"
+    | "dre"
+    | "cost_centers"
     | "reports"
-    | "settings";
+    | "settings"
+    | "documents";
 }
 
 export function AppShell({ children, activeSection = "dashboard" }: AppShellProps) {
@@ -67,6 +70,8 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
       if (pathname.startsWith("/contracts")) return "contracts";
       if (pathname.startsWith("/financial/receivables")) return "receivables";
       if (pathname.startsWith("/financial/payables")) return "payables";
+      if (pathname.startsWith("/financial/dre")) return "dre";
+      if (pathname.startsWith("/financial/cost-centers")) return "cost_centers";
       if (pathname.startsWith("/financial/cashflow")) return "cashflow";
       if (pathname.startsWith("/financial/accounts")) return "accounts";
       if (pathname.startsWith("/services")) return "catalog";
@@ -126,6 +131,8 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
         { id: "receivables", label: "Contas a Receber", href: "/financial/receivables", icon: DollarSign },
         { id: "contracts", label: "Assinaturas", href: "/contracts", icon: RefreshCw },
         { id: "payables", label: "Contas a Pagar", href: "/financial/payables", icon: Layers },
+        { id: "dre", label: "DRE Gerencial", href: "/financial/dre", icon: TrendingUp },
+        { id: "cost_centers", label: "Centros de Custo", href: "/financial/cost-centers", icon: Layers },
         { id: "cashflow", label: "Fluxo de Caixa", href: "/financial/cashflow", icon: Database },
         { id: "accounts", label: "Contas & Bancos", href: "/financial/accounts", icon: ShieldCheck },
         { id: "suppliers", label: "Fornecedores", href: "/suppliers", icon: Truck },

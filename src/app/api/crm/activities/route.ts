@@ -27,13 +27,33 @@ export async function GET(request: Request) {
   }
 }
 
+import { z } from "zod";
+
+function formatErrorMessage(error: unknown): string {
+  if (error instanceof z.ZodError) {
+    return error.errors.map((e) => e.message).join(" ");
+  }
+  if (error instanceof Error) {
+    try {
+      const parsed = JSON.parse(error.message);
+      if (Array.isArray(parsed) && parsed[0]?.message) {
+        return parsed.map((e: { message: string }) => e.message).join(" ");
+      }
+    } catch {
+      // Not JSON
+    }
+    return error.message;
+  }
+  return "Erro ao registrar atividade.";
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const activity = await CrmService.createActivity(body);
     return NextResponse.json(activity, { status: 201 });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Erro ao registrar atividade.";
+    const message = formatErrorMessage(error);
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

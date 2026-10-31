@@ -21,6 +21,7 @@ import {
   Calendar,
   DollarSign,
   AlertCircle,
+  type LucideIcon,
 } from "lucide-react";
 import { OpportunityRecord, OpportunityStatus, PipelineRecord } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
@@ -144,7 +145,7 @@ export default function OpportunitiesListPage() {
   const totalLost = opportunities.filter((o) => o.status === "LOST").length;
   const winRate = totalWon + totalLost > 0 ? (totalWon / (totalWon + totalLost)) * 100 : 0;
 
-  const statusBadges: Record<OpportunityStatus, { label: string; bg: string; text: string; icon: any }> = {
+  const statusBadges: Record<OpportunityStatus, { label: string; bg: string; text: string; icon: LucideIcon }> = {
     OPEN: { label: "Aberta", bg: "bg-blue-50 text-blue-700 border-blue-200", text: "text-blue-700", icon: Clock },
     WON: { label: "Ganha", bg: "bg-emerald-50 text-emerald-700 border-emerald-200", text: "text-emerald-700", icon: CheckCircle2 },
     LOST: { label: "Perdida", bg: "bg-rose-50 text-rose-700 border-rose-200", text: "text-rose-700", icon: XCircle },
@@ -270,7 +271,7 @@ export default function OpportunitiesListPage() {
                 <span className="text-xs font-medium text-slate-500">Status:</span>
                 <select
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  onChange={(e) => setStatusFilter(e.target.value as OpportunityStatus | "ALL")}
                   className="border border-slate-300 rounded-lg text-sm px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value="ALL">Todos os Status</option>

@@ -96,7 +96,7 @@ function NewOpportunityForm() {
 
         if (leadsRes.ok) {
           const lData = await leadsRes.json();
-          const mapped: SimpleContact[] = (lData.leads || []).map((l: any) => ({
+          const mapped: SimpleContact[] = (lData.leads || []).map((l: { id: string; name: string; companyName?: string | null; document?: string | null }) => ({
             id: l.id,
             name: `${l.name} ${l.companyName ? `(${l.companyName})` : ""}`,
             document: l.document,
@@ -107,7 +107,8 @@ function NewOpportunityForm() {
 
         if (clientsRes.ok) {
           const cData = await clientsRes.json();
-          const mapped: SimpleContact[] = (cData.clients || cData || []).map((c: any) => ({
+          const rawClients = Array.isArray(cData.clients) ? cData.clients : Array.isArray(cData) ? cData : [];
+          const mapped: SimpleContact[] = rawClients.map((c: { id: string; name?: string | null; tradeName?: string | null; document?: string | null }) => ({
             id: c.id,
             name: c.tradeName || c.name || "Cliente sem nome",
             document: c.document,
@@ -175,7 +176,7 @@ function NewOpportunityForm() {
 
     setSubmitting(true);
     try {
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         title: title.trim(),
         pipelineId: selectedPipelineId,
         stageId: selectedStageId || undefined,

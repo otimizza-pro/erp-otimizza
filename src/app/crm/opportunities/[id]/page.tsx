@@ -26,6 +26,7 @@ import {
   ChevronRight,
   AlertCircle,
   FileCheck,
+  type LucideIcon,
 } from "lucide-react";
 import {
   OpportunityRecord,
@@ -34,6 +35,7 @@ import {
   PipelineRecord,
   PipelineStageRecord,
   OpportunityStatus,
+  ActivityType,
 } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
 
@@ -276,7 +278,7 @@ export default function OpportunityDetailPage() {
     );
   }
 
-  const statusBadges: Record<OpportunityStatus, { label: string; bg: string; text: string; icon: any }> = {
+  const statusBadges: Record<OpportunityStatus, { label: string; bg: string; text: string; icon: LucideIcon }> = {
     OPEN: { label: "Em Aberto", bg: "bg-blue-50 text-blue-700 border-blue-200", text: "text-blue-700", icon: Clock },
     WON: { label: "Ganha", bg: "bg-emerald-50 text-emerald-700 border-emerald-200", text: "text-emerald-700", icon: CheckCircle2 },
     LOST: { label: "Perdida", bg: "bg-rose-50 text-rose-700 border-rose-200", text: "text-rose-700", icon: XCircle },
@@ -725,7 +727,7 @@ export default function OpportunityDetailPage() {
                   </label>
                   <select
                     value={actType}
-                    onChange={(e) => setActType(e.target.value as any)}
+                    onChange={(e) => setActType(e.target.value as ActivityType)}
                     className="w-full text-sm border border-slate-300 rounded-lg p-2 bg-white"
                   >
                     <option value="CALL">Ligação Telefônica</option>

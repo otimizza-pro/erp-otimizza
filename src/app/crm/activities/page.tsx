@@ -22,6 +22,7 @@ import {
   TrendingUp,
   RefreshCw,
   ExternalLink,
+  type LucideIcon,
 } from "lucide-react";
 import { ActivityRecord, ActivityStatus, ActivityType } from "@/modules/crm/types";
 
@@ -41,6 +42,50 @@ export default function CommercialActivitiesPage() {
   const [actDueDate, setActDueDate] = useState("");
   const [actDescription, setActDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+
+  // Vínculo da Atividade (Lead, Cliente ou Oportunidade)
+  const [targetType, setTargetType] = useState<"CLIENT" | "LEAD" | "OPPORTUNITY">("CLIENT");
+  const [selectedTargetId, setSelectedTargetId] = useState("");
+  const [clientsList, setClientsList] = useState<Array<{ id: string; name: string; document?: string | null }>>([]);
+  const [leadsList, setLeadsList] = useState<Array<{ id: string; name: string; companyName?: string | null }>>([]);
+  const [oppsList, setOppsList] = useState<Array<{ id: string; title: string }>>([]);
+
+  async function loadTargets() {
+    try {
+      const [cRes, lRes, oRes] = await Promise.all([
+        fetch("/api/clients"),
+        fetch("/api/crm/leads"),
+        fetch("/api/crm/opportunities"),
+      ]);
+
+      if (cRes.ok) {
+        const cData = await cRes.json();
+        const clients = Array.isArray(cData.clients) ? cData.clients : Array.isArray(cData) ? cData : [];
+        setClientsList(clients);
+      }
+      if (lRes.ok) {
+        const lData = await lRes.json();
+        const leads = lData.leads || [];
+        setLeadsList(leads);
+      }
+      if (oRes.ok) {
+        const oData = await oRes.json();
+        const opps = oData.opportunities || [];
+        setOppsList(opps);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar alvos de atividade:", err);
+    }
+  }
+
+  function handleOpenModal() {
+    setShowModal(true);
+    setFormError("");
+    if (clientsList.length === 0 && leadsList.length === 0) {
+      loadTargets();
+    }
+  }
 
   async function loadActivities() {
     setLoading(true);
@@ -84,7 +129,17 @@ export default function CommercialActivitiesPage() {
 
   async function handleCreateActivity(e: React.FormEvent) {
     e.preventDefault();
-    if (!actTitle.trim()) return;
+    setFormError("");
+
+    if (!actTitle.trim()) {
+      setFormError("Informe o assunto da atividade.");
+      return;
+    }
+    if (!selectedTargetId) {
+      const targetLabel = targetType === "CLIENT" ? "Cliente" : targetType === "LEAD" ? "Lead" : "Oportunidade";
+      setFormError(`Selecione o ${targetLabel} ao qual esta atividade pertence.`);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -96,6 +151,9 @@ export default function CommercialActivitiesPage() {
           title: actTitle.trim(),
           description: actDescription.trim() || undefined,
           dueDate: actDueDate || undefined,
+          clientId: targetType === "CLIENT" ? selectedTargetId : undefined,
+          leadId: targetType === "LEAD" ? selectedTargetId : undefined,
+          opportunityId: targetType === "OPPORTUNITY" ? selectedTargetId : undefined,
         }),
       });
 
@@ -104,20 +162,22 @@ export default function CommercialActivitiesPage() {
         setActTitle("");
         setActDescription("");
         setActDueDate("");
+        setSelectedTargetId("");
+        setFormError("");
         loadActivities();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao criar atividade");
+        setFormError(err.error || "Erro ao registrar atividade.");
       }
     } catch (e) {
       console.error(e);
-      alert("Falha de conexão.");
+      setFormError("Falha de conexão com o servidor.");
     } finally {
       setSubmitting(false);
     }
   }
 
-  const activityTypeConfig: Record<ActivityType, { label: string; icon: any; color: string; bg: string }> = {
+  const activityTypeConfig: Record<ActivityType, { label: string; icon: LucideIcon; color: string; bg: string }> = {
     CALL: { label: "Ligação", icon: Phone, color: "text-blue-600", bg: "bg-blue-50 border-blue-200" },
     MEETING: { label: "Reunião", icon: Video, color: "text-purple-600", bg: "bg-purple-50 border-purple-200" },
     WHATSAPP: { label: "WhatsApp", icon: MessageSquare, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" },
@@ -165,7 +225,7 @@ export default function CommercialActivitiesPage() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowModal(true)}
+              onClick={handleOpenModal}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
             >
               <Plus className="h-4 w-4" />
@@ -389,17 +449,135 @@ export default function CommercialActivitiesPage() {
             <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
               <h2 className="text-lg font-bold text-slate-900">Nova Atividade Comercial</h2>
               <p className="text-xs text-slate-500 mt-1">
-                Agende lembretes, telefonemas, follow-ups ou envio de propostas.
+                Agende lembretes, telefonemas, follow-ups ou reuniões vinculadas a um cliente, lead ou negociação.
               </p>
 
-              <form onSubmit={handleCreateActivity} className="mt-4 space-y-3">
+              {formError && (
+                <div className="mt-3 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 text-rose-600" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateActivity} className="mt-4 space-y-3.5">
+                {/* Vínculo Obrigatório */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Vincular a <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium mb-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetType("CLIENT");
+                        setSelectedTargetId("");
+                        setFormError("");
+                      }}
+                      className={`py-1 rounded text-center transition ${
+                        targetType === "CLIENT"
+                          ? "bg-white text-slate-950 shadow-xs font-semibold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Cliente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetType("LEAD");
+                        setSelectedTargetId("");
+                        setFormError("");
+                      }}
+                      className={`py-1 rounded text-center transition ${
+                        targetType === "LEAD"
+                          ? "bg-white text-slate-950 shadow-xs font-semibold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Lead
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetType("OPPORTUNITY");
+                        setSelectedTargetId("");
+                        setFormError("");
+                      }}
+                      className={`py-1 rounded text-center transition ${
+                        targetType === "OPPORTUNITY"
+                          ? "bg-white text-slate-950 shadow-xs font-semibold"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Oportunidade
+                    </button>
+                  </div>
+
+                  {targetType === "CLIENT" && (
+                    <select
+                      value={selectedTargetId}
+                      onChange={(e) => {
+                        setSelectedTargetId(e.target.value);
+                        setFormError("");
+                      }}
+                      className="w-full text-sm border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      required
+                    >
+                      <option value="">Selecione o Cliente (ex: Parishi Beachwear)...</option>
+                      {clientsList.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.document ? `(${c.document})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {targetType === "LEAD" && (
+                    <select
+                      value={selectedTargetId}
+                      onChange={(e) => {
+                        setSelectedTargetId(e.target.value);
+                        setFormError("");
+                      }}
+                      className="w-full text-sm border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      required
+                    >
+                      <option value="">Selecione o Lead...</option>
+                      {leadsList.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name} {l.companyName ? `(${l.companyName})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {targetType === "OPPORTUNITY" && (
+                    <select
+                      value={selectedTargetId}
+                      onChange={(e) => {
+                        setSelectedTargetId(e.target.value);
+                        setFormError("");
+                      }}
+                      className="w-full text-sm border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      required
+                    >
+                      <option value="">Selecione a Oportunidade...</option>
+                      {oppsList.map((o) => (
+                        <option key={o.id} value={o.id}>
+                          {o.title}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Tipo de Atividade
                   </label>
                   <select
                     value={actType}
-                    onChange={(e) => setActType(e.target.value as any)}
+                    onChange={(e) => setActType(e.target.value as ActivityType)}
                     className="w-full text-sm border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800"
                   >
                     <option value="CALL">Ligação Telefônica</option>
@@ -421,7 +599,10 @@ export default function CommercialActivitiesPage() {
                     required
                     placeholder="Ex: Ligar para verificar recebimento da proposta comercial"
                     value={actTitle}
-                    onChange={(e) => setActTitle(e.target.value)}
+                    onChange={(e) => {
+                      setActTitle(e.target.value);
+                      setFormError("");
+                    }}
                     className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
@@ -454,7 +635,10 @@ export default function CommercialActivitiesPage() {
                 <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => setShowModal(false)}
+                    onClick={() => {
+                      setShowModal(false);
+                      setFormError("");
+                    }}
                     disabled={submitting}
                     className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg"
                   >
@@ -463,7 +647,7 @@ export default function CommercialActivitiesPage() {
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+                    className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
                   >
                     {submitting ? "Salvando..." : "Salvar Atividade"}
                   </button>

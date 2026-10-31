@@ -179,7 +179,7 @@ describe("Fase 7 - Testes Unitários de Regras de Domínio CRM", () => {
       expect(() => {
         CreateActivitySchema.parse({
           leadId: "00000000-0000-0000-0000-000000000001",
-          activityType: "FAX" as any,
+          activityType: "FAX" as never,
           title: "Enviar fax",
         });
       }).toThrow();

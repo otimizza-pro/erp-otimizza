@@ -458,7 +458,21 @@ export class CrmService {
       if (leadRes.rowCount === 0) {
         throw new Error("Lead não encontrado para conversão.");
       }
-      const rawLead = leadRes.rows[0] as any;
+      const rawLead = leadRes.rows[0] as {
+        id: string;
+        lead_code: string;
+        person_type: string | null;
+        name: string;
+        trade_name: string | null;
+        document: string | null;
+        email: string | null;
+        phone: string | null;
+        city: string | null;
+        state: string | null;
+        notes: string | null;
+        status: string;
+        converted_client_id: string | null;
+      };
 
       if (rawLead.status === "CONVERTED" || rawLead.converted_client_id) {
         throw new Error("Este lead já foi convertido anteriormente e não pode ser convertido em duplicidade.");

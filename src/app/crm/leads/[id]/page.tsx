@@ -24,7 +24,7 @@ import {
   ArrowRight,
   ShieldCheck,
 } from "lucide-react";
-import { LeadRecord, OpportunityRecord, ActivityRecord, LeadStatus } from "@/modules/crm/types";
+import { LeadRecord, OpportunityRecord, ActivityRecord, LeadStatus, ActivityType } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
 
 export default function LeadDetailPage() {
@@ -622,7 +622,7 @@ export default function LeadDetailPage() {
                 <label className="text-xs font-semibold text-zinc-700 block mb-1">Tipo de Atividade</label>
                 <select
                   value={newActivity.activityType}
-                  onChange={(e) => setNewActivity((prev) => ({ ...prev, activityType: e.target.value as any }))}
+                  onChange={(e) => setNewActivity((prev) => ({ ...prev, activityType: e.target.value as ActivityType }))}
                   className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl"
                 >
                   <option value="FOLLOW_UP">Follow-up</option>

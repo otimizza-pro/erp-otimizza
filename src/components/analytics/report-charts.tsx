@@ -24,6 +24,22 @@ interface DonutChartProps {
   centerLabel?: string;
 }
 
+function computeDonutSlices(validData: DonutSegment[], total: number, circumference: number) {
+  let acc = 0;
+  return validData.map((item) => {
+    const percent = total > 0 ? item.value / total : 0;
+    const strokeDasharray = `${percent * circumference} ${circumference}`;
+    const strokeDashoffset = -acc * circumference;
+    acc += percent;
+    return {
+      ...item,
+      percent,
+      strokeDasharray,
+      strokeDashoffset,
+    };
+  });
+}
+
 export function DonutChart({ title, subtitle, data, centerLabel = "Total" }: DonutChartProps) {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
@@ -34,7 +50,7 @@ export function DonutChart({ title, subtitle, data, centerLabel = "Total" }: Don
   const strokeWidth = 24;
   const circumference = 2 * Math.PI * radius;
 
-  let accumulatedPercent = 0;
+  const slices = computeDonutSlices(validData, total, circumference);
 
   return (
     <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
@@ -61,12 +77,7 @@ export function DonutChart({ title, subtitle, data, centerLabel = "Total" }: Don
                 stroke="currentColor"
                 fill="transparent"
               />
-              {validData.map((item, idx) => {
-                const percent = item.value / total;
-                const strokeDasharray = `${percent * circumference} ${circumference}`;
-                const strokeDashoffset = -accumulatedPercent * circumference;
-                accumulatedPercent += percent;
-
+              {slices.map((item, idx) => {
                 const isHovered = hoveredIdx === idx;
 
                 return (
@@ -78,8 +89,8 @@ export function DonutChart({ title, subtitle, data, centerLabel = "Total" }: Don
                     fill="transparent"
                     stroke={item.color}
                     strokeWidth={isHovered ? strokeWidth + 4 : strokeWidth}
-                    strokeDasharray={strokeDasharray}
-                    strokeDashoffset={strokeDashoffset}
+                    strokeDasharray={item.strokeDasharray}
+                    strokeDashoffset={item.strokeDashoffset}
                     className="transition-all duration-200 cursor-pointer"
                     onMouseEnter={() => setHoveredIdx(idx)}
                     onMouseLeave={() => setHoveredIdx(null)}

@@ -12,8 +12,8 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
-  Filter,
   RefreshCw,
+  X,
 } from "lucide-react";
 import { ReceivableRecord, FinancialStatus } from "@/modules/financial/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -25,6 +25,10 @@ export default function ReceivablesListPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [dateType, setDateType] = useState<"dueDate" | "createdAt">("dueDate");
+  const [periodPreset, setPeriodPreset] = useState<string>("ALL");
   const [processingRecurrence, setProcessingRecurrence] = useState(false);
   const [recurrenceMessage, setRecurrenceMessage] = useState("");
 
@@ -45,6 +49,9 @@ export default function ReceivablesListPage() {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
       if (statusFilter !== "ALL") params.set("status", statusFilter);
+      if (startDate) params.set("startDate", startDate);
+      if (endDate) params.set("endDate", endDate);
+      if (dateType) params.set("dateType", dateType);
 
       const res = await fetch(`/api/financial/receivables?${params.toString()}`);
       if (res.ok) {
@@ -77,7 +84,72 @@ export default function ReceivablesListPage() {
   useEffect(() => {
     loadReceivables();
     loadAccounts();
-  }, [statusFilter]);
+  }, [statusFilter, startDate, endDate, dateType]);
+
+  const handleApplyPreset = (preset: string) => {
+    setPeriodPreset(preset);
+    const now = new Date();
+    const formatYMD = (d: Date) => d.toISOString().slice(0, 10);
+
+    if (preset === "ALL") {
+      setStartDate("");
+      setEndDate("");
+      return;
+    }
+
+    if (preset === "TODAY") {
+      const today = formatYMD(now);
+      setStartDate(today);
+      setEndDate(today);
+      return;
+    }
+
+    if (preset === "THIS_WEEK") {
+      const d = new Date(now);
+      const day = d.getDay();
+      const diffToMonday = d.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(d.setDate(diffToMonday));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      setStartDate(formatYMD(monday));
+      setEndDate(formatYMD(sunday));
+      return;
+    }
+
+    if (preset === "THIS_MONTH") {
+      const start = new Date(now.getFullYear(), now.getMonth(), 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      setStartDate(formatYMD(start));
+      setEndDate(formatYMD(end));
+      return;
+    }
+
+    if (preset === "NEXT_MONTH") {
+      const start = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+      setStartDate(formatYMD(start));
+      setEndDate(formatYMD(end));
+      return;
+    }
+
+    if (preset === "OVERDUE") {
+      const yesterday = new Date(now);
+      yesterday.setDate(now.getDate() - 1);
+      setStartDate("");
+      setEndDate(formatYMD(yesterday));
+      setStatusFilter("OVERDUE");
+      return;
+    }
+  };
+
+  const handleClearAllFilters = () => {
+    setSearch("");
+    setStatusFilter("ALL");
+    setStartDate("");
+    setEndDate("");
+    setPeriodPreset("ALL");
+    setDateType("dueDate");
+  };
 
   const handleProcessRecurrence = async () => {
     setProcessingRecurrence(true);
@@ -201,18 +273,35 @@ export default function ReceivablesListPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-6">
           <div>
-            <span className="text-xs font-mono font-medium text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-              Financeiro • Contas a Receber
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono font-medium text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                Financeiro • Contas a Receber
+              </span>
+              <span className="text-xs text-zinc-400">•</span>
+              <Link
+                href="/contracts"
+                className="text-xs font-medium text-emerald-700 hover:text-emerald-900 hover:underline inline-flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Ver Assinaturas & Recorrência
+              </Link>
+            </div>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-900 mt-2">
               Gestão de Recebimentos
             </h1>
             <p className="text-sm text-zinc-600 mt-1">
-              Controle de mensalidades contratuais, cobranças avulsas, liquidações manuais parciais e estornos auditados.
+              Controle de mensalidades de assinaturas, cobranças avulsas, liquidações manuais parciais e estornos auditados.
             </p>
           </div>
 
           <div className="flex items-center gap-3">
+            <Link
+              href="/contracts"
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white text-zinc-800 border border-zinc-200 text-xs font-medium hover:bg-zinc-50 transition-colors shadow-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+              Assinaturas
+            </Link>
             <button
               onClick={handleProcessRecurrence}
               disabled={processingRecurrence}
@@ -294,42 +383,128 @@ export default function ReceivablesListPage() {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white p-4 rounded-xl border border-zinc-200/80 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          <div className="flex-1 relative">
-            <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Buscar por número, cliente ou descrição..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") loadReceivables();
-              }}
-              className="w-full pl-10 pr-4 py-2 text-sm bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-            />
+        {/* Filters & Date Bar */}
+        <div className="bg-white p-4 rounded-xl border border-zinc-200/80 shadow-xs space-y-3">
+          {/* Top Line: Search + Status Tabs */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            <div className="flex-1 relative">
+              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Buscar por número, cliente, descrição ou número da assinatura..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") loadReceivables();
+                }}
+                className="w-full pl-10 pr-4 py-2 text-sm bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+              />
+            </div>
+
+            <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-lg text-xs font-medium self-start md:self-auto overflow-x-auto">
+              {[
+                { id: "ALL", label: "Todas" },
+                { id: "PENDING", label: "A Vencer" },
+                { id: "OVERDUE", label: "Atrasadas" },
+                { id: "PARTIALLY_PAID", label: "Parciais" },
+                { id: "PAID", label: "Liquidadas" },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setStatusFilter(tab.id)}
+                  className={`px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
+                    statusFilter === tab.id
+                      ? "bg-white text-zinc-900 shadow-xs font-semibold"
+                      : "text-zinc-600 hover:text-zinc-900"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-lg text-xs font-medium self-start md:self-auto overflow-x-auto">
-            {[
-              { id: "ALL", label: "Todas" },
-              { id: "PENDING", label: "A Vencer" },
-              { id: "OVERDUE", label: "Atrasadas" },
-              { id: "PARTIALLY_PAID", label: "Parciais" },
-              { id: "PAID", label: "Liquidadas" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setStatusFilter(tab.id)}
-                className={`px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-                  statusFilter === tab.id
-                    ? "bg-white text-zinc-900 shadow-xs font-semibold"
-                    : "text-zinc-600 hover:text-zinc-900"
-                }`}
+          {/* Bottom Line: Date Filters */}
+          <div className="pt-3 border-t border-zinc-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
+            {/* Quick Period Presets */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-zinc-500 font-medium flex items-center gap-1 mr-1">
+                <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+                Período:
+              </span>
+              {[
+                { id: "ALL", label: "Qualquer Data" },
+                { id: "TODAY", label: "Hoje" },
+                { id: "THIS_WEEK", label: "Esta Semana" },
+                { id: "THIS_MONTH", label: "Este Mês" },
+                { id: "NEXT_MONTH", label: "Próximo Mês" },
+                { id: "OVERDUE", label: "Vencidos" },
+              ].map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handleApplyPreset(p.id)}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                    periodPreset === p.id
+                      ? "bg-zinc-900 text-white font-medium"
+                      : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Date Pickers */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1 bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1">
+                <span className="text-zinc-500 text-[11px]">De:</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => {
+                    setStartDate(e.target.value);
+                    setPeriodPreset("CUSTOM");
+                  }}
+                  className="bg-transparent text-xs text-zinc-800 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center gap-1 bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1">
+                <span className="text-zinc-500 text-[11px]">Até:</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setPeriodPreset("CUSTOM");
+                  }}
+                  className="bg-transparent text-xs text-zinc-800 focus:outline-none"
+                />
+              </div>
+
+              <select
+                value={dateType}
+                onChange={(e) => setDateType(e.target.value as "dueDate" | "createdAt")}
+                className="bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1 text-xs text-zinc-700 focus:outline-none font-medium"
+                title="Filtrar por qual campo de data"
               >
-                {tab.label}
-              </button>
-            ))}
+                <option value="dueDate">Data de Vencimento</option>
+                <option value="createdAt">Data de Criação</option>
+              </select>
+
+              {(startDate || endDate || search || statusFilter !== "ALL") && (
+                <button
+                  type="button"
+                  onClick={handleClearAllFilters}
+                  className="px-2.5 py-1 rounded-lg text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors flex items-center gap-1 font-medium"
+                  title="Limpar todos os filtros"
+                >
+                  <X className="w-3 h-3" />
+                  Limpar
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -342,7 +517,7 @@ export default function ReceivablesListPage() {
               <DollarSign className="w-10 h-10 text-zinc-300 mx-auto mb-3" />
               <p className="text-zinc-800 font-medium">Nenhum título a receber encontrado</p>
               <p className="text-zinc-500 text-xs mt-1">
-                Gere cobranças pelo motor de recorrência ou crie uma avulsa manualmente.
+                Ajuste os filtros de data e status ou gere cobranças pelo motor de recorrência das assinaturas.
               </p>
             </div>
           ) : (
@@ -363,9 +538,21 @@ export default function ReceivablesListPage() {
                   {receivables.map((r) => (
                     <tr key={r.id} className="hover:bg-zinc-50/50 transition-colors">
                       <td className="px-6 py-4">
-                        <span className="font-mono font-bold text-zinc-950 block">
-                          {r.receivableNumber}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-zinc-950">
+                            {r.receivableNumber}
+                          </span>
+                          {r.contractNumber && (
+                            <Link
+                              href={r.contractId ? `/contracts/${r.contractId}` : "/contracts"}
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-1.5 py-0.5 rounded border border-emerald-200 transition-colors"
+                              title="Ver Assinatura Vinculada"
+                            >
+                              <RefreshCw className="w-2.5 h-2.5 text-emerald-600" />
+                              Assinatura {r.contractNumber}
+                            </Link>
+                          )}
+                        </div>
                         <span className="text-zinc-600 text-[11px] block mt-0.5 line-clamp-1">
                           {r.description}
                         </span>

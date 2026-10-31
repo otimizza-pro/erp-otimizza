@@ -10,11 +10,25 @@ export async function GET(request: Request) {
     const competency = searchParams.get("competency") || undefined;
     const statusParam = searchParams.get("status");
     const status = statusParam ? (statusParam as FinancialStatus) : undefined;
+    const startDate = searchParams.get("startDate") || undefined;
+    const endDate = searchParams.get("endDate") || undefined;
+    const dateType = (searchParams.get("dateType") as "dueDate" | "createdAt") || undefined;
     const search = searchParams.get("search") || undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
     const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!, 10) : undefined;
 
-    const result = await listReceivables({ clientId, contractId, competency, status, search, limit, offset });
+    const result = await listReceivables({
+      clientId,
+      contractId,
+      competency,
+      status,
+      startDate,
+      endDate,
+      dateType,
+      search,
+      limit,
+      offset,
+    });
     return NextResponse.json(result);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Erro ao listar contas a receber.";

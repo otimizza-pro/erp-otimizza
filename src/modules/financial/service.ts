@@ -357,6 +357,9 @@ export async function listReceivables(params: {
   contractId?: string;
   competency?: string;
   status?: FinancialStatus;
+  startDate?: string;
+  endDate?: string;
+  dateType?: "dueDate" | "createdAt";
   search?: string;
   limit?: number;
   offset?: number;
@@ -383,8 +386,18 @@ export async function listReceivables(params: {
     conditions.push(`r.status = $${paramIdx++}`);
     queryParams.push(params.status);
   }
+  if (params.startDate) {
+    const col = params.dateType === "createdAt" ? "r.created_at::date" : "r.due_date";
+    conditions.push(`${col} >= $${paramIdx++}`);
+    queryParams.push(params.startDate);
+  }
+  if (params.endDate) {
+    const col = params.dateType === "createdAt" ? "r.created_at::date" : "r.due_date";
+    conditions.push(`${col} <= $${paramIdx++}`);
+    queryParams.push(params.endDate);
+  }
   if (params.search && params.search.trim()) {
-    conditions.push(`(r.receivable_number ILIKE $${paramIdx} OR r.description ILIKE $${paramIdx} OR c.name ILIKE $${paramIdx})`);
+    conditions.push(`(r.receivable_number ILIKE $${paramIdx} OR r.description ILIKE $${paramIdx} OR c.name ILIKE $${paramIdx} OR ct.contract_number ILIKE $${paramIdx})`);
     queryParams.push(`%${params.search.trim()}%`);
     paramIdx++;
   }
@@ -395,6 +408,7 @@ export async function listReceivables(params: {
     SELECT COUNT(r.id) as total
     FROM receivables r
     JOIN clients c ON c.id = r.client_id
+    LEFT JOIN contracts ct ON ct.id = r.contract_id
     ${whereClause}
   `;
   const countRes = await query<{ total: string }>(countSql, queryParams);

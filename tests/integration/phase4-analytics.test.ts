@@ -60,6 +60,13 @@ describe("Dashboard Executivo, BI e Indicadores", () => {
   });
 
   it("configura base de dados para testes controlados de BI", async () => {
+    await query(
+      `INSERT INTO users (id, name, email, password_hash, role, status)
+       VALUES ($1, 'Admin Teste BI', 'admin.bi@teste.local', 'mock_hash', 'ADMIN', 'ACTIVE')
+       ON CONFLICT (id) DO NOTHING`,
+      [testUserId]
+    );
+
     const doc = "78912345000109";
     const existing = await query("SELECT id FROM clients WHERE document = $1 AND status = 'ACTIVE'", [doc]);
     if (existing.rowCount && existing.rowCount > 0) {

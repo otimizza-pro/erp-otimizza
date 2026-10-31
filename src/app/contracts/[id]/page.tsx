@@ -17,6 +17,8 @@ import {
   Info,
   DollarSign,
   FileText,
+  Briefcase,
+  AlertCircle,
 } from "lucide-react";
 import {
   ContractRecord,
@@ -24,6 +26,7 @@ import {
   RecurrenceProjection,
   ContractItemInput,
 } from "@/modules/contracts/types";
+import { ProjectRecord, ProjectTemplateRecord } from "@/modules/projects/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
 
 export default function ContractDetailsPage() {
@@ -34,7 +37,17 @@ export default function ContractDetailsPage() {
   const [contract, setContract] = useState<ContractRecord | null>(null);
   const [projections, setProjections] = useState<RecurrenceProjection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"details" | "history" | "projections">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "history" | "projections" | "projects">("details");
+
+  // Projetos e Recorrência
+  const [contractProjects, setContractProjects] = useState<ProjectRecord[]>([]);
+  const [projectTemplates, setProjectTemplates] = useState<ProjectTemplateRecord[]>([]);
+  const [recurrenceEnabled, setRecurrenceEnabled] = useState<boolean>(false);
+  const [recurrenceTemplateId, setRecurrenceTemplateId] = useState<string>("");
+  const [recurrenceStartDay, setRecurrenceStartDay] = useState<number>(1);
+  const [generatingProject, setGeneratingProject] = useState<boolean>(false);
+  const [savingRecurrence, setSavingRecurrence] = useState<boolean>(false);
+  const [projectMsg, setProjectMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Modal Cancelamento
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
@@ -72,6 +85,85 @@ export default function ContractDetailsPage() {
   useEffect(() => {
     loadContract();
   }, [contractId]);
+
+  const loadProjectsData = async () => {
+    if (!contractId) return;
+    try {
+      const pRes = await fetch(`/api/projects?contractId=${contractId}`);
+      const pJson = await pRes.json();
+      if (pJson.success) setContractProjects(pJson.data);
+
+      const rRes = await fetch(`/api/contracts/${contractId}/project-recurrence`);
+      const rJson = await rRes.json();
+      if (rJson.success && rJson.data) {
+        setRecurrenceEnabled(rJson.data.isEnabled);
+        setRecurrenceTemplateId(rJson.data.templateId || "");
+        setRecurrenceStartDay(rJson.data.startDay || 1);
+      }
+
+      const tRes = await fetch(`/api/projects/templates`);
+      const tJson = await tRes.json();
+      if (tJson.success) setProjectTemplates(tJson.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    loadProjectsData();
+  }, [contractId]);
+
+  const handleSaveRecurrence = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingRecurrence(true);
+    setProjectMsg(null);
+    try {
+      const res = await fetch(`/api/contracts/${contractId}/project-recurrence`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isEnabled: recurrenceEnabled,
+          templateId: recurrenceTemplateId,
+          startDay: recurrenceStartDay,
+          startDate: new Date().toISOString().substring(0, 10),
+          durationDays: 30,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Erro ao salvar recorrência");
+      setProjectMsg({ type: "success", text: "Configuração de recorrência salva com sucesso!" });
+      loadProjectsData();
+    } catch (err: unknown) {
+      setProjectMsg({ type: "error", text: err instanceof Error ? err.message : "Erro ao salvar." });
+    } finally {
+      setSavingRecurrence(false);
+    }
+  };
+
+  const handleGenerateProject = async () => {
+    const d = new Date();
+    const competency = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    setGeneratingProject(true);
+    setProjectMsg(null);
+    try {
+      const res = await fetch(`/api/contracts/${contractId}/generate-project`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ competency }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Erro ao gerar projeto");
+      setProjectMsg({
+        type: "success",
+        text: json.message || "Projeto processado com sucesso!",
+      });
+      loadProjectsData();
+    } catch (err: unknown) {
+      setProjectMsg({ type: "error", text: err instanceof Error ? err.message : "Erro ao gerar." });
+    } finally {
+      setGeneratingProject(false);
+    }
+  };
 
   const handleOpenNewVersionModal = () => {
     if (!contract || !contract.currentVersion) return;
@@ -354,6 +446,17 @@ export default function ContractDetailsPage() {
             <Calendar className="w-4 h-4" />
             Previsão das Próximas Competências
           </button>
+          <button
+            onClick={() => setActiveTab("projects")}
+            className={`pb-3 transition-colors flex items-center gap-1.5 ${
+              activeTab === "projects"
+                ? "text-zinc-950 border-b-2 border-zinc-950 font-semibold"
+                : "text-zinc-500 hover:text-zinc-900"
+            }`}
+          >
+            <Briefcase className="w-4 h-4" />
+            Projetos & Recorrência Operacional ({contractProjects.length})
+          </button>
         </div>
 
         {/* TAB 1: Detalhes & Componentes Atuais */}
@@ -591,6 +694,178 @@ export default function ContractDetailsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: Projetos & Recorrência Operacional */}
+        {activeTab === "projects" && (
+          <div className="space-y-6">
+            {projectMsg && (
+              <div
+                className={`p-4 rounded-xl text-xs flex items-center gap-2 ${
+                  projectMsg.type === "success"
+                    ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                    : "bg-rose-50 text-rose-800 border border-rose-200"
+                }`}
+              >
+                {projectMsg.type === "success" ? (
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{projectMsg.text}</span>
+              </div>
+            )}
+
+            {/* Configuração de Recorrência Operacional */}
+            <div className="bg-white p-6 rounded-xl border border-zinc-200/80 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-4">
+                <div>
+                  <h3 className="text-base font-bold text-zinc-900 flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-indigo-600" />
+                    Automação de Projetos Recorrentes
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Habilite a geração mensal automatizada de projetos para este contrato sem afetar o faturamento financeiro.
+                  </p>
+                </div>
+
+                {contract.status === "ACTIVE" && (
+                  <button
+                    onClick={handleGenerateProject}
+                    disabled={generatingProject}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition-colors shadow-xs disabled:opacity-50"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {generatingProject ? "Processando..." : "Gerar Projeto Desta Competência"}
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handleSaveRecurrence} className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="recEnabled"
+                    checked={recurrenceEnabled}
+                    onChange={(e) => setRecurrenceEnabled(e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded border-zinc-300 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="recEnabled" className="text-xs font-semibold text-zinc-800 cursor-pointer">
+                    Ativar Projetos Recorrentes
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Modelo / Template Operacional
+                  </label>
+                  <select
+                    value={recurrenceTemplateId}
+                    onChange={(e) => setRecurrenceTemplateId(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Selecione um Modelo...</option>
+                    {projectTemplates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.estimatedHours}h)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                      Dia de Início no Mês
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={recurrenceStartDay}
+                      onChange={(e) => setRecurrenceStartDay(parseInt(e.target.value, 10) || 1)}
+                      className="w-full px-3 py-1.5 text-xs border border-zinc-300 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={savingRecurrence}
+                    className="px-4 py-1.5 bg-zinc-900 text-white rounded-lg text-xs font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                  >
+                    {savingRecurrence ? "Salvando..." : "Salvar Configuração"}
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            {/* Lista de Projetos Criados para este Contrato */}
+            <div className="bg-white p-6 rounded-xl border border-zinc-200/80 shadow-xs space-y-4">
+              <h3 className="text-base font-bold text-zinc-900">
+                Histórico de Projetos Vinculados ({contractProjects.length})
+              </h3>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-500 uppercase font-medium">
+                    <tr>
+                      <th className="px-4 py-2.5">Código</th>
+                      <th className="px-4 py-2.5">Projeto</th>
+                      <th className="px-4 py-2.5">Competência</th>
+                      <th className="px-4 py-2.5">Prazo</th>
+                      <th className="px-4 py-2.5">Horas</th>
+                      <th className="px-4 py-2.5">Status</th>
+                      <th className="px-4 py-2.5 text-right">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {contractProjects.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-zinc-400">
+                          Nenhum projeto gerado ainda para esta assinatura.
+                        </td>
+                      </tr>
+                    ) : (
+                      contractProjects.map((p) => (
+                        <tr key={p.id} className="hover:bg-zinc-50/50">
+                          <td className="px-4 py-3 font-mono font-bold text-indigo-600">
+                            {p.projectNumber}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-zinc-900">
+                            <Link href={`/projects/${p.id}`} className="hover:text-indigo-600">
+                              {p.name}
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-zinc-600">
+                            {p.competency || "-"}
+                          </td>
+                          <td className="px-4 py-3 text-zinc-600">
+                            {p.dueDate}
+                          </td>
+                          <td className="px-4 py-3 text-zinc-700">
+                            {p.actualHours || 0}h / {p.estimatedHours || 0}h
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-100 text-zinc-700">
+                              {p.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Link
+                              href={`/projects/${p.id}`}
+                              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                            >
+                              Abrir &rarr;
+                            </Link>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

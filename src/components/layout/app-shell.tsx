@@ -22,6 +22,7 @@ import {
   Truck,
   TrendingUp,
   FileText,
+  Briefcase,
 } from "lucide-react";
 
 interface AppShellProps {
@@ -47,7 +48,9 @@ interface AppShellProps {
     | "cost_centers"
     | "reports"
     | "settings"
-    | "documents";
+    | "documents"
+    | "projects"
+    | "project_templates";
 }
 
 export function AppShell({ children, activeSection = "dashboard" }: AppShellProps) {
@@ -58,6 +61,8 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
 
   const currentSection = React.useMemo(() => {
     if (pathname) {
+      if (pathname.startsWith("/projects/templates")) return "project_templates";
+      if (pathname.startsWith("/projects")) return "projects";
       if (pathname.startsWith("/documents")) return "documents";
       if (pathname.startsWith("/proposals")) return "proposals";
       if (pathname.startsWith("/crm/leads")) return "crm_leads";
@@ -136,6 +141,13 @@ export function AppShell({ children, activeSection = "dashboard" }: AppShellProp
         { id: "cashflow", label: "Fluxo de Caixa", href: "/financial/cashflow", icon: Database },
         { id: "accounts", label: "Contas & Bancos", href: "/financial/accounts", icon: ShieldCheck },
         { id: "suppliers", label: "Fornecedores", href: "/suppliers", icon: Truck },
+      ],
+    },
+    {
+      group: "Projetos & Operações",
+      items: [
+        { id: "projects", label: "Projetos", href: "/projects", icon: Briefcase },
+        { id: "project_templates", label: "Modelos / Templates", href: "/projects/templates", icon: Layers },
       ],
     },
     {

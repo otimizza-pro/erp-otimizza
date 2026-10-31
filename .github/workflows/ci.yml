@@ -1,0 +1,79 @@
+name: CI - Quality Gate & Security Check
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - develop
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: Full Quality Gate (Typecheck, Lint, DB Migrations, Tests, Build)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: sistema_erp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout do Repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Instalar Dependências
+        run: npm ci
+
+      - name: 1. Validação Estrita de Tipos TypeScript
+        run: npm run typecheck
+
+      - name: 2. Análise Estática de Código (ESLint)
+        run: npm run lint
+
+      - name: 3. Aplicar Migrations (001 a 008) no PostgreSQL Isolado
+        run: npm run db:migrate
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/sistema_erp_test
+
+      - name: 4. Aplicar Seeds de Dados Sintéticos de Teste
+        run: npm run db:seed
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/sistema_erp_test
+
+      - name: 5. Testes Automatizados Completos (Unitários e Integração)
+        run: npm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/sistema_erp_test
+          DATABASE_URL_TEST: postgresql://postgres:postgrespassword@localhost:5432/sistema_erp_test
+
+      - name: 6. Compilação de Produção Next.js
+        run: npm run build
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+          SESSION_SECRET: ci_mock_secret_key_needs_min_32_characters_long

@@ -863,3 +863,56 @@ export async function generateRecurringProjectForContract(input: {
 
   return { project: createdProject, status: "CREATED" };
 }
+
+/**
+ * Processador em lote de recorrência operacional de projetos.
+ * Executa para todos os contratos ativos com recorrência habilitada e não suspensa.
+ * Garante idempotência estrita através de verificação de chave (contract_id, competency).
+ */
+export async function processAllRecurringProjects(targetCompetency?: string) {
+  const now = new Date();
+  const currentMonthStr = String(now.getMonth() + 1).padStart(2, "0");
+  const competency = targetCompetency || `${now.getFullYear()}-${currentMonthStr}`;
+
+  const activeRecurringContracts = await query<{
+    contract_id: string;
+    contract_number: string;
+  }>(
+    `SELECT c.id as contract_id, c.contract_number
+     FROM contracts c
+     JOIN contract_project_recurrence_settings r ON r.contract_id = c.id
+     WHERE c.status = 'ACTIVE'
+       AND r.is_enabled = true
+       AND r.is_suspended = false
+     ORDER BY c.contract_number ASC`
+  );
+
+  let createdCount = 0;
+  let skippedCount = 0;
+  const errors: Array<{ contractNumber: string; error: string }> = [];
+
+  for (const row of activeRecurringContracts.rows) {
+    try {
+      const result = await generateRecurringProjectForContract({
+        contractId: row.contract_id,
+        competency,
+      });
+      if (result.status === "CREATED") {
+        createdCount++;
+      } else {
+        skippedCount++;
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push({ contractNumber: row.contract_number, error: msg });
+    }
+  }
+
+  return {
+    competency,
+    totalContracts: activeRecurringContracts.rows.length,
+    createdCount,
+    skippedCount,
+    errors,
+  };
+}

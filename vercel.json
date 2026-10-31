@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/financial/recurrence/process",
+      "schedule": "0 8 1 * *"
+    },
+    {
+      "path": "/api/projects/recurrence/process",
+      "schedule": "0 8 1 * *"
+    }
+  ]
+}

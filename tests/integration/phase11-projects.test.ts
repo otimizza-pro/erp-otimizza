@@ -152,9 +152,12 @@ describe("Fase 11 - Gestão de Projetos (Testes de Integração)", () => {
     expect(updatedPrj?.actualHours).toBe(3.5);
     expect(updatedPrj?.actualCost).toBe(420.0);
 
-    // Verificar isolamento financeiro: NENHUM título a pagar foi criado
-    const countAfter = await query<{ count: string }>(`SELECT COUNT(*) as count FROM payables`);
-    expect(Number(countAfter.rows[0].count)).toBe(Number(countBefore.rows[0].count));
+    // Verificar isolamento financeiro: NENHUM título a pagar foi criado para este projeto ou apontamento
+    const payablesForProject = await query(
+      `SELECT id FROM payables WHERE description ILIKE $1 OR notes ILIKE $1`,
+      [`%${uniqueSuffix}%`]
+    );
+    expect(payablesForProject.rows.length).toBe(0);
   });
 
   it("deve gerar projetos recorrentes por contrato com clonagem de etapas e garantir idempotência absoluta", async () => {

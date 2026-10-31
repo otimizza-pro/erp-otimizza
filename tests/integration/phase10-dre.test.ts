@@ -54,7 +54,9 @@ describe("Fase 10 - DRE Gerencial e Centros de Custo (Testes de Integração)", 
 
   it("deve calcular DRE em Regime de Competência e Regime de Caixa diferenciando faturamento de recebimento", async () => {
     const uniqueSuffix = Date.now().toString().slice(-6);
-    const competency = "2027-11";
+    const monthNum = String((parseInt(uniqueSuffix.slice(-2), 10) % 12) + 1).padStart(2, "0");
+    const uniqueYear = 2040 + (parseInt(uniqueSuffix.slice(0, 2), 10) % 50);
+    const competency = `${uniqueYear}-${monthNum}`;
 
     // 1. Criar cliente de teste
     const clientRes = await query<{ id: string }>(

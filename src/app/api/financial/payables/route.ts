@@ -9,11 +9,12 @@ export async function GET(request: Request) {
     const competency = searchParams.get("competency") || undefined;
     const statusParam = searchParams.get("status");
     const status = statusParam ? (statusParam as FinancialStatus) : undefined;
+    const filter = searchParams.get("filter") || undefined;
     const search = searchParams.get("search") || undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
     const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!, 10) : undefined;
 
-    const result = await listPayables({ supplierName, competency, status, search, limit, offset });
+    const result = await listPayables({ supplierName, competency, status, filter, search, limit, offset });
     return NextResponse.json(result);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : "Erro ao listar contas a pagar.";

@@ -112,6 +112,9 @@ function NewProposalForm() {
   useEffect(() => {
     async function loadData() {
       try {
+        const leadIdParam = searchParams.get("leadId");
+        const clientIdParam = searchParams.get("clientId");
+
         const [servicesRes, combosRes, clientsRes, leadsRes] = await Promise.all([
           fetch("/api/services"),
           fetch("/api/combos"),
@@ -149,19 +152,55 @@ function NewProposalForm() {
 
         if (clientsRes.ok) {
           const data = await clientsRes.json();
-          setClients(data.clients || []);
+          const list = data.clients || [];
+          if (clientIdParam && !list.some((c: { id: string }) => c.id === clientIdParam)) {
+            try {
+              const singleRes = await fetch(`/api/clients/${clientIdParam}`);
+              if (singleRes.ok) {
+                const single = await singleRes.json();
+                if (single && single.id) {
+                  list.unshift({ id: single.id, name: single.name, tradeName: single.tradeName });
+                }
+              }
+            } catch {
+              // Silencioso
+            }
+          }
+          setClients(list);
+          if (clientIdParam) {
+            setRecipientType("CLIENT");
+            setSelectedClientId(clientIdParam);
+          }
         }
 
         if (leadsRes.ok) {
           const data = await leadsRes.json();
-          setLeads(data.leads || []);
+          const list = data.leads || [];
+          if (leadIdParam && !list.some((l: { id: string }) => l.id === leadIdParam)) {
+            try {
+              const singleRes = await fetch(`/api/crm/leads/${leadIdParam}`);
+              if (singleRes.ok) {
+                const single = await singleRes.json();
+                if (single && single.id) {
+                  list.unshift({ id: single.id, name: single.name, companyName: single.companyName });
+                }
+              }
+            } catch {
+              // Silencioso
+            }
+          }
+          setLeads(list);
+          if (leadIdParam) {
+            setRecipientType("LEAD");
+            setSelectedLeadId(leadIdParam);
+          }
         }
       } catch (err) {
         console.error("Erro ao carregar catálogos:", err);
       }
     }
     loadData();
-  }, []);
+  }, [searchParams]);
 
   // Load opportunities when recipient changes
   useEffect(() => {

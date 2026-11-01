@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status") || undefined;
     const projectType = searchParams.get("projectType") || undefined;
     const search = searchParams.get("search") || undefined;
+    const filter = searchParams.get("filter") || undefined;
 
     const projects = await listProjects({
       clientId,
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
       status,
       projectType,
       search,
+      filter,
     });
 
     return NextResponse.json({ success: true, data: projects });

@@ -8,10 +8,11 @@ export async function GET(request: Request) {
     const search = searchParams.get("search") || undefined;
     const clientId = searchParams.get("clientId") || undefined;
     const status = (searchParams.get("status") as ContractStatus) || undefined;
+    const filter = searchParams.get("filter") || undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
     const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!, 10) : undefined;
 
-    const result = await listContracts({ search, clientId, status, limit, offset });
+    const result = await listContracts({ search, clientId, status, filter, limit, offset });
     return NextResponse.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro interno ao listar contratações.";

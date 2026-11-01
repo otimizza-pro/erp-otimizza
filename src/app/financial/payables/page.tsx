@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import {
   Search,
@@ -18,12 +19,25 @@ import { PayableRecord, FinancialStatus } from "@/modules/financial/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatMoney } from "@/shared/money";
 
-export default function PayablesListPage() {
+function PayablesListPageContent() {
+  const searchParams = useSearchParams();
   const [payables, setPayables] = useState<PayableRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [criticalFilter, setCriticalFilter] = useState<boolean>(false);
+
+  useEffect(() => {
+    const statusParam = searchParams.get("status");
+    const filterParam = searchParams.get("filter");
+    if (filterParam === "critical") {
+      setCriticalFilter(true);
+      setStatusFilter("PENDING");
+    } else if (statusParam) {
+      setStatusFilter(statusParam);
+    }
+  }, [searchParams]);
 
   // Modal Baixa de Pagamento
   const [settleModalOpen, setSettleModalOpen] = useState(false);
@@ -41,7 +55,11 @@ export default function PayablesListPage() {
     try {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (statusFilter !== "ALL") params.set("status", statusFilter);
+      if (criticalFilter) {
+        params.set("filter", "critical");
+      } else if (statusFilter !== "ALL") {
+        params.set("status", statusFilter);
+      }
 
       const res = await fetch(`/api/financial/payables?${params.toString()}`);
       if (res.ok) {
@@ -74,7 +92,7 @@ export default function PayablesListPage() {
   useEffect(() => {
     loadPayables();
     loadAccounts();
-  }, [statusFilter]);
+  }, [statusFilter, criticalFilter]);
 
   const handleOpenSettle = (p: PayableRecord) => {
     setSelectedPayable(p);
@@ -459,5 +477,13 @@ export default function PayablesListPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+export default function PayablesListPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-zinc-500">Carregando despesas...</div>}>
+      <PayablesListPageContent />
+    </Suspense>
   );
 }

@@ -597,6 +597,7 @@ export async function listContracts(params: {
   clientId?: string;
   search?: string;
   status?: ContractStatus;
+  filter?: string;
   limit?: number;
   offset?: number;
 }): Promise<{ contracts: ContractRecord[]; total: number }> {
@@ -606,14 +607,16 @@ export async function listContracts(params: {
   const queryParams: unknown[] = [];
   let paramIdx = 1;
 
+  if (params.filter === "expiring") {
+    conditions.push("c.status = 'ACTIVE' AND cv.is_indefinite = false AND cv.end_date IS NOT NULL AND cv.end_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days')");
+  } else if (params.status) {
+    conditions.push(`c.status = $${paramIdx++}`);
+    queryParams.push(params.status);
+  }
+
   if (params.clientId) {
     conditions.push(`c.client_id = $${paramIdx++}`);
     queryParams.push(params.clientId);
-  }
-
-  if (params.status) {
-    conditions.push(`c.status = $${paramIdx++}`);
-    queryParams.push(params.status);
   }
 
   if (params.search && params.search.trim().length > 0) {
@@ -633,7 +636,7 @@ export async function listContracts(params: {
     FROM contracts c
     JOIN clients cl ON cl.id = c.client_id
     LEFT JOIN LATERAL (
-      SELECT title FROM contract_versions
+      SELECT title, is_indefinite, end_date FROM contract_versions
       WHERE contract_id = c.id
       ORDER BY version_number DESC LIMIT 1
     ) cv ON true

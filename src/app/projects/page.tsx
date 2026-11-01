@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Briefcase,
   Plus,
@@ -18,10 +19,12 @@ import {
   RefreshCw,
   ArrowRight,
   TrendingUp,
+  X,
 } from "lucide-react";
 import { ProjectRecord, ProjectStatus, ProjectType } from "@/modules/projects/types";
 
-export default function ProjectsPage() {
+function ProjectsPageContent() {
+  const searchParams = useSearchParams();
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,14 +33,30 @@ export default function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [typeFilter, setTypeFilter] = useState<string>("");
+  const [criticalFilter, setCriticalFilter] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"LIST" | "KANBAN">("LIST");
+
+  useEffect(() => {
+    const filterParam = searchParams.get("filter");
+    const statusParam = searchParams.get("status");
+    if (filterParam === "critical") {
+      setCriticalFilter(true);
+    }
+    if (statusParam) {
+      setStatusFilter(statusParam);
+    }
+  }, [searchParams]);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (statusFilter) params.append("status", statusFilter);
+      if (criticalFilter) {
+        params.append("filter", "critical");
+      } else if (statusFilter) {
+        params.append("status", statusFilter);
+      }
       if (typeFilter) params.append("projectType", typeFilter);
       if (searchTerm) params.append("search", searchTerm);
 
@@ -50,7 +69,7 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, typeFilter, searchTerm]);
+  }, [statusFilter, typeFilter, searchTerm, criticalFilter]);
 
   useEffect(() => {
     loadProjects();
@@ -395,5 +414,13 @@ export default function ProjectsPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function ProjectsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">Carregando projetos...</div>}>
+      <ProjectsPageContent />
+    </Suspense>
   );
 }

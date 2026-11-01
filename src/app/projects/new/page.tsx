@@ -49,18 +49,29 @@ function NewProjectFormContent() {
 
   useEffect(() => {
     // Carregar clientes
-    fetch("/api/clients")
+    fetch("/api/clients?limit=100")
       .then((res) => res.json())
-      .then((json) => {
-        if (json.success && json.data) setClients(json.data);
+      .then(async (json) => {
+        const clientList = Array.isArray(json) ? json : json.clients || (json.success && json.data) || [];
+        if (initialClientId && !clientList.some((c: { id: string }) => c.id === initialClientId)) {
+          try {
+            const single = await fetch(`/api/clients/${initialClientId}`).then((r) => r.json());
+            if (single && single.id) clientList.unshift(single);
+          } catch {}
+        }
+        setClients(clientList);
+        if (initialClientId) {
+          setClientId(initialClientId);
+        }
       })
       .catch((err) => console.error(err));
 
     // Carregar contratos
-    fetch("/api/contracts")
+    fetch("/api/contracts?limit=100")
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && json.data) setContracts(json.data);
+        const contractList = Array.isArray(json) ? json : json.contracts || (json.success && json.data) || [];
+        setContracts(contractList);
       })
       .catch((err) => console.error(err));
 
@@ -68,10 +79,11 @@ function NewProjectFormContent() {
     fetch("/api/projects/templates")
       .then((res) => res.json())
       .then((json) => {
-        if (json.success && json.data) setTemplates(json.data);
+        const tmpls = (json.success && json.data) || json.data || (Array.isArray(json) ? json : []);
+        setTemplates(tmpls);
       })
       .catch((err) => console.error(err));
-  }, []);
+  }, [initialClientId]);
 
   const handleTemplateChange = (tmplId: string) => {
     setTemplateId(tmplId);

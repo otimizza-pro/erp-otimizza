@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import {
   Calendar as CalendarIcon,
@@ -26,7 +27,8 @@ import {
 } from "lucide-react";
 import { ActivityRecord, ActivityStatus, ActivityType } from "@/modules/crm/types";
 
-export default function CommercialActivitiesPage() {
+function CommercialActivitiesPageContent() {
+  const searchParams = useSearchParams();
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,6 +36,13 @@ export default function CommercialActivitiesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("PENDING");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    const s = searchParams.get("status");
+    if (s) {
+      setStatusFilter(s);
+    }
+  }, [searchParams]);
 
   // Modal nova atividade
   const [showModal, setShowModal] = useState(false);
@@ -658,5 +667,13 @@ export default function CommercialActivitiesPage() {
         )}
       </div>
     </AppShell>
+  );
+}
+
+export default function CommercialActivitiesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">Carregando atividades comerciais...</div>}>
+      <CommercialActivitiesPageContent />
+    </Suspense>
   );
 }

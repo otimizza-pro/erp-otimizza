@@ -107,11 +107,19 @@ interface ListProjectsFilter {
   status?: string;
   projectType?: string;
   search?: string;
+  filter?: string;
 }
 
 export async function listProjects(filters: ListProjectsFilter = {}): Promise<ProjectRecord[]> {
   const conditions: string[] = ["p.archived_at IS NULL"];
   const params: unknown[] = [];
+
+  if (filters.filter === "critical") {
+    conditions.push("p.status NOT IN ('COMPLETED', 'CANCELED') AND p.due_date IS NOT NULL AND p.due_date <= (CURRENT_DATE + INTERVAL '7 days')");
+  } else if (filters.status) {
+    params.push(filters.status);
+    conditions.push(`p.status = $${params.length}`);
+  }
 
   if (filters.clientId) {
     params.push(filters.clientId);
@@ -120,10 +128,6 @@ export async function listProjects(filters: ListProjectsFilter = {}): Promise<Pr
   if (filters.contractId) {
     params.push(filters.contractId);
     conditions.push(`p.contract_id = $${params.length}`);
-  }
-  if (filters.status) {
-    params.push(filters.status);
-    conditions.push(`p.status = $${params.length}`);
   }
   if (filters.projectType) {
     params.push(filters.projectType);

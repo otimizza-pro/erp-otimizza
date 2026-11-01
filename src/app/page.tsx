@@ -376,7 +376,7 @@ export default function ExecutiveDashboardPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
               {/* 1. Atividades Comerciais */}
               <Link
-                href="/crm/activities"
+                href="/crm/activities?status=PENDING&filter=critical"
                 className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">
@@ -426,7 +426,7 @@ export default function ExecutiveDashboardPage() {
 
               {/* 3. Contas a Receber Vencidas */}
               <Link
-                href="/financial/receivables?status=PENDING"
+                href="/financial/receivables?status=PENDING&overdue=true"
                 className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">
@@ -453,7 +453,7 @@ export default function ExecutiveDashboardPage() {
 
               {/* 4. Contas a Pagar no Vencimento */}
               <Link
-                href="/financial/payables?status=PENDING"
+                href="/financial/payables?status=PENDING&filter=critical"
                 className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">
@@ -478,7 +478,7 @@ export default function ExecutiveDashboardPage() {
 
               {/* 5. Contratos Próximos do Término */}
               <Link
-                href="/contracts"
+                href="/contracts?filter=expiring"
                 className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">
@@ -503,7 +503,7 @@ export default function ExecutiveDashboardPage() {
 
               {/* 6. Projetos com Prazo Próximo ou Atrasados */}
               <Link
-                href="/projects"
+                href="/projects?filter=critical"
                 className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">

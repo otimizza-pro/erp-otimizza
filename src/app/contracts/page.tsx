@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useTransition } from "react";
+import React, { useEffect, useState, useTransition, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import {
   Search,
@@ -17,20 +18,37 @@ import {
 } from "lucide-react";
 import { ContractRecord, ContractStatus } from "@/modules/contracts/types";
 
-export default function ContractsListPage() {
+function ContractsListPageContent() {
+  const searchParams = useSearchParams();
   const [contracts, setContracts] = useState<ContractRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [expiringFilter, setExpiringFilter] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const filterParam = searchParams.get("filter");
+    const statusParam = searchParams.get("status");
+    if (filterParam === "expiring") {
+      setExpiringFilter(true);
+      setStatusFilter("ACTIVE");
+    } else if (statusParam) {
+      setStatusFilter(statusParam);
+    }
+  }, [searchParams]);
 
   const loadContracts = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (statusFilter !== "ALL") params.set("status", statusFilter);
+      if (expiringFilter) {
+        params.set("filter", "expiring");
+      } else if (statusFilter !== "ALL") {
+        params.set("status", statusFilter);
+      }
 
       const res = await fetch(`/api/contracts?${params.toString()}`);
       if (res.ok) {
@@ -47,7 +65,7 @@ export default function ContractsListPage() {
 
   useEffect(() => {
     loadContracts();
-  }, [statusFilter]);
+  }, [statusFilter, expiringFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -327,5 +345,13 @@ export default function ContractsListPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+export default function ContractsListPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-zinc-500">Carregando contratos...</div>}>
+      <ContractsListPageContent />
+    </Suspense>
   );
 }

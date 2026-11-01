@@ -50,18 +50,88 @@ import {
   formatBRL,
 } from "@/components/analytics/report-charts";
 
+type ReportTab =
+  | "receivables_default"
+  | "payables"
+  | "service_profitability"
+  | "combo_profitability"
+  | "client_profitability"
+  | "cashflow_comparison"
+  | "mrr_evolution"
+  | "suppliers_expenses"
+  | "managerial_profitability";
+
+function parseReportTab(tabParam: string | null): ReportTab {
+  if (!tabParam) return "receivables_default";
+  if (tabParam === "commercial") return "mrr_evolution";
+  if (tabParam === "financial") return "cashflow_comparison";
+  if (tabParam === "profitability") return "managerial_profitability";
+  const validTabs: ReportTab[] = [
+    "receivables_default",
+    "payables",
+    "service_profitability",
+    "combo_profitability",
+    "client_profitability",
+    "cashflow_comparison",
+    "mrr_evolution",
+    "suppliers_expenses",
+    "managerial_profitability",
+  ];
+  if (validTabs.includes(tabParam as ReportTab)) {
+    return tabParam as ReportTab;
+  }
+  return "receivables_default";
+}
+
+function getQueryForTab(tab: ReportTab): string {
+  if (tab === "mrr_evolution") return "commercial";
+  if (tab === "cashflow_comparison" || tab === "receivables_default") return "financial";
+  if (
+    tab === "managerial_profitability" ||
+    tab === "service_profitability" ||
+    tab === "combo_profitability" ||
+    tab === "client_profitability"
+  ) {
+    return "profitability";
+  }
+  return tab;
+}
+
 export default function ReportsHubPage() {
-  const [activeTab, setActiveTab] = useState<
-    | "receivables_default"
-    | "payables"
-    | "service_profitability"
-    | "combo_profitability"
-    | "client_profitability"
-    | "cashflow_comparison"
-    | "mrr_evolution"
-    | "suppliers_expenses"
-    | "managerial_profitability"
-  >("receivables_default");
+  const [activeTab, setActiveTab] = useState<ReportTab>(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search).get("tab");
+      return parseReportTab(p);
+    }
+    return "receivables_default";
+  });
+
+  // Sincronizar aba com a URL (inclusive para voltar/avançar no histórico)
+  useEffect(() => {
+    const syncFromUrl = () => {
+      if (typeof window !== "undefined") {
+        const urlParams = new URLSearchParams(window.location.search);
+        const tabParam = urlParams.get("tab");
+        if (tabParam) {
+          setActiveTab(parseReportTab(tabParam));
+        }
+      }
+    };
+    syncFromUrl();
+    window.addEventListener("popstate", syncFromUrl);
+    return () => window.removeEventListener("popstate", syncFromUrl);
+  }, []);
+
+  const switchTab = (newTab: ReportTab) => {
+    setActiveTab(newTab);
+    if (typeof window !== "undefined") {
+      const queryParam = getQueryForTab(newTab);
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", queryParam);
+      window.history.pushState(null, "", url.toString());
+      window.dispatchEvent(new Event("popstate"));
+    }
+  };
 
   // Modo de visualização: Gráficos + Tabela, Apenas Gráficos, ou Apenas Tabela
   const [viewMode, setViewMode] = useState<"both" | "charts" | "tables">("both");
@@ -450,7 +520,7 @@ export default function ReportsHubPage() {
             <button
               key={tab.id}
               onClick={() => {
-                setActiveTab(tab.id as typeof activeTab);
+                switchTab(tab.id as ReportTab);
               }}
               className={`pb-3 px-3.5 text-xs font-bold border-b-2 transition whitespace-nowrap cursor-pointer ${
                 activeTab === tab.id

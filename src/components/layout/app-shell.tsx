@@ -77,6 +77,7 @@ export function AppShell({ children }: AppShellProps) {
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchItem[]>([]);
+  const [selectedSearchIndex, setSelectedSearchIndex] = useState(-1);
   const [searchLoading, setSearchLoading] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const newDropdownRef = useRef<HTMLDivElement>(null);
@@ -116,10 +117,9 @@ export function AppShell({ children }: AppShellProps) {
       title: "Financeiro",
       icon: DollarSign,
       items: [
-        { id: "financial_cashflow", label: "Visão financeira", href: "/financial/cashflow", icon: BarChart3 },
         { id: "receivables", label: "Contas a receber", href: "/financial/receivables", icon: DollarSign },
         { id: "payables", label: "Contas a pagar", href: "/financial/payables", icon: Layers },
-        { id: "cashflow_detail", label: "Fluxo de caixa", href: "/financial/cashflow", icon: Database },
+        { id: "cashflow", label: "Fluxo de caixa", href: "/financial/cashflow", icon: Database },
       ],
     },
     {
@@ -176,10 +176,58 @@ export function AppShell({ children }: AppShellProps) {
     },
   ];
 
-  // Determinar grupo ativo atual pelo pathname
+  // Estado da busca de URL (para sincronização perfeita de ?tab=)
+  const [currentSearch, setCurrentSearch] = useState("");
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      if (typeof window !== "undefined") {
+        setCurrentSearch(window.location.search || "");
+      }
+    };
+    handleLocationChange();
+    window.addEventListener("popstate", handleLocationChange);
+    return () => window.removeEventListener("popstate", handleLocationChange);
+  }, [pathname]);
+
+  // Função para determinar se um item específico está ativo
+  const isItemActive = (item: NavItem, group: NavGroup): boolean => {
+    if (!pathname) return false;
+    const [itemPath, itemQuery] = item.href.split("?");
+    const itemParams = new URLSearchParams(itemQuery || "");
+    const itemTab = itemParams.get("tab");
+    const currentParams = new URLSearchParams(currentSearch);
+    const currentTab = currentParams.get("tab");
+
+    if (itemTab) {
+      return pathname === itemPath && currentTab === itemTab;
+    }
+
+    // Item sem ?tab= na URL
+    const hasSiblingWithTab = group.items.some(
+      (sibling) => sibling.id !== item.id && sibling.href.startsWith(`${itemPath}?tab=`)
+    );
+
+    if (hasSiblingWithTab) {
+      if (pathname !== itemPath) return false;
+      return !currentTab || currentTab === "company" || currentTab === "agency" || currentTab === "categories";
+    }
+
+    return pathname === itemPath || (itemPath !== "/" && pathname.startsWith(itemPath));
+  };
+
+  // Determinar grupo ativo atual pelo pathname e tabs
   const activeGroupId = React.useMemo(() => {
     if (!pathname) return "";
     if (pathname === "/") return "inicio";
+    for (const group of navigationGroups) {
+      for (const item of group.items) {
+        if (isItemActive(item, group)) {
+          return group.id;
+        }
+      }
+    }
+    // Fallback por pathname prefix
     for (const group of navigationGroups) {
       for (const item of group.items) {
         const itemPath = item.href.split("?")[0];
@@ -189,7 +237,7 @@ export function AppShell({ children }: AppShellProps) {
       }
     }
     return "";
-  }, [pathname]);
+  }, [pathname, currentSearch]);
 
   // Inicializar estado dos grupos: ler localStorage ou abrir apenas o grupo da página ativa
   useEffect(() => {
@@ -257,6 +305,7 @@ export function AppShell({ children }: AppShellProps) {
 
   // Busca instantânea com debounce
   useEffect(() => {
+    setSelectedSearchIndex(-1);
     if (!searchQuery || searchQuery.trim().length < 2) {
       setSearchResults([]);
       setSearchLoading(false);
@@ -269,6 +318,7 @@ export function AppShell({ children }: AppShellProps) {
         if (res.ok) {
           const data = await res.json();
           setSearchResults(data.results || []);
+          setSelectedSearchIndex(-1);
         }
       } catch (err) {
         console.error("Erro na busca:", err);
@@ -381,24 +431,57 @@ export function AppShell({ children }: AppShellProps) {
               const isExpanded = !!expandedGroups[group.id];
               const GroupIcon = group.icon;
 
-              // No modo colapsado, exibe apenas os ícones
+              // No modo colapsado, exibe ícones com flyout no hover
               if (sidebarCollapsed) {
                 return (
-                  <div key={group.id} className="relative group/tooltip">
+                  <div key={group.id} className="relative group/flyout">
                     <button
+                      type="button"
                       onClick={() => {
                         setSidebarCollapsed(false);
                         setExpandedGroups((prev) => ({ ...prev, [group.id]: true }));
                       }}
-                      className={`w-full flex items-center justify-center p-2.5 rounded-xl transition ${
+                      className={`w-full flex items-center justify-center p-2.5 rounded-xl transition cursor-pointer ${
                         isGroupActive
                           ? "bg-zinc-900 text-white"
                           : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
                       }`}
                       title={group.title}
+                      aria-label={group.title}
                     >
                       <GroupIcon className="w-4 h-4" />
                     </button>
+
+                    {/* Popover Flyout ao passar o mouse com a barra recolhida */}
+                    <div className="hidden group-hover/flyout:block absolute left-full top-0 ml-2 w-52 bg-white border border-zinc-200/90 rounded-xl shadow-xl z-50 py-1.5 px-1 animate-in fade-in duration-100">
+                      <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 mb-1 flex items-center gap-1.5">
+                        <GroupIcon className="w-3 h-3 text-zinc-500" />
+                        <span>{group.title}</span>
+                      </div>
+                      <div className="space-y-0.5">
+                        {group.items.map((item) => {
+                          const active = isItemActive(item, group);
+                          return (
+                            <Link
+                              key={item.id}
+                              href={item.href}
+                              onClick={() => {
+                                const q = item.href.includes("?") ? item.href.split("?")[1] : "";
+                                setCurrentSearch(q ? `?${q}` : "");
+                              }}
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
+                                active
+                                  ? "bg-zinc-900 text-white font-semibold"
+                                  : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+                              }`}
+                            >
+                              <span className="truncate">{item.label}</span>
+                              {active && <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
                 );
               }
@@ -430,24 +513,25 @@ export function AppShell({ children }: AppShellProps) {
                   {isExpanded && (
                     <div className="pl-6 space-y-0.5 border-l-2 border-zinc-100 ml-3.5 my-0.5">
                       {group.items.map((item) => {
-                        const itemPath = item.href.split("?")[0];
-                        const isItemActive =
-                          pathname === itemPath ||
-                          (itemPath !== "/" && pathname.startsWith(itemPath));
+                        const active = isItemActive(item, group);
 
                         return (
                           <Link
                             key={item.id}
                             href={item.href}
-                            onClick={() => setSidebarOpen(false)}
+                            onClick={() => {
+                              const q = item.href.includes("?") ? item.href.split("?")[1] : "";
+                              setCurrentSearch(q ? `?${q}` : "");
+                              setSidebarOpen(false);
+                            }}
                             className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
-                              isItemActive
+                              active
                                 ? "bg-zinc-900 text-white font-semibold shadow-2xs"
                                 : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
                             }`}
                           >
                             <span className="truncate">{item.label}</span>
-                            {isItemActive && <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
+                            {active && <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
                           </Link>
                         );
                       })}
@@ -606,8 +690,16 @@ export function AppShell({ children }: AppShellProps) {
 
       {/* Modal de Busca Global */}
       {searchModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-zinc-200 overflow-hidden flex flex-col max-h-[80vh]">
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setSearchModalOpen(false)}
+          className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 bg-black/50 backdrop-blur-xs animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-zinc-200 overflow-hidden flex flex-col max-h-[80vh]"
+          >
             {/* Input Header */}
             <div className="p-4 border-b border-zinc-100 flex items-center gap-3">
               <Search className="w-4 h-4 text-zinc-400 shrink-0" />
@@ -616,10 +708,27 @@ export function AppShell({ children }: AppShellProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setSelectedSearchIndex((prev) => (prev < searchResults.length - 1 ? prev + 1 : 0));
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setSelectedSearchIndex((prev) => (prev > 0 ? prev - 1 : searchResults.length - 1));
+                  } else if (e.key === "Enter" && selectedSearchIndex >= 0 && selectedSearchIndex < searchResults.length) {
+                    e.preventDefault();
+                    router.push(searchResults[selectedSearchIndex].href);
+                    setSearchModalOpen(false);
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    setSearchModalOpen(false);
+                  }
+                }}
                 placeholder="Buscar clientes, propostas, contratos, contas ou projetos..."
                 className="w-full text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
               />
               <button
+                type="button"
                 onClick={() => setSearchModalOpen(false)}
                 className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
               >
@@ -648,46 +757,59 @@ export function AppShell({ children }: AppShellProps) {
               )}
 
               {!searchLoading &&
-                searchResults.map((item) => (
-                  <Link
-                    key={`${item.type}-${item.id}`}
-                    href={item.href}
-                    onClick={() => setSearchModalOpen(false)}
-                    className="p-3 rounded-xl hover:bg-zinc-50 flex items-center justify-between text-xs transition group"
-                  >
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${
-                            item.type === "CLIENT"
-                              ? "bg-blue-100 text-blue-800"
-                              : item.type === "LEAD"
-                              ? "bg-amber-100 text-amber-800"
-                              : item.type === "PROPOSAL"
-                              ? "bg-indigo-100 text-indigo-800"
-                              : item.type === "CONTRACT"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : item.type === "PROJECT"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-zinc-100 text-zinc-700"
-                          }`}
-                        >
-                          {item.type}
-                        </span>
-                        <span className="font-semibold text-zinc-900 group-hover:text-indigo-600">
-                          {item.title}
-                        </span>
+                searchResults.map((item, idx) => {
+                  const isSelected = idx === selectedSearchIndex;
+                  return (
+                    <Link
+                      key={`${item.type}-${item.id}`}
+                      href={item.href}
+                      onClick={() => setSearchModalOpen(false)}
+                      className={`p-3 rounded-xl flex items-center justify-between text-xs transition group ${
+                        isSelected
+                          ? "bg-zinc-100 ring-1 ring-zinc-300"
+                          : "hover:bg-zinc-50"
+                      }`}
+                    >
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${
+                              item.type === "CLIENT"
+                                ? "bg-blue-100 text-blue-800"
+                                : item.type === "LEAD"
+                                ? "bg-amber-100 text-amber-800"
+                                : item.type === "PROPOSAL"
+                                ? "bg-indigo-100 text-indigo-800"
+                                : item.type === "CONTRACT"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : item.type === "PROJECT"
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-zinc-100 text-zinc-700"
+                            }`}
+                          >
+                            {item.type}
+                          </span>
+                          <span className={`font-semibold ${isSelected ? "text-indigo-600" : "text-zinc-900 group-hover:text-indigo-600"}`}>
+                            {item.title}
+                          </span>
+                        </div>
+                        <p className="text-zinc-500 text-[11px]">{item.subtitle}</p>
                       </div>
-                      <p className="text-zinc-500 text-[11px]">{item.subtitle}</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-zinc-300 group-hover:text-zinc-600 transition" />
-                  </Link>
-                ))}
+                      <ArrowRight className={`w-4 h-4 transition ${isSelected ? "text-indigo-600" : "text-zinc-300 group-hover:text-zinc-600"}`} />
+                    </Link>
+                  );
+                })}
             </div>
 
             {/* Footer Dica */}
             <div className="p-3 border-t border-zinc-100 bg-zinc-50 flex items-center justify-between text-[11px] text-zinc-400">
-              <span>Navegue com o mouse ou teclado</span>
+              <span className="flex items-center gap-1.5">
+                <span>Navegue com</span>
+                <kbd className="px-1.5 py-0.5 bg-zinc-200/80 rounded text-[10px] font-mono font-semibold text-zinc-600">↓</kbd>
+                <kbd className="px-1.5 py-0.5 bg-zinc-200/80 rounded text-[10px] font-mono font-semibold text-zinc-600">↑</kbd>
+                <span>e</span>
+                <kbd className="px-1.5 py-0.5 bg-zinc-200/80 rounded text-[10px] font-mono font-semibold text-zinc-600">Enter</kbd>
+              </span>
               <kbd className="px-1.5 py-0.5 bg-zinc-200/80 rounded text-[10px] font-mono font-semibold text-zinc-600">
                 ESC para fechar
               </kbd>

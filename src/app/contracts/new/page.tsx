@@ -90,6 +90,24 @@ function NewContractFormContent() {
         if (cRes.ok) {
           const cData = await cRes.json();
           const list: ClientOption[] = Array.isArray(cData) ? cData : (cData.clients || []);
+          if (initialClientId && !list.some((c) => c.id === initialClientId)) {
+            try {
+              const singleRes = await fetch(`/api/clients/${initialClientId}`);
+              if (singleRes.ok) {
+                const single = await singleRes.json();
+                if (single && single.id) {
+                  list.unshift({
+                    id: single.id,
+                    name: single.name,
+                    tradeName: single.tradeName,
+                    document: single.document,
+                  });
+                }
+              }
+            } catch {
+              // Silencioso
+            }
+          }
           setClients(list);
           const opts: AutocompleteOption[] = list.map((c) => ({
             id: c.id,

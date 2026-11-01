@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useTransition } from "react";
+import React, { useEffect, useState, useTransition, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import {
   Search,
@@ -22,14 +23,24 @@ import {
 } from "lucide-react";
 import { ProposalRecord, ProposalStatus, ProposalMetrics } from "@/modules/proposals/types";
 
-export default function ProposalsListPage() {
+function ProposalsListPageContent() {
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get("status") || "ALL";
+
   const [proposals, setProposals] = useState<ProposalRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
   const [metrics, setMetrics] = useState<ProposalMetrics | null>(null);
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    const s = searchParams.get("status");
+    if (s) {
+      setStatusFilter(s);
+    }
+  }, [searchParams]);
 
   const loadProposals = async () => {
     setLoading(true);
@@ -407,5 +418,13 @@ export default function ProposalsListPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+export default function ProposalsListPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">Carregando propostas...</div>}>
+      <ProposalsListPageContent />
+    </Suspense>
   );
 }

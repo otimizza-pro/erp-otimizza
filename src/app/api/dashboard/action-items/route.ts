@@ -17,6 +17,12 @@ export async function GET() {
       upcomingPayRes,
       expiringContractsRes,
       overdueProjectsRes,
+      countActivitiesRes,
+      countProposalsRes,
+      countOverdueRecRes,
+      countUpcomingPayRes,
+      countExpiringContractsRes,
+      countOverdueProjectsRes,
     ] = await Promise.all([
       // 1. Atividades comerciais atrasadas ou previstas para hoje
       query<{
@@ -137,6 +143,38 @@ export async function GET() {
          ORDER BY p.due_date ASC
          LIMIT 6`
       ),
+
+      // Contagens Globais Reais (sem limite)
+      query<{ total: number }>(
+        `SELECT COUNT(*)::int as total FROM crm_activities a
+         WHERE a.status = 'PENDING' AND a.due_date <= (CURRENT_DATE + INTERVAL '1 day')`
+      ),
+      query<{ total: number }>(
+        `SELECT COUNT(*)::int as total FROM proposals p
+         WHERE p.status = 'SENT'`
+      ),
+      query<{ total: number }>(
+        `SELECT COUNT(*)::int as total FROM receivables r
+         WHERE r.status = 'PENDING' AND r.due_date < CURRENT_DATE`
+      ),
+      query<{ total: number }>(
+        `SELECT COUNT(*)::int as total FROM payables p
+         WHERE p.status = 'PENDING' AND p.due_date <= (CURRENT_DATE + INTERVAL '7 days')`
+      ),
+      query<{ total: number }>(
+        `SELECT COUNT(DISTINCT c.id)::int as total FROM contracts c
+         JOIN contract_versions cv ON cv.contract_id = c.id
+         WHERE c.status = 'ACTIVE'
+           AND cv.is_indefinite = false
+           AND cv.end_date IS NOT NULL
+           AND cv.end_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days')`
+      ),
+      query<{ total: number }>(
+        `SELECT COUNT(*)::int as total FROM projects p
+         WHERE p.status NOT IN ('COMPLETED', 'CANCELED')
+           AND p.due_date IS NOT NULL
+           AND p.due_date <= (CURRENT_DATE + INTERVAL '7 days')`
+      ),
     ]);
 
     return NextResponse.json({
@@ -150,12 +188,12 @@ export async function GET() {
         overdueProjects: overdueProjectsRes.rows,
       },
       counts: {
-        activities: activitiesRes.rowCount,
-        proposals: proposalsRes.rowCount,
-        overdueReceivables: overdueRecRes.rowCount,
-        upcomingPayables: upcomingPayRes.rowCount,
-        expiringContracts: expiringContractsRes.rowCount,
-        overdueProjects: overdueProjectsRes.rowCount,
+        activities: countActivitiesRes.rows[0]?.total ?? activitiesRes.rowCount ?? 0,
+        proposals: countProposalsRes.rows[0]?.total ?? proposalsRes.rowCount ?? 0,
+        overdueReceivables: countOverdueRecRes.rows[0]?.total ?? overdueRecRes.rowCount ?? 0,
+        upcomingPayables: countUpcomingPayRes.rows[0]?.total ?? upcomingPayRes.rowCount ?? 0,
+        expiringContracts: countExpiringContractsRes.rows[0]?.total ?? expiringContractsRes.rowCount ?? 0,
+        overdueProjects: countOverdueProjectsRes.rows[0]?.total ?? overdueProjectsRes.rowCount ?? 0,
       },
     });
   } catch (error: unknown) {

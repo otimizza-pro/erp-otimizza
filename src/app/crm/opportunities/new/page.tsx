@@ -108,6 +108,19 @@ function NewOpportunityForm() {
         if (clientsRes.ok) {
           const cData = await clientsRes.json();
           const rawClients = Array.isArray(cData.clients) ? cData.clients : Array.isArray(cData) ? cData : [];
+          if (initialClientId && !rawClients.some((c: { id: string }) => c.id === initialClientId)) {
+            try {
+              const singleRes = await fetch(`/api/clients/${initialClientId}`);
+              if (singleRes.ok) {
+                const single = await singleRes.json();
+                if (single && single.id) {
+                  rawClients.unshift(single);
+                }
+              }
+            } catch {
+              // Silencioso
+            }
+          }
           const mapped: SimpleContact[] = rawClients.map((c: { id: string; name?: string | null; tradeName?: string | null; document?: string | null }) => ({
             id: c.id,
             name: c.tradeName || c.name || "Cliente sem nome",
@@ -115,6 +128,10 @@ function NewOpportunityForm() {
             type: "CLIENT",
           }));
           setClientsList(mapped);
+          if (initialClientId) {
+            setContactMode("CLIENT");
+            setSelectedContactId(initialClientId);
+          }
         }
       } catch (e) {
         console.error("Erro na inicialização:", e);
@@ -123,7 +140,7 @@ function NewOpportunityForm() {
       }
     }
     init();
-  }, [initialPipelineId]);
+  }, [initialPipelineId, initialClientId]);
 
   // Ao mudar funil, atualiza etapas
   function handlePipelineChange(pipeId: string) {

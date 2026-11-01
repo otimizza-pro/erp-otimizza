@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import {
   Search,
@@ -19,7 +20,8 @@ import { ReceivableRecord, FinancialStatus } from "@/modules/financial/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatMoney } from "@/shared/money";
 
-export default function ReceivablesListPage() {
+function ReceivablesListPageContent() {
+  const searchParams = useSearchParams();
   const [receivables, setReceivables] = useState<ReceivableRecord[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -31,6 +33,21 @@ export default function ReceivablesListPage() {
   const [periodPreset, setPeriodPreset] = useState<string>("ALL");
   const [processingRecurrence, setProcessingRecurrence] = useState(false);
   const [recurrenceMessage, setRecurrenceMessage] = useState("");
+
+  useEffect(() => {
+    const statusParam = searchParams.get("status");
+    const overdueParam = searchParams.get("overdue");
+    if (statusParam) {
+      setStatusFilter(statusParam);
+    }
+    if (overdueParam === "true") {
+      setStatusFilter("PENDING");
+      setDateType("dueDate");
+      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      setEndDate(yesterday);
+      setPeriodPreset("OVERDUE");
+    }
+  }, [searchParams]);
 
   // Modal Baixa Rápida
   const [settleModalOpen, setSettleModalOpen] = useState(false);
@@ -690,5 +707,13 @@ export default function ReceivablesListPage() {
         </div>
       )}
     </AppShell>
+  );
+}
+
+export default function ReceivablesListPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-zinc-500">Carregando cobranças...</div>}>
+      <ReceivablesListPageContent />
+    </Suspense>
   );
 }

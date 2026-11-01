@@ -605,6 +605,7 @@ export async function listPayables(params: {
   competency?: string;
   status?: FinancialStatus;
   search?: string;
+  filter?: string;
   limit?: number;
   offset?: number;
 }): Promise<{ payables: PayableRecord[]; total: number }> {
@@ -614,6 +615,13 @@ export async function listPayables(params: {
   const queryParams: unknown[] = [];
   let paramIdx = 1;
 
+  if (params.filter === "critical") {
+    conditions.push("p.status = 'PENDING' AND p.due_date <= (CURRENT_DATE + INTERVAL '7 days')");
+  } else if (params.status) {
+    conditions.push(`p.status = $${paramIdx++}`);
+    queryParams.push(params.status);
+  }
+
   if (params.supplierName) {
     conditions.push(`p.supplier_name ILIKE $${paramIdx++}`);
     queryParams.push(`%${params.supplierName}%`);
@@ -621,10 +629,6 @@ export async function listPayables(params: {
   if (params.competency) {
     conditions.push(`p.competency = $${paramIdx++}`);
     queryParams.push(params.competency);
-  }
-  if (params.status) {
-    conditions.push(`p.status = $${paramIdx++}`);
-    queryParams.push(params.status);
   }
   if (params.search && params.search.trim()) {
     conditions.push(`(p.payable_number ILIKE $${paramIdx} OR p.description ILIKE $${paramIdx} OR p.supplier_name ILIKE $${paramIdx})`);

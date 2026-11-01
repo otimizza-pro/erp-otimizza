@@ -50,6 +50,24 @@ function NewReceivableFormContent() {
         if (res.ok) {
           const json = await res.json();
           const clientList: ClientOption[] = json.clients || [];
+          if (initialClientId && !clientList.some((c) => c.id === initialClientId)) {
+            try {
+              const singleRes = await fetch(`/api/clients/${initialClientId}`);
+              if (singleRes.ok) {
+                const single = await singleRes.json();
+                if (single && single.id) {
+                  clientList.unshift({
+                    id: single.id,
+                    name: single.name,
+                    tradeName: single.tradeName,
+                    document: single.document,
+                  });
+                }
+              }
+            } catch {
+              // Silencioso
+            }
+          }
           setClients(clientList);
           const opts: AutocompleteOption[] = clientList.map((c) => ({
             id: c.id,

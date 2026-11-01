@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { ArrowLeft, Save, AlertCircle, Info, Calendar, DollarSign, User } from "lucide-react";
@@ -21,8 +21,11 @@ interface ContractOption {
   title: string;
 }
 
-export default function NewReceivablePage() {
+function NewReceivableFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialClientId = searchParams.get("clientId") || "";
+
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [contracts, setContracts] = useState<ContractOption[]>([]);
   const [loadingInitial, setLoadingInitial] = useState(true);
@@ -30,7 +33,7 @@ export default function NewReceivablePage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   // Form fields
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(initialClientId);
   const [clientName, setClientName] = useState("");
   const [clientOptions, setClientOptions] = useState<AutocompleteOption[]>([]);
   const [contractId, setContractId] = useState("");
@@ -54,6 +57,14 @@ export default function NewReceivablePage() {
             sublabel: c.document ? `Documento: ${c.document}` : null,
           }));
           setClientOptions(opts);
+
+          if (initialClientId) {
+            const found = clientList.find((c) => c.id === initialClientId);
+            if (found) {
+              setClientId(found.id);
+              setClientName(found.name);
+            }
+          }
         }
       } catch (err) {
         console.error("Erro ao carregar clientes:", err);
@@ -352,3 +363,18 @@ export default function NewReceivablePage() {
     </AppShell>
   );
 }
+
+export default function NewReceivablePage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell activeSection="receivables">
+          <div className="p-12 text-center text-xs text-zinc-400">Carregando formulário...</div>
+        </AppShell>
+      }
+    >
+      <NewReceivableFormContent />
+    </Suspense>
+  );
+}
+

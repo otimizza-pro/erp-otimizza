@@ -20,6 +20,7 @@ import {
   Layers,
   ArrowUpRight,
   ArrowDownRight,
+  ArrowRight,
   PieChart as PieIcon,
   BarChart3,
   Calendar,
@@ -72,19 +73,37 @@ export default function ExecutiveDashboardPage() {
   const [presetPeriod, setPresetPeriod] = useState<"MONTH" | "QUARTER" | "YEAR" | "CUSTOM">("MONTH");
   const [comparisonType, setComparisonType] = useState<"PREVIOUS_PERIOD" | "SAME_PERIOD_LAST_YEAR">("PREVIOUS_PERIOD");
 
-  // Modal de Personalização de Widgets
   const [customizingWidgets, setCustomizingWidgets] = useState(false);
+  const [actionData, setActionData] = useState<{
+    actionItems: {
+      activities: unknown[];
+      proposals: unknown[];
+      overdueReceivables: unknown[];
+      upcomingPayables: unknown[];
+      expiringContracts: unknown[];
+      overdueProjects: unknown[];
+    };
+    counts: {
+      activities: number;
+      proposals: number;
+      overdueReceivables: number;
+      upcomingPayables: number;
+      expiringContracts: number;
+      overdueProjects: number;
+    };
+  } | null>(null);
 
   async function loadDashboardData() {
     setLoading(true);
     setErrorMsg("");
     try {
-      const [resKpis, resEvol, resServ, resCli, resPref] = await Promise.all([
+      const [resKpis, resEvol, resServ, resCli, resPref, resActions] = await Promise.all([
         fetch(`/api/analytics/overview?type=kpis&startDate=${startDate}&endDate=${endDate}&comparisonType=${comparisonType}`),
         fetch(`/api/analytics/overview?type=evolution&months=6`),
         fetch(`/api/analytics/overview?type=services_profitability`),
         fetch(`/api/analytics/overview?type=clients_profitability`),
         fetch(`/api/analytics/overview?type=preferences`),
+        fetch(`/api/dashboard/action-items`),
       ]);
 
       if (resKpis.ok) setKpis(await resKpis.json());
@@ -96,6 +115,9 @@ export default function ExecutiveDashboardPage() {
         if (prefData && prefData.visibleWidgets) {
           setPreferences(prefData);
         }
+      }
+      if (resActions.ok) {
+        setActionData(await resActions.json());
       }
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : "Erro ao carregar dados do dashboard.");
@@ -332,6 +354,177 @@ export default function ExecutiveDashboardPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* BLOCO DE PENDÊNCIAS & CENTRAL DE AÇÃO */}
+        {actionData && (
+          <div className="bg-white border border-zinc-200/80 p-6 rounded-2xl shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600" />
+                <h2 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">
+                  Pendências Operacionais & Ações Prioritárias
+                </h2>
+              </div>
+              <span className="text-[11px] text-zinc-400">
+                Itens com prazos ou acompanhamento imediato
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+              {/* 1. Atividades Comerciais */}
+              <Link
+                href="/crm/activities"
+                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    Atividades Comerciais
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      actionData.counts.activities > 0
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-zinc-200 text-zinc-600"
+                    }`}
+                  >
+                    {actionData.counts.activities} pendentes
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-800 font-semibold group-hover:text-indigo-600 transition flex items-center justify-between">
+                  <span>Reuniões e tarefas no prazo</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-indigo-600" />
+                </div>
+              </Link>
+
+              {/* 2. Propostas Aguardando Retorno */}
+              <Link
+                href="/proposals?status=SENT"
+                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    Propostas Enviadas
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      actionData.counts.proposals > 0
+                        ? "bg-indigo-100 text-indigo-800"
+                        : "bg-zinc-200 text-zinc-600"
+                    }`}
+                  >
+                    {actionData.counts.proposals} aguardando
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-800 font-semibold group-hover:text-indigo-600 transition flex items-center justify-between">
+                  <span>Aguardando retorno do cliente</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-indigo-600" />
+                </div>
+              </Link>
+
+              {/* 3. Contas a Receber Vencidas */}
+              <Link
+                href="/financial/receivables?status=PENDING"
+                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    Cobranças Vencidas
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      actionData.counts.overdueReceivables > 0
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-emerald-100 text-emerald-800"
+                    }`}
+                  >
+                    {actionData.counts.overdueReceivables > 0
+                      ? `${actionData.counts.overdueReceivables} em atraso`
+                      : "Em dia"}
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-800 font-semibold group-hover:text-rose-600 transition flex items-center justify-between">
+                  <span>Inadimplência a cobrar</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-rose-600" />
+                </div>
+              </Link>
+
+              {/* 4. Contas a Pagar no Vencimento */}
+              <Link
+                href="/financial/payables?status=PENDING"
+                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    Contas a Pagar (7 Dias)
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      actionData.counts.upcomingPayables > 0
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-zinc-200 text-zinc-600"
+                    }`}
+                  >
+                    {actionData.counts.upcomingPayables} a vencer
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-800 font-semibold group-hover:text-amber-700 transition flex items-center justify-between">
+                  <span>Despesas próximas do vencimento</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-amber-700" />
+                </div>
+              </Link>
+
+              {/* 5. Contratos Próximos do Término */}
+              <Link
+                href="/contracts"
+                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    Renovações de Contrato
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      actionData.counts.expiringContracts > 0
+                        ? "bg-purple-100 text-purple-800"
+                        : "bg-zinc-200 text-zinc-600"
+                    }`}
+                  >
+                    {actionData.counts.expiringContracts} a vencer
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-800 font-semibold group-hover:text-purple-700 transition flex items-center justify-between">
+                  <span>Vigências expirando em 30 dias</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-purple-700" />
+                </div>
+              </Link>
+
+              {/* 6. Projetos com Prazo Próximo ou Atrasados */}
+              <Link
+                href="/projects"
+                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                    Prazos de Projetos
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      actionData.counts.overdueProjects > 0
+                        ? "bg-blue-100 text-blue-800"
+                        : "bg-zinc-200 text-zinc-600"
+                    }`}
+                  >
+                    {actionData.counts.overdueProjects} críticos
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-800 font-semibold group-hover:text-blue-700 transition flex items-center justify-between">
+                  <span>Prazos de entrega de clientes</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-blue-700" />
+                </div>
+              </Link>
             </div>
           </div>
         )}

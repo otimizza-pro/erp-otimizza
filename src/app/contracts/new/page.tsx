@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import {
@@ -49,8 +50,10 @@ interface ComboOption {
   }>;
 }
 
-export default function NewContractPage() {
+function NewContractFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialClientId = searchParams.get("clientId") || "";
 
   // Dados para seleção
   const [clients, setClients] = useState<ClientOption[]>([]);
@@ -61,7 +64,7 @@ export default function NewContractPage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   // Formulário do contrato
-  const [clientId, setClientId] = useState("");
+  const [clientId, setClientId] = useState(initialClientId);
   const [clientName, setClientName] = useState("");
   const [clientOptions, setClientOptions] = useState<AutocompleteOption[]>([]);
   const [title, setTitle] = useState("");
@@ -94,6 +97,14 @@ export default function NewContractPage() {
             sublabel: c.tradeName ? `Fantasia: ${c.tradeName}` : null,
           }));
           setClientOptions(opts);
+
+          if (initialClientId) {
+            const found = list.find((c) => c.id === initialClientId);
+            if (found) {
+              setClientId(found.id);
+              setClientName(found.name);
+            }
+          }
         }
         if (sRes.ok) {
           const sData = await sRes.json();
@@ -112,7 +123,7 @@ export default function NewContractPage() {
       }
     }
     loadData();
-  }, []);
+  }, [initialClientId]);
 
   // Adicionar serviço avulso
   const handleAddService = (serviceId: string) => {
@@ -611,3 +622,18 @@ export default function NewContractPage() {
     </AppShell>
   );
 }
+
+export default function NewContractPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell activeSection="contracts">
+          <div className="p-12 text-center text-xs text-zinc-400">Carregando formulário...</div>
+        </AppShell>
+      }
+    >
+      <NewContractFormContent />
+    </Suspense>
+  );
+}
+

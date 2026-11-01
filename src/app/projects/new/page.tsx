@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { AppShell } from "@/components/layout/app-shell";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Briefcase,
@@ -17,14 +17,17 @@ import {
 } from "lucide-react";
 import { ProjectTemplateRecord, ProjectType, ProjectPriority } from "@/modules/projects/types";
 
-export default function NewProjectPage() {
+function NewProjectFormContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const initialClientId = searchParams.get("clientId") || "";
 
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [projectType, setProjectType] = useState<ProjectType>("STANDALONE");
-  const [clientId, setClientId] = useState<string>("");
+  const [clientId, setClientId] = useState<string>(initialClientId);
   const [contractId, setContractId] = useState<string>("");
+
   const [templateId, setTemplateId] = useState<string>("");
   const [priority, setPriority] = useState<ProjectPriority>("MEDIUM");
   const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().substring(0, 10));
@@ -347,3 +350,18 @@ export default function NewProjectPage() {
     </AppShell>
   );
 }
+
+export default function NewProjectPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell activeSection="projects">
+          <div className="p-12 text-center text-xs text-zinc-400">Carregando formulário...</div>
+        </AppShell>
+      }
+    >
+      <NewProjectFormContent />
+    </Suspense>
+  );
+}
+

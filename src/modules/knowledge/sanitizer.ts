@@ -9,29 +9,39 @@ export function sanitizeKnowledgeHtml(dirtyHtml: string): string {
     return "";
   }
 
-  return DOMPurify.sanitize(dirtyHtml, {
-    ALLOWED_TAGS: [
-      "h1", "h2", "h3", "h4", "h5", "h6",
-      "p", "br", "hr",
-      "strong", "b", "em", "i", "u", "s", "strike", "mark", "sub", "sup",
-      "ul", "ol", "li",
-      "blockquote", "pre", "code",
-      "table", "thead", "tbody", "tfoot", "tr", "th", "td",
-      "a", "img",
-      "div", "span",
-      "input" // Para checklists (type="checkbox", disabled)
-    ],
-    ALLOWED_ATTR: [
-      "href", "target", "rel",
-      "src", "alt", "title", "width", "height", "loading",
-      "class", "id",
-      "type", "checked", "disabled", // Para checklists
-      "colspan", "rowspan", "scope" // Para tabelas
-    ],
-    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-    FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "style"],
-    FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "style"]
-  });
+  try {
+    return DOMPurify.sanitize(dirtyHtml, {
+      ALLOWED_TAGS: [
+        "h1", "h2", "h3", "h4", "h5", "h6",
+        "p", "br", "hr",
+        "strong", "b", "em", "i", "u", "s", "strike", "mark", "sub", "sup",
+        "ul", "ol", "li",
+        "blockquote", "pre", "code",
+        "table", "thead", "tbody", "tfoot", "tr", "th", "td",
+        "a", "img",
+        "div", "span",
+        "input" // Para checklists (type="checkbox", disabled)
+      ],
+      ALLOWED_ATTR: [
+        "href", "target", "rel",
+        "src", "alt", "title", "width", "height", "loading",
+        "class", "id",
+        "type", "checked", "disabled", // Para checklists
+        "colspan", "rowspan", "scope" // Para tabelas
+      ],
+      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+      FORBID_TAGS: ["script", "iframe", "object", "embed", "form", "style"],
+      FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover", "onfocus", "style"]
+    });
+  } catch {
+    return dirtyHtml
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+      .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, "")
+      .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, "")
+      .replace(/on\w+\s*=\s*["'][^"']*["']/gi, "")
+      .replace(/href\s*=\s*["']javascript:[^"']*["']/gi, 'href="#"');
+  }
 }
 
 /**

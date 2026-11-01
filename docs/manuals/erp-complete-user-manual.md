@@ -148,3 +148,24 @@ Acesse **Projetos > Modelos** para criar ou consultar templates padrão (ex: *Ge
 ### 7.3. Extrato e Conciliação
 - Acesse **Financeiro > Fluxo de Caixa** e **Contas Financeiras**.
 - Todas as movimentações geram números sequenciais auditáveis (`EXT-000001`), saldo acumulado após a operação e histórico de estorno seguro.
+
+---
+
+## 8. ROTINAS AUTOMÁTICAS E SCHEDULERS (CRON JOBS)
+
+### 8.1. Agendamento Automático via Vercel Cron
+O Otimizza ERP possui tarefas agendadas em segundo plano configuradas no arquivo `vercel.json` para execução automática no 1º dia de cada mês às 08:00 UTC (`0 8 1 * *`):
+1. **Recorrência Financeira (`/api/financial/recurrence/process`):**
+   - Varre todos os contratos e assinaturas ativas gerando as faturas a receber da nova competência.
+   - Gera despesas a pagar recorrentes configuradas (aluguéis, servidores, licenças).
+   - Execução estritamente idempotente (não gera títulos repetidos para competências já faturadas).
+2. **Recorrência de Projetos (`/api/projects/recurrence/process`):**
+   - Identifica todos os contratos com prestação continuada ativa e modelos vinculados.
+   - Cria o workspace operacional de cada cliente para o novo mês, clonando etapas, tarefas e checklists.
+   - Idempotência por par composto `(contract_id, competency)`.
+
+### 8.2. Acionamento Manual ou Reprocessamento
+Caso seja necessário reprocessar uma competência específica (ex: após reativação tardia de contrato):
+- Os endpoints aceitam parâmetro query `?competency=YYYY-MM`.
+- O acionamento é protegido por autenticação dupla: cabeçalho `Authorization: Bearer <CRON_SECRET>` para o robô da Vercel ou login de Administrador ativo (`requireAdminUser()`).
+

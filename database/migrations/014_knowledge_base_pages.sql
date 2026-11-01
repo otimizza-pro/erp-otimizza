@@ -5,6 +5,9 @@
 --           e entrega consolidada para IAs externas.
 -- ==============================================================================
 
+-- 0. Garantir Extensão pg_trgm para Busca Trigram
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- 1. Tabela Principal de Páginas da Base de Conhecimento
 CREATE TABLE IF NOT EXISTS public.knowledge_pages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

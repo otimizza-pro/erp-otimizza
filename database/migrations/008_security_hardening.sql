@@ -39,7 +39,7 @@ DROP POLICY IF EXISTS "allow_all_crm_activities" ON crm_activities;
 -- ------------------------------------------------------------------------------
 -- 2. GARANTIR ROW LEVEL SECURITY ATIVO EM TODAS AS TABELAS DO SCHEMA PUBLIC
 -- ------------------------------------------------------------------------------
-ALTER TABLE IF EXISTS _migrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS _migrations DISABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS financial_accounts ENABLE ROW LEVEL SECURITY;

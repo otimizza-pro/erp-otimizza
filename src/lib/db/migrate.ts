@@ -81,6 +81,7 @@ export async function runMigrations(): Promise<void> {
         await client.query("COMMIT");
       } catch (err) {
         await client.query("ROLLBACK");
+        console.error(`❌ Erro ao aplicar migração ${file}:`, err);
         throw err;
       } finally {
         client.release();

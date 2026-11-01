@@ -100,7 +100,7 @@ export function AppShell({ children }: AppShellProps) {
       items: [
         { id: "crm_overview", label: "Visão comercial", href: "/crm", icon: TrendingUp },
         { id: "crm_leads", label: "Leads", href: "/crm/leads", icon: Users },
-        { id: "crm_opportunities", label: "Oportunidades", href: "/crm/opportunities", icon: RefreshCw },
+        { id: "crm_opportunities", label: "Funil de vendas", href: "/crm/opportunities", icon: RefreshCw },
         { id: "proposals", label: "Propostas", href: "/proposals", icon: FileText },
         { id: "crm_activities", label: "Atividades comerciais", href: "/crm/activities", icon: Calendar },
       ],

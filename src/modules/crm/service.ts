@@ -87,6 +87,8 @@ export class CrmService {
     search?: string;
     status?: LeadStatus | "ALL";
     source?: string;
+    pipelineId?: string;
+    stageId?: string;
     limit?: number;
     offset?: number;
   }): Promise<{ leads: LeadRecord[]; total: number }> {
@@ -102,9 +104,28 @@ export class CrmService {
       conditions.push(`l.status <> 'ARCHIVED'`);
     }
 
-    if (params?.source) {
+    if (params?.source && params.source !== "ALL") {
       conditions.push(`l.source = $${idx++}`);
       values.push(params.source);
+    }
+
+    if (params?.pipelineId) {
+      if (params.pipelineId === "NO_PIPELINE") {
+        conditions.push(`NOT EXISTS (SELECT 1 FROM crm_opportunities o_sub WHERE o_sub.lead_id = l.id)`);
+      } else if (params.pipelineId !== "ALL") {
+        if (params.stageId && params.stageId !== "ALL") {
+          conditions.push(
+            `EXISTS (SELECT 1 FROM crm_opportunities o_sub WHERE o_sub.lead_id = l.id AND o_sub.pipeline_id = $${idx} AND o_sub.stage_id = $${idx + 1})`
+          );
+          values.push(params.pipelineId, params.stageId);
+          idx += 2;
+        } else {
+          conditions.push(
+            `EXISTS (SELECT 1 FROM crm_opportunities o_sub WHERE o_sub.lead_id = l.id AND o_sub.pipeline_id = $${idx++})`
+          );
+          values.push(params.pipelineId);
+        }
+      }
     }
 
     if (params?.search) {
@@ -148,12 +169,38 @@ export class CrmService {
         l.archived_at,
         l.created_at,
         l.updated_at,
-        COUNT(o.id) as opportunities_count,
-        COALESCE(SUM(CASE WHEN o.status = 'OPEN' THEN o.amount ELSE 0 END), 0) as open_opps_amount
+        (SELECT COUNT(o_c.id) FROM crm_opportunities o_c WHERE o_c.lead_id = l.id) as opportunities_count,
+        COALESCE((SELECT SUM(o_s.amount) FROM crm_opportunities o_s WHERE o_s.lead_id = l.id AND o_s.status = 'OPEN'), 0) as open_opps_amount,
+        COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', o_agg.id,
+            'title', o_agg.title,
+            'pipelineId', o_agg.pipeline_id,
+            'pipelineName', p_agg.name,
+            'stageId', o_agg.stage_id,
+            'stageName', s_agg.name,
+            'status', o_agg.status,
+            'amount', o_agg.amount
+          ) ORDER BY o_agg.created_at DESC)
+          FROM crm_opportunities o_agg
+          JOIN crm_pipelines p_agg ON p_agg.id = o_agg.pipeline_id
+          JOIN crm_pipeline_stages s_agg ON s_agg.id = o_agg.stage_id
+          WHERE o_agg.lead_id = l.id
+        ), '[]'::json) as opportunities_json,
+        (
+          SELECT json_build_object(
+            'id', act_sub.id,
+            'title', act_sub.title,
+            'dueDate', act_sub.due_date,
+            'activityType', act_sub.activity_type
+          )
+          FROM crm_activities act_sub
+          WHERE act_sub.lead_id = l.id AND act_sub.status = 'PENDING'
+          ORDER BY act_sub.due_date ASC NULLS LAST, act_sub.created_at DESC
+          LIMIT 1
+        ) as next_activity_json
       FROM crm_leads l
-      LEFT JOIN crm_opportunities o ON o.lead_id = l.id
       ${whereClause}
-      GROUP BY l.id
       ORDER BY l.created_at DESC
       LIMIT $${idx++} OFFSET $${idx++}
     `;
@@ -184,6 +231,8 @@ export class CrmService {
       updatedAt: r.updated_at?.toISOString?.() || r.updated_at,
       opportunitiesCount: parseInt(r.opportunities_count || "0", 10),
       openOpportunitiesAmount: Number(r.open_opps_amount || 0),
+      opportunities: r.opportunities_json || [],
+      nextActivity: r.next_activity_json || null,
     }));
 
     return { leads, total };
@@ -558,7 +607,25 @@ export class CrmService {
         [finalClientId, input.leadId]
       );
 
-      // 4. Registrar atividade automática de auditoria
+      // 4. Migrar todas as propostas do Lead para apontar também para o Cliente
+      await client.query(
+        `UPDATE proposals SET 
+          client_id = $1, 
+          updated_at = NOW() 
+         WHERE lead_id = $2 AND client_id IS NULL`,
+        [finalClientId, input.leadId]
+      );
+
+      // 5. Vincular também as atividades prévias do Lead ao Cliente convertido
+      await client.query(
+        `UPDATE crm_activities SET 
+          client_id = $1, 
+          updated_at = NOW() 
+         WHERE lead_id = $2 AND client_id IS NULL`,
+        [finalClientId, input.leadId]
+      );
+
+      // 6. Registrar atividade automática de auditoria
       await client.query(
         `INSERT INTO crm_activities (
           activity_type, title, description, status, lead_id, client_id, completed_at, created_by
@@ -1662,6 +1729,19 @@ export class CrmService {
     const input = CreateActivitySchema.parse(rawInput);
     const pool = getDbPool();
 
+    // Normaliza a data no fuso de São Paulo para evitar deslocamento de dia
+    let normalizedDueDate: string | null = null;
+    if (input.dueDate && input.dueDate.trim()) {
+      const d = input.dueDate.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        normalizedDueDate = `${d}T12:00:00-03:00`;
+      } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(d)) {
+        normalizedDueDate = `${d}-03:00`;
+      } else {
+        normalizedDueDate = d;
+      }
+    }
+
     const sql = `
       INSERT INTO crm_activities (
         activity_type, title, description, due_date, lead_id, client_id, opportunity_id, created_by, status
@@ -1673,7 +1753,7 @@ export class CrmService {
       input.activityType,
       input.title,
       input.description || null,
-      input.dueDate || null,
+      normalizedDueDate,
       input.leadId || null,
       input.clientId || null,
       input.opportunityId || null,
@@ -1702,6 +1782,18 @@ export class CrmService {
     const input = UpdateActivitySchema.parse(rawInput);
     const pool = getDbPool();
 
+    let normalizedDueDate: string | null = null;
+    if (input.dueDate && input.dueDate.trim()) {
+      const d = input.dueDate.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        normalizedDueDate = `${d}T12:00:00-03:00`;
+      } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(d)) {
+        normalizedDueDate = `${d}-03:00`;
+      } else {
+        normalizedDueDate = d;
+      }
+    }
+
     const sql = `
       UPDATE crm_activities SET
         activity_type = COALESCE($1, activity_type),
@@ -1719,7 +1811,7 @@ export class CrmService {
       input.activityType || null,
       input.title || null,
       input.description !== undefined ? input.description : null,
-      input.dueDate || null,
+      normalizedDueDate,
       input.status || null,
       id,
     ]);

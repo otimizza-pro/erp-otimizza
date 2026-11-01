@@ -35,6 +35,22 @@ export interface LeadRecord {
   // Campos agregados
   opportunitiesCount?: number;
   openOpportunitiesAmount?: number;
+  opportunities?: Array<{
+    id: string;
+    title: string;
+    pipelineId: string;
+    pipelineName?: string;
+    stageId: string;
+    stageName?: string;
+    status: OpportunityStatus;
+    amount: number;
+  }>;
+  nextActivity?: {
+    id: string;
+    title: string;
+    dueDate?: string | null;
+    activityType: ActivityType;
+  } | null;
 }
 
 export interface CreateLeadInput {

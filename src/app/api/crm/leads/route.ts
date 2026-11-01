@@ -8,10 +8,12 @@ export async function GET(request: Request) {
     const search = searchParams.get("search") || undefined;
     const status = (searchParams.get("status") as LeadStatus | "ALL") || undefined;
     const source = searchParams.get("source") || undefined;
+    const pipelineId = searchParams.get("pipelineId") || undefined;
+    const stageId = searchParams.get("stageId") || undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
     const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!, 10) : undefined;
 
-    const result = await CrmService.listLeads({ search, status, source, limit, offset });
+    const result = await CrmService.listLeads({ search, status, source, pipelineId, stageId, limit, offset });
     return NextResponse.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao listar leads.";

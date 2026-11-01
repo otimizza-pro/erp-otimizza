@@ -14,17 +14,32 @@ import {
   Layers,
   Sparkles,
   AlertCircle,
+  AlertTriangle,
   FileText,
   Info,
+  CheckCircle2,
+  ExternalLink,
 } from "lucide-react";
-import { BillingPeriod, PipelineRecord, PipelineStageRecord } from "@/modules/crm/types";
+import { BillingPeriod, PipelineRecord, PipelineStageRecord, OpportunityRecord } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
 
 interface SimpleContact {
   id: string;
   name: string;
   document?: string;
+  source?: string;
   type: "LEAD" | "CLIENT";
+}
+
+function getProbabilityColor(prob: number): string {
+  // 0% -> Vermelho (0), 50% -> Amarelo (45), 100% -> Verde (142)
+  if (prob <= 50) {
+    const hue = Math.round((prob / 50) * 45);
+    return `hsl(${hue}, 85%, 45%)`;
+  } else {
+    const hue = Math.round(45 + ((prob - 50) / 50) * (142 - 45));
+    return `hsl(${hue}, 75%, 40%)`;
+  }
 }
 
 function NewOpportunityForm() {
@@ -48,14 +63,17 @@ function NewOpportunityForm() {
 
   const [leadsList, setLeadsList] = useState<SimpleContact[]>([]);
   const [clientsList, setClientsList] = useState<SimpleContact[]>([]);
+  const [existingContactOpps, setExistingContactOpps] = useState<OpportunityRecord[]>([]);
 
   // Campos do formulário
   const [title, setTitle] = useState("");
   const [amountRaw, setAmountRaw] = useState<string>("");
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("MONTHLY");
   const [probability, setProbability] = useState<number>(20);
+  const [isManualProbability, setIsManualProbability] = useState<boolean>(false);
   const [expectedCloseDate, setExpectedCloseDate] = useState<string>("");
   const [source, setSource] = useState<string>("");
+  const [inheritedSource, setInheritedSource] = useState<string>("");
   const [notes, setNotes] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
@@ -69,14 +87,14 @@ function NewOpportunityForm() {
       try {
         const [pipRes, leadsRes, clientsRes] = await Promise.all([
           fetch("/api/crm/pipelines"),
-          fetch("/api/crm/leads?status=NEW,CONTACTED,QUALIFIED"),
-          fetch("/api/clients"),
+          fetch("/api/crm/leads?limit=100"),
+          fetch("/api/clients?limit=100"),
         ]);
 
         let loadedPipelines: PipelineRecord[] = [];
         if (pipRes.ok) {
           const pData = await pipRes.json();
-          loadedPipelines = pData.pipelines || [];
+          loadedPipelines = Array.isArray(pData) ? pData : (pData?.pipelines || []);
           setPipelines(loadedPipelines);
 
           const chosen =
@@ -94,17 +112,34 @@ function NewOpportunityForm() {
           }
         }
 
+        let currentLeads: SimpleContact[] = [];
         if (leadsRes.ok) {
           const lData = await leadsRes.json();
-          const mapped: SimpleContact[] = (lData.leads || []).map((l: { id: string; name: string; companyName?: string | null; document?: string | null }) => ({
+          const rawLeads = lData.leads || [];
+          if (initialLeadId && !rawLeads.some((l: { id: string }) => l.id === initialLeadId)) {
+            try {
+              const singleRes = await fetch(`/api/crm/leads/${initialLeadId}`);
+              if (singleRes.ok) {
+                const single = await singleRes.json();
+                if (single && single.id) {
+                  rawLeads.unshift(single);
+                }
+              }
+            } catch {
+              // Silencioso
+            }
+          }
+          currentLeads = rawLeads.map((l: { id: string; name: string; tradeName?: string | null; companyName?: string | null; document?: string | null; source?: string | null }) => ({
             id: l.id,
-            name: `${l.name} ${l.companyName ? `(${l.companyName})` : ""}`,
-            document: l.document,
+            name: `${l.name} ${l.tradeName || l.companyName ? `(${l.tradeName || l.companyName})` : ""}`,
+            document: l.document || undefined,
+            source: l.source || undefined,
             type: "LEAD",
           }));
-          setLeadsList(mapped);
+          setLeadsList(currentLeads);
         }
 
+        let currentClients: SimpleContact[] = [];
         if (clientsRes.ok) {
           const cData = await clientsRes.json();
           const rawClients = Array.isArray(cData.clients) ? cData.clients : Array.isArray(cData) ? cData : [];
@@ -121,16 +156,33 @@ function NewOpportunityForm() {
               // Silencioso
             }
           }
-          const mapped: SimpleContact[] = rawClients.map((c: { id: string; name?: string | null; tradeName?: string | null; document?: string | null }) => ({
+          currentClients = rawClients.map((c: { id: string; name?: string | null; tradeName?: string | null; document?: string | null }) => ({
             id: c.id,
             name: c.tradeName || c.name || "Cliente sem nome",
-            document: c.document,
+            document: c.document || undefined,
             type: "CLIENT",
           }));
-          setClientsList(mapped);
-          if (initialClientId) {
-            setContactMode("CLIENT");
-            setSelectedContactId(initialClientId);
+          setClientsList(currentClients);
+        }
+
+        // Aplica seleção inicial e herança de origem
+        if (initialLeadId) {
+          setContactMode("LEAD");
+          setSelectedContactId(initialLeadId);
+          const foundLead = currentLeads.find((l) => l.id === initialLeadId);
+          if (foundLead) {
+            if (!title) setTitle(`Negociação - ${foundLead.name}`);
+            if (foundLead.source) {
+              setInheritedSource(foundLead.source);
+              setSource(foundLead.source);
+            }
+          }
+        } else if (initialClientId) {
+          setContactMode("CLIENT");
+          setSelectedContactId(initialClientId);
+          const foundClient = currentClients.find((c) => c.id === initialClientId);
+          if (foundClient && !title) {
+            setTitle(`Negociação - ${foundClient.name}`);
           }
         }
       } catch (e) {
@@ -140,7 +192,39 @@ function NewOpportunityForm() {
       }
     }
     init();
-  }, [initialPipelineId, initialClientId]);
+  }, [initialPipelineId, initialClientId, initialLeadId]);
+
+  // Carrega oportunidades existentes do contato para alertar duplicidade
+  useEffect(() => {
+    if (!selectedContactId || contactMode === "NONE") {
+      setExistingContactOpps([]);
+      return;
+    }
+
+    const param = contactMode === "LEAD" ? `leadId=${selectedContactId}` : `clientId=${selectedContactId}`;
+    fetch(`/api/crm/opportunities?${param}`)
+      .then((res) => res.json())
+      .then((data) => {
+        const opps: OpportunityRecord[] = data.opportunities || [];
+        setExistingContactOpps(opps.filter((o) => o.status === "OPEN"));
+      })
+      .catch(() => setExistingContactOpps([]));
+  }, [selectedContactId, contactMode]);
+
+  // Atualiza origem herdada quando o contato muda
+  useEffect(() => {
+    if (contactMode === "LEAD") {
+      const found = leadsList.find((l) => l.id === selectedContactId);
+      if (found?.source) {
+        setInheritedSource(found.source);
+        if (!source) setSource(found.source);
+      } else {
+        setInheritedSource("");
+      }
+    } else {
+      setInheritedSource("");
+    }
+  }, [selectedContactId, contactMode, leadsList]);
 
   // Ao mudar funil, atualiza etapas
   function handlePipelineChange(pipeId: string) {
@@ -150,6 +234,7 @@ function NewOpportunityForm() {
       setStages(chosen.stages);
       setSelectedStageId(chosen.stages[0].id);
       setProbability(chosen.stages[0].winProbability);
+      setIsManualProbability(false);
     } else {
       setStages([]);
       setSelectedStageId("");
@@ -162,6 +247,7 @@ function NewOpportunityForm() {
     const chosen = stages.find((s) => s.id === stgId);
     if (chosen) {
       setProbability(chosen.winProbability);
+      setIsManualProbability(false);
     }
   }
 
@@ -171,6 +257,9 @@ function NewOpportunityForm() {
   if (billingPeriod === "MONTHLY") estimatedMonthlyMRR = numericAmount;
   else if (billingPeriod === "YEARLY") estimatedMonthlyMRR = numericAmount / 12;
   else estimatedMonthlyMRR = 0; // ONE_TIME
+
+  const weightedAmount = (numericAmount * probability) / 100;
+  const currentStage = stages.find((s) => s.id === selectedStageId);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -200,7 +289,7 @@ function NewOpportunityForm() {
         amount: numericAmount,
         billingPeriod,
         probability,
-        source: source.trim() || undefined,
+        source: source.trim() || inheritedSource || undefined,
         expectedCloseDate: expectedCloseDate || undefined,
         notes: notes.trim() || undefined,
       };
@@ -233,25 +322,25 @@ function NewOpportunityForm() {
   }
 
   return (
-    <AppShell>
-      <div className="max-w-4xl mx-auto space-y-6">
+    <AppShell activeSection="crm_opportunities">
+      <div className="max-w-4xl mx-auto space-y-6 pb-16">
         {/* Cabeçalho */}
         <div>
           <Link
             href="/crm/opportunities"
-            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-emerald-700 transition-colors mb-2"
+            className="inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 transition-colors mb-2"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            Voltar para Oportunidades
+            Voltar para Funil de vendas
           </Link>
           <div className="flex items-center gap-3">
-            <span className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl">
+            <span className="p-2.5 bg-zinc-900 text-white rounded-xl shadow-xs">
               <TrendingUp className="h-6 w-6" />
             </span>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Nova Oportunidade Comercial</h1>
-              <p className="text-sm text-slate-500 mt-0.5">
-                Registre uma nova negociação em um dos seus funis de vendas com previsão e valor ponderado.
+              <h1 className="text-2xl font-bold text-zinc-950 tracking-tight">Nova Oportunidade Comercial</h1>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Registre uma negociação com funil, etapa, previsão e cálculo de valor ponderado.
               </p>
             </div>
           </div>
@@ -264,34 +353,60 @@ function NewOpportunityForm() {
           </div>
         )}
 
+        {/* Alerta de Oportunidades Existentes para o mesmo Contato */}
+        {existingContactOpps.length > 0 && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-2">
+            <div className="flex items-center gap-2 font-bold text-amber-950">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>Atenção: este contato já possui {existingContactOpps.length} oportunidade(s) em aberto</span>
+            </div>
+            <p className="text-amber-800">
+              Negociações simultâneas são permitidas, mas verifique se não se trata de uma duplicação acidental:
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {existingContactOpps.map((opp) => (
+                <Link
+                  key={opp.id}
+                  href={`/crm/opportunities/${opp.id}`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-amber-300 rounded-lg text-[11px] font-semibold text-amber-900 hover:bg-amber-100/80 transition"
+                >
+                  <span>{opp.title}</span>
+                  <span className="text-amber-600 font-mono">({formatBRL(opp.amount)})</span>
+                  <ExternalLink className="w-3 h-3 text-amber-500" />
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Card: Dados Básicos & Contato */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
-            <h2 className="text-base font-semibold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-emerald-600" />
+          <div className="bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-xs space-y-5">
+            <h2 className="text-sm font-bold text-zinc-950 border-b border-zinc-100 pb-3 flex items-center gap-2">
+              <FileText className="h-4 w-4 text-zinc-700" />
               Identificação & Contato
             </h2>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-zinc-700 mb-1">
                 Título da Negociação <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                placeholder="Ex: Gestão de Tráfego + Social Media Q1 - Empresa XYZ"
+                placeholder="Ex: Gestão de Tráfego + Consultoria - Empresa XYZ"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                className="w-full text-sm border border-zinc-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-900"
               />
             </div>
 
             {/* Associação com Lead ou Cliente */}
             <div className="space-y-3 pt-2">
-              <label className="block text-xs font-semibold text-slate-700">
+              <label className="block text-xs font-semibold text-zinc-700">
                 Vincular a Contato (Lead ou Cliente)
               </label>
-              <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-4 text-xs font-medium">
                 <label className="inline-flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
@@ -302,10 +417,10 @@ function NewOpportunityForm() {
                       setContactMode("LEAD");
                       setSelectedContactId("");
                     }}
-                    className="text-emerald-600 focus:ring-emerald-500"
+                    className="text-zinc-900 focus:ring-zinc-900"
                   />
-                  <span className="flex items-center gap-1.5 text-slate-700 font-medium">
-                    <User className="h-4 w-4 text-amber-500" /> Lead do Funil
+                  <span className="flex items-center gap-1.5 text-zinc-800 font-semibold">
+                    <User className="h-4 w-4 text-amber-600" /> Lead
                   </span>
                 </label>
 
@@ -319,10 +434,10 @@ function NewOpportunityForm() {
                       setContactMode("CLIENT");
                       setSelectedContactId("");
                     }}
-                    className="text-emerald-600 focus:ring-emerald-500"
+                    className="text-zinc-900 focus:ring-zinc-900"
                   />
-                  <span className="flex items-center gap-1.5 text-slate-700 font-medium">
-                    <Building className="h-4 w-4 text-blue-500" /> Cliente Cadastrado
+                  <span className="flex items-center gap-1.5 text-zinc-800 font-semibold">
+                    <Building className="h-4 w-4 text-blue-600" /> Cliente
                   </span>
                 </label>
 
@@ -336,9 +451,9 @@ function NewOpportunityForm() {
                       setContactMode("NONE");
                       setSelectedContactId("");
                     }}
-                    className="text-emerald-600 focus:ring-emerald-500"
+                    className="text-zinc-900 focus:ring-zinc-900"
                   />
-                  <span className="text-slate-500">Sem vínculo inicial</span>
+                  <span className="text-zinc-500">Sem vínculo inicial</span>
                 </label>
               </div>
 
@@ -347,18 +462,15 @@ function NewOpportunityForm() {
                   <select
                     value={selectedContactId}
                     onChange={(e) => setSelectedContactId(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   >
-                    <option value="">Selecione um Lead existente...</option>
+                    <option value="">Selecione um Lead...</option>
                     {leadsList.map((lead) => (
                       <option key={lead.id} value={lead.id}>
                         {lead.name} {lead.document ? `• Doc: ${lead.document}` : ""}
                       </option>
                     ))}
                   </select>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Mostrando apenas leads com status Novo, Contatado ou Qualificado.
-                  </p>
                 </div>
               )}
 
@@ -367,7 +479,7 @@ function NewOpportunityForm() {
                   <select
                     value={selectedContactId}
                     onChange={(e) => setSelectedContactId(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   >
                     <option value="">Selecione um Cliente cadastrado...</option>
                     {clientsList.map((c) => (
@@ -382,63 +494,83 @@ function NewOpportunityForm() {
           </div>
 
           {/* Card: Funil e Etapa */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
-            <h2 className="text-base font-semibold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <Layers className="h-4 w-4 text-emerald-600" />
-              Funil e Etapa Inicial
-            </h2>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Funil de Vendas <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={selectedPipelineId}
-                  onChange={(e) => handlePipelineChange(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {pipelines.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} {p.isDefault ? "(Padrão)" : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Etapa Inicial <span className="text-rose-500">*</span>
-                </label>
-                <select
-                  value={selectedStageId}
-                  onChange={(e) => handleStageChange(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                >
-                  {stages.map((stg) => (
-                    <option key={stg.id} value={stg.id}>
-                      {stg.name} ({stg.winProbability}% prob.)
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-xs space-y-5">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <h2 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
+                <Layers className="h-4 w-4 text-zinc-700" />
+                Funil e Etapa Inicial
+              </h2>
+              <Link
+                href="/crm/pipelines"
+                className="text-xs font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1"
+              >
+                Configurar funis <ExternalLink className="w-3 h-3" />
+              </Link>
             </div>
+
+            {pipelines.length === 0 ? (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-3">
+                <span>Nenhum funil ativo encontrado. Cadastre um funil para organizar suas negociações.</span>
+                <Link
+                  href="/crm/pipelines"
+                  className="px-3 py-1.5 bg-amber-700 text-white font-bold rounded-lg hover:bg-amber-800 transition"
+                >
+                  Criar Primeiro Funil
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Funil de Vendas <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={selectedPipelineId}
+                    onChange={(e) => handlePipelineChange(e.target.value)}
+                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  >
+                    {pipelines.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} {p.isDefault ? "(Padrão)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Etapa Inicial <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={selectedStageId}
+                    onChange={(e) => handleStageChange(e.target.value)}
+                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  >
+                    {stages.map((stg) => (
+                      <option key={stg.id} value={stg.id}>
+                        {stg.name} ({stg.winProbability}% prob.)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Card: Proposta Financeira & Previsão */}
-          <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-5">
-            <h2 className="text-base font-semibold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-emerald-600" />
+          <div className="bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-xs space-y-5">
+            <h2 className="text-sm font-bold text-zinc-950 border-b border-zinc-100 pb-3 flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-zinc-700" />
               Valores e Previsão de Fechamento
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Valor da Negociação (R$) <span className="text-rose-500">*</span>
+                <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                  Valor Estimado (R$) <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400 font-semibold">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 font-bold">
                     R$
                   </span>
                   <input
@@ -447,95 +579,142 @@ function NewOpportunityForm() {
                     placeholder="0,00"
                     value={amountRaw}
                     onChange={(e) => setAmountRaw(e.target.value)}
-                    className="w-full text-sm pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                    className="w-full text-xs pl-9 pr-3 py-2.5 border border-zinc-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 font-semibold text-zinc-900 font-mono"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-zinc-700 mb-1">
                   Recorrência / Período
                 </label>
                 <select
                   value={billingPeriod}
                   onChange={(e) => setBillingPeriod(e.target.value as BillingPeriod)}
-                  className="w-full text-sm border border-slate-300 rounded-lg p-2.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 >
-                  <option value="MONTHLY">Mensal (MRR)</option>
+                  <option value="MONTHLY">Mensal (MRR Recorrente)</option>
                   <option value="YEARLY">Anual</option>
                   <option value="ONE_TIME">Pontual / Projeto Único</option>
                 </select>
               </div>
 
+              {/* Probabilidade de Fechamento com Degradê Visual */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Probabilidade de Fechamento (%)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-zinc-700">
+                    Probabilidade de Fechamento (%)
+                  </label>
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[11px] font-bold text-white shadow-2xs transition-colors"
+                    style={{ backgroundColor: getProbabilityColor(probability) }}
+                  >
+                    {probability}%
+                  </span>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <input
                     type="range"
                     min={0}
                     max={100}
-                    step={5}
+                    step={1}
                     value={probability}
-                    onChange={(e) => setProbability(Number(e.target.value))}
-                    className="w-full accent-emerald-600 cursor-pointer"
+                    onChange={(e) => {
+                      setProbability(Number(e.target.value));
+                      setIsManualProbability(true);
+                    }}
+                    className="w-full cursor-pointer h-2 rounded-lg appearance-none"
+                    style={{
+                      background: "linear-gradient(to right, #ef4444 0%, #eab308 50%, #22c55e 100%)",
+                    }}
                   />
-                  <span className="text-sm font-bold text-slate-800 w-12 text-right">
-                    {probability}%
-                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={probability}
+                    onChange={(e) => {
+                      const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                      setProbability(v);
+                      setIsManualProbability(true);
+                    }}
+                    className="w-14 text-center text-xs font-mono font-bold border border-zinc-300 rounded-lg py-1.5 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+                <div className="text-[10px] text-zinc-400 mt-1 flex items-center justify-between">
+                  <span>0% (improvável)</span>
+                  {currentStage && (
+                    <span className="text-zinc-500">
+                      {isManualProbability ? "Manual" : `Padrão da etapa: ${currentStage.winProbability}%`}
+                    </span>
+                  )}
+                  <span>100% (ganho)</span>
                 </div>
               </div>
             </div>
 
-            {/* Destaque do MRR Normalizado e Ponderado */}
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2 text-slate-600">
-                <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
-                <span>
-                  MRR Mensal Estimado: <strong>{formatBRL(estimatedMonthlyMRR)}</strong>
-                </span>
+            {/* Destaque do Valor Ponderado da Oportunidade */}
+            <div className="p-4 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-zinc-600">
+                  <Sparkles className="h-4 w-4 text-purple-600 shrink-0" />
+                  <span>
+                    MRR Mensal Estimado: <strong className="font-mono text-zinc-900">{formatBRL(estimatedMonthlyMRR)}</strong>
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-zinc-700">
+                  <TrendingUp className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span>
+                    Valor ponderado da oportunidade:{" "}
+                    <strong className="font-mono text-emerald-700 font-bold text-sm">
+                      {formatBRL(weightedAmount)}
+                    </strong>
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-slate-600">
-                <TrendingUp className="h-4 w-4 text-indigo-600 shrink-0" />
+              <div className="text-[11px] text-zinc-500 border-t border-zinc-200/60 pt-2 flex items-start gap-1.5">
+                <Info className="w-3.5 h-3.5 text-zinc-400 shrink-0 mt-0.5" />
                 <span>
-                  Valor Ponderado do Deal:{" "}
-                  <strong>{formatBRL((numericAmount * probability) / 100)}</strong>
+                  <strong>Valor estimado × probabilidade de fechamento.</strong> Não representa receita confirmada nem título a receber.
+                  {numericAmount > 0 ? (
+                    <span className="font-mono text-zinc-700 ml-1">
+                      Ex: {formatBRL(numericAmount)} × {probability}% = {formatBRL(weightedAmount)}.
+                    </span>
+                  ) : null}
                 </span>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-zinc-700 mb-1">
                   Previsão Estimada de Fechamento
                 </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={expectedCloseDate}
-                    onChange={(e) => setExpectedCloseDate(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  />
-                </div>
+                <input
+                  type="date"
+                  value={expectedCloseDate}
+                  onChange={(e) => setExpectedCloseDate(e.target.value)}
+                  className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Canal de Origem
+                <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                  Canal de Origem {inheritedSource ? <span className="text-zinc-400 font-normal">(herdado do contato)</span> : null}
                 </label>
                 <input
                   type="text"
-                  placeholder="Ex: Google Ads, Indicação, Instagram..."
+                  placeholder="Ex: Google Ads, Indicação, Instagram, Prospecção Ativa..."
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
-                  className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full text-xs border border-zinc-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
+              <label className="block text-xs font-semibold text-zinc-700 mb-1">
                 Anotações e Escopo Proposto
               </label>
               <textarea
@@ -543,7 +722,7 @@ function NewOpportunityForm() {
                 placeholder="Detalhes dos serviços ofertados, dores do cliente, exigências especiais..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full text-xs border border-zinc-300 rounded-xl p-2.5 focus:outline-none focus:ring-2 focus:ring-zinc-900"
               />
             </div>
           </div>
@@ -552,14 +731,14 @@ function NewOpportunityForm() {
           <div className="flex items-center justify-end gap-3 pt-2">
             <Link
               href="/crm/opportunities"
-              className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 rounded-xl transition"
             >
               Cancelar
             </Link>
             <button
               type="submit"
               disabled={submitting}
-              className="px-6 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors flex items-center gap-2"
+              className="px-6 py-2.5 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl shadow-xs transition flex items-center gap-2 disabled:opacity-50"
             >
               {submitting ? "Criando Oportunidade..." : "Salvar Oportunidade"}
             </button>
@@ -574,8 +753,8 @@ export default function NewOpportunityPage() {
   return (
     <Suspense
       fallback={
-        <AppShell>
-          <div className="p-16 flex flex-col items-center justify-center gap-3 text-slate-500">
+        <AppShell activeSection="crm_opportunities">
+          <div className="p-16 flex flex-col items-center justify-center gap-3 text-zinc-500">
             <p className="text-sm">Carregando formulário...</p>
           </div>
         </AppShell>
@@ -585,4 +764,3 @@ export default function NewOpportunityPage() {
     </Suspense>
   );
 }
-

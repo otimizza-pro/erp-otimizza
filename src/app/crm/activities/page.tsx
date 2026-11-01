@@ -430,7 +430,12 @@ function CommercialActivitiesPageContent() {
                               isOverdue ? "text-rose-600 font-bold" : "text-slate-700"
                             }`}
                           >
-                            {new Date(act.dueDate).toLocaleDateString("pt-BR")}
+                            {new Date(act.dueDate).toLocaleDateString("pt-BR", {
+                              timeZone: "America/Sao_Paulo",
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                            })}
                           </span>
                         </div>
                       )}

@@ -35,6 +35,16 @@ export default function LeadDetailPage() {
   const [lead, setLead] = useState<LeadRecord | null>(null);
   const [opportunities, setOpportunities] = useState<OpportunityRecord[]>([]);
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
+  const [proposals, setProposals] = useState<Array<{
+    id: string;
+    proposalCode: string;
+    title: string;
+    status: string;
+    totalOneTimeEffective?: number;
+    totalMonthlyEffective?: number;
+    validUntil: string;
+    createdAt: string;
+  }>>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -59,10 +69,11 @@ export default function LeadDetailPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [leadRes, oppsRes, actRes] = await Promise.all([
+      const [leadRes, oppsRes, actRes, propRes] = await Promise.all([
         fetch(`/api/crm/leads/${id}`),
         fetch(`/api/crm/opportunities?leadId=${id}`),
         fetch(`/api/crm/activities?leadId=${id}`),
+        fetch(`/api/proposals?leadId=${id}`),
       ]);
 
       if (!leadRes.ok) throw new Error("Lead não encontrado.");
@@ -73,6 +84,10 @@ export default function LeadDetailPage() {
         setOpportunities(data.opportunities || []);
       }
       if (actRes.ok) setActivities(await actRes.json());
+      if (propRes.ok) {
+        const pData = await propRes.json();
+        setProposals(pData.proposals || []);
+      }
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Erro ao carregar lead.");
     } finally {
@@ -351,21 +366,37 @@ export default function LeadDetailPage() {
                     {formatBRL(lead.openOpportunitiesAmount || 0)}
                   </div>
                 </div>
-                <div>
-                  <div className="text-[11px] text-zinc-400 font-semibold uppercase">Total de Negócios</div>
-                  <div className="text-lg font-bold text-zinc-900 mt-0.5">
-                    {opportunities.length} {opportunities.length === 1 ? "oportunidade" : "oportunidades"}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[11px] text-zinc-400 font-semibold uppercase">Total de Negócios</div>
+                    <div className="text-lg font-bold text-zinc-900 mt-0.5">
+                      {opportunities.length} {opportunities.length === 1 ? "oportunidade" : "oportunidades"}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-zinc-400 font-semibold uppercase">Propostas</div>
+                    <div className="text-lg font-bold text-zinc-900 mt-0.5">
+                      {proposals.length} {proposals.length === 1 ? "proposta" : "propostas"}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <Link
-              href={`/crm/opportunities/new?leadId=${lead.id}`}
-              className="w-full py-2.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition text-center shadow-xs flex items-center justify-center gap-2"
-            >
-              <Plus className="w-3.5 h-3.5" /> Nova Oportunidade
-            </Link>
+            <div className="space-y-2">
+              <Link
+                href={`/crm/opportunities/new?leadId=${lead.id}`}
+                className="w-full py-2.5 px-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold transition text-center shadow-xs flex items-center justify-center gap-2"
+              >
+                <Plus className="w-3.5 h-3.5" /> Adicionar ao Funil (Oportunidade)
+              </Link>
+              <Link
+                href={`/proposals/new?leadId=${lead.id}`}
+                className="w-full py-2 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition text-center flex items-center justify-center gap-1.5"
+              >
+                <FileText className="w-3.5 h-3.5 text-purple-600" /> Nova Proposta Comercial
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -448,6 +479,73 @@ export default function LeadDetailPage() {
           )}
         </div>
 
+        {/* Propostas Comerciais do Lead */}
+        <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-purple-600" />
+              <h3 className="text-sm font-bold text-zinc-950">Propostas Comerciais Vinculadas</h3>
+            </div>
+            <Link
+              href={`/proposals/new?leadId=${lead.id}`}
+              className="text-xs font-semibold text-purple-600 hover:text-purple-800 flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" /> Nova Proposta
+            </Link>
+          </div>
+
+          {proposals.length === 0 ? (
+            <div className="py-8 text-center text-xs text-zinc-400">
+              Nenhuma proposta emitida para este lead até o momento.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-zinc-100 text-[11px] font-semibold text-zinc-400 uppercase">
+                    <th className="py-2.5 px-3">Código / Proposta</th>
+                    <th className="py-2.5 px-3">Valor Estimado</th>
+                    <th className="py-2.5 px-3">Validade</th>
+                    <th className="py-2.5 px-3 text-center">Status</th>
+                    <th className="py-2.5 px-3 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {proposals.map((prop) => (
+                    <tr key={prop.id} className="hover:bg-zinc-50/60 transition">
+                      <td className="py-2.5 px-3">
+                        <div className="font-bold text-zinc-900">{prop.title}</div>
+                        <span className="text-[10px] text-zinc-400 font-mono">{prop.proposalCode}</span>
+                      </td>
+                      <td className="py-2.5 px-3 font-mono font-bold text-zinc-900">
+                        {formatBRL(prop.totalMonthlyEffective || prop.totalOneTimeEffective || 0)}
+                        {prop.totalMonthlyEffective ? <span className="text-[10px] text-zinc-500 font-normal"> /mês</span> : null}
+                      </td>
+                      <td className="py-2.5 px-3 text-zinc-600 font-mono text-[11px]">
+                        {prop.validUntil ? new Date(prop.validUntil).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "-"}
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                          {prop.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-center">
+                        <Link
+                          href={`/proposals/${prop.id}`}
+                          className="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 inline-block"
+                          title="Abrir proposta"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         {/* Atividades e Histórico */}
         <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
@@ -495,7 +593,9 @@ export default function LeadDetailPage() {
                     </div>
                     {act.description && <p className="text-xs text-zinc-600">{act.description}</p>}
                     <div className="text-[11px] text-zinc-400 flex items-center gap-3">
-                      <span>Vencimento: {act.dueDate ? new Date(act.dueDate).toLocaleDateString("pt-BR") : "Sem data"}</span>
+                      <span>
+                        Vencimento: {act.dueDate ? new Date(act.dueDate).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Sem data"}
+                      </span>
                       {act.completedAt && (
                         <span className="text-emerald-600 font-semibold">
                           Concluída em: {new Date(act.completedAt).toLocaleDateString("pt-BR")}

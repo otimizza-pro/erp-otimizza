@@ -33,6 +33,12 @@ CREATE INDEX IF NOT EXISTS idx_contract_versions_billing_period
 CREATE INDEX IF NOT EXISTS idx_contract_versions_contract_effective 
   ON contract_versions(contract_id, effective_date DESC);
 
+-- Garantir compatibilidade com instâncias Postgres sem Supabase Auth nativo (ex: CI e Docker)
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb AS $$
+  SELECT '{}'::jsonb;
+$$ LANGUAGE sql STABLE;
+
 -- RLS
 ALTER TABLE dashboard_preferences ENABLE ROW LEVEL SECURITY;
 

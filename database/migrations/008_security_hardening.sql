@@ -8,6 +8,20 @@
 -- 4. Revogar privilégios padrão futuros para evitar concessão automática em novas tabelas/sequences.
 -- 5. Preservar o funcionamento do Supabase Auth e o acesso do Next.js (postgres / service_role).
 -- ==============================================================================
+-- 0. GARANTIR EXISTÊNCIA DOS PAPÉIS (COMPATIBILIDADE COM DOCKER POSTGRES E CI)
+-- ==============================================================================
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'anon') THEN
+    CREATE ROLE anon NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'authenticated') THEN
+    CREATE ROLE authenticated NOLOGIN;
+  END IF;
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'service_role') THEN
+    CREATE ROLE service_role NOLOGIN;
+  END IF;
+END $$;
 
 -- ------------------------------------------------------------------------------
 -- 1. REMOÇÃO DE POLÍTICAS RLS PERMISSIVAS ABERTAS (USING true / WITH CHECK true)

@@ -40,6 +40,7 @@ describe("Fase 8 - Testes de Integração do Módulo de Propostas Comerciais", (
     await query("DELETE FROM client_contacts WHERE client_id IN (SELECT id FROM clients WHERE document = '11222333000343' OR name LIKE '%[TEST-PROP]%')");
     await query("DELETE FROM clients WHERE document = '11222333000343' OR name LIKE '%[TEST-PROP]%'");
 
+    await query("DELETE FROM contract_items WHERE service_id IN (SELECT id FROM services WHERE name LIKE '%[TEST-PROP]%')");
     await query("DELETE FROM combo_items WHERE combo_id IN (SELECT id FROM combos WHERE name LIKE '%[TEST-PROP]%')");
     await query("DELETE FROM combos WHERE name LIKE '%[TEST-PROP]%'");
     await query("DELETE FROM services WHERE name LIKE '%[TEST-PROP]%'");
@@ -153,6 +154,7 @@ describe("Fase 8 - Testes de Integração do Módulo de Propostas Comerciais", (
     await query("DELETE FROM client_contacts WHERE client_id IN (SELECT id FROM clients WHERE document = '11222333000343' OR name LIKE '%[TEST-PROP]%')");
     await query("DELETE FROM clients WHERE document = '11222333000343' OR name LIKE '%[TEST-PROP]%'");
 
+    await query("DELETE FROM contract_items WHERE service_id IN (SELECT id FROM services WHERE name LIKE '%[TEST-PROP]%')");
     await query("DELETE FROM combo_items WHERE combo_id IN (SELECT id FROM combos WHERE name LIKE '%[TEST-PROP]%')");
     await query("DELETE FROM combos WHERE name LIKE '%[TEST-PROP]%'");
     await query("DELETE FROM services WHERE name LIKE '%[TEST-PROP]%'");

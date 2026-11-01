@@ -79,8 +79,15 @@ export function AppShell({ children }: AppShellProps) {
   const [searchResults, setSearchResults] = useState<SearchItem[]>([]);
   const [selectedSearchIndex, setSelectedSearchIndex] = useState(-1);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  // Acessibilidade por teclado: submenus recolhidos e foco em modais
+  const [keyboardFlyoutGroupId, setKeyboardFlyoutGroupId] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
+  const searchModalContainerRef = useRef<HTMLDivElement>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
   const newDropdownRef = useRef<HTMLDivElement>(null);
+  const newDropdownButtonRef = useRef<HTMLButtonElement>(null);
 
   // Mapeamento dos grupos do menu segundo as diretrizes
   const navigationGroups: NavGroup[] = [
@@ -267,20 +274,46 @@ export function AppShell({ children }: AppShellProps) {
     });
   };
 
-  // Atalho global Ctrl+K / Cmd+K para busca
+  const openSearchModal = () => {
+    lastFocusedElementRef.current = (document.activeElement as HTMLElement) || searchTriggerRef.current;
+    setSearchModalOpen(true);
+  };
+
+  const closeSearchModal = () => {
+    setSearchModalOpen(false);
+    setTimeout(() => {
+      lastFocusedElementRef.current?.focus();
+    }, 30);
+  };
+
+  // Atalho global Ctrl+K / Cmd+K para busca e Escape para fechar modais/submenus
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setSearchModalOpen((prev) => !prev);
+        if (searchModalOpen) {
+          closeSearchModal();
+        } else {
+          openSearchModal();
+        }
       } else if (e.key === "Escape") {
-        setSearchModalOpen(false);
-        setNewDropdownOpen(false);
+        if (keyboardFlyoutGroupId) {
+          const btn = document.getElementById(`collapsed-btn-${keyboardFlyoutGroupId}`);
+          setKeyboardFlyoutGroupId(null);
+          btn?.focus();
+        }
+        if (searchModalOpen) {
+          closeSearchModal();
+        }
+        if (newDropdownOpen) {
+          setNewDropdownOpen(false);
+          newDropdownButtonRef.current?.focus();
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [searchModalOpen, newDropdownOpen, keyboardFlyoutGroupId]);
 
   // Foco no input de busca ao abrir modal
   useEffect(() => {
@@ -431,17 +464,46 @@ export function AppShell({ children }: AppShellProps) {
               const isExpanded = !!expandedGroups[group.id];
               const GroupIcon = group.icon;
 
-              // No modo colapsado, exibe ícones com flyout no hover
+              // No modo colapsado, exibe ícones com flyout no hover e controle via teclado
               if (sidebarCollapsed) {
+                const isFlyoutOpen = keyboardFlyoutGroupId === group.id;
+
                 return (
-                  <div key={group.id} className="relative group/flyout">
+                  <div
+                    key={group.id}
+                    className="relative group/flyout"
+                    onBlur={(e) => {
+                      // Se o foco sair do botão e do flyout deste grupo, fechar o flyout
+                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                        if (keyboardFlyoutGroupId === group.id) {
+                          setKeyboardFlyoutGroupId(null);
+                        }
+                      }
+                    }}
+                  >
                     <button
+                      id={`collapsed-btn-${group.id}`}
                       type="button"
+                      aria-haspopup="true"
+                      aria-expanded={isFlyoutOpen}
+                      aria-controls={`collapsed-flyout-${group.id}`}
                       onClick={() => {
-                        setSidebarCollapsed(false);
-                        setExpandedGroups((prev) => ({ ...prev, [group.id]: true }));
+                        setKeyboardFlyoutGroupId((prev) => (prev === group.id ? null : group.id));
                       }}
-                      className={`w-full flex items-center justify-center p-2.5 rounded-xl transition cursor-pointer ${
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight" || e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setKeyboardFlyoutGroupId(group.id);
+                          setTimeout(() => {
+                            const firstItem = document.querySelector<HTMLAnchorElement>(`#collapsed-flyout-${group.id} a`);
+                            firstItem?.focus();
+                          }, 50);
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          setKeyboardFlyoutGroupId(null);
+                        }
+                      }}
+                      className={`w-full flex items-center justify-center p-2.5 rounded-xl transition cursor-pointer focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none ${
                         isGroupActive
                           ? "bg-zinc-900 text-white"
                           : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
@@ -452,27 +514,54 @@ export function AppShell({ children }: AppShellProps) {
                       <GroupIcon className="w-4 h-4" />
                     </button>
 
-                    {/* Popover Flyout ao passar o mouse com a barra recolhida */}
-                    <div className="hidden group-hover/flyout:block absolute left-full top-0 ml-2 w-52 bg-white border border-zinc-200/90 rounded-xl shadow-xl z-50 py-1.5 px-1 animate-in fade-in duration-100">
+                    {/* Popover Flyout acessível tanto no hover do mouse quanto via teclado */}
+                    <div
+                      id={`collapsed-flyout-${group.id}`}
+                      role="menu"
+                      aria-label={group.title}
+                      className={`${
+                        isFlyoutOpen ? "block" : "hidden"
+                      } group-hover/flyout:block absolute left-full top-0 ml-2 w-52 bg-white border border-zinc-200/90 rounded-xl shadow-xl z-50 py-1.5 px-1 animate-in fade-in duration-100`}
+                    >
                       <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 mb-1 flex items-center gap-1.5">
                         <GroupIcon className="w-3 h-3 text-zinc-500" />
                         <span>{group.title}</span>
                       </div>
                       <div className="space-y-0.5">
-                        {group.items.map((item) => {
+                        {group.items.map((item, itemIdx) => {
                           const active = isItemActive(item, group);
                           return (
                             <Link
                               key={item.id}
                               href={item.href}
+                              role="menuitem"
+                              tabIndex={0}
+                              onKeyDown={(e) => {
+                                if (e.key === "Escape" || e.key === "ArrowLeft") {
+                                  e.preventDefault();
+                                  setKeyboardFlyoutGroupId(null);
+                                  document.getElementById(`collapsed-btn-${group.id}`)?.focus();
+                                } else if (e.key === "ArrowDown") {
+                                  e.preventDefault();
+                                  const items = document.querySelectorAll<HTMLAnchorElement>(`#collapsed-flyout-${group.id} a`);
+                                  const next = (itemIdx + 1) % items.length;
+                                  items[next]?.focus();
+                                } else if (e.key === "ArrowUp") {
+                                  e.preventDefault();
+                                  const items = document.querySelectorAll<HTMLAnchorElement>(`#collapsed-flyout-${group.id} a`);
+                                  const prev = (itemIdx - 1 + items.length) % items.length;
+                                  items[prev]?.focus();
+                                }
+                              }}
                               onClick={() => {
+                                setKeyboardFlyoutGroupId(null);
                                 const q = item.href.includes("?") ? item.href.split("?")[1] : "";
                                 setCurrentSearch(q ? `?${q}` : "");
                               }}
-                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
+                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none ${
                                 active
                                   ? "bg-zinc-900 text-white font-semibold"
-                                  : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+                                  : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 focus:bg-zinc-100"
                               }`}
                             >
                               <span className="truncate">{item.label}</span>
@@ -552,7 +641,7 @@ export function AppShell({ children }: AppShellProps) {
           <div className="flex items-center gap-3 flex-1 max-w-lg">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden text-zinc-600 hover:text-zinc-950 p-2 rounded-xl border border-zinc-200 bg-white shadow-xs"
+              className="md:hidden text-zinc-600 hover:text-zinc-950 p-2 rounded-xl border border-zinc-200 bg-white shadow-xs focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
               aria-label="Abrir menu"
             >
               <Menu className="w-4 h-4" />
@@ -560,9 +649,10 @@ export function AppShell({ children }: AppShellProps) {
 
             {/* Input de Busca Global com atalho Ctrl+K */}
             <button
+              ref={searchTriggerRef}
               type="button"
-              onClick={() => setSearchModalOpen(true)}
-              className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl border border-zinc-200 bg-zinc-50/80 hover:bg-white text-xs text-zinc-400 hover:text-zinc-600 transition shadow-2xs cursor-pointer group"
+              onClick={openSearchModal}
+              className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl border border-zinc-200 bg-zinc-50/80 hover:bg-white text-xs text-zinc-400 hover:text-zinc-600 transition shadow-2xs cursor-pointer group focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
             >
               <div className="flex items-center gap-2">
                 <Search className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600" />
@@ -580,9 +670,17 @@ export function AppShell({ children }: AppShellProps) {
             {/* Botão de Atalho Global "+ Novo" */}
             <div className="relative" ref={newDropdownRef}>
               <button
+                ref={newDropdownButtonRef}
                 type="button"
+                aria-haspopup="true"
+                aria-expanded={newDropdownOpen}
                 onClick={() => setNewDropdownOpen(!newDropdownOpen)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setNewDropdownOpen(false);
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold transition shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>Novo</span>
@@ -597,7 +695,7 @@ export function AppShell({ children }: AppShellProps) {
                   <Link
                     href="/crm/leads/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
                   >
                     <Users className="w-3.5 h-3.5 text-blue-600" />
                     <span>Novo Lead</span>
@@ -605,7 +703,7 @@ export function AppShell({ children }: AppShellProps) {
                   <Link
                     href="/proposals/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
                   >
                     <FileText className="w-3.5 h-3.5 text-indigo-600" />
                     <span>Nova Proposta Comercial</span>
@@ -613,7 +711,7 @@ export function AppShell({ children }: AppShellProps) {
                   <Link
                     href="/clients/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
                   >
                     <Building className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Novo Cliente</span>
@@ -621,7 +719,7 @@ export function AppShell({ children }: AppShellProps) {
                   <Link
                     href="/contracts/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
                   >
                     <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
                     <span>Novo Contrato</span>
@@ -630,7 +728,7 @@ export function AppShell({ children }: AppShellProps) {
                   <Link
                     href="/financial/receivables/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
                   >
                     <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Conta a Receber (Receita)</span>
@@ -638,7 +736,7 @@ export function AppShell({ children }: AppShellProps) {
                   <Link
                     href="/financial/payables/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
                   >
                     <Layers className="w-3.5 h-3.5 text-rose-600" />
                     <span>Conta a Pagar (Despesa)</span>
@@ -646,7 +744,7 @@ export function AppShell({ children }: AppShellProps) {
                   <Link
                     href="/projects/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition"
+                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
                   >
                     <Briefcase className="w-3.5 h-3.5 text-purple-600" />
                     <span>Novo Projeto</span>
@@ -673,7 +771,7 @@ export function AppShell({ children }: AppShellProps) {
                 onClick={handleLogout}
                 disabled={loggingOut}
                 title="Sair do sistema"
-                className="p-2 rounded-xl text-zinc-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer disabled:opacity-50"
+                className="p-2 rounded-xl text-zinc-500 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
                 aria-label="Sair do sistema"
               >
                 <LogOut className="w-4 h-4" />
@@ -688,15 +786,45 @@ export function AppShell({ children }: AppShellProps) {
         </main>
       </div>
 
-      {/* Modal de Busca Global */}
+      {/* Modal de Busca Global com Focus Trap e Retorno de Foco */}
       {searchModalOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          onClick={() => setSearchModalOpen(false)}
+          aria-label="Busca Global no ERP"
+          onClick={closeSearchModal}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.preventDefault();
+              closeSearchModal();
+              return;
+            }
+            if (e.key === "Tab") {
+              if (!searchModalContainerRef.current) return;
+              const focusables = searchModalContainerRef.current.querySelectorAll<HTMLElement>(
+                'input, button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+              );
+              if (focusables.length === 0) return;
+              const firstEl = focusables[0];
+              const lastEl = focusables[focusables.length - 1];
+
+              if (e.shiftKey) {
+                if (document.activeElement === firstEl) {
+                  e.preventDefault();
+                  lastEl.focus();
+                }
+              } else {
+                if (document.activeElement === lastEl) {
+                  e.preventDefault();
+                  firstEl.focus();
+                }
+              }
+            }
+          }}
           className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 bg-black/50 backdrop-blur-xs animate-in fade-in"
         >
           <div
+            ref={searchModalContainerRef}
             onClick={(e) => e.stopPropagation()}
             className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-zinc-200 overflow-hidden flex flex-col max-h-[80vh]"
           >
@@ -718,10 +846,10 @@ export function AppShell({ children }: AppShellProps) {
                   } else if (e.key === "Enter" && selectedSearchIndex >= 0 && selectedSearchIndex < searchResults.length) {
                     e.preventDefault();
                     router.push(searchResults[selectedSearchIndex].href);
-                    setSearchModalOpen(false);
+                    closeSearchModal();
                   } else if (e.key === "Escape") {
                     e.preventDefault();
-                    setSearchModalOpen(false);
+                    closeSearchModal();
                   }
                 }}
                 placeholder="Buscar clientes, propostas, contratos, contas ou projetos..."
@@ -729,8 +857,9 @@ export function AppShell({ children }: AppShellProps) {
               />
               <button
                 type="button"
-                onClick={() => setSearchModalOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100"
+                onClick={closeSearchModal}
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+                aria-label="Fechar busca"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -763,8 +892,8 @@ export function AppShell({ children }: AppShellProps) {
                     <Link
                       key={`${item.type}-${item.id}`}
                       href={item.href}
-                      onClick={() => setSearchModalOpen(false)}
-                      className={`p-3 rounded-xl flex items-center justify-between text-xs transition group ${
+                      onClick={() => closeSearchModal()}
+                      className={`p-3 rounded-xl flex items-center justify-between text-xs transition group focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none ${
                         isSelected
                           ? "bg-zinc-100 ring-1 ring-zinc-300"
                           : "hover:bg-zinc-50"

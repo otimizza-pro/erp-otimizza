@@ -106,6 +106,7 @@ if (process.argv[1] && process.argv[1].includes("migrate.ts")) {
   runMigrations()
     .then(() => process.exit(0))
     .catch((err) => {
+      console.error(`::error::Falha crítica ao executar migrações: ${err instanceof Error ? err.stack || err.message : String(err)}`);
       console.error("❌ Falha crítica ao executar migrações:", err);
       process.exit(1);
     });

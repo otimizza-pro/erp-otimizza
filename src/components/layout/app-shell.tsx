@@ -336,7 +336,7 @@ export function AppShell({ children }: AppShellProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Busca instantânea com debounce
+  // Busca instantânea com debounce e cancelamento via AbortController (previne race conditions)
   useEffect(() => {
     setSelectedSearchIndex(-1);
     if (!searchQuery || searchQuery.trim().length < 2) {
@@ -345,22 +345,34 @@ export function AppShell({ children }: AppShellProps) {
       return;
     }
     setSearchLoading(true);
+    const controller = new AbortController();
+
     const timeout = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery.trim())}`);
+        const res = await fetch(`/api/search?q=${encodeURIComponent(searchQuery.trim())}`, {
+          signal: controller.signal,
+        });
         if (res.ok) {
           const data = await res.json();
           setSearchResults(data.results || []);
           setSelectedSearchIndex(-1);
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") {
+          return; // Requisição cancelada intencionalmente
+        }
         console.error("Erro na busca:", err);
       } finally {
-        setSearchLoading(false);
+        if (!controller.signal.aborted) {
+          setSearchLoading(false);
+        }
       }
     }, 250);
 
-    return () => clearTimeout(timeout);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, [searchQuery]);
 
   const handleLogout = async () => {

@@ -106,13 +106,6 @@ export async function listClients(options?: {
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
-  // Count total
-  const countRes = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM clients ${whereClause}`,
-    params
-  );
-  const total = parseInt(countRes.rows[0]?.count || "0", 10);
-
   // Sorting
   const sortCol = options?.orderBy === "name" ? "name" : "created_at";
   const sortDir = options?.orderDirection === "asc" ? "ASC" : "DESC";
@@ -127,28 +120,32 @@ export async function listClients(options?: {
     ORDER BY ${sortCol} ${sortDir} 
     LIMIT $${paramIdx++} OFFSET $${paramIdx++}
   `;
-  params.push(limit, offset);
 
-  const rowsRes = await query<DbClientRow>(selectSql, params);
+  // Execução concorrente de contagem e seleção para eliminar waterfall
+  const [countRes, rowsRes] = await Promise.all([
+    query<{ count: string }>(`SELECT COUNT(*)::int as count FROM clients ${whereClause}`, params),
+    query<DbClientRow>(selectSql, [...params, limit, offset]),
+  ]);
+
+  const total = parseInt(countRes.rows[0]?.count || "0", 10);
   const clients = rowsRes.rows.map(mapClientRow);
 
   return { clients, total };
 }
 
 export async function getClientById(id: string): Promise<Client | null> {
-  const clientRes = await query<DbClientRow>(
-    `SELECT * FROM clients WHERE id = $1`,
-    [id]
-  );
+  // Busca simultânea de dados cadastrais e contatos
+  const [clientRes, contactsRes] = await Promise.all([
+    query<DbClientRow>(`SELECT * FROM clients WHERE id = $1`, [id]),
+    query<DbContactRow>(
+      `SELECT * FROM client_contacts WHERE client_id = $1 ORDER BY is_primary DESC, name ASC`,
+      [id]
+    ),
+  ]);
+
   if (clientRes.rows.length === 0) return null;
 
   const client = mapClientRow(clientRes.rows[0]);
-
-  // Fetch contacts
-  const contactsRes = await query<DbContactRow>(
-    `SELECT * FROM client_contacts WHERE client_id = $1 ORDER BY is_primary DESC, name ASC`,
-    [id]
-  );
 
   client.contacts = contactsRes.rows.map((r) => ({
     id: r.id,

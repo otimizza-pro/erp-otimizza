@@ -642,10 +642,6 @@ export async function listContracts(params: {
     ) cv ON true
     ${whereClause}
   `;
-  const countRes = await query<{ total: string }>(countSql, queryParams);
-  const total = parseInt(countRes.rows[0]?.total || "0", 10);
-
-  // Lista de contratos com versão atual via LATERAL
   const listSql = `
     SELECT 
       c.*,
@@ -674,23 +670,28 @@ export async function listContracts(params: {
     ORDER BY c.created_at DESC
     LIMIT $${paramIdx++} OFFSET $${paramIdx}
   `;
-  queryParams.push(limit, offset);
 
-  const res = await query<
-    DbContractRow & {
-      v_id: string | null;
-      v_version_number: number | null;
-      v_title: string | null;
-      v_billing_period: "ONE_TIME" | "MONTHLY" | "YEARLY" | null;
-      v_due_day: number | null;
-      v_start_date: string | Date | null;
-      v_end_date: string | Date | null;
-      v_is_indefinite: boolean | null;
-      v_effective_date: string | Date | null;
-      v_total_amount: string | number | null;
-      v_created_at: Date | null;
-    }
-  >(listSql, queryParams);
+  // Execução concorrente de contagem e listagem para eliminar waterfall de I/O
+  const [countRes, res] = await Promise.all([
+    query<{ total: string }>(countSql, queryParams),
+    query<
+      DbContractRow & {
+        v_id: string | null;
+        v_version_number: number | null;
+        v_title: string | null;
+        v_billing_period: "ONE_TIME" | "MONTHLY" | "YEARLY" | null;
+        v_due_day: number | null;
+        v_start_date: string | Date | null;
+        v_end_date: string | Date | null;
+        v_is_indefinite: boolean | null;
+        v_effective_date: string | Date | null;
+        v_total_amount: string | number | null;
+        v_created_at: Date | null;
+      }
+    >(listSql, [...queryParams, limit, offset]),
+  ]);
+
+  const total = parseInt(countRes.rows[0]?.total || "0", 10);
 
   const contracts: ContractRecord[] = res.rows.map((row) => {
     let currentVersion: ContractVersionRecord | undefined;

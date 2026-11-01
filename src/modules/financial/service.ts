@@ -411,8 +411,6 @@ export async function listReceivables(params: {
     LEFT JOIN contracts ct ON ct.id = r.contract_id
     ${whereClause}
   `;
-  const countRes = await query<{ total: string }>(countSql, queryParams);
-  const total = parseInt(countRes.rows[0]?.total || "0", 10);
 
   const listSql = `
     SELECT r.*, c.name AS client_name, c.document AS client_document, ct.contract_number
@@ -423,9 +421,14 @@ export async function listReceivables(params: {
     ORDER BY r.due_date DESC, r.created_at DESC
     LIMIT $${paramIdx++} OFFSET $${paramIdx}
   `;
-  queryParams.push(limit, offset);
 
-  const res = await query(listSql, queryParams);
+  // Execução concorrente de contagem e busca de registros para eliminar roundtrip
+  const [countRes, res] = await Promise.all([
+    query<{ total: string }>(countSql, queryParams),
+    query(listSql, [...queryParams, limit, offset]),
+  ]);
+
+  const total = parseInt(countRes.rows[0]?.total || "0", 10);
   const receivables = res.rows.map(mapReceivableRow);
   return { receivables, total };
 }
@@ -639,8 +642,6 @@ export async function listPayables(params: {
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const countSql = `SELECT COUNT(p.id) as total FROM payables p ${whereClause}`;
-  const countRes = await query<{ total: string }>(countSql, queryParams);
-  const total = parseInt(countRes.rows[0]?.total || "0", 10);
 
   const listSql = `
     SELECT p.*, fc.name AS category_name, s.name AS service_name
@@ -651,9 +652,14 @@ export async function listPayables(params: {
     ORDER BY p.due_date DESC, p.created_at DESC
     LIMIT $${paramIdx++} OFFSET $${paramIdx}
   `;
-  queryParams.push(limit, offset);
 
-  const res = await query(listSql, queryParams);
+  // Execução concorrente de contagem e busca para eliminar latência sequencial
+  const [countRes, res] = await Promise.all([
+    query<{ total: string }>(countSql, queryParams),
+    query(listSql, [...queryParams, limit, offset]),
+  ]);
+
+  const total = parseInt(countRes.rows[0]?.total || "0", 10);
   const payables = res.rows.map(mapPayableRow);
   return { payables, total };
 }

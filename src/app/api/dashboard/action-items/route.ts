@@ -10,6 +10,8 @@ export async function GET() {
   }
 
   try {
+    // Execução otimizada em 6 queries paralelas (redução de 50% nas viagens ao pool serverless)
+    // Cada query calcula a contagem total com COUNT(*) OVER() de forma atômica
     const [
       activitiesRes,
       proposalsRes,
@@ -17,12 +19,6 @@ export async function GET() {
       upcomingPayRes,
       expiringContractsRes,
       overdueProjectsRes,
-      countActivitiesRes,
-      countProposalsRes,
-      countOverdueRecRes,
-      countUpcomingPayRes,
-      countExpiringContractsRes,
-      countOverdueProjectsRes,
     ] = await Promise.all([
       // 1. Atividades comerciais atrasadas ou previstas para hoje
       query<{
@@ -33,10 +29,12 @@ export async function GET() {
         lead_name: string | null;
         client_name: string | null;
         is_overdue: boolean;
+        total_count: number;
       }>(
         `SELECT a.id, a.title, a.due_date, a.activity_type,
                 l.name as lead_name, cl.name as client_name,
-                (a.due_date < CURRENT_TIMESTAMP) as is_overdue
+                (a.due_date < CURRENT_TIMESTAMP) as is_overdue,
+                COUNT(*) OVER()::int as total_count
          FROM crm_activities a
          LEFT JOIN crm_leads l ON l.id = a.lead_id
          LEFT JOIN clients cl ON cl.id = a.client_id
@@ -55,10 +53,18 @@ export async function GET() {
         total_amount: number;
         valid_until: string;
         days_sent: number;
+        total_count: number;
       }>(
-        `SELECT p.id, p.proposal_code, p.title, p.recipient_name, p.total_amount, p.valid_until,
-                EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.updated_at))::int as days_sent
+        `SELECT p.id, p.proposal_code, p.title,
+                COALESCE(cl.name, l.name, pv.recipient_snapshot->>'name', 'Cliente/Lead') as recipient_name,
+                COALESCE(pv.subtotal_one_time + pv.subtotal_monthly, 0)::numeric as total_amount,
+                p.valid_until,
+                EXTRACT(DAY FROM (CURRENT_TIMESTAMP - p.updated_at))::int as days_sent,
+                COUNT(*) OVER()::int as total_count
          FROM proposals p
+         LEFT JOIN clients cl ON cl.id = p.client_id
+         LEFT JOIN crm_leads l ON l.id = p.lead_id
+         LEFT JOIN proposal_versions pv ON pv.proposal_id = p.id AND pv.version_number = p.current_version_number
          WHERE p.status = 'SENT'
          ORDER BY p.updated_at ASC
          LIMIT 6`
@@ -73,10 +79,12 @@ export async function GET() {
         balance_amount: number;
         due_date: string;
         days_overdue: number;
+        total_count: number;
       }>(
         `SELECT r.id, r.receivable_number, r.description, cl.name as client_name,
                 r.balance_amount, r.due_date,
-                (CURRENT_DATE - r.due_date)::int as days_overdue
+                (CURRENT_DATE - r.due_date)::int as days_overdue,
+                COUNT(*) OVER()::int as total_count
          FROM receivables r
          JOIN clients cl ON cl.id = r.client_id
          WHERE r.status = 'PENDING' AND r.due_date < CURRENT_DATE
@@ -93,10 +101,12 @@ export async function GET() {
         balance_amount: number;
         due_date: string;
         is_overdue: boolean;
+        total_count: number;
       }>(
         `SELECT p.id, p.payable_number, p.description, p.supplier_name,
                 p.balance_amount, p.due_date,
-                (p.due_date < CURRENT_DATE) as is_overdue
+                (p.due_date < CURRENT_DATE) as is_overdue,
+                COUNT(*) OVER()::int as total_count
          FROM payables p
          WHERE p.status = 'PENDING'
            AND p.due_date <= (CURRENT_DATE + INTERVAL '7 days')
@@ -111,9 +121,11 @@ export async function GET() {
         client_name: string;
         end_date: string;
         days_remaining: number;
+        total_count: number;
       }>(
         `SELECT c.id, c.contract_number, cl.name as client_name,
-                cv.end_date, (cv.end_date - CURRENT_DATE)::int as days_remaining
+                cv.end_date, (cv.end_date - CURRENT_DATE)::int as days_remaining,
+                COUNT(*) OVER()::int as total_count
          FROM contracts c
          JOIN clients cl ON cl.id = c.client_id
          JOIN contract_versions cv ON cv.contract_id = c.id
@@ -133,9 +145,11 @@ export async function GET() {
         status: string;
         due_date: string;
         is_overdue: boolean;
+        total_count: number;
       }>(
-        `SELECT p.id, p.project_code, p.name, p.status, p.due_date,
-                (p.due_date < CURRENT_DATE) as is_overdue
+        `SELECT p.id, p.project_number as project_code, p.name, p.status, p.due_date,
+                (p.due_date < CURRENT_DATE) as is_overdue,
+                COUNT(*) OVER()::int as total_count
          FROM projects p
          WHERE p.status NOT IN ('COMPLETED', 'CANCELED')
            AND p.due_date IS NOT NULL
@@ -143,59 +157,38 @@ export async function GET() {
          ORDER BY p.due_date ASC
          LIMIT 6`
       ),
-
-      // Contagens Globais Reais (sem limite)
-      query<{ total: number }>(
-        `SELECT COUNT(*)::int as total FROM crm_activities a
-         WHERE a.status = 'PENDING' AND a.due_date <= (CURRENT_DATE + INTERVAL '1 day')`
-      ),
-      query<{ total: number }>(
-        `SELECT COUNT(*)::int as total FROM proposals p
-         WHERE p.status = 'SENT'`
-      ),
-      query<{ total: number }>(
-        `SELECT COUNT(*)::int as total FROM receivables r
-         WHERE r.status = 'PENDING' AND r.due_date < CURRENT_DATE`
-      ),
-      query<{ total: number }>(
-        `SELECT COUNT(*)::int as total FROM payables p
-         WHERE p.status = 'PENDING' AND p.due_date <= (CURRENT_DATE + INTERVAL '7 days')`
-      ),
-      query<{ total: number }>(
-        `SELECT COUNT(DISTINCT c.id)::int as total FROM contracts c
-         JOIN contract_versions cv ON cv.contract_id = c.id
-         WHERE c.status = 'ACTIVE'
-           AND cv.is_indefinite = false
-           AND cv.end_date IS NOT NULL
-           AND cv.end_date BETWEEN CURRENT_DATE AND (CURRENT_DATE + INTERVAL '30 days')`
-      ),
-      query<{ total: number }>(
-        `SELECT COUNT(*)::int as total FROM projects p
-         WHERE p.status NOT IN ('COMPLETED', 'CANCELED')
-           AND p.due_date IS NOT NULL
-           AND p.due_date <= (CURRENT_DATE + INTERVAL '7 days')`
-      ),
     ]);
 
-    return NextResponse.json({
-      success: true,
-      actionItems: {
-        activities: activitiesRes.rows,
-        proposals: proposalsRes.rows,
-        overdueReceivables: overdueRecRes.rows,
-        upcomingPayables: upcomingPayRes.rows,
-        expiringContracts: expiringContractsRes.rows,
-        overdueProjects: overdueProjectsRes.rows,
+    // Limpar o campo interno total_count das linhas retornadas
+    const sanitizeRows = <T extends { total_count?: number }>(rows: T[]) =>
+      rows.map(({ total_count: _, ...rest }) => rest);
+
+    return NextResponse.json(
+      {
+        success: true,
+        actionItems: {
+          activities: sanitizeRows(activitiesRes.rows),
+          proposals: sanitizeRows(proposalsRes.rows),
+          overdueReceivables: sanitizeRows(overdueRecRes.rows),
+          upcomingPayables: sanitizeRows(upcomingPayRes.rows),
+          expiringContracts: sanitizeRows(expiringContractsRes.rows),
+          overdueProjects: sanitizeRows(overdueProjectsRes.rows),
+        },
+        counts: {
+          activities: activitiesRes.rows[0]?.total_count ?? 0,
+          proposals: proposalsRes.rows[0]?.total_count ?? 0,
+          overdueReceivables: overdueRecRes.rows[0]?.total_count ?? 0,
+          upcomingPayables: upcomingPayRes.rows[0]?.total_count ?? 0,
+          expiringContracts: expiringContractsRes.rows[0]?.total_count ?? 0,
+          overdueProjects: overdueProjectsRes.rows[0]?.total_count ?? 0,
+        },
       },
-      counts: {
-        activities: countActivitiesRes.rows[0]?.total ?? activitiesRes.rowCount ?? 0,
-        proposals: countProposalsRes.rows[0]?.total ?? proposalsRes.rowCount ?? 0,
-        overdueReceivables: countOverdueRecRes.rows[0]?.total ?? overdueRecRes.rowCount ?? 0,
-        upcomingPayables: countUpcomingPayRes.rows[0]?.total ?? upcomingPayRes.rowCount ?? 0,
-        expiringContracts: countExpiringContractsRes.rows[0]?.total ?? expiringContractsRes.rowCount ?? 0,
-        overdueProjects: countOverdueProjectsRes.rows[0]?.total ?? overdueProjectsRes.rowCount ?? 0,
-      },
-    });
+      {
+        headers: {
+          "Cache-Control": "private, max-age=10, stale-while-revalidate=20",
+        },
+      }
+    );
   } catch (error: unknown) {
     console.error("Erro ao carregar itens de ação do dashboard:", error);
     const msg = error instanceof Error ? error.message : "Erro ao carregar pendências do sistema.";

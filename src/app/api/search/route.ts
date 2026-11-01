@@ -40,20 +40,25 @@ export async function GET(request: NextRequest) {
           [searchPattern]
         ),
         // 2. Leads
-        query<{ id: string; name: string; company_name: string | null; status: string }>(
-          `SELECT id, name, company_name, status
+        query<{ id: string; name: string; trade_name: string | null; status: string }>(
+          `SELECT id, name, trade_name, status
            FROM crm_leads
-           WHERE name ILIKE $1 OR company_name ILIKE $1 OR email ILIKE $1 OR document ILIKE $1
+           WHERE name ILIKE $1 OR trade_name ILIKE $1 OR email ILIKE $1 OR document ILIKE $1
            ORDER BY name ASC
            LIMIT 5`,
           [searchPattern]
         ),
         // 3. Propostas
         query<{ id: string; proposal_code: string; title: string; recipient_name: string; status: string }>(
-          `SELECT id, proposal_code, title, recipient_name, status
-           FROM proposals
-           WHERE proposal_code ILIKE $1 OR title ILIKE $1 OR recipient_name ILIKE $1
-           ORDER BY created_at DESC
+          `SELECT p.id, p.proposal_code, p.title,
+                  COALESCE(cl.name, l.name, pv.recipient_snapshot->>'name', 'Cliente/Lead') as recipient_name,
+                  p.status
+           FROM proposals p
+           LEFT JOIN clients cl ON cl.id = p.client_id
+           LEFT JOIN crm_leads l ON l.id = p.lead_id
+           LEFT JOIN proposal_versions pv ON pv.proposal_id = p.id AND pv.version_number = p.current_version_number
+           WHERE p.proposal_code ILIKE $1 OR p.title ILIKE $1 OR cl.name ILIKE $1 OR l.name ILIKE $1
+           ORDER BY p.created_at DESC
            LIMIT 5`,
           [searchPattern]
         ),
@@ -87,9 +92,9 @@ export async function GET(request: NextRequest) {
         ),
         // 7. Projetos
         query<{ id: string; project_code: string; name: string; status: string }>(
-          `SELECT id, project_code, name, status
+          `SELECT id, project_number as project_code, name, status
            FROM projects
-           WHERE project_code ILIKE $1 OR name ILIKE $1
+           WHERE project_number ILIKE $1 OR name ILIKE $1
            ORDER BY created_at DESC
            LIMIT 5`,
           [searchPattern]
@@ -116,7 +121,7 @@ export async function GET(request: NextRequest) {
         id: l.id,
         type: "LEAD",
         title: l.name,
-        subtitle: l.company_name ? `Empresa: ${l.company_name}` : "Lead no CRM",
+        subtitle: l.trade_name ? `Empresa: ${l.trade_name}` : "Lead no CRM",
         status: l.status,
         href: `/crm/leads/${l.id}`,
       });
@@ -182,7 +187,14 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ results: items, total: items.length });
+    return NextResponse.json(
+      { results: items, total: items.length },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=10, stale-while-revalidate=20",
+        },
+      }
+    );
   } catch (error: unknown) {
     console.error("Erro na busca global:", error);
     const msg = error instanceof Error ? error.message : "Erro interno na busca global.";

@@ -37,9 +37,14 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const isCronRoute =
+    request.nextUrl.pathname === "/api/financial/recurrence/process" ||
+    request.nextUrl.pathname === "/api/projects/recurrence/process";
+
   const isPublicRoute =
     request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/api/health");
+    request.nextUrl.pathname.startsWith("/api/health") ||
+    isCronRoute;
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();

@@ -722,7 +722,15 @@ export async function getPublicTree(): Promise<KnowledgePageTreeNode[]> {
   `;
 
   const res = await query<KnowledgePage>(sql);
-  return buildTree(res.rows);
+  const safeRows = res.rows.map(r => ({
+    ...r,
+    created_at: r.created_at ? new Date(r.created_at).toISOString() : new Date().toISOString(),
+    updated_at: r.updated_at ? new Date(r.updated_at).toISOString() : new Date().toISOString(),
+    published_at: r.published_at ? new Date(r.published_at).toISOString() : null,
+    last_reviewed_at: r.last_reviewed_at ? new Date(r.last_reviewed_at).toISOString() : null,
+    next_review_at: r.next_review_at ? new Date(r.next_review_at).toISOString() : null,
+  }));
+  return buildTree(safeRows as unknown as KnowledgePage[]);
 }
 
 /**

@@ -52,17 +52,19 @@ jobs:
       - name: 2. Análise Estática de Código (ESLint)
         run: npm run lint
 
-      - name: 3. Aplicar Migrations (001 a 008) no PostgreSQL Isolado
+      - name: 3. Aplicar Migrations (001 a 014) no PostgreSQL Isolado
         run: npm run db:migrate
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/sistema_erp_test
+          DATABASE_URL_TEST: postgresql://postgres:postgrespassword@localhost:5432/sistema_erp_test
 
       - name: 4. Aplicar Seeds de Dados Sintéticos de Teste
         run: npm run db:seed
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/sistema_erp_test
+          DATABASE_URL_TEST: postgresql://postgres:postgrespassword@localhost:5432/sistema_erp_test
 
       - name: 5. Testes Automatizados Completos (Unitários e Integração)
         run: npm test

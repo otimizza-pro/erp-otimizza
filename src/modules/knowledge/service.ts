@@ -24,13 +24,20 @@ export function generateSlug(text: string): string {
     .substring(0, 100);
 }
 
+let isStructureInitialized = false;
+
 /**
  * Semeia a estrutura inicial de 9 páginas como rascunho com orientações neutras,
  * caso o módulo esteja recém-instalado e sem registros.
  */
 export async function ensureInitialStructure(): Promise<void> {
+  if (isStructureInitialized) {
+    return;
+  }
+
   const countRes = await query<{ count: string }>(`SELECT COUNT(*)::text as count FROM knowledge_pages`);
   if (parseInt(countRes.rows[0]?.count || "0", 10) > 0) {
+    isStructureInitialized = true;
     return;
   }
 
@@ -796,11 +803,11 @@ export async function getPublicPageBySlug(slug: string): Promise<{
     summary: raw.summary,
     info_type: raw.info_type,
     tags: raw.tags || [],
-    last_reviewed_at: raw.last_reviewed_at,
-    next_review_at: raw.next_review_at,
+    last_reviewed_at: raw.last_reviewed_at ? new Date(raw.last_reviewed_at).toISOString() : new Date().toISOString(),
+    next_review_at: raw.next_review_at ? new Date(raw.next_review_at).toISOString() : null,
     content_html: raw.published_content_html || "<p></p>",
-    published_at: raw.published_at || raw.updated_at,
-    updated_at: raw.updated_at,
+    published_at: raw.published_at ? new Date(raw.published_at).toISOString() : new Date().toISOString(),
+    updated_at: raw.updated_at ? new Date(raw.updated_at).toISOString() : new Date().toISOString(),
     breadcrumbs: breadcrumbsRes.rows,
     subpages: subpagesRes.rows
   };
@@ -881,11 +888,11 @@ export async function getConsolidatedDocument(): Promise<ConsolidatedKnowledgeDo
         summary: node.summary,
         info_type: node.info_type,
         tags: node.tags || [],
-        last_reviewed_at: node.last_reviewed_at,
-        next_review_at: node.next_review_at,
+        last_reviewed_at: node.last_reviewed_at ? new Date(node.last_reviewed_at).toISOString() : new Date().toISOString(),
+        next_review_at: node.next_review_at ? new Date(node.next_review_at).toISOString() : null,
         content_html: node.published_content_html || "<p></p>",
-        published_at: node.published_at || node.updated_at,
-        updated_at: node.updated_at,
+        published_at: node.published_at ? new Date(node.published_at).toISOString() : new Date().toISOString(),
+        updated_at: node.updated_at ? new Date(node.updated_at).toISOString() : new Date().toISOString(),
         breadcrumbs: currentCrumb,
         subpages
       });

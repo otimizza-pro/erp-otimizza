@@ -69,7 +69,7 @@ export default async function StrategyIndexPage() {
       {/* Componente Client com Busca Interativa e Árvore de Navegação */}
       <PublicKnowledgeClient
         initialPages={doc.all_published_pages}
-        tree={doc.tree}
+        tree={[]}
       />
     </div>
   );

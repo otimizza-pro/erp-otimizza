@@ -28,3 +28,30 @@ export async function POST() {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+
+export async function GET(request: Request) {
+  try {
+    const cookieStore = await cookies();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://ffbdrcfokhoyouiiajzq.supabase.co";
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_cZrTL7UjlqOC1GzQxz92Ow_yzoFE81E";
+
+    const supabase = createServerClient(supabaseUrl, supabaseKey, {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        },
+      },
+    });
+
+    await supabase.auth.signOut();
+  } catch {
+    // Prossiga com o redirecionamento mesmo em caso de falha silenciosa
+  }
+  return NextResponse.redirect(new URL("/login", request.url));
+}
+

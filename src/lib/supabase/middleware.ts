@@ -41,10 +41,19 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname === "/api/financial/recurrence/process" ||
     request.nextUrl.pathname === "/api/projects/recurrence/process";
 
+  const isPublicKnowledgeRoute =
+    request.nextUrl.pathname.startsWith("/estrategia-otimizza") ||
+    request.nextUrl.pathname.startsWith("/api/knowledge/files/");
+
   const isPublicRoute =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/api/health") ||
-    isCronRoute;
+    isCronRoute ||
+    isPublicKnowledgeRoute;
+
+  if (isPublicKnowledgeRoute) {
+    supabaseResponse.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
 
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();

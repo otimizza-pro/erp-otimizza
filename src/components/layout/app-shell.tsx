@@ -38,6 +38,8 @@ import {
   PanelLeftOpen,
   Calendar,
   Sparkles,
+  Compass,
+  BookOpen,
 } from "lucide-react";
 import { SearchItem } from "@/app/api/search/route";
 
@@ -168,6 +170,14 @@ export function AppShell({ children }: AppShellProps) {
       icon: FolderOpen,
       items: [
         { id: "documents_repo", label: "Documentos", href: "/documents", icon: FolderOpen },
+      ],
+    },
+    {
+      id: "knowledge",
+      title: "Informações da Otimizza",
+      icon: Compass,
+      items: [
+        { id: "knowledge_manual", label: "Manual da estratégia", href: "/informacoes-otimizza", icon: BookOpen },
       ],
     },
     {

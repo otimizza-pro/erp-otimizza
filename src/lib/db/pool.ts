@@ -120,7 +120,12 @@ export function assertSafeTestDatabase(
         );
       }
     } else {
+      const isLocalhost =
+        testParsed.hostname === "localhost" ||
+        testParsed.hostname === "127.0.0.1";
+
       if (
+        !isLocalhost &&
         testParsed.hostname === prodParsed.hostname &&
         testParsed.port === prodParsed.port &&
         testParsed.pathname === prodParsed.pathname

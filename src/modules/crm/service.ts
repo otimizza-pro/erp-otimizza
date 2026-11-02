@@ -57,6 +57,26 @@ export function computeNormalizedMonthlyValue(billingPeriod: BillingPeriod, amou
   return 0;
 }
 
+
+export function normalizeSaoPauloTimestamp(val?: string | null): string | null {
+  if (!val || !val.trim()) return null;
+  const d = val.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+    return `${d}T12:00:00-03:00`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(d)) {
+    return `${d}:00-03:00`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(d)) {
+    return `${d}-03:00`;
+  }
+  const parsed = new Date(d);
+  if (!isNaN(parsed.getTime())) {
+    return parsed.toISOString();
+  }
+  return d;
+}
+
 export class CrmService {
   static computeNormalizedMonthlyValue(amount: number, billingPeriod: BillingPeriod): number;
   static computeNormalizedMonthlyValue(billingPeriod: BillingPeriod, amount: number): number;
@@ -1054,8 +1074,9 @@ export class CrmService {
     }
 
     if (params?.clientId) {
-      conditions.push(`o.client_id = $${idx++}`);
+      conditions.push(`(o.client_id = ${idx} OR o.lead_id IN (SELECT id FROM crm_leads WHERE converted_client_id = ${idx}))`);
       values.push(params.clientId);
+      idx++;
     }
 
     if (params?.search) {
@@ -1656,8 +1677,9 @@ export class CrmService {
       values.push(params.leadId);
     }
     if (params?.clientId) {
-      conditions.push(`a.client_id = $${idx++}`);
+      conditions.push(`(a.client_id = ${idx} OR a.lead_id IN (SELECT id FROM crm_leads WHERE converted_client_id = ${idx}))`);
       values.push(params.clientId);
+      idx++;
     }
     if (params?.opportunityId) {
       conditions.push(`a.opportunity_id = $${idx++}`);
@@ -1729,18 +1751,7 @@ export class CrmService {
     const input = CreateActivitySchema.parse(rawInput);
     const pool = getDbPool();
 
-    // Normaliza a data no fuso de São Paulo para evitar deslocamento de dia
-    let normalizedDueDate: string | null = null;
-    if (input.dueDate && input.dueDate.trim()) {
-      const d = input.dueDate.trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-        normalizedDueDate = `${d}T12:00:00-03:00`;
-      } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(d)) {
-        normalizedDueDate = `${d}-03:00`;
-      } else {
-        normalizedDueDate = d;
-      }
-    }
+    const normalizedDueDate = normalizeSaoPauloTimestamp(input.dueDate);
 
     const sql = `
       INSERT INTO crm_activities (
@@ -1782,17 +1793,7 @@ export class CrmService {
     const input = UpdateActivitySchema.parse(rawInput);
     const pool = getDbPool();
 
-    let normalizedDueDate: string | null = null;
-    if (input.dueDate && input.dueDate.trim()) {
-      const d = input.dueDate.trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
-        normalizedDueDate = `${d}T12:00:00-03:00`;
-      } else if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(d)) {
-        normalizedDueDate = `${d}-03:00`;
-      } else {
-        normalizedDueDate = d;
-      }
-    }
+    const normalizedDueDate = normalizeSaoPauloTimestamp(input.dueDate);
 
     const sql = `
       UPDATE crm_activities SET

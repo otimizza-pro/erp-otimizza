@@ -110,7 +110,7 @@ function CommercialActivitiesPageContent() {
       const res = await fetch(`/api/crm/activities?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setActivities(data.activities || []);
+        setActivities(Array.isArray(data) ? data : data.activities || []);
       }
     } catch (e) {
       console.error("Erro ao carregar atividades:", e);
@@ -426,7 +426,7 @@ function CommercialActivitiesPageContent() {
                         <div className="text-right text-xs">
                           <span className="text-slate-400 block text-[11px]">Prazo</span>
                           <span
-                            className={`font-medium ${
+                            className={`font-medium block ${
                               isOverdue ? "text-rose-600 font-bold" : "text-slate-700"
                             }`}
                           >
@@ -437,6 +437,15 @@ function CommercialActivitiesPageContent() {
                               year: "numeric",
                             })}
                           </span>
+                          {act.dueDate.includes("T") && !act.dueDate.includes("12:00:00") && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              {new Date(act.dueDate).toLocaleTimeString("pt-BR", {
+                                timeZone: "America/Sao_Paulo",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          )}
                         </div>
                       )}
 

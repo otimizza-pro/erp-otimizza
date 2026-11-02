@@ -68,6 +68,8 @@ interface ClientProposalItem {
   status?: string;
   total_amount?: number;
   totalAmount?: number;
+  totalMonthlyEffective?: number;
+  totalOneTimeEffective?: number;
   valid_until?: string;
 }
 
@@ -335,6 +337,14 @@ export default function ClientDetailsPage() {
               {client.tradeName && (
                 <p className="text-xs text-zinc-500">Nome Fantasia: {client.tradeName}</p>
               )}
+              {client.notes && client.notes.includes("Convertido a partir do Lead") && (
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+                    <User className="w-3 h-3 text-amber-600" />
+                    {client.notes.split(".")[0]}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -514,7 +524,7 @@ export default function ClientDetailsPage() {
                               {p.proposal_code || p.proposalCode} • {p.title}
                             </span>
                             <span className="text-zinc-500 text-[11px]">
-                              {formatMoney(Number(p.total_amount || p.totalAmount || 0))}
+                              {formatMoney(Number(p.totalMonthlyEffective || p.totalOneTimeEffective || p.total_amount || p.totalAmount || 0))}
                             </span>
                           </div>
                           <Link

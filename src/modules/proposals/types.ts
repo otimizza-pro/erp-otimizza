@@ -138,6 +138,8 @@ export interface ProposalRecord {
   recipientDocument?: string | null;
   isLead?: boolean;
   opportunityTitle?: string | null;
+  totalMonthlyEffective?: number;
+  totalOneTimeEffective?: number;
   currentVersion?: ProposalVersionRecord;
   versions?: ProposalVersionRecord[];
   events?: ProposalEventRecord[];

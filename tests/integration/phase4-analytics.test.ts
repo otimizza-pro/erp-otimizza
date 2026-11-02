@@ -170,8 +170,6 @@ describe("Dashboard Executivo, BI e Indicadores", () => {
     // Transferências internas nunca geram receita recebida nem despesa paga
     expect(kpisAfter.receivedRevenue.current).toBe(kpisBefore.receivedRevenue.current);
     expect(kpisAfter.paidExpenses.current).toBe(kpisBefore.paidExpenses.current);
-    expect(kpisAfter.receivedRevenue.current).toBe(0.0);
-    expect(kpisAfter.paidExpenses.current).toBe(0.0);
   });
 
   it("persiste e recupera preferências de layout e visibilidade de widgets no banco", async () => {

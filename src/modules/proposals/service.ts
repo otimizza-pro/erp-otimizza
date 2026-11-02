@@ -53,6 +53,8 @@ interface DbProposalRow {
   recipient_document?: string | null;
   is_lead?: boolean;
   opportunity_title?: string | null;
+  total_monthly_effective?: number | string | null;
+  total_one_time_effective?: number | string | null;
 }
 
 interface DbProposalVersionRow {
@@ -212,8 +214,9 @@ export class ProposalService {
     }
 
     if (filters.clientId) {
-      conditions.push(`p.client_id = $${pIdx++}`);
+      conditions.push(`(p.client_id = ${pIdx} OR p.lead_id IN (SELECT id FROM crm_leads WHERE converted_client_id = ${pIdx}))`);
       params.push(filters.clientId);
+      pIdx++;
     }
 
     if (filters.leadId) {
@@ -265,11 +268,14 @@ export class ProposalService {
     const listSql = `
       SELECT 
         p.*,
+        pv.total_monthly_effective,
+        pv.total_one_time_effective,
         COALESCE(c.name, l.name) AS recipient_name,
         COALESCE(c.document, l.document) AS recipient_document,
         (p.lead_id IS NOT NULL AND p.client_id IS NULL) AS is_lead,
         opp.title AS opportunity_title
       FROM proposals p
+      LEFT JOIN proposal_versions pv ON pv.proposal_id = p.id AND pv.version_number = p.current_version_number
       LEFT JOIN clients c ON c.id = p.client_id
       LEFT JOIN crm_leads l ON l.id = p.lead_id
       LEFT JOIN crm_opportunities opp ON opp.id = p.opportunity_id

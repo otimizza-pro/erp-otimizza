@@ -60,7 +60,7 @@ function NewProposalForm() {
 
   // Mode & Recipient
   const [recipientType, setRecipientType] = useState<"LEAD" | "CLIENT">("CLIENT");
-  const [leads, setLeads] = useState<Array<{ id: string; name: string; companyName?: string | null }>>([]);
+  const [leads, setLeads] = useState<Array<{ id: string; name: string; tradeName?: string | null; companyName?: string | null }>>([]);
   const [clients, setClients] = useState<Array<{ id: string; name: string; tradeName?: string | null }>>([]);
   const [opportunities, setOpportunities] = useState<Array<{ id: string; title: string }>>([]);
 
@@ -99,12 +99,53 @@ function NewProposalForm() {
     if (leadIdParam) {
       setRecipientType("LEAD");
       setSelectedLeadId(leadIdParam);
+      fetch(`/api/crm/leads/${leadIdParam}`)
+        .then((r) => r.json())
+        .then((lead) => {
+          if (lead && lead.id) {
+            setLeads((prev) => {
+              if (prev.some((x) => x.id === lead.id)) return prev;
+              return [{ id: lead.id, name: lead.name, tradeName: lead.tradeName }, ...prev];
+            });
+            setTitle((prev) => (prev ? prev : `Proposta Comercial - ${lead.name}`));
+          }
+        })
+        .catch(() => {});
     } else if (clientIdParam) {
       setRecipientType("CLIENT");
       setSelectedClientId(clientIdParam);
+      fetch(`/api/clients/${clientIdParam}`)
+        .then((r) => r.json())
+        .then((client) => {
+          if (client && client.id) {
+            setClients((prev) => {
+              if (prev.some((x) => x.id === client.id)) return prev;
+              return [{ id: client.id, name: client.name, tradeName: client.tradeName }, ...prev];
+            });
+            setTitle((prev) => (prev ? prev : `Proposta Comercial - ${client.tradeName || client.name}`));
+          }
+        })
+        .catch(() => {});
     }
+
     if (oppIdParam) {
       setSelectedOpportunityId(oppIdParam);
+      fetch(`/api/crm/opportunities/${oppIdParam}`)
+        .then((r) => r.json())
+        .then((data) => {
+          const opp = data?.opportunity || data;
+          if (opp && opp.title) {
+            setTitle((prev) => (prev ? prev : `Proposta - ${opp.title}`));
+            if (opp.leadId && !leadIdParam && !clientIdParam) {
+              setRecipientType("LEAD");
+              setSelectedLeadId(opp.leadId);
+            } else if (opp.clientId && !leadIdParam && !clientIdParam) {
+              setRecipientType("CLIENT");
+              setSelectedClientId(opp.clientId);
+            }
+          }
+        })
+        .catch(() => {});
     }
   }, [searchParams]);
 
@@ -501,7 +542,7 @@ function NewProposalForm() {
                     <option value="">Selecione um lead...</option>
                     {leads.map((l) => (
                       <option key={l.id} value={l.id}>
-                        {l.name} {l.companyName ? `(${l.companyName})` : ""}
+                        {l.name} {l.tradeName || l.companyName ? `(${l.tradeName || l.companyName})` : ""}
                       </option>
                     ))}
                   </select>

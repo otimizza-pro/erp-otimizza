@@ -47,6 +47,46 @@ function NewProjectFormContent() {
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Resolução imediata do Cliente e Contratos passados por query param
+  useEffect(() => {
+    if (initialClientId) {
+      setClientId(initialClientId);
+      fetch(`/api/clients/${initialClientId}`)
+        .then((r) => r.json())
+        .then((client) => {
+          if (client && client.id) {
+            const formatted = {
+              id: client.id,
+              name: `${client.name}${client.tradeName ? ` (${client.tradeName})` : ""}`,
+            };
+            setClients((prev) => {
+              if (prev.some((c) => c.id === client.id)) return prev;
+              return [formatted, ...prev];
+            });
+            setName((prev) => (prev ? prev : `Projeto Operacional - ${client.tradeName || client.name}`));
+          }
+        })
+        .catch(() => {});
+
+      // Carrega contratos deste cliente
+      fetch(`/api/clients/${initialClientId}/contracts`)
+        .then((r) => r.json())
+        .then((data) => {
+          const list = Array.isArray(data) ? data : data.contracts || [];
+          if (list.length > 0) {
+            setContracts(
+              list.map((co: { id: string; contractNumber?: string; contract_number?: string; description?: string }) => ({
+                id: co.id,
+                contractNumber: co.contractNumber || co.contract_number || "Contrato",
+                clientName: co.description || "",
+              }))
+            );
+          }
+        })
+        .catch(() => {});
+    }
+  }, [initialClientId]);
+
   useEffect(() => {
     // Carregar clientes
     fetch("/api/clients?limit=100")

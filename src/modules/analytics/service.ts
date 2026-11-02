@@ -383,7 +383,7 @@ export async function getServiceProfitabilityReport(filters: AnalyticsFilterPara
       SELECT 
         ci.service_id,
         ci.service_name,
-        SUM(ci.subtotal) as contracted_revenue,
+        SUM(ci.total_price) as contracted_revenue,
         SUM(ci.unit_cost * ci.quantity) as estimated_cost,
         COUNT(DISTINCT c.id) as active_contracts
       FROM contract_items ci
@@ -450,7 +450,7 @@ export async function getComboProfitabilityReport(): Promise<ComboProfitabilityR
     SELECT 
       ci.combo_id,
       ci.combo_name,
-      SUM(ci.subtotal) as contracted_revenue,
+      SUM(ci.total_price) as contracted_revenue,
       SUM(ci.unit_cost * ci.quantity) as estimated_cost,
       COUNT(DISTINCT c.id) as active_contracts
     FROM contract_items ci

@@ -595,6 +595,11 @@ export default function LeadDetailPage() {
                     <div className="text-[11px] text-zinc-400 flex items-center gap-3">
                       <span>
                         Vencimento: {act.dueDate ? new Date(act.dueDate).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Sem data"}
+                        {act.dueDate && act.dueDate.includes("T") && !act.dueDate.includes("12:00:00") ? (
+                          <span className="ml-1 text-[10px] text-zinc-500 font-mono">
+                            às {new Date(act.dueDate).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        ) : null}
                       </span>
                       {act.completedAt && (
                         <span className="text-emerald-600 font-semibold">

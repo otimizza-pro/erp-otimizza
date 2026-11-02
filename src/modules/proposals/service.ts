@@ -1,3 +1,4 @@
+import { ServicePresentationSchema, type ServicePresentation } from "@/modules/catalog/presentation";
 import { query, withTransaction } from "@/lib/db/pool";
 import {
   ProposalRecord,
@@ -495,7 +496,13 @@ export class ProposalService {
       const processed = await this.computeVersionTotalsAndItems(client, input.items, input.globalDiscount);
 
       // 4. Inserir Versão 1
+      const presentationRows = await client.query<{ id: string; description?: string | null; presentation?: ServicePresentation }>(
+        "SELECT id, description, presentation FROM services WHERE id = ANY($1::uuid[])",
+        [input.items.map((item) => item.serviceId)]
+      );
+      const servicePresentations = Object.fromEntries(presentationRows.rows.map((row) => [row.id, ServicePresentationSchema.parse({ ...row.presentation, overview: row.presentation?.overview || row.description || "" })]));
       const commercialTerms = {
+        servicePresentations,
         validUntil: input.validUntil,
         paymentTerms: input.paymentTerms?.trim() || null,
         startLeadTimeDays: input.startLeadTimeDays || 5,
@@ -637,7 +644,13 @@ export class ProposalService {
       const recipientSnapshot = prevVer.recipient_snapshot;
       const prevTerms = prevVer.commercial_terms_snapshot as unknown as ProposalVersionRecord["commercialTermsSnapshot"];
 
+      const presentationRows = await client.query<{ id: string; description?: string | null; presentation?: ServicePresentation }>(
+        "SELECT id, description, presentation FROM services WHERE id = ANY($1::uuid[])",
+        [input.items.map((item) => item.serviceId)]
+      );
+      const servicePresentations = Object.fromEntries(presentationRows.rows.map((row) => [row.id, ServicePresentationSchema.parse({ ...row.presentation, overview: row.presentation?.overview || row.description || "" })]));
       const commercialTerms = {
+        servicePresentations,
         validUntil: input.validUntil || prop.valid_until,
         paymentTerms: input.paymentTerms !== undefined ? input.paymentTerms : prevTerms.paymentTerms,
         startLeadTimeDays:

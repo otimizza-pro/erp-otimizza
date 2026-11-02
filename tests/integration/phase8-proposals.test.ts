@@ -1,9 +1,10 @@
+import { emptyPresentation } from "@/modules/catalog/presentation";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { query } from "@/lib/db/pool";
 import { ProposalService } from "@/modules/proposals/service";
 import { CrmService } from "@/modules/crm/service";
 import { createClient } from "@/modules/clients/service";
-import { createService, createCombo } from "@/modules/catalog/service";
+import { createService, createCombo, updateService } from "@/modules/catalog/service";
 import { generateProposalPdf } from "@/modules/proposals/pdf";
 
 describe("Fase 8 - Testes de Integração do Módulo de Propostas Comerciais", () => {
@@ -98,6 +99,7 @@ describe("Fase 8 - Testes de Integração do Módulo de Propostas Comerciais", (
 
     // Criar Serviços no catálogo
     const s1 = await createService({
+      presentation: { ...emptyPresentation, setup: "Setup original do projeto" },
       name: "[TEST-PROP] Meta Ads Performance",
       description: "Gestão completa de campanhas Meta",
       defaultPrice: 800.0,
@@ -199,6 +201,10 @@ describe("Fase 8 - Testes de Integração do Módulo de Propostas Comerciais", (
       expect(prop.currentVersion).toBeDefined();
       expect(prop.currentVersion?.totalMonthlyEffective).toBe(800.0);
       expect(prop.currentVersion?.items).toHaveLength(1);
+      expect(prop.currentVersion?.commercialTermsSnapshot.servicePresentations?.[testService1Id].setup).toBe("Setup original do projeto");
+      await updateService(testService1Id, { presentation: { ...emptyPresentation, setup: "Setup atualizado" } });
+      const reloaded = await ProposalService.getProposalById(prop.id);
+      expect(reloaded?.currentVersion?.commercialTermsSnapshot.servicePresentations?.[testService1Id].setup).toBe("Setup original do projeto");
     });
 
     it("cria proposta vinculada a Cliente cadastrado", async () => {

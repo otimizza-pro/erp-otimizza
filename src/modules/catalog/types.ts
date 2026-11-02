@@ -1,3 +1,4 @@
+import type { ServicePresentation } from "./presentation";
 export type ServiceStatus = "ACTIVE" | "ARCHIVED";
 export type BillingUnit = "HORA" | "MES" | "UNIDADE" | "PROJETO" | "ANUAL";
 export type BillingPeriod = "ONE_TIME" | "MONTHLY" | "YEARLY";
@@ -15,6 +16,7 @@ export interface ServiceCategory {
 }
 
 export interface ServiceItem {
+  presentation?: ServicePresentation;
   id: string;
   categoryId?: string | null;
   categoryName?: string | null;
@@ -54,6 +56,7 @@ export interface Combo {
 }
 
 export interface CreateServiceDTO {
+  presentation?: ServicePresentation;
   categoryId?: string | null;
   defaultSupplierId?: string | null;
   defaultCostPeriodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";

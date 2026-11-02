@@ -1,3 +1,4 @@
+import type { ServicePresentation } from "@/modules/catalog/presentation";
 import { z } from "zod";
 
 export type ProposalStatus =
@@ -33,6 +34,7 @@ export interface RecipientSnapshot {
 }
 
 export interface CommercialTermsSnapshot {
+  servicePresentations?: Record<string, ServicePresentation>;
   validUntil: string;
   paymentTerms?: string | null;
   startLeadTimeDays?: number | null;

@@ -1,3 +1,4 @@
+import { ServicePresentationSchema, type ServicePresentation } from "./presentation";
 import { query, withTransaction } from "@/lib/db/pool";
 import {
   ServiceCategory,
@@ -21,6 +22,7 @@ interface DbCategoryRow {
 }
 
 interface DbServiceRow {
+  presentation?: ServicePresentation;
   id: string;
   category_id: string | null;
   category_name?: string | null;
@@ -256,6 +258,7 @@ export async function listServices(options?: {
     defaultSupplierId: r.default_supplier_id || null,
     defaultSupplierName: r.default_supplier_name || null,
     defaultCostPeriodicity: r.default_cost_periodicity || "MONTHLY",
+    presentation: ServicePresentationSchema.parse(r.presentation || {}),
     name: r.name,
     description: r.description,
     defaultPrice: parseFloat(r.default_price || "0"),
@@ -286,6 +289,7 @@ export async function getServiceById(id: string): Promise<ServiceItem | null> {
     defaultSupplierId: r.default_supplier_id || null,
     defaultSupplierName: r.default_supplier_name || null,
     defaultCostPeriodicity: r.default_cost_periodicity || "MONTHLY",
+    presentation: ServicePresentationSchema.parse(r.presentation || {}),
     name: r.name,
     description: r.description,
     defaultPrice: parseFloat(r.default_price || "0"),
@@ -312,8 +316,8 @@ export async function createService(data: CreateServiceDTO): Promise<ServiceItem
   const res = await query<DbServiceRow>(
     `INSERT INTO services (
       category_id, name, description, default_price, default_cost, billing_unit, status,
-      default_supplier_id, default_cost_periodicity
-    ) VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE', $7, $8)
+      default_supplier_id, default_cost_periodicity, presentation
+    ) VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE', $7, $8, $9)
     RETURNING *`,
     [
       data.categoryId || null,
@@ -324,6 +328,7 @@ export async function createService(data: CreateServiceDTO): Promise<ServiceItem
       data.billingUnit,
       data.defaultSupplierId || null,
       data.defaultCostPeriodicity || "MONTHLY",
+      JSON.stringify(ServicePresentationSchema.parse(data.presentation || {})),
     ]
   );
 
@@ -339,6 +344,7 @@ export async function createService(data: CreateServiceDTO): Promise<ServiceItem
     categoryId: r.category_id,
     defaultSupplierId: r.default_supplier_id || null,
     defaultCostPeriodicity: r.default_cost_periodicity || "MONTHLY",
+    presentation: ServicePresentationSchema.parse(r.presentation || {}),
     name: r.name,
     description: r.description,
     defaultPrice: parseFloat(r.default_price || "0"),
@@ -368,6 +374,7 @@ export async function updateService(
       default_cost = COALESCE($5, default_cost),
       billing_unit = COALESCE($6, billing_unit),
       status = COALESCE($7, status),
+      presentation = $9::jsonb,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = $8
     RETURNING *`,
@@ -380,6 +387,7 @@ export async function updateService(
       data.billingUnit || null,
       data.status || null,
       id,
+      JSON.stringify(ServicePresentationSchema.parse(data.presentation ?? existing.presentation ?? {})),
     ]
   );
 
@@ -387,6 +395,7 @@ export async function updateService(
   return {
     id: r.id,
     categoryId: r.category_id,
+    presentation: ServicePresentationSchema.parse(r.presentation || {}),
     name: r.name,
     description: r.description,
     defaultPrice: parseFloat(r.default_price || "0"),

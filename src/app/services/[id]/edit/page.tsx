@@ -1,5 +1,7 @@
 "use client";
 
+import { ServicePresentationFields } from "@/components/catalog/service-presentation-fields";
+import { emptyPresentation, type ServicePresentation } from "@/modules/catalog/presentation";
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -23,6 +25,7 @@ export default function EditServicePage() {
   const [categoryId, setCategoryId] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [presentation, setPresentation] = useState<ServicePresentation>(emptyPresentation);
   const [defaultPrice, setDefaultPrice] = useState("");
   const [defaultCost, setDefaultCost] = useState("");
   const [billingUnit, setBillingUnit] = useState<BillingUnit>("MES");
@@ -46,6 +49,7 @@ export default function EditServicePage() {
         setName(serviceData.name || "");
         setCategoryId(serviceData.categoryId || "");
         setDescription(serviceData.description || "");
+        setPresentation({ ...emptyPresentation, ...serviceData.presentation });
         setDefaultPrice(String(serviceData.defaultPrice || "0"));
         setDefaultCost(String(serviceData.defaultCost || "0"));
         setBillingUnit(serviceData.billingUnit || "MES");
@@ -139,6 +143,7 @@ export default function EditServicePage() {
           categoryId: categoryId || null,
           name,
           description,
+          presentation,
           defaultPrice: priceNum,
           defaultCost: costNum,
           billingUnit,
@@ -384,6 +389,8 @@ export default function EditServicePage() {
             </div>
           </div>
         </div>
+
+        <ServicePresentationFields value={presentation} onChange={setPresentation} />
 
         {/* Ações no Final da Página */}
         <div className="flex items-center justify-between gap-3 pt-4 border-t border-zinc-200">

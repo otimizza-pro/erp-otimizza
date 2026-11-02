@@ -443,6 +443,7 @@ function NewProposalForm() {
   return (
     <AppShell activeSection="proposals">
       <div className="max-w-5xl mx-auto space-y-6 pb-12">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900">A proposta será uma apresentação horizontal com a logo da Otimizza, capa, serviços, implantação e investimento. Preencha a seção “Apresentação na proposta” no cadastro de cada serviço para incluir seu conteúdo e imagem.</div>
         {/* Top Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div className="flex items-center gap-3">

@@ -37,6 +37,9 @@ export async function POST(request: Request) {
     }
 
     const service = await createService({
+      presentation: body.presentation,
+      defaultSupplierId: body.defaultSupplierId,
+      defaultCostPeriodicity: body.defaultCostPeriodicity,
       categoryId: body.categoryId,
       name: body.name,
       description: body.description,

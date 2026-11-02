@@ -57,7 +57,11 @@ O Otimizza ERP foi construído sob padrões corporativos limpos, rápidos e resp
 - A versão anterior torna-se imutável (`SUPERSEDED`), garantindo rastreabilidade histórica.
 
 ### 3.3. Geração de PDF e Envio
-- Clique em **Gerar PDF** na versão desejada para baixar o documento formal emitido com layout profissional.
+- Em **Catálogo > Serviços**, crie ou edite um serviço e preencha a seção **Apresentação na proposta**: chamada, apresentação, objetivos, entregáveis, metodologia, setup, cronograma, responsabilidades e exclusões. Escolha um ícone e, se desejar, envie uma imagem PNG ou JPEG de até 1 MB.
+- Ao selecionar serviços ou componentes de combos em uma nova proposta, esses conteúdos são copiados para a versão. Alterar o cadastro depois não modifica versões já salvas. Uma nova versão captura o conteúdo atual do catálogo.
+- Clique em **Baixar apresentação PDF** na versão desejada. O documento tem formato A4 horizontal, capa com a logo oficial da Otimizza, apresentação institucional, serviços, implantação, investimento, condições comerciais e aceite, com páginas numeradas.
+- Campos de apresentação vazios são omitidos. Na ausência de apresentação, novas propostas usam a descrição do serviço. Versões antigas continuam disponíveis sem receber conteúdos novos do catálogo.
+- O setup descritivo não acrescenta cobrança automaticamente: adicione o item de implantação como **Avulso** quando houver esse investimento.
 - O PDF é automaticamente indexado e protegido no Repositório de Documentos (Fase 9).
 - Registre o envio marcando o canal (E-mail, WhatsApp) para mover a proposta para o status `SENT`.
 

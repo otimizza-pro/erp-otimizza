@@ -62,7 +62,7 @@ interface AppShellProps {
   activeSection?: string;
 }
 
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, activeSection }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -207,54 +207,87 @@ export function AppShell({ children }: AppShellProps) {
     return () => window.removeEventListener("popstate", handleLocationChange);
   }, [pathname]);
 
-  // Função para determinar se um item específico está ativo
-  const isItemActive = (item: NavItem, group: NavGroup): boolean => {
-    if (!pathname) return false;
-    const [itemPath, itemQuery] = item.href.split("?");
-    const itemParams = new URLSearchParams(itemQuery || "");
-    const itemTab = itemParams.get("tab");
+  // Determina de forma estrita e unívoca exatamente um único item ativo no menu
+  const activeItemId = React.useMemo<string>(() => {
+    if (!pathname) return "";
+    if (pathname === "/") return "inicio";
+
+    const allItems = navigationGroups.flatMap((g) => g.items);
+
+    // 1. Prioridade para activeSection explícito se corresponder exatamente a um item
+    if (activeSection) {
+      const directMatch = allItems.find((it) => it.id === activeSection);
+      if (directMatch) return directMatch.id;
+      // Casos especiais de alias comuns
+      if (activeSection === "clients") return "clients_list";
+      if (activeSection === "contracts") return "contracts_list";
+      if (activeSection === "projects") return "projects_list";
+      if (activeSection === "crm") return "crm_overview";
+    }
+
     const currentParams = new URLSearchParams(currentSearch);
     const currentTab = currentParams.get("tab");
 
-    if (itemTab) {
-      return pathname === itemPath && currentTab === itemTab;
+    // 2. Correspondência exata por rota + parâmetro de tab
+    for (const item of allItems) {
+      const [itemPath, itemQuery] = item.href.split("?");
+      const itemParams = new URLSearchParams(itemQuery || "");
+      const itemTab = itemParams.get("tab");
+
+      if (itemTab && pathname === itemPath && currentTab === itemTab) {
+        return item.id;
+      }
     }
 
-    // Item sem ?tab= na URL
-    const hasSiblingWithTab = group.items.some(
-      (sibling) => sibling.id !== item.id && sibling.href.startsWith(`${itemPath}?tab=`)
-    );
-
-    if (hasSiblingWithTab) {
-      if (pathname !== itemPath) return false;
-      return !currentTab || currentTab === "company" || currentTab === "agency" || currentTab === "categories";
+    // 3. Correspondência exata de rota (pathname puro igual ao href puro)
+    for (const item of allItems) {
+      const [itemPath, itemQuery] = item.href.split("?");
+      if (!itemQuery && pathname === itemPath) {
+        return item.id;
+      }
     }
 
-    return pathname === itemPath || (itemPath !== "/" && pathname.startsWith(itemPath));
-  };
-
-  // Determinar grupo ativo atual pelo pathname e tabs
-  const activeGroupId = React.useMemo(() => {
-    if (!pathname) return "";
-    if (pathname === "/") return "inicio";
-    for (const group of navigationGroups) {
-      for (const item of group.items) {
-        if (isItemActive(item, group)) {
-          return group.id;
+    // 4. Sub-rotas (ex: /crm/leads/new ou /projects/123): seleciona o prefixo mais longo/específico
+    let bestMatch: { id: string; pathLength: number } | null = null;
+    for (const item of allItems) {
+      const itemPath = item.href.split("?")[0];
+      if (itemPath !== "/" && pathname.startsWith(`${itemPath}/`)) {
+        if (!bestMatch || itemPath.length > bestMatch.pathLength) {
+          bestMatch = { id: item.id, pathLength: itemPath.length };
         }
       }
     }
-    // Fallback por pathname prefix
+
+    if (bestMatch) {
+      return bestMatch.id;
+    }
+
+    // 5. Fallback por rota base sem tab
+    for (const item of allItems) {
+      const itemPath = item.href.split("?")[0];
+      if (pathname === itemPath) {
+        return item.id;
+      }
+    }
+
+    return "";
+  }, [pathname, currentSearch, activeSection, navigationGroups]);
+
+  // Função para determinar se um item específico é o item ativo (garante exclusividade mútua)
+  const isItemActive = (item: NavItem, _group?: NavGroup): boolean => {
+    return activeItemId === item.id;
+  };
+
+  // Determinar grupo ativo atual pelo item ativo
+  const activeGroupId = React.useMemo(() => {
+    if (activeItemId === "inicio") return "inicio";
     for (const group of navigationGroups) {
-      for (const item of group.items) {
-        const itemPath = item.href.split("?")[0];
-        if (pathname === itemPath || (itemPath !== "/" && pathname.startsWith(itemPath))) {
-          return group.id;
-        }
+      if (group.items.some((it) => it.id === activeItemId)) {
+        return group.id;
       }
     }
     return "";
-  }, [pathname, currentSearch]);
+  }, [activeItemId, navigationGroups]);
 
   // Inicializar estado dos grupos: ler localStorage ou abrir apenas o grupo da página ativa
   useEffect(() => {

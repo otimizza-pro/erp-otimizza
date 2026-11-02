@@ -24,9 +24,14 @@ import {
   ArrowRight,
   ShieldCheck,
   FileText,
+  Edit2,
+  Trash2,
+  Save,
+  X,
 } from "lucide-react";
 import { LeadRecord, OpportunityRecord, ActivityRecord, LeadStatus, ActivityType } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
+import { formatDocument } from "@/shared/cpf-cnpj";
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -56,6 +61,29 @@ export default function LeadDetailPage() {
   const [converting, setConverting] = useState(false);
   const [convertError, setConvertError] = useState("");
 
+  // Modal de Edição de Lead
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [editForm, setEditForm] = useState({
+    personType: "PJ" as "PF" | "PJ",
+    name: "",
+    tradeName: "",
+    document: "",
+    email: "",
+    phone: "",
+    whatsapp: "",
+    primaryContact: "",
+    segment: "",
+    city: "",
+    state: "",
+    source: "OUTROS",
+    notes: "",
+  });
+
+  // Exclusão / Arquivamento
+  const [actionLoading, setActionLoading] = useState(false);
+
   // Modal de Nova Atividade
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [newActivity, setNewActivity] = useState({
@@ -77,7 +105,23 @@ export default function LeadDetailPage() {
       ]);
 
       if (!leadRes.ok) throw new Error("Lead não encontrado.");
-      setLead(await leadRes.json());
+      const leadData = await leadRes.json();
+      setLead(leadData);
+      setEditForm({
+        personType: leadData.personType || "PJ",
+        name: leadData.name || "",
+        tradeName: leadData.tradeName || "",
+        document: leadData.document ? formatDocument(leadData.document) : "",
+        email: leadData.email || "",
+        phone: leadData.phone || "",
+        whatsapp: leadData.whatsapp || "",
+        primaryContact: leadData.primaryContact || "",
+        segment: leadData.segment || "",
+        city: leadData.city || "",
+        state: leadData.state || "",
+        source: leadData.source || "OUTROS",
+        notes: leadData.notes || "",
+      });
 
       if (oppsRes.ok) {
         const data = await oppsRes.json();
@@ -121,6 +165,85 @@ export default function LeadDetailPage() {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleOpenEditModal = () => {
+    if (!lead) return;
+    setEditForm({
+      personType: lead.personType || "PJ",
+      name: lead.name || "",
+      tradeName: lead.tradeName || "",
+      document: lead.document ? formatDocument(lead.document) : "",
+      email: lead.email || "",
+      phone: lead.phone || "",
+      whatsapp: lead.whatsapp || "",
+      primaryContact: lead.primaryContact || "",
+      segment: lead.segment || "",
+      city: lead.city || "",
+      state: lead.state || "",
+      source: lead.source || "OUTROS",
+      notes: lead.notes || "",
+    });
+    setEditError("");
+    setShowEditModal(true);
+  };
+
+  const handleEditChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    if (name === "document") {
+      setEditForm((prev) => ({ ...prev, [name]: formatDocument(value) }));
+    } else {
+      setEditForm((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingEdit(true);
+    setEditError("");
+
+    try {
+      const res = await fetch(`/api/crm/leads/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Erro ao salvar alterações no lead.");
+      }
+
+      setShowEditModal(false);
+      await loadData();
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : "Erro ao salvar lead.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteLead = async () => {
+    if (!lead) return;
+    const confirmDelete = window.confirm(
+      `Tem certeza que deseja excluir/arquivar o lead "${lead.name}"?\n\nAs oportunidades e propostas vinculadas serão mantidas para histórico.`
+    );
+    if (!confirmDelete) return;
+
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/crm/leads/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Erro ao arquivar lead.");
+      }
+      router.push("/crm/leads");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao arquivar lead.");
+      setActionLoading(false);
     }
   };
 
@@ -719,6 +842,276 @@ export default function LeadDetailPage() {
                   {converting ? "Convertendo..." : "Confirmar Conversão"}
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Edição de Lead */}
+        {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-900 text-white flex items-center justify-center">
+                    <Edit2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-zinc-950">Editar Informações do Lead</h3>
+                    <p className="text-xs text-zinc-500 font-mono">{lead.leadCode} • Atualização cadastral</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {editError && (
+                <div className="p-3 text-xs bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveEdit} className="space-y-4">
+                {/* Tipo de Pessoa */}
+                <div className="grid grid-cols-2 gap-3">
+                  <label
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold cursor-pointer transition ${
+                      editForm.personType === "PJ"
+                        ? "border-zinc-900 bg-zinc-900 text-white"
+                        : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="personType"
+                      value="PJ"
+                      checked={editForm.personType === "PJ"}
+                      onChange={handleEditChange}
+                      className="sr-only"
+                    />
+                    <Building className="w-4 h-4" /> Pessoa Jurídica (PJ)
+                  </label>
+                  <label
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-bold cursor-pointer transition ${
+                      editForm.personType === "PF"
+                        ? "border-zinc-900 bg-zinc-900 text-white"
+                        : "border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="personType"
+                      value="PF"
+                      checked={editForm.personType === "PF"}
+                      onChange={handleEditChange}
+                      className="sr-only"
+                    />
+                    <User className="w-4 h-4" /> Pessoa Física (PF)
+                  </label>
+                </div>
+
+                {/* Nome & Razão Social */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                      {editForm.personType === "PJ" ? "Razão Social *" : "Nome Completo *"}
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      required
+                      value={editForm.name}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                      {editForm.personType === "PJ" ? "Nome Fantasia" : "Apelido / Tratamento"}
+                    </label>
+                    <input
+                      type="text"
+                      name="tradeName"
+                      value={editForm.tradeName}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Documento & Contato Principal */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                      {editForm.personType === "PJ" ? "CNPJ" : "CPF"}
+                    </label>
+                    <input
+                      type="text"
+                      name="document"
+                      placeholder={editForm.personType === "PJ" ? "00.000.000/0000-00" : "000.000.000-00"}
+                      value={editForm.document}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 font-mono focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                      Pessoa de Contato Principal
+                    </label>
+                    <input
+                      type="text"
+                      name="primaryContact"
+                      value={editForm.primaryContact}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Contatos Digitais */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">E-mail</label>
+                    <input
+                      type="email"
+                      name="email"
+                      value={editForm.email}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Telefone</label>
+                    <input
+                      type="text"
+                      name="phone"
+                      value={editForm.phone}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">WhatsApp</label>
+                    <input
+                      type="text"
+                      name="whatsapp"
+                      value={editForm.whatsapp}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Segmento & Origem */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Segmento de Mercado</label>
+                    <input
+                      type="text"
+                      name="segment"
+                      placeholder="Ex: E-commerce de Moda, Saúde, SaaS"
+                      value={editForm.segment}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Canal de Origem</label>
+                    <select
+                      name="source"
+                      value={editForm.source}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    >
+                      <option value="Instagram">Instagram</option>
+                      <option value="Google Ads">Google Ads</option>
+                      <option value="LinkedIn">LinkedIn</option>
+                      <option value="Indicação">Indicação</option>
+                      <option value="Inbound">Inbound / Site</option>
+                      <option value="Outbound">Outbound</option>
+                      <option value="Parceiro">Parceiro</option>
+                      <option value="Evento">Evento</option>
+                      <option value="OUTROS">Outros</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Localização */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="md:col-span-3">
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Cidade</label>
+                    <input
+                      type="text"
+                      name="city"
+                      value={editForm.city}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">UF</label>
+                    <input
+                      type="text"
+                      name="state"
+                      maxLength={2}
+                      value={editForm.state}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 uppercase font-mono focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Observações */}
+                <div>
+                  <label className="text-xs font-semibold text-zinc-700 block mb-1">Observações Internas</label>
+                  <textarea
+                    rows={3}
+                    name="notes"
+                    value={editForm.notes}
+                    onChange={handleEditChange}
+                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+
+                {/* Ações do Modal */}
+                <div className="flex items-center justify-between pt-4 border-t border-zinc-100">
+                  <button
+                    type="button"
+                    disabled={actionLoading || savingEdit}
+                    onClick={handleDeleteLead}
+                    className="px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Excluir / Arquivar Lead
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowEditModal(false)}
+                      disabled={savingEdit}
+                      className="px-4 py-2 text-xs font-semibold text-zinc-600 hover:text-zinc-900 rounded-xl transition cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={savingEdit}
+                      className="px-5 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl transition shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      {savingEdit ? "Salvando..." : "Salvar Alterações"}
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
           </div>
         )}

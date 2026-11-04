@@ -170,6 +170,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       icon: FolderOpen,
       items: [
         { id: "documents_repo", label: "Documentos", href: "/documents", icon: FolderOpen },
+        { id: "passwords", label: "Gerenciador de senhas", href: "/passwords", icon: ShieldCheck },
       ],
     },
     {

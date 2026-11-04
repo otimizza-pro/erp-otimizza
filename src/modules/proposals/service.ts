@@ -57,6 +57,7 @@ interface DbProposalRow {
   opportunity_title?: string | null;
   total_monthly_effective?: number | string | null;
   total_one_time_effective?: number | string | null;
+  total_yearly_effective?: number | string | null;
 }
 
 interface DbProposalVersionRow {
@@ -138,6 +139,14 @@ function mapProposalRow(row: DbProposalRow): ProposalRecord {
     recipientDocument: row.recipient_document,
     isLead: row.is_lead,
     opportunityTitle: row.opportunity_title,
+    totalMonthlyEffective: row.total_monthly_effective ? Number(row.total_monthly_effective) : 0,
+    totalOneTimeEffective: row.total_one_time_effective ? Number(row.total_one_time_effective) : 0,
+    totalYearlyEffective: row.total_yearly_effective ? Number(row.total_yearly_effective) : 0,
+    totalAmount: (
+      (row.total_monthly_effective ? Number(row.total_monthly_effective) : 0) +
+      (row.total_one_time_effective ? Number(row.total_one_time_effective) : 0) +
+      (row.total_yearly_effective ? Number(row.total_yearly_effective) : 0)
+    ),
   };
 }
 
@@ -216,7 +225,7 @@ export class ProposalService {
     }
 
     if (filters.clientId) {
-      conditions.push(`(p.client_id = ${pIdx} OR p.lead_id IN (SELECT id FROM crm_leads WHERE converted_client_id = ${pIdx}))`);
+      conditions.push(`(p.client_id = $${pIdx} OR p.lead_id IN (SELECT id FROM crm_leads WHERE converted_client_id = $${pIdx}))`);
       params.push(filters.clientId);
       pIdx++;
     }
@@ -272,6 +281,7 @@ export class ProposalService {
         p.*,
         pv.total_monthly_effective,
         pv.total_one_time_effective,
+        pv.total_yearly_effective,
         COALESCE(c.name, l.name) AS recipient_name,
         COALESCE(c.document, l.document) AS recipient_document,
         (p.lead_id IS NOT NULL AND p.client_id IS NULL) AS is_lead,

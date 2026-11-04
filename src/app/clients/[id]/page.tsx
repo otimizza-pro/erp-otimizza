@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import React, { useState, useEffect, Suspense } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import {
@@ -72,7 +72,9 @@ interface ClientProposalItem {
   totalAmount?: number;
   totalMonthlyEffective?: number;
   totalOneTimeEffective?: number;
+  totalYearlyEffective?: number;
   valid_until?: string;
+  validUntil?: string;
 }
 
 interface ClientOpportunityItem {
@@ -133,15 +135,24 @@ interface ClientActivityItem {
   completed?: boolean;
 }
 
-export default function ClientDetailsPage() {
+function ClientDetailsContent() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
 
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<ClientTab>("overview");
+  const queryTab = searchParams.get("tab") as ClientTab | null;
+  const [activeTab, setActiveTab] = useState<ClientTab>(queryTab || "overview");
+
+  useEffect(() => {
+    const tabParam = searchParams.get("tab") as ClientTab | null;
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   // Dados das abas vinculadas
   const [contracts, setContracts] = useState<ClientContractItem[]>([]);
@@ -529,7 +540,7 @@ export default function ClientDetailsPage() {
                               {p.proposal_code || p.proposalCode} • {p.title}
                             </span>
                             <span className="text-zinc-500 text-[11px]">
-                              {formatMoney(Number(p.totalMonthlyEffective || p.totalOneTimeEffective || p.total_amount || p.totalAmount || 0))}
+                              {formatMoney(Number(p.totalAmount || p.total_amount || p.totalMonthlyEffective || p.totalOneTimeEffective || p.totalYearlyEffective || 0))}
                             </span>
                           </div>
                           <Link
@@ -775,13 +786,13 @@ export default function ClientDetailsPage() {
                           {p.proposal_code || p.proposalCode} • {p.title}
                         </Link>
                         <span className="text-zinc-500 text-[11px]">
-                          Válido até: {p.valid_until ? new Date(p.valid_until).toLocaleDateString("pt-BR") : "-"}
+                          Válido até: {p.valid_until || p.validUntil ? new Date(p.valid_until || p.validUntil || "").toLocaleDateString("pt-BR") : "-"}
                         </span>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <span className="font-mono font-semibold text-zinc-900 block">
-                            {formatMoney(Number(p.total_amount || p.totalAmount || 0))}
+                            {formatMoney(Number(p.totalAmount || p.total_amount || p.totalMonthlyEffective || p.totalOneTimeEffective || p.totalYearlyEffective || 0))}
                           </span>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 font-semibold text-zinc-600">
                             {p.status}
@@ -964,5 +975,19 @@ export default function ClientDetailsPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+export default function ClientDetailsPage() {
+  return (
+    <Suspense
+      fallback={
+        <AppShell activeSection="clients">
+          <div className="p-8 text-center text-zinc-400">Carregando detalhes do cliente...</div>
+        </AppShell>
+      }
+    >
+      <ClientDetailsContent />
+    </Suspense>
   );
 }

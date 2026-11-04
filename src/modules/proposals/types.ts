@@ -142,6 +142,8 @@ export interface ProposalRecord {
   opportunityTitle?: string | null;
   totalMonthlyEffective?: number;
   totalOneTimeEffective?: number;
+  totalYearlyEffective?: number;
+  totalAmount?: number;
   currentVersion?: ProposalVersionRecord;
   versions?: ProposalVersionRecord[];
   events?: ProposalEventRecord[];

@@ -48,6 +48,8 @@ export default function LeadDetailPage() {
     status: string;
     totalOneTimeEffective?: number;
     totalMonthlyEffective?: number;
+    totalYearlyEffective?: number;
+    totalAmount?: number;
     validUntil: string;
     createdAt: string;
   }>>([]);
@@ -696,8 +698,8 @@ export default function LeadDetailPage() {
                         <span className="text-[10px] text-zinc-400 font-mono">{prop.proposalCode}</span>
                       </td>
                       <td className="py-2.5 px-3 font-mono font-bold text-zinc-900">
-                        {formatBRL(prop.totalMonthlyEffective || prop.totalOneTimeEffective || 0)}
-                        {prop.totalMonthlyEffective ? <span className="text-[10px] text-zinc-500 font-normal"> /mês</span> : null}
+                        {formatBRL(prop.totalMonthlyEffective || prop.totalOneTimeEffective || prop.totalYearlyEffective || prop.totalAmount || 0)}
+                        {prop.totalMonthlyEffective ? <span className="text-[10px] text-zinc-500 font-normal"> /mês</span> : prop.totalYearlyEffective ? <span className="text-[10px] text-zinc-500 font-normal"> /ano</span> : null}
                       </td>
                       <td className="py-2.5 px-3 text-zinc-600 font-mono text-[11px]">
                         {prop.validUntil ? new Date(prop.validUntil).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "-"}

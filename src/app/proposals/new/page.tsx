@@ -445,7 +445,14 @@ function NewProposalForm() {
           await fetch(`/api/proposals/${created.id}/send`, { method: "POST" });
         }
 
-        router.push(`/proposals/${created.id}`);
+        // Retorna para o cliente ou lead trabalhado conforme solicitado
+        if (payload.clientId) {
+          router.push(`/clients/${payload.clientId}?tab=proposals`);
+        } else if (payload.leadId) {
+          router.push(`/crm/leads/${payload.leadId}`);
+        } else {
+          router.push(`/proposals/${created.id}`);
+        }
       } catch (err: unknown) {
         setErrorMessage(err instanceof Error ? err.message : "Erro desconhecido.");
       }
@@ -456,6 +463,13 @@ function NewProposalForm() {
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(val || 0);
   };
 
+  const backHref =
+    recipientType === "CLIENT" && selectedClientId
+      ? `/clients/${selectedClientId}?tab=proposals`
+      : recipientType === "LEAD" && selectedLeadId
+      ? `/crm/leads/${selectedLeadId}`
+      : "/proposals";
+
   return (
     <AppShell activeSection="proposals">
       <div className="max-w-5xl mx-auto space-y-6 pb-12">
@@ -464,7 +478,7 @@ function NewProposalForm() {
         <div className="flex items-center justify-between pb-4 border-b border-slate-200">
           <div className="flex items-center gap-3">
             <Link
-              href="/proposals"
+              href={backHref}
               className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -897,7 +911,7 @@ function NewProposalForm() {
           {/* Action Bar */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
             <Link
-              href="/proposals"
+              href={backHref}
               className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
             >
               Cancelar

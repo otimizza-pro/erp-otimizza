@@ -12,3 +12,4 @@ WHERE (name ILIKE '%teste%' OR name ILIKE '%mock%')
   AND id NOT IN (SELECT service_id FROM contract_items WHERE service_id IS NOT NULL)
   AND id NOT IN (SELECT service_id FROM proposal_items WHERE service_id IS NOT NULL)
   AND id NOT IN (SELECT service_id FROM combo_items WHERE service_id IS NOT NULL);
+

@@ -13,7 +13,9 @@ describe("Database: Migration Files Integrity", () => {
     for (const file of sqlFiles) {
       const content = await fs.readFile(path.join(migrationsDir, file), "utf-8");
       expect(content.trim().length).toBeGreaterThan(20);
-      expect(content).toMatch(/CREATE TABLE|ALTER TABLE|REVOKE|DROP POLICY|CREATE INDEX/);
+      const sql = content.replace(/--[^\n]*/g, "");
+      // Data-only migrations are valid too (catalog seeds and legacy cleanup).
+      expect(sql).toMatch(/\b(CREATE TABLE|ALTER TABLE|REVOKE|DROP POLICY|CREATE INDEX|INSERT INTO|UPDATE|DELETE FROM)\b/i);
     }
   });
 });

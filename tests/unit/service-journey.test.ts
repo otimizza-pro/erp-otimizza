@@ -7,7 +7,7 @@ describe("Negociação e calendário de serviços", () => {
     expect(amounts.every(n => n >= 0)).toBe(true);
   });
   it("parcela R$ 650 em 3x com soma exata", () => {
-    expect(installmentAmounts(650, 3)).toEqual([216.66, 216.67, 216.67]);
+    expect(installmentAmounts(650, 3)).toEqual([216.67, 216.67, 216.66]);
     expect(() => installmentAmounts(650, 4)).toThrow();
   });
   it("trata referências gratuitas e um centavo sem valores negativos", () => {

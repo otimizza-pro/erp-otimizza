@@ -1,8 +1,11 @@
 import { query, withTransaction } from "@/lib/db/pool";
 import { z } from "zod";
+interface FolderRow { id: string; name: string }
+interface FileRow { id: string; title: string; folder: string; href: string; document_id: string | null }
+interface HistoryRow { id: string; category: string; action: string; title: string; date: Date; href: string }
 export async function clientFiles(clientId: string) {
-  const folders = (await query("SELECT id,name FROM client_document_folders WHERE client_id=$1 ORDER BY name", [clientId])).rows;
-  const files = (await query(`
+  const folders = (await query<FolderRow>("SELECT id,name FROM client_document_folders WHERE client_id=$1 ORDER BY name", [clientId])).rows;
+  const files = (await query<FileRow>(`
     SELECT p.id,p.proposal_code||' — '||p.title AS title,'Propostas' AS folder,'/proposals/'||p.id AS href,NULL::uuid AS document_id
     FROM proposals p WHERE p.client_id=$1 AND p.archived_at IS NULL AND p.status <> 'DRAFT'
     UNION ALL SELECT c.id,c.contract_number,'Contratos','/contracts/'||c.id,NULL::uuid FROM contracts c WHERE c.client_id=$1
@@ -28,7 +31,7 @@ export async function organizeClientFiles(clientId: string, body: unknown) {
   });
 }
 export async function clientHistory(clientId: string, category?: string) {
-  const result = await query(`SELECT * FROM (
+  const result = await query<HistoryRow>(`SELECT * FROM (
     SELECT pe.id::text AS id,'Propostas' AS category,pe.event_type AS action,p.proposal_code AS title,pe.created_at AS date,'/proposals/'||p.id AS href FROM proposal_events pe JOIN proposals p ON p.id=pe.proposal_id WHERE p.client_id=$1
     UNION ALL SELECT a.id::text,'Contratos',a.action,c.contract_number,a.created_at,'/contracts/'||c.id FROM audit_logs a JOIN contracts c ON c.id::text=a.entity_id WHERE c.client_id=$1 AND a.entity_name='contracts'
     UNION ALL SELECT r.id::text,'Financeiro','Cobrança criada',r.description,r.created_at,'/financial/receivables/'||r.id FROM receivables r WHERE r.client_id=$1

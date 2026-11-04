@@ -47,5 +47,11 @@ export const BillingPlanSchema = z.object({
 export type BillingPlanInput = z.infer<typeof BillingPlanSchema>;
 export function installmentAmounts(amount: number, installments: number): number[] {
   if (![1, 2, 3].includes(installments)) throw new Error("Avulso permite até 3 parcelas.");
-  return allocateTotal(amount, Array.from({ length: installments }, () => 1));
+  const cents = toCents(amount);
+  if (!Number.isSafeInteger(cents) || cents < 0) throw new Error("Valor inválido.");
+  // Round half up; any residual cent belongs to the final installment.
+  const base = Math.round(cents / installments);
+  return Array.from({ length: installments }, (_, index) =>
+    fromCents(index === installments - 1 ? cents - base * (installments - 1) : base)
+  );
 }

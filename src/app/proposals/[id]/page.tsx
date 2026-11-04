@@ -256,7 +256,9 @@ export default function ProposalDetailPage() {
           throw new Error(errData.error || "Falha ao converter proposta em contrato.");
         }
         setShowConvertModal(false);
-        setSuccessMessage("Proposta convertida em Contrato(s) com sucesso!");
+        const converted = await res.json();
+        setSuccessMessage("Minuta do contrato criada com sucesso.");
+        if (converted.contracts?.[0]?.id) { router.push(`/contracts/${converted.contracts[0].id}`); return; }
         await loadProposal();
       } catch (err: unknown) {
         setErrorMessage(err instanceof Error ? err.message : "Erro ao converter proposta.");
@@ -443,9 +445,9 @@ export default function ProposalDetailPage() {
             {/* Cliente fechou proposta */}
             {!isConverted && proposal.status !== "CANCELED" && proposal.status !== "REJECTED" && (
               <button
-                onClick={() => router.push(`/contracts/new?proposalId=${proposal.id}`)}
+                onClick={() => proposal.status === "APPROVED" ? setShowConvertModal(true) : setShowApproveModal(true)}
                 className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm cursor-pointer"
-                title="Abre a tela de criação de contrato já preenchida com esta proposta para revisão e salvamento"
+                title="Registra a aprovação da proposta e cria a minuta com os serviços discriminados"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 Cliente fechou proposta

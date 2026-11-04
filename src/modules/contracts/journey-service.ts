@@ -8,6 +8,14 @@ interface ScheduledItem {
   first_due_date: string; end_date: string | null; installments: number; contract_version_id: string;
 }
 interface Charge { item: ScheduledItem; date: string; amount: number; installment: number; period: string }
+interface BillingPlanItem {
+  id: string;
+  serviceName: string;
+  periodicity: ServicePeriod;
+  totalPrice: string;
+  firstDueDate: string | null;
+  installments: number | null;
+}
 
 async function generate(client: PoolClient, contractId: string, competency?: string) {
   const c = (await client.query<{ client_id: string; status: string; group_same_period: boolean }>(
@@ -80,7 +88,7 @@ export async function generateServiceRecurrence(contractId: string, competency: 
   return withTransaction(client => generate(client, contractId, competency));
 }
 export async function getBillingPlan(contractId: string) {
-  return (await query(`SELECT ci.id,ci.service_name AS "serviceName",ci.periodicity,ci.total_price AS "totalPrice",s.first_due_date::text AS "firstDueDate",s.installments
+  return (await query<BillingPlanItem>(`SELECT ci.id,ci.service_name AS "serviceName",ci.periodicity,ci.total_price AS "totalPrice",s.first_due_date::text AS "firstDueDate",s.installments
     FROM contract_items ci JOIN contract_versions cv ON cv.id=ci.contract_version_id LEFT JOIN contract_item_schedules s ON s.contract_item_id=ci.id
     WHERE cv.contract_id=$1 AND cv.version_number=(SELECT MAX(version_number) FROM contract_versions WHERE contract_id=$1) ORDER BY ci.created_at,ci.id`, [contractId])).rows;
 }

@@ -368,6 +368,24 @@ export default function LeadDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowEditModal(true)}
+              className="px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+            >
+              <Edit2 className="w-4 h-4 text-zinc-500" /> Editar Lead
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDeleteLead}
+              disabled={actionLoading}
+              className="px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 flex items-center gap-1.5 transition shadow-2xs cursor-pointer disabled:opacity-50"
+              title="Excluir ou arquivar este lead"
+            >
+              <Trash2 className="w-4 h-4 text-rose-600" /> Excluir
+            </button>
+
             {isConverted ? (
               <Link
                 href={`/clients/${lead.convertedClientId}`}
@@ -433,9 +451,19 @@ export default function LeadDetailPage() {
         {/* Detalhes do Lead & Contato */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs space-y-4">
-            <h3 className="text-sm font-bold text-zinc-950 uppercase tracking-wider border-b border-zinc-100 pb-2">
-              Ficha Cadastral do Lead
-            </h3>
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+              <h3 className="text-sm font-bold text-zinc-950 uppercase tracking-wider">
+                Ficha Cadastral do Lead
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowEditModal(true)}
+                className="text-xs font-semibold text-zinc-600 hover:text-zinc-950 flex items-center gap-1 hover:underline cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5 text-zinc-400" />
+                Editar Dados
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
               <div>

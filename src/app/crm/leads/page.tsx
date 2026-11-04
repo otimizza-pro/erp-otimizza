@@ -25,6 +25,8 @@ import {
   Calendar,
   AlertTriangle,
   Sparkles,
+  Trash2,
+  Edit2,
 } from "lucide-react";
 import { LeadRecord, LeadStatus, PipelineRecord, PipelineStageRecord } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
@@ -219,6 +221,26 @@ function LeadsListContent() {
       setOppModalSaving(false);
     }
   }
+
+  const handleDeleteLead = async (leadId: string, leadName: string) => {
+    if (
+      !window.confirm(
+        `Deseja realmente excluir/arquivar o lead "${leadName}"?\n\nAs oportunidades vinculadas permanecerão registradas no histórico.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/crm/leads/${leadId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Erro ao excluir lead.");
+      }
+      loadLeads();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao excluir lead.");
+    }
+  };
 
   return (
     <AppShell activeSection="crm_leads">
@@ -507,11 +529,19 @@ function LeadsListContent() {
 
                             <Link
                               href={`/crm/leads/${lead.id}`}
-                              className="p-1 rounded-lg text-zinc-400 hover:text-zinc-950 hover:bg-zinc-100 transition"
-                              title="Ver Detalhes do Lead"
+                              className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100 transition"
+                              title="Ver e Editar Lead"
                             >
-                              <ArrowRight className="w-4 h-4" />
+                              <Edit2 className="w-3.5 h-3.5" />
                             </Link>
+
+                            <button
+                              onClick={() => handleDeleteLead(lead.id, lead.name)}
+                              className="p-1.5 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                              title="Excluir / Arquivar Lead"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </td>
                       </tr>

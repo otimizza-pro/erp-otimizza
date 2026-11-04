@@ -33,8 +33,16 @@ export interface RecipientSnapshot {
   state?: string | null;
 }
 
+export interface ProposalDiagnostics {
+  currentScenario?: string;
+  partnershipFocus?: string;
+  trackingMetrics?: string;
+}
+
 export interface CommercialTermsSnapshot {
   servicePresentations?: Record<string, ServicePresentation>;
+  diagnostics?: ProposalDiagnostics;
+  serviceDeliverables?: Record<string, { included: string[]; excluded?: string[] }>;
   validUntil: string;
   paymentTerms?: string | null;
   startLeadTimeDays?: number | null;
@@ -185,6 +193,24 @@ export const CreateProposalInputSchema = z
     scopeDescription: z.string().optional().nullable(),
     clientNotes: z.string().optional().nullable(),
     internalNotes: z.string().optional().nullable(),
+    diagnostics: z
+      .object({
+        currentScenario: z.string().optional().nullable(),
+        partnershipFocus: z.string().optional().nullable(),
+        trackingMetrics: z.string().optional().nullable(),
+      })
+      .optional()
+      .nullable(),
+    serviceDeliverables: z
+      .record(
+        z.string(),
+        z.object({
+          included: z.array(z.string()),
+          excluded: z.array(z.string()).optional(),
+        })
+      )
+      .optional()
+      .nullable(),
     items: z.array(ProposalItemInputSchema).min(1, "A proposta deve conter ao menos um item"),
     globalDiscount: z.coerce.number().min(0).default(0),
     actorId: z.string().uuid().optional().nullable(),
@@ -206,6 +232,24 @@ export const CreateProposalVersionInputSchema = z.object({
   scopeDescription: z.string().optional().nullable(),
   clientNotes: z.string().optional().nullable(),
   internalNotes: z.string().optional().nullable(),
+  diagnostics: z
+    .object({
+      currentScenario: z.string().optional().nullable(),
+      partnershipFocus: z.string().optional().nullable(),
+      trackingMetrics: z.string().optional().nullable(),
+    })
+    .optional()
+    .nullable(),
+  serviceDeliverables: z
+    .record(
+      z.string(),
+      z.object({
+        included: z.array(z.string()),
+        excluded: z.array(z.string()).optional(),
+      })
+    )
+    .optional()
+    .nullable(),
   items: z.array(ProposalItemInputSchema).min(1, "A versão deve conter ao menos um item"),
   globalDiscount: z.coerce.number().min(0).default(0),
   actorId: z.string().uuid().optional().nullable(),

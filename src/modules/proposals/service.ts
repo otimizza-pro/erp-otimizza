@@ -514,6 +514,8 @@ export class ProposalService {
       const servicePresentations = Object.fromEntries(presentationRows.rows.map((row) => [row.id, ServicePresentationSchema.parse({ ...row.presentation, overview: row.presentation?.overview || row.description || "" })]));
       const commercialTerms = {
         servicePresentations,
+        diagnostics: input.diagnostics || undefined,
+        serviceDeliverables: input.serviceDeliverables || undefined,
         validUntil: input.validUntil,
         paymentTerms: input.paymentTerms?.trim() || null,
         startLeadTimeDays: input.startLeadTimeDays || 5,
@@ -662,6 +664,8 @@ export class ProposalService {
       const servicePresentations = Object.fromEntries(presentationRows.rows.map((row) => [row.id, ServicePresentationSchema.parse({ ...row.presentation, overview: row.presentation?.overview || row.description || "" })]));
       const commercialTerms = {
         servicePresentations,
+        diagnostics: input.diagnostics !== undefined ? (input.diagnostics || undefined) : prevTerms.diagnostics,
+        serviceDeliverables: input.serviceDeliverables !== undefined ? (input.serviceDeliverables || undefined) : prevTerms.serviceDeliverables,
         validUntil: input.validUntil || prop.valid_until,
         paymentTerms: input.paymentTerms !== undefined ? input.paymentTerms : prevTerms.paymentTerms,
         startLeadTimeDays:

@@ -136,3 +136,4 @@ export const HOW_WE_WORK_STEPS = [
       "Orientação de materiais, otimização de canais, gestão ativa das campanhas e avaliação contínua de indicadores para ajuste das ações.",
   },
 ];
+

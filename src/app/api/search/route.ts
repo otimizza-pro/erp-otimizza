@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
+import { formatProjectStatus } from "@/shared/status-labels";
 
 export interface SearchItem {
   id: string;
@@ -181,7 +182,7 @@ export async function GET(request: NextRequest) {
         id: pj.id,
         type: "PROJECT",
         title: `${pj.project_code} • ${pj.name}`,
-        subtitle: `Status: ${pj.status}`,
+        subtitle: `Status: ${formatProjectStatus(pj.status)}`,
         status: pj.status,
         href: `/projects/${pj.id}`,
       });

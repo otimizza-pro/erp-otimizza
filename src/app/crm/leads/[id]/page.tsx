@@ -32,6 +32,7 @@ import {
 import { LeadRecord, OpportunityRecord, ActivityRecord, LeadStatus, ActivityType } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
 import { formatDocument } from "@/shared/cpf-cnpj";
+import { formatProposalStatus, formatOpportunityStatus } from "@/shared/status-labels";
 import { WhatsAppIcon, WhatsAppLink } from "@/components/ui/whatsapp";
 
 export default function LeadDetailPage() {
@@ -639,7 +640,7 @@ export default function LeadDetailPage() {
                               : "bg-blue-50 text-blue-700"
                           }`}
                         >
-                          {opp.status}
+                          {formatOpportunityStatus(opp.status)}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-center">
@@ -705,8 +706,20 @@ export default function LeadDetailPage() {
                         {prop.validUntil ? new Date(prop.validUntil).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "-"}
                       </td>
                       <td className="py-2.5 px-3 text-center">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                          {prop.status}
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            prop.status === "APPROVED"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                              : prop.status === "SENT"
+                              ? "bg-blue-50 text-blue-700 border border-blue-200"
+                              : prop.status === "NEGOTIATING"
+                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                              : prop.status === "REJECTED" || prop.status === "CANCELED"
+                              ? "bg-rose-50 text-rose-700 border border-rose-200"
+                              : "bg-purple-50 text-purple-700 border border-purple-200"
+                          }`}
+                        >
+                          {formatProposalStatus(prop.status)}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-center">

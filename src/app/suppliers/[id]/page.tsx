@@ -23,6 +23,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { formatDocument, validateDocument } from "@/shared/cpf-cnpj";
+import { formatFinancialStatus } from "@/shared/status-labels";
 
 const SUPPLIER_CATEGORIES = [
   "Infraestrutura & Cloud",
@@ -542,10 +543,12 @@ export default function SupplierDetailPage({
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                 : p.status === "PARTIALLY_PAID"
                                 ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : p.status === "OVERDUE"
+                                ? "bg-rose-50 text-rose-700 border-rose-200"
                                 : "bg-blue-50 text-blue-700 border-blue-200"
                             }`}
                           >
-                            {p.status}
+                            {formatFinancialStatus(p.status)}
                           </span>
                         </td>
                       </tr>

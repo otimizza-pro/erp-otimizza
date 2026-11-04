@@ -30,6 +30,7 @@ import {
 } from "@/modules/contracts/types";
 import { ProjectRecord, ProjectTemplateRecord } from "@/modules/projects/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { formatProjectStatus, formatContractStatus } from "@/shared/status-labels";
 
 export default function ContractDetailsPage() {
   const params = useParams();
@@ -353,6 +354,18 @@ export default function ContractDetailsPage() {
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   Contrato Ativo
+                </span>
+              )}
+              {contract.status === "DRAFT" && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                  Rascunho
+                </span>
+              )}
+              {contract.status === "ENDED" && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                  Encerrado
                 </span>
               )}
               {contract.status === "CANCELED" && (
@@ -841,7 +854,7 @@ export default function ContractDetailsPage() {
                           </td>
                           <td className="px-4 py-3">
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-zinc-100 text-zinc-700">
-                              {p.status}
+                              {formatProjectStatus(p.status)}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">

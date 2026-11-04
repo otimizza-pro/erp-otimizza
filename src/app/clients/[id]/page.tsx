@@ -32,6 +32,12 @@ import {
 import { Client } from "@/modules/clients/types";
 import { formatDocument } from "@/shared/cpf-cnpj";
 import { formatMoney } from "@/shared/money";
+import {
+  formatProposalStatus,
+  formatContractStatus,
+  formatOpportunityStatus,
+  formatFinancialStatus,
+} from "@/shared/status-labels";
 import { ProjectViews } from "@/components/projects/project-views";
 import { ClientFiles, ClientHistory } from "@/components/clients/client-workspace";
 import { WhatsAppIcon, WhatsAppLink } from "@/components/ui/whatsapp";
@@ -504,7 +510,7 @@ function ClientDetailsContent() {
                                 : "bg-zinc-200 text-zinc-700"
                             }`}
                           >
-                            {c.status}
+                            {formatContractStatus(c.status)}
                           </span>
                         </div>
                       ))}
@@ -743,7 +749,7 @@ function ClientDetailsContent() {
                           {formatMoney(Number(opp.amount || 0))}
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 font-semibold text-zinc-600">
-                          {opp.status}
+                          {formatOpportunityStatus(opp.status)}
                         </span>
                       </div>
                     </div>
@@ -794,8 +800,20 @@ function ClientDetailsContent() {
                           <span className="font-mono font-semibold text-zinc-900 block">
                             {formatMoney(Number(p.totalAmount || p.total_amount || p.totalMonthlyEffective || p.totalOneTimeEffective || p.totalYearlyEffective || 0))}
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 font-semibold text-zinc-600">
-                            {p.status}
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                              p.status === "APPROVED"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : p.status === "SENT"
+                                ? "bg-blue-100 text-blue-800"
+                                : p.status === "NEGOTIATING"
+                                ? "bg-amber-100 text-amber-800"
+                                : p.status === "REJECTED" || p.status === "CANCELED"
+                                ? "bg-rose-100 text-rose-800"
+                                : "bg-zinc-100 text-zinc-700"
+                            }`}
+                          >
+                            {formatProposalStatus(p.status)}
                           </span>
                         </div>
                         <Link
@@ -861,7 +879,7 @@ function ClientDetailsContent() {
                                 : "bg-zinc-100 text-zinc-600"
                             }`}
                           >
-                            {c.status}
+                            {formatContractStatus(c.status)}
                           </span>
                         </div>
                         <Link
@@ -925,10 +943,12 @@ function ClientDetailsContent() {
                               ? "bg-emerald-100 text-emerald-800"
                               : r.status === "PENDING"
                               ? "bg-amber-100 text-amber-800"
+                              : r.status === "OVERDUE"
+                              ? "bg-rose-100 text-rose-800"
                               : "bg-zinc-100 text-zinc-600"
                           }`}
                         >
-                          {r.status}
+                          {formatFinancialStatus(r.status)}
                         </span>
                       </div>
                     </div>

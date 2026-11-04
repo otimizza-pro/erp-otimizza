@@ -230,8 +230,8 @@ export async function getExecutiveKpis(filters: AnalyticsFilterParams = {}): Pro
     WITH active_versions AS (
       SELECT DISTINCT ON (c.id) 
         c.id as contract_id,
-        cv.billing_period,
-        cv.total_amount
+        CASE WHEN cv.billing_period='MIXED' THEN 'MONTHLY' ELSE cv.billing_period END AS billing_period,
+        CASE WHEN cv.billing_period='MIXED' THEN (SELECT COALESCE(SUM(CASE WHEN ci.periodicity='MONTHLY' THEN ci.total_price WHEN ci.periodicity='YEARLY' THEN ci.total_price/12 ELSE 0 END),0) FROM contract_items ci WHERE ci.contract_version_id=cv.id) ELSE cv.total_amount END AS total_amount
       FROM contracts c
       JOIN contract_versions cv ON cv.contract_id = c.id
       WHERE c.status = 'ACTIVE'
@@ -343,7 +343,7 @@ export async function getMonthlyEvolution(monthsCount = 6): Promise<MonthlyEvolu
     const mrrRes = await query<{ billing_period: string; total_amount: string }>(
       `WITH active_versions AS (
         SELECT DISTINCT ON (c.id) 
-          c.id, cv.billing_period, cv.total_amount
+          c.id, CASE WHEN cv.billing_period='MIXED' THEN 'MONTHLY' ELSE cv.billing_period END AS billing_period, CASE WHEN cv.billing_period='MIXED' THEN (SELECT COALESCE(SUM(CASE WHEN ci.periodicity='MONTHLY' THEN ci.total_price WHEN ci.periodicity='YEARLY' THEN ci.total_price/12 ELSE 0 END),0) FROM contract_items ci WHERE ci.contract_version_id=cv.id) ELSE cv.total_amount END AS total_amount
         FROM contracts c
         JOIN contract_versions cv ON cv.contract_id = c.id
         WHERE c.status = 'ACTIVE' AND cv.effective_date <= $1
@@ -752,7 +752,7 @@ export async function getMrrEvolutionReport(monthsCount = 6): Promise<MrrEvoluti
     const mrrRes = await query<{ billing_period: string; total_amount: string }>(
       `WITH active_versions AS (
         SELECT DISTINCT ON (c.id) 
-          c.id, cv.billing_period, cv.total_amount
+          c.id, CASE WHEN cv.billing_period='MIXED' THEN 'MONTHLY' ELSE cv.billing_period END AS billing_period, CASE WHEN cv.billing_period='MIXED' THEN (SELECT COALESCE(SUM(CASE WHEN ci.periodicity='MONTHLY' THEN ci.total_price WHEN ci.periodicity='YEARLY' THEN ci.total_price/12 ELSE 0 END),0) FROM contract_items ci WHERE ci.contract_version_id=cv.id) ELSE cv.total_amount END AS total_amount
         FROM contracts c
         JOIN contract_versions cv ON cv.contract_id = c.id
         WHERE c.status = 'ACTIVE' 

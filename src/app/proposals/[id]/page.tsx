@@ -129,7 +129,9 @@ export default function ProposalDetailPage() {
           throw new Error(errData.error || "Falha ao aprovar proposta.");
         }
         setShowApproveModal(false);
-        setSuccessMessage("Proposta aprovada com sucesso! O snapshot foi congelado.");
+        const approved = await res.json();
+        setSuccessMessage("Proposta aprovada. Contrato criado para revisão e definição dos pagamentos.");
+        if (approved.contractId) { router.push(`/contracts/${approved.contractId}`); return; }
         await loadProposal();
       } catch (err: unknown) {
         setErrorMessage(err instanceof Error ? err.message : "Erro ao aprovar proposta.");
@@ -539,7 +541,7 @@ export default function ProposalDetailPage() {
               </div>
               <div>
                 <p className="text-sm font-bold text-emerald-900">
-                  Esta proposta foi convertida em {proposal.conversions.length} contrato(s) ativo(s)
+                  Esta proposta foi convertida em {proposal.conversions.length} contrato(s)
                 </p>
                 <div className="flex flex-wrap gap-2 mt-1">
                   {proposal.conversions.map((conv) => (
@@ -547,7 +549,7 @@ export default function ProposalDetailPage() {
                       key={conv.id}
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-emerald-100 text-emerald-800 font-medium"
                     >
-                      {conv.periodicity === "ONE_TIME"
+                      {conv.periodicity === "MIXED" ? "Contrato por serviço" : conv.periodicity === "ONE_TIME"
                         ? "Contrato Avulso"
                         : conv.periodicity === "MONTHLY"
                         ? "Assinatura Mensal"
@@ -964,7 +966,7 @@ export default function ProposalDetailPage() {
                 <p className="font-semibold">Regras da Conversão:</p>
                 <ul className="list-disc list-inside space-y-0.5 text-slate-700">
                   {isLead && <li>O Lead será convertido automaticamente em Cliente cadastrado.</li>}
-                  <li>Itens avulsos e mensais gerarão contratos dedicados por periodicidade.</li>
+                  <li>Os serviços serão discriminados em um contrato, aguardando aprovação e definição dos pagamentos.</li>
                   <li>A oportunidade vinculada será marcada como WON no CRM.</li>
                   <li>Operação protegida com idempotência contra requisições simultâneas.</li>
                 </ul>

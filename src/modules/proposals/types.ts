@@ -108,7 +108,7 @@ export interface ProposalConversionRecord {
   proposalVersionId: string;
   contractId: string;
   convertedClientId: string;
-  periodicity: ProposalPeriodicity;
+  periodicity: ProposalPeriodicity | "MIXED";
   idempotencyKey: string;
   createdAt: string;
   contractNumber?: string;

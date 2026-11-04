@@ -20,12 +20,14 @@ import {
   Send,
   HelpCircle,
 } from "lucide-react";
+import { allocateTotal, servicePeriod } from "@/modules/contracts/billing-plan";
 import { ProposalPeriodicity } from "@/modules/proposals/types";
 
 interface ServiceOption {
   id: string;
   name: string;
   defaultPrice: number;
+  billingUnit?: string;
 }
 
 interface ComboOption {
@@ -76,7 +78,7 @@ function NewProposalForm() {
     return d.toISOString().slice(0, 10);
   });
   const [startLeadTimeDays, setStartLeadTimeDays] = useState(5);
-  const [paymentTerms, setPaymentTerms] = useState("Faturamento mensal com vencimento no dia 10");
+  const [paymentTerms, setPaymentTerms] = useState("Cobrança conforme periodicidade de cada serviço. Avulso em até 3x. Vencimentos definidos na aprovação do contrato.");
   const [scopeDescription, setScopeDescription] = useState("");
   const [clientNotes, setClientNotes] = useState("");
   const [internalNotes, setInternalNotes] = useState("");
@@ -167,7 +169,7 @@ function NewProposalForm() {
           const data = await servicesRes.json();
           setAvailableServices(
             Array.isArray(data)
-              ? data.map((s) => ({ id: s.id, name: s.name, defaultPrice: Number(s.price || s.default_price || 0) }))
+              ? data.map((s) => ({ id: s.id, name: s.name, defaultPrice: Number(s.defaultPrice ?? s.price ?? s.default_price ?? 0), billingUnit: s.billingUnit || s.billing_unit }))
               : []
           );
         }
@@ -275,7 +277,7 @@ function NewProposalForm() {
       serviceId: s.id,
       name: s.name,
       descriptionSnapshot: s.name,
-      periodicity: "MONTHLY",
+      periodicity: servicePeriod(s.billingUnit),
       quantity: 1,
       referenceUnitPrice: s.defaultPrice,
       negotiatedUnitPrice: s.defaultPrice,
@@ -302,7 +304,7 @@ function NewProposalForm() {
         comboId: c.id,
         name: `${c.name}: ${comp.serviceName}`,
         descriptionSnapshot: `${c.name} - ${comp.serviceName}`,
-        periodicity: "MONTHLY",
+        periodicity: servicePeriod(s?.billingUnit),
         quantity: 1,
         referenceUnitPrice: refPrice,
         negotiatedUnitPrice: negPrice,
@@ -337,6 +339,16 @@ function NewProposalForm() {
   const handleRemoveItem = (tempId: string) => {
     setItems((prev) => prev.filter((i) => i.tempId !== tempId));
   };
+
+  function negotiateTotal(value: number) {
+    const prices = allocateTotal(value, items.map(i => i.totalAmount));
+    setGlobalDiscount(0);
+    setItems(items.map((i,n) => {
+      const unitPrice = Math.ceil(Math.round(prices[n] * 100) / i.quantity) / 100;
+      const discountAmount = (Math.round(i.quantity * Math.round(unitPrice * 100)) - Math.round(prices[n] * 100)) / 100;
+      return {...i, negotiatedUnitPrice: unitPrice, totalAmount: prices[n], discountAmount};
+    }));
+  }
 
   // Calculation of segregated subtotals
   const totals = React.useMemo(() => {
@@ -670,6 +682,7 @@ function NewProposalForm() {
                   ))}
                 </select>
 
+                {items.length > 1 && <label className="text-sm">Total negociado dos serviços selecionados<input aria-label="Total negociado" type="number" min="0" step="0.01" className="border rounded p-2 mx-2" defaultValue="" placeholder="Informe o valor e saia do campo" onBlur={e => { if(e.target.value && Number(e.target.value)>=0) negotiateTotal(Number(e.target.value)); }} /><span className="block text-xs text-slate-500">Rateado entre os serviços; mensal, anual e avulso continuam discriminados. Avulso: até 3x na aprovação do contrato.</span></label>}
                 {/* Add Combo Selector */}
                 {availableCombos.length > 0 && (
                   <select
@@ -820,7 +833,7 @@ function NewProposalForm() {
                       Total Avulso / Implantação
                     </p>
                     <p className="text-lg font-bold text-amber-700 mt-1">{formatBRL(totals.subtotalOneTime)}</p>
-                    <p className="text-[11px] text-slate-400">Cobrança única de entrada</p>
+                    <p className="text-[11px] text-slate-400">Pagamento avulso em até 3x</p>
                   </div>
 
                   <div className="p-3 bg-white rounded-lg border border-slate-200">

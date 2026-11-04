@@ -1,4 +1,6 @@
 "use client";
+import { BillingSetup } from "@/components/contracts/billing-setup";
+
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -339,6 +341,7 @@ export default function ContractDetailsPage() {
           </div>
         </div>
 
+        {contract.status === "DRAFT" && <BillingSetup contractId={contract.id} clientId={contract.clientId} />}
         {/* Contract Header Banner */}
         <div className="bg-white p-6 rounded-xl border border-zinc-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -376,22 +379,11 @@ export default function ContractDetailsPage() {
 
           <div className="flex items-center gap-6 border-t md:border-t-0 md:border-l border-zinc-100 pt-4 md:pt-0 md:pl-6">
             <div>
-              <span className="text-xs text-zinc-500 uppercase tracking-wider block">
-                Valor Recorrente
-              </span>
-              <span className="text-2xl font-bold text-zinc-950">
-                R${" "}
-                {(currentVer?.totalAmount || 0).toLocaleString("pt-BR", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-              <span className="text-[11px] text-zinc-500 block mt-0.5">
-                {currentVer?.billingPeriod === "MONTHLY"
-                  ? "Mensal • Vence todo dia " + currentVer?.dueDay
-                  : currentVer?.billingPeriod === "YEARLY"
-                  ? "Anual"
-                  : "Avulso / Pontual"}
-              </span>
+              <span className="text-xs text-zinc-500 uppercase tracking-wider block">Valores por periodicidade</span>
+              {(["MONTHLY", "YEARLY", "ONE_TIME"] as const).map(period => {
+                const value = (currentVer?.items || []).filter(i => (i.periodicity || currentVer?.billingPeriod) === period).reduce((sum,i) => sum + Math.round(i.totalPrice * 100), 0) / 100;
+                return value > 0 ? <p key={period} className="font-semibold">{value.toLocaleString("pt-BR", {style:"currency", currency:"BRL"})} <span className="text-xs font-normal">{period === "MONTHLY" ? "mensal" : period === "YEARLY" ? "anual" : "avulso · até 3x"}</span></p> : null;
+              })}
             </div>
           </div>
         </div>
@@ -488,7 +480,7 @@ export default function ContractDetailsPage() {
                     {currentVer?.items?.map((it) => (
                       <tr key={it.id} className="hover:bg-zinc-50/50">
                         <td className="px-4 py-3 font-medium text-zinc-900">
-                          {it.serviceName}
+                          {it.serviceName}<span className="block text-xs text-slate-500">{it.periodicity === "YEARLY" ? "Anual" : it.periodicity === "ONE_TIME" ? "Avulso (até 3x)" : "Mensal"}</span>
                         </td>
                         <td className="px-4 py-3 text-zinc-500">
                           {it.comboName ? (

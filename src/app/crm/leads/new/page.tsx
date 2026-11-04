@@ -12,7 +12,9 @@ import {
   Save,
   AlertCircle,
   CheckCircle2,
+  Phone,
 } from "lucide-react";
+import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { formatDocument } from "@/shared/cpf-cnpj";
 
 export default function NewLeadPage() {
@@ -219,25 +221,31 @@ export default function NewLeadPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-700 block mb-1">Telefone</label>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1 flex items-center gap-1">
+                  <Phone className="w-3.5 h-3.5 text-zinc-400" />
+                  Telefone
+                </label>
                 <input
                   type="text"
                   name="phone"
                   value={form.phone}
                   onChange={handleChange}
-                  placeholder="(00) 0000-0000"
+                  placeholder="(11) 3211-0000"
                   className="w-full px-3.5 py-2 text-xs bg-zinc-50/50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-700 block mb-1">WhatsApp</label>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1 flex items-center gap-1 text-emerald-700 font-semibold">
+                  <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
+                  WhatsApp
+                </label>
                 <input
                   type="text"
                   name="whatsapp"
                   value={form.whatsapp}
                   onChange={handleChange}
-                  placeholder="(00) 90000-0000"
+                  placeholder="(11) 98765-4321"
                   className="w-full px-3.5 py-2 text-xs bg-zinc-50/50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white"
                 />
               </div>

@@ -1,3 +1,4 @@
+import { configureBilling, getBillingPlan } from "@/modules/contracts/journey-service";
 import { describe, it, expect } from "vitest";
 import { query } from "@/lib/db/pool";
 import { CrmService } from "@/modules/crm/service";
@@ -11,7 +12,7 @@ import {
 } from "@/modules/projects/service";
 import {
   createFinancialAccount,
-  createReceivable,
+  getReceivableById,
   settleReceivable,
   createPayable,
 } from "@/modules/financial/service";
@@ -204,6 +205,8 @@ describe("Fase 12 - Jornada Integrada de Aceite E2E", () => {
     expect(conversionResult.contracts.length).toBeGreaterThanOrEqual(1);
     const contract = conversionResult.contracts[0];
     expect(contract.id).toBeDefined();
+    const paymentPlan = await getBillingPlan(contract.id);
+    await configureBilling(contract.id, { groupSamePeriod: true, items: paymentPlan.map(i=>({itemId:i.id,firstDueDate:"2027-02-10",installments:1})) });
 
     // 3. Teste de Idempotência: Repetir a conversão com a mesma chave
     const repeatConversion = await ProposalService.convertToContract(createdProposal.id, {
@@ -304,15 +307,8 @@ describe("Fase 12 - Jornada Integrada de Aceite E2E", () => {
     });
 
     // 1. Gerar Título a Receber correspondente ao contrato (R$ 1.000,00)
-    const receivable = await createReceivable({
-      clientId: convertedClient.clientId,
-      contractId: contract.id,
-      description: `Mensalidade Tráfego Pago 2027-02`,
-      competency: "2027-02",
-      dueDate: "2027-02-10",
-      originalAmount: 1000.0,
-      notes: "Gerado pelo contrato mensal",
-    });
+    const receiptRow = await query<{id:string}>("SELECT id FROM receivables WHERE contract_id=$1 ORDER BY created_at LIMIT 1", [contract.id]);
+    const receivable = (await getReceivableById(receiptRow.rows[0].id))!;
     expect(receivable.id).toBeDefined();
     expect(receivable.status).toBe("PENDING");
 

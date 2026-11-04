@@ -1,8 +1,10 @@
 export type ContractStatus = "DRAFT" | "ACTIVE" | "ENDED" | "CANCELED";
 
-export type ContractBillingPeriod = "ONE_TIME" | "MONTHLY" | "YEARLY";
+export type ContractBillingPeriod = "ONE_TIME" | "MONTHLY" | "YEARLY" | "MIXED";
 
 export interface ContractItemInput {
+  periodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY";
+  totalPrice?: number;
   serviceId: string;
   serviceName?: string;
   comboId?: string | null;
@@ -16,6 +18,9 @@ export interface ContractItemInput {
 }
 
 export interface ContractItemRecord {
+  firstDueDate?: string | null;
+  installments?: number;
+  periodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY";
   id: string;
   contractVersionId: string;
   serviceId: string;

@@ -140,6 +140,7 @@ export interface ContractRecurringSettingsRecord {
 // ----------------------------------------------------------------------
 
 export const CreateProjectSchema = z.object({
+  useServiceOnboarding: z.boolean().default(false),
   name: z.string().min(3).max(200).trim(),
   description: z.string().max(2000).optional().nullable(),
   projectType: z.enum(["STANDALONE", "RECURRING", "INTERNAL"]).default("STANDALONE"),

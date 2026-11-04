@@ -1,5 +1,6 @@
 "use client";
 
+import { ReceivableBreakdown } from "@/components/contracts/receivable-breakdown";
 import React, { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -250,6 +251,7 @@ export default function ReceivableDetailPage({
   return (
     <AppShell activeSection="receivables">
       <div className="max-w-5xl mx-auto space-y-6 pb-12">
+        <ReceivableBreakdown id={receivable.id} refreshKey={receivable.paidAmount} />
         {/* Header Breadcrumbs & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">

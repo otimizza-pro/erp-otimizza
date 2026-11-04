@@ -1,3 +1,4 @@
+import { generateServiceRecurrence } from "@/modules/contracts/journey-service";
 import { query, withTransaction } from "@/lib/db/pool";
 import { calculateEffectiveDueDate } from "@/shared/recurrence";
 import {
@@ -931,8 +932,8 @@ export async function processContractRecurrence(
 
   // Buscar contratos ativos (ou o específico se fornecido)
   const contractsSql = contractId
-    ? `SELECT c.id, c.client_id, c.contract_number, c.status, c.canceled_at FROM contracts c WHERE c.status = 'ACTIVE' AND c.id = $1`
-    : `SELECT c.id, c.client_id, c.contract_number, c.status, c.canceled_at FROM contracts c WHERE c.status = 'ACTIVE'`;
+    ? `SELECT c.id, c.client_id, c.contract_number, c.status, c.canceled_at, c.billing_configured_at FROM contracts c WHERE c.status = 'ACTIVE' AND c.id = $1`
+    : `SELECT c.id, c.client_id, c.contract_number, c.status, c.canceled_at, c.billing_configured_at FROM contracts c WHERE c.status = 'ACTIVE'`;
   const contractsParams = contractId ? [contractId] : [];
   const contractsRes = await query(contractsSql, contractsParams);
 
@@ -940,6 +941,10 @@ export async function processContractRecurrence(
   let skippedCount = 0;
 
   for (const c of contractsRes.rows) {
+    if (c.billing_configured_at) {
+      createdCount += await generateServiceRecurrence(c.id, competency);
+      continue;
+    }
     // Buscar a versão vigente para a competência
     const compDate = `${competency}-01`;
     const verRes = await query(

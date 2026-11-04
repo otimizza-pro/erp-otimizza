@@ -26,7 +26,7 @@ function NewProjectFormContent() {
   const [description, setDescription] = useState<string>("");
   const [projectType, setProjectType] = useState<ProjectType>("STANDALONE");
   const [clientId, setClientId] = useState<string>(initialClientId);
-  const [contractId, setContractId] = useState<string>("");
+  const [contractId, setContractId] = useState<string>(searchParams.get("contractId") || "");
 
   const [templateId, setTemplateId] = useState<string>("");
   const [priority, setPriority] = useState<ProjectPriority>("MEDIUM");
@@ -153,6 +153,7 @@ function NewProjectFormContent() {
         projectType,
         clientId: projectType !== "INTERNAL" ? clientId || null : null,
         contractId: contractId || null,
+        useServiceOnboarding: searchParams.get("onboarding") === "1" && !templateId,
         templateId: templateId || null,
         priority,
         startDate,
@@ -242,7 +243,7 @@ function NewProjectFormContent() {
                 onChange={(e) => handleTemplateChange(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="">Nenhum (Começar com etapas padrão)</option>
+                <option value="">{searchParams.get("onboarding") === "1" ? "Onboarding dos serviços deste contrato" : "Nenhum (Começar com etapas padrão)"}</option>
                 {templates.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name} ({t.estimatedHours}h - {t.estimatedDays} dias)

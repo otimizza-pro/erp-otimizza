@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { LeadRecord, LeadStatus, PipelineRecord, PipelineStageRecord } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
+import { WhatsAppLink } from "@/components/ui/whatsapp";
 
 function LeadsListContent() {
   const router = useRouter();
@@ -441,10 +442,23 @@ function LeadsListContent() {
                               <div className="text-[10px] text-zinc-400 font-mono">
                                 {lead.leadCode} {lead.tradeName ? `• ${lead.tradeName}` : ""}
                               </div>
-                              {(lead.phone || lead.email) && (
+                              {(lead.phone || lead.whatsapp || lead.email) && (
                                 <div className="text-[11px] text-zinc-500 flex items-center gap-2 mt-0.5">
-                                  {lead.phone && <span className="flex items-center gap-0.5"><Phone className="w-3 h-3 text-zinc-400" />{lead.phone}</span>}
-                                  {lead.email && <span className="flex items-center gap-0.5"><Mail className="w-3 h-3 text-zinc-400" />{lead.email}</span>}
+                                  {lead.phone && (
+                                    <span className="flex items-center gap-0.5">
+                                      <Phone className="w-3 h-3 text-zinc-400" />
+                                      {lead.phone}
+                                    </span>
+                                  )}
+                                  {lead.whatsapp && (
+                                    <WhatsAppLink number={lead.whatsapp} name={lead.name} showIconOnly={true} />
+                                  )}
+                                  {lead.email && (
+                                    <span className="flex items-center gap-0.5">
+                                      <Mail className="w-3 h-3 text-zinc-400" />
+                                      {lead.email}
+                                    </span>
+                                  )}
                                 </div>
                               )}
                             </div>

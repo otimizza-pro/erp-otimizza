@@ -19,6 +19,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { formatDocument } from "@/shared/cpf-cnpj";
+import { WhatsAppLink } from "@/components/ui/whatsapp";
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -224,8 +225,17 @@ export default function ClientsPage() {
                       </td>
                       <td className="py-3.5 px-3">
                         {c.email && <div className="text-zinc-800">{c.email}</div>}
-                        {c.phone && <div className="text-[10px] text-zinc-400">{c.phone}</div>}
-                        {!c.email && !c.phone && <span className="text-zinc-400">-</span>}
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {c.phone && (
+                            <span className="text-[11px] text-zinc-500 font-mono">
+                              {c.phone}
+                            </span>
+                          )}
+                          {c.whatsapp && (
+                            <WhatsAppLink number={c.whatsapp} name={c.name} showIconOnly={true} />
+                          )}
+                        </div>
+                        {!c.email && !c.phone && !c.whatsapp && <span className="text-zinc-400">-</span>}
                       </td>
                       <td className="py-3.5 px-3">
                         {c.city ? `${c.city}${c.state ? ` - ${c.state}` : ""}` : "-"}

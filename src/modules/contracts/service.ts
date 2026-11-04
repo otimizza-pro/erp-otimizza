@@ -1,3 +1,4 @@
+import { addMonths, installmentAmounts } from "./billing-plan";
 import type pg from "pg";
 import { query, withTransaction } from "@/lib/db/pool";
 import { calculateEffectiveDueDate, generateBillingPeriodKey } from "@/shared/recurrence";
@@ -34,7 +35,7 @@ interface DbContractVersionRow {
   version_number: number;
   title: string;
   description: string | null;
-  billing_period: "ONE_TIME" | "MONTHLY" | "YEARLY";
+  billing_period: "ONE_TIME" | "MONTHLY" | "YEARLY" | "MIXED";
   due_day: number;
   start_date: string | Date;
   end_date: string | Date | null;
@@ -46,6 +47,9 @@ interface DbContractVersionRow {
 }
 
 interface DbContractItemRow {
+  first_due_date?: string;
+  installments?: number;
+  periodicity: "ONE_TIME" | "MONTHLY" | "YEARLY";
   id: string;
   contract_version_id: string;
   service_id: string;
@@ -75,6 +79,9 @@ function mapItemRow(row: DbContractItemRow): ContractItemRecord {
   return {
     id: row.id,
     contractVersionId: row.contract_version_id,
+    periodicity: row.periodicity,
+    firstDueDate: row.first_due_date || null,
+    installments: row.installments || 1,
     serviceId: row.service_id,
     serviceName: row.service_name,
     comboId: row.combo_id,
@@ -225,7 +232,7 @@ export async function createContract(
       const qty = item.quantity > 0 ? item.quantity : 1;
       const uPrice = Number(item.unitPrice) >= 0 ? Number(item.unitPrice) : 0;
       const uCost = Number(item.unitCost) >= 0 ? Number(item.unitCost) : 0;
-      const itemTotal = Number((qty * uPrice).toFixed(2));
+      const itemTotal = item.totalPrice ?? Number((qty * uPrice).toFixed(2));
       totalVersionAmount = Number((totalVersionAmount + itemTotal).toFixed(2));
 
       const sInfo = serviceMap.get(item.serviceId);
@@ -278,8 +285,8 @@ export async function createContract(
         INSERT INTO contract_items (
           contract_version_id, service_id, service_name, combo_id, combo_name,
           quantity, unit_price, unit_cost, total_price,
-          supplier_id, supplier_name_snapshot, cost_periodicity, is_legacy_cost
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false)
+          supplier_id, supplier_name_snapshot, cost_periodicity, is_legacy_cost, periodicity
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false, $13)
         RETURNING *
       `;
       const itemRes = await client.query<DbContractItemRow>(insertItemSql, [
@@ -295,6 +302,7 @@ export async function createContract(
         item.supplierId,
         item.supplierNameSnapshot,
         item.costPeriodicity,
+        item.periodicity || (input.billingPeriod === "MIXED" ? "MONTHLY" : input.billingPeriod),
       ]);
       itemRecords.push(mapItemRow(itemRes.rows[0]));
     }
@@ -400,8 +408,8 @@ export async function createContractVersion(
 
   return await withTransaction(async (client) => {
     // 1. Verificar se o contrato existe e não está cancelado
-    const contractCheck = await client.query<{ id: string; status: ContractStatus }>(
-      "SELECT id, status FROM contracts WHERE id = $1 FOR UPDATE",
+    const contractCheck = await client.query<{ id: string; status: ContractStatus; billing_configured_at: Date | null }>(
+      "SELECT id, status, billing_configured_at FROM contracts WHERE id = $1 FOR UPDATE",
       [input.contractId]
     );
     if (contractCheck.rowCount === 0) {
@@ -410,6 +418,8 @@ export async function createContractVersion(
     if (contractCheck.rows[0].status === "CANCELED") {
       throw new Error("Não é possível versionar um contrato cancelado.");
     }
+
+    if (contractCheck.rows[0].billing_configured_at) throw new Error("Este contrato já possui um plano financeiro por serviço. Para uma contratação adicional, crie uma nova proposta; os títulos existentes devem ser preservados.");
 
     // 2. Obter o maior version_number atual
     const maxVerRes = await client.query<{ max_ver: number }>(
@@ -512,8 +522,8 @@ export async function createContractVersion(
         INSERT INTO contract_items (
           contract_version_id, service_id, service_name, combo_id, combo_name,
           quantity, unit_price, unit_cost, total_price,
-          supplier_id, supplier_name_snapshot, cost_periodicity, is_legacy_cost
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false)
+          supplier_id, supplier_name_snapshot, cost_periodicity, is_legacy_cost, periodicity
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false, $13)
         RETURNING *
       `;
       const itemRes = await client.query<DbContractItemRow>(insertItemSql, [
@@ -529,6 +539,7 @@ export async function createContractVersion(
         item.supplierId,
         item.supplierNameSnapshot,
         item.costPeriodicity,
+        item.periodicity || (input.billingPeriod === "MIXED" ? "MONTHLY" : input.billingPeriod),
       ]);
       itemRecords.push(mapItemRow(itemRes.rows[0]));
     }
@@ -634,9 +645,9 @@ export async function getContractById(id: string): Promise<ContractRecord | null
 
   const versionIds = versionsRes.rows.map((v) => v.id);
   const itemsSql = `
-    SELECT * FROM contract_items
-    WHERE contract_version_id = ANY($1::uuid[])
-    ORDER BY created_at ASC
+    SELECT ci.*, s.first_due_date::text, s.installments FROM contract_items ci LEFT JOIN contract_item_schedules s ON s.contract_item_id=ci.id
+    WHERE ci.contract_version_id = ANY($1::uuid[])
+    ORDER BY ci.created_at ASC
   `;
   const itemsRes = await query<DbContractItemRow>(itemsSql, [versionIds]);
 
@@ -792,6 +803,23 @@ export function getContractProjections(
   countMonths: number = 12
 ): RecurrenceProjection[] {
   const projections: RecurrenceProjection[] = [];
+  if (contract.status === "DRAFT") return projections;
+  const scheduled = contract.currentVersion?.items?.filter(i => i.firstDueDate) || [];
+  if (scheduled.length) {
+    const version = contract.currentVersion!;
+    for (let offset = 0; offset < countMonths; offset++) {
+      const month = addMonths(`${startYearMonth.year}-${String(startYearMonth.month).padStart(2,"0")}-01`,offset).slice(0,7);
+      for (const item of scheduled) {
+        const first = item.firstDueDate!;
+        const months = (Number(month.slice(0,4))-Number(first.slice(0,4)))*12+Number(month.slice(5))-Number(first.slice(5,7));
+        if (months < 0 || (item.periodicity === "YEARLY" && months%12 !== 0) || (item.periodicity === "ONE_TIME" && months >= (item.installments || 1))) continue;
+        const dueDate = addMonths(first, months);
+        if (item.periodicity !== "ONE_TIME" && version.endDate && dueDate > version.endDate) continue;
+        projections.push({competency:month,effectiveDueDate:dueDate,idempotencyKey:`SVC_${item.id}_${month}`,amount:item.periodicity === "ONE_TIME" ? installmentAmounts(item.totalPrice,item.installments || 1)[months] : item.totalPrice,versionNumber:version.versionNumber,isPastOrCanceled:contract.status === "CANCELED" || contract.status === "ENDED"});
+      }
+    }
+    return projections;
+  }
   if (!contract.versions || contract.versions.length === 0) {
     if (contract.currentVersion) {
       contract.versions = [contract.currentVersion];

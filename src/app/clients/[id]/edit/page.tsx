@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
-import { ArrowLeft, Save, Plus, Trash2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, AlertCircle, Phone } from "lucide-react";
+import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { ClientContact } from "@/modules/clients/types";
 
 export default function EditClientPage() {
@@ -264,21 +265,29 @@ export default function EditClientPage() {
             </div>
 
             <div>
-              <label className="block font-medium text-zinc-700">Telefone</label>
+              <label className="block font-medium text-zinc-700 flex items-center gap-1.5">
+                <Phone className="w-3.5 h-3.5 text-zinc-500" />
+                Telefone
+              </label>
               <input
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                placeholder="(11) 3211-0000"
                 className="mt-1 w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
               />
             </div>
 
             <div>
-              <label className="block font-medium text-zinc-700">WhatsApp</label>
+              <label className="block font-medium text-zinc-700 flex items-center gap-1.5">
+                <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
+                WhatsApp
+              </label>
               <input
                 type="text"
                 value={whatsapp}
                 onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="(11) 98765-4321"
                 className="mt-1 w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
               />
             </div>
@@ -385,7 +394,7 @@ export default function EditClientPage() {
             {contacts.map((contact, idx) => (
               <div
                 key={idx}
-                className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-6 gap-3 text-xs items-end"
+                className="p-4 rounded-xl bg-zinc-50 border border-zinc-200/80 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-3 text-xs items-end"
               >
                 <div className="sm:col-span-2">
                   <label className="block text-[11px] font-medium text-zinc-600">Nome</label>
@@ -418,14 +427,27 @@ export default function EditClientPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-medium text-zinc-600">WhatsApp / Tel</label>
+                  <label className="block text-[11px] font-medium text-zinc-600 flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-zinc-400" />
+                    Telefone
+                  </label>
                   <input
                     type="text"
-                    value={contact.whatsapp || contact.phone || ""}
-                    onChange={(e) => {
-                      updateContact(idx, "whatsapp", e.target.value);
-                      updateContact(idx, "phone", e.target.value);
-                    }}
+                    value={contact.phone || ""}
+                    onChange={(e) => updateContact(idx, "phone", e.target.value)}
+                    placeholder="(11) 3211-0000"
+                    className="mt-1 w-full px-3 py-2 rounded-lg bg-white border border-zinc-200 text-zinc-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-600 flex items-center gap-1">
+                    <WhatsAppIcon className="w-3 h-3 text-emerald-600" />
+                    WhatsApp
+                  </label>
+                  <input
+                    type="text"
+                    value={contact.whatsapp || ""}
+                    onChange={(e) => updateContact(idx, "whatsapp", e.target.value)}
                     placeholder="(11) 98765-4321"
                     className="mt-1 w-full px-3 py-2 rounded-lg bg-white border border-zinc-200 text-zinc-900"
                   />

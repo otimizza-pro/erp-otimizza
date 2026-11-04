@@ -113,6 +113,8 @@ function ContractsListPageContent() {
     switch (period) {
       case "MONTHLY":
         return "Mensal";
+      case "MIXED":
+        return "Por serviço";
       case "YEARLY":
         return "Anual";
       case "ONE_TIME":

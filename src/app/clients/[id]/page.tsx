@@ -32,7 +32,9 @@ import {
 import { Client } from "@/modules/clients/types";
 import { formatDocument } from "@/shared/cpf-cnpj";
 import { formatMoney } from "@/shared/money";
-import { DocumentAttachmentSection } from "@/components/documents/document-attachment-section";
+import { ProjectViews } from "@/components/projects/project-views";
+import { ClientFiles, ClientHistory } from "@/components/clients/client-workspace";
+import { WhatsAppIcon, WhatsAppLink } from "@/components/ui/whatsapp";
 
 type ClientTab =
   | "overview"
@@ -349,6 +351,9 @@ export default function ClientDetailsPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {client.whatsapp && (
+              <WhatsAppLink number={client.whatsapp} name={client.name} label="WhatsApp" />
+            )}
             <button
               onClick={handleToggleArchive}
               disabled={actionLoading}
@@ -563,12 +568,33 @@ export default function ClientDetailsPage() {
                       <span className="text-zinc-900">{client.email || "-"}</span>
                     </div>
                     <div>
-                      <span className="text-zinc-400 block text-[11px]">Telefone Principal:</span>
-                      <span className="text-zinc-900">{client.phone || "-"}</span>
+                      <span className="text-zinc-400 block text-[11px] flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-zinc-400" />
+                        Telefone Principal:
+                      </span>
+                      {client.phone ? (
+                        <a
+                          href={`tel:${client.phone.replace(/\D/g, "")}`}
+                          className="font-medium text-zinc-900 hover:text-indigo-600 transition"
+                        >
+                          {client.phone}
+                        </a>
+                      ) : (
+                        <span className="text-zinc-400">-</span>
+                      )}
                     </div>
                     <div>
-                      <span className="text-zinc-400 block text-[11px]">WhatsApp Corporativo:</span>
-                      <span className="text-zinc-900">{client.whatsapp || "-"}</span>
+                      <span className="text-zinc-400 block text-[11px] flex items-center gap-1 text-emerald-700 font-semibold">
+                        <WhatsAppIcon className="w-3 h-3 text-emerald-600" />
+                        WhatsApp Corporativo:
+                      </span>
+                      {client.whatsapp ? (
+                        <div className="pt-0.5">
+                          <WhatsAppLink number={client.whatsapp} name={client.name} />
+                        </div>
+                      ) : (
+                        <span className="text-zinc-400">-</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -639,9 +665,21 @@ export default function ClientDetailsPage() {
                           )}
                         </div>
                         {contact.role && <p className="text-zinc-500">{contact.role}</p>}
-                        <div className="pt-1 text-zinc-600 space-y-0.5">
+                        <div className="pt-1 text-zinc-600 space-y-1">
                           {contact.email && <p>E-mail: {contact.email}</p>}
-                          {contact.phone && <p>Telefone: {contact.phone}</p>}
+                          {contact.phone && (
+                            <p className="flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-zinc-400" />
+                              <a href={`tel:${contact.phone.replace(/\D/g, "")}`} className="hover:underline">
+                                {contact.phone}
+                              </a>
+                            </p>
+                          )}
+                          {contact.whatsapp && (
+                            <div className="pt-0.5">
+                              <WhatsAppLink number={contact.whatsapp} name={contact.name} />
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -906,90 +944,21 @@ export default function ClientDetailsPage() {
                 </Link>
               </div>
 
-              {projects.length === 0 ? (
-                <div className="p-8 text-center text-xs text-zinc-400">
-                  Nenhum projeto ativo associado a este cliente.
-                </div>
-              ) : (
-                <div className="divide-y divide-zinc-100">
-                  {projects.map((pj) => (
-                    <div key={pj.id} className="py-3 flex items-center justify-between text-xs">
-                      <div>
-                        <Link
-                          href={`/projects/${pj.id}`}
-                          className="font-semibold text-zinc-900 hover:text-indigo-600 block"
-                        >
-                          {pj.project_code || pj.projectCode} • {pj.name}
-                        </Link>
-                        <span className="text-zinc-500 text-[11px]">
-                          Tipo: {pj.project_type || pj.projectType} • Prazo:{" "}
-                          {pj.due_date ? new Date(pj.due_date).toLocaleDateString("pt-BR") : "Indefinido"}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-semibold text-zinc-800 block text-[11px]">
-                          {pj.actual_hours || pj.actualHours || 0}h registradas
-                        </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 font-semibold text-zinc-600">
-                          {pj.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <ProjectViews clientId={client.id} />
             </div>
           )}
 
           {/* ABA 8: DOCUMENTOS */}
           {activeTab === "documents" && (
             <div className="bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-2xs">
-              <DocumentAttachmentSection
-                entityType="CLIENT"
-                entityId={client.id}
-                entityTitle={client.name}
-              />
+              <ClientFiles clientId={client.id} />
             </div>
           )}
 
           {/* ABA 9: ATIVIDADES */}
           {activeTab === "activities" && (
             <div className="p-6 rounded-2xl bg-white border border-zinc-200/80 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
-                <div>
-                  <h2 className="text-sm font-semibold text-zinc-900">Histórico de Atividades</h2>
-                  <p className="text-xs text-zinc-500">Reuniões, ligações, e-mails e follow-ups</p>
-                </div>
-              </div>
-
-              {activities.length === 0 ? (
-                <div className="p-8 text-center text-xs text-zinc-400">
-                  Nenhuma atividade comercial registrada para este cliente.
-                </div>
-              ) : (
-                <div className="divide-y divide-zinc-100">
-                  {activities.map((act) => (
-                    <div key={act.id} className="py-3 flex items-center justify-between text-xs">
-                      <div>
-                        <span className="font-semibold text-zinc-900 block">{act.title}</span>
-                        <span className="text-zinc-500 text-[11px]">
-                          {act.activity_type || act.activityType} • Data:{" "}
-                          {act.due_date || act.dueDate ? new Date(act.due_date || act.dueDate || "").toLocaleDateString("pt-BR") : "-"}
-                        </span>
-                      </div>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
-                          act.status === "COMPLETED"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-amber-100 text-amber-800"
-                        }`}
-                      >
-                        {act.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <ClientHistory clientId={client.id} />
             </div>
           )}
         </div>

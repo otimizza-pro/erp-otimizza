@@ -436,7 +436,7 @@ describe("Fase 8 - Testes de Integração do Módulo de Propostas Comerciais", (
       });
     });
 
-    it("converte proposta mista em contratos segregados por periodicidade e converte Lead em Cliente", async () => {
+    it("converte proposta mista em uma minuta com serviços discriminados e converte Lead em Cliente", async () => {
       const idempotencyKey = `conv_test_${leadProposalId}_v1`;
 
       const result = await ProposalService.convertToContract(leadProposalId, {
@@ -447,16 +447,14 @@ describe("Fase 8 - Testes de Integração do Módulo de Propostas Comerciais", (
       });
 
       expect(result.convertedClientId).toBeDefined();
-      expect(result.contracts).toHaveLength(2); // 1 ONE_TIME + 1 MONTHLY
+      expect(result.contracts).toHaveLength(1);
 
-      // Verifica contratos criados
-      const monthlyContract = result.contracts.find((c) => c.currentVersion?.billingPeriod === "MONTHLY");
-      const oneTimeContract = result.contracts.find((c) => c.currentVersion?.billingPeriod === "ONE_TIME");
-
-      expect(monthlyContract).toBeDefined();
-      expect(oneTimeContract).toBeDefined();
-      expect(monthlyContract?.currentVersion?.totalAmount).toBe(800.0);
-      expect(oneTimeContract?.currentVersion?.totalAmount).toBe(900.0);
+      const contract = result.contracts[0];
+      expect(contract.status).toBe("DRAFT");
+      expect(contract.currentVersion?.billingPeriod).toBe("MIXED");
+      expect(contract.currentVersion?.totalAmount).toBe(1700);
+      expect(contract.currentVersion?.items?.find(i=>i.periodicity==="MONTHLY")?.totalPrice).toBe(800);
+      expect(contract.currentVersion?.items?.find(i=>i.periodicity==="ONE_TIME")?.totalPrice).toBe(900);
 
       // Verifica se o Lead foi convertido para status CONVERTED no CRM
       const leadCheck = await query<{ status: string; converted_client_id: string }>(
@@ -483,15 +481,15 @@ describe("Fase 8 - Testes de Integração do Módulo de Propostas Comerciais", (
         startDate: "2026-11-01",
       });
 
-      // Deve retornar os mesmos 2 contratos sem criar novos registros
-      expect(resultSecondCall.contracts).toHaveLength(2);
+      // Deve retornar o mesmo contrato sem criar novos registros
+      expect(resultSecondCall.contracts).toHaveLength(1);
 
       // Verifica se a tabela contracts não sofreu duplicação para esta proposta
       const contractsCount = await query<{ count: string }>(
         "SELECT count(*) as count FROM contracts WHERE proposal_id = $1",
         [leadProposalId]
       );
-      expect(parseInt(contractsCount.rows[0].count, 10)).toBe(2);
+      expect(parseInt(contractsCount.rows[0].count, 10)).toBe(1);
     });
   });
 

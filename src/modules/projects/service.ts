@@ -289,6 +289,17 @@ export async function createProject(
   const validated = CreateProjectSchema.parse(input);
 
   const projectId = await withTransaction(async (client) => {
+    let serviceTemplates: string[] = [];
+    if (validated.contractId) {
+      const contract = (await client.query<{client_id:string;status:string;version_id:string}>(`SELECT c.client_id,c.status,cv.id AS version_id FROM contracts c JOIN contract_versions cv ON cv.contract_id=c.id WHERE c.id=$1 ORDER BY cv.version_number DESC LIMIT 1`,[validated.contractId])).rows[0];
+      if (!contract || contract.client_id !== validated.clientId) throw new Error("Contrato não pertence ao cliente selecionado.");
+      validated.contractVersionId = contract.version_id;
+      if (validated.useServiceOnboarding) {
+        if (contract.status !== "ACTIVE") throw new Error("Aprove o contrato antes de iniciar o onboarding.");
+        serviceTemplates = (await client.query<{id:string}>(`SELECT DISTINCT s.onboarding_template_id AS id FROM contract_items ci JOIN services s ON s.id=ci.service_id WHERE ci.contract_version_id=$1 AND s.onboarding_template_id IS NOT NULL`,[contract.version_id])).rows.map(r=>r.id);
+        if (!serviceTemplates.length) throw new Error("Nenhum modelo de onboarding associado aos serviços.");
+      }
+    }
     // 1. Inserir projeto
     const prjSql = `
       INSERT INTO projects (
@@ -318,10 +329,12 @@ export async function createProject(
     const projectId = prjRes.rows[0].id;
 
     // 2. Se houver template, clonar etapas e tarefas
-    if (validated.templateId) {
+    const templateIds = validated.templateId ? [validated.templateId] : serviceTemplates;
+    if (templateIds.length) {
+      for (const templateId of templateIds) {
       const stagesRes = await client.query<{ id: string; name: string; order_index: number }>(
-        `SELECT id, name, order_index FROM project_template_stages WHERE template_id = $1 ORDER BY order_index ASC`,
-        [validated.templateId]
+        `SELECT id, LEFT((SELECT name FROM project_templates WHERE id=$1) || ' — ' || name,100) AS name, order_index FROM project_template_stages WHERE template_id = $1 ORDER BY order_index ASC`,
+        [templateId]
       );
 
       const stageMap = new Map<string, string>(); // templateStageId -> projectStageId
@@ -344,7 +357,7 @@ export async function createProject(
       }>(
         `SELECT stage_id, title, description, relative_due_days, estimated_hours, order_index 
          FROM project_template_tasks WHERE template_id = $1 ORDER BY order_index ASC`,
-        [validated.templateId]
+        [templateId]
       );
 
       const projStartDate = new Date(validated.startDate);
@@ -369,6 +382,7 @@ export async function createProject(
             t.order_index,
           ]
         );
+      }
       }
     } else {
       // Criar etapas padrão para fluxo Kanban caso não tenha template

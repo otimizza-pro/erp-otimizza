@@ -32,6 +32,7 @@ import {
 import { LeadRecord, OpportunityRecord, ActivityRecord, LeadStatus, ActivityType } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
 import { formatDocument } from "@/shared/cpf-cnpj";
+import { WhatsAppIcon, WhatsAppLink } from "@/components/ui/whatsapp";
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -368,6 +369,9 @@ export default function LeadDetailPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {lead.whatsapp && (
+              <WhatsAppLink number={lead.whatsapp} name={lead.name} label="WhatsApp" />
+            )}
             <button
               type="button"
               onClick={() => setShowEditModal(true)}
@@ -479,8 +483,31 @@ export default function LeadDetailPage() {
                 <span className="font-medium text-zinc-800">{lead.email || "-"}</span>
               </div>
               <div>
-                <span className="text-zinc-400 block mb-0.5">Telefone / WhatsApp</span>
-                <span className="font-mono text-zinc-800">{lead.phone || lead.whatsapp || "-"}</span>
+                <span className="text-zinc-400 block mb-0.5 flex items-center gap-1">
+                  <Phone className="w-3 h-3 text-zinc-400" />
+                  Telefone
+                </span>
+                {lead.phone ? (
+                  <a
+                    href={`tel:${lead.phone.replace(/\D/g, "")}`}
+                    className="font-mono text-zinc-800 hover:text-indigo-600 font-medium"
+                  >
+                    {lead.phone}
+                  </a>
+                ) : (
+                  <span className="text-zinc-400">-</span>
+                )}
+              </div>
+              <div>
+                <span className="text-zinc-400 block mb-0.5 flex items-center gap-1 text-emerald-700 font-semibold">
+                  <WhatsAppIcon className="w-3 h-3 text-emerald-600" />
+                  WhatsApp
+                </span>
+                {lead.whatsapp ? (
+                  <WhatsAppLink number={lead.whatsapp} name={lead.name} />
+                ) : (
+                  <span className="text-zinc-400">-</span>
+                )}
               </div>
               <div>
                 <span className="text-zinc-400 block mb-0.5">Segmento de Mercado</span>
@@ -1016,22 +1043,30 @@ export default function LeadDetailPage() {
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Telefone</label>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1 flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-zinc-400" />
+                      Telefone
+                    </label>
                     <input
                       type="text"
                       name="phone"
                       value={editForm.phone}
                       onChange={handleEditChange}
+                      placeholder="(11) 3211-0000"
                       className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-zinc-700 block mb-1">WhatsApp</label>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1 flex items-center gap-1 text-emerald-700">
+                      <WhatsAppIcon className="w-3 h-3 text-emerald-600" />
+                      WhatsApp
+                    </label>
                     <input
                       type="text"
                       name="whatsapp"
                       value={editForm.whatsapp}
                       onChange={handleEditChange}
+                      placeholder="(11) 98765-4321"
                       className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                     />
                   </div>

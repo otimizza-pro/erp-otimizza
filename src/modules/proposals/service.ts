@@ -1,3 +1,4 @@
+import type { PoolClient } from "pg";
 import { ServicePresentationSchema, type ServicePresentation } from "@/modules/catalog/presentation";
 import { query, withTransaction } from "@/lib/db/pool";
 import {
@@ -842,8 +843,8 @@ export class ProposalService {
    * Aprovação Administrativa Explícita da Proposta
    * Congele a versão aprovada. NÃO gera contrato nem título financeiro automaticamente.
    */
-  static async approveProposal(id: string, input: ApproveProposalInput): Promise<ProposalRecord> {
-    return withTransaction(async (client) => {
+  static async approveProposal(id: string, input: ApproveProposalInput, externalClient?: PoolClient): Promise<ProposalRecord> {
+    const run = async (client: PoolClient) => {
       const propRes = await client.query<DbProposalRow>(
         `SELECT * FROM proposals WHERE id = $1 AND archived_at IS NULL FOR UPDATE`,
         [id]
@@ -852,7 +853,7 @@ export class ProposalService {
       const prop = propRes.rows[0];
 
       if (prop.status === "APPROVED") {
-        throw new Error("Esta proposta já se encontra formalmente aprovada.");
+        return (await this.getProposalById(id, client))!;
       }
       if (prop.status === "CANCELED" || prop.status === "REJECTED") {
         throw new Error(`Não é possível aprovar proposta no estado '${prop.status}'.`);
@@ -909,7 +910,8 @@ export class ProposalService {
       );
 
       return (await this.getProposalById(id, client))!;
-    });
+    };
+    return externalClient ? run(externalClient) : withTransaction(run);
   }
 
   /**
@@ -1006,13 +1008,14 @@ export class ProposalService {
    */
   static async convertToContract(
     id: string,
-    input: ConvertProposalToContractInput
+    input: ConvertProposalToContractInput,
+    externalClient?: PoolClient
   ): Promise<{
     proposal: ProposalRecord;
     contracts: ContractRecord[];
     convertedClientId?: string;
   }> {
-    return withTransaction(async (client) => {
+    const run = async (client: PoolClient) => {
       const propRes = await client.query<DbProposalRow>(
         `SELECT * FROM proposals WHERE id = $1 AND archived_at IS NULL FOR UPDATE`,
         [id]
@@ -1033,8 +1036,8 @@ export class ProposalService {
       }>(
         `SELECT DISTINCT pc.contract_id, pc.converted_client_id
          FROM proposal_contract_conversions pc
-         WHERE pc.proposal_id = $1 AND (pc.idempotency_key = $2 OR pc.idempotency_key LIKE $3)`,
-        [id, input.idempotencyKey, `${input.idempotencyKey}_%`]
+         WHERE pc.proposal_id = $1`,
+        [id]
       );
 
       if (existingConv.rows.length > 0) {
@@ -1151,13 +1154,13 @@ export class ProposalService {
       }
 
       // 4. Agrupar itens por Periodicidade para respeitar estritamente o modelo de Contratos
-      const periodicities: ProposalPeriodicity[] = ["ONE_TIME", "MONTHLY", "YEARLY"];
+      const periodicities: Array<ProposalPeriodicity | "MIXED"> = [new Set(items.map(i => i.periodicity)).size > 1 ? "MIXED" : items[0].periodicity];
       const createdContracts: ContractRecord[] = [];
       const nowStr = input.startDate || new Date().toISOString().slice(0, 10);
       let primaryContractId: string | null = null;
 
       for (const p of periodicities) {
-        const periodItems = items.filter((it) => it.periodicity === p);
+        const periodItems = items;
         if (periodItems.length === 0) continue;
 
         const pIdempotencyKey = `${input.idempotencyKey}_${p}`;
@@ -1178,7 +1181,9 @@ export class ProposalService {
           comboId: pi.comboId,
           comboName: pi.comboName,
           quantity: pi.quantity,
-          unitPrice: pi.negotiatedUnitPrice,
+          unitPrice: pi.totalAmount / pi.quantity,
+          totalPrice: pi.totalAmount,
+          periodicity: pi.periodicity,
           unitCost: pi.unitCost,
           supplierId: pi.supplierId,
           supplierNameSnapshot: pi.supplierNameSnapshot,
@@ -1188,13 +1193,14 @@ export class ProposalService {
         const newContract = await createContract(
           {
             clientId: effectiveClientId,
+            status: "DRAFT",
             title: contractTitle,
             description: `Contrato gerado a partir da Proposta Comercial ${prop.proposal_code} (Versão ${version.version_number}).`,
             billingPeriod: p,
             dueDay: input.dueDay || 10,
             startDate: nowStr,
-            endDate: p === "MONTHLY" ? undefined : nowStr,
-            isIndefinite: p === "MONTHLY", // Mensalidade por padrão contínua; avulsos possuem vigência no dia de execução/início
+            endDate: undefined,
+            isIndefinite: true, // Mensalidade por padrão contínua; avulsos possuem vigência no dia de execução/início
             items: contractInputItems,
             notes: `Origem: Proposta ${prop.proposal_code}.`,
           },
@@ -1291,7 +1297,8 @@ export class ProposalService {
         contracts: createdContracts,
         convertedClientId: effectiveClientId,
       };
-    });
+    };
+    return externalClient ? run(externalClient) : withTransaction(run);
   }
 
   /**
@@ -1488,7 +1495,7 @@ export class ProposalService {
       }
 
       return {
-        sourceType: it.sourceType,
+        sourceType: it.sourceType || "SERVICE",
         serviceId: it.serviceId,
         serviceName,
         comboId: it.comboId || null,

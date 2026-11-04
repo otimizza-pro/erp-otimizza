@@ -452,31 +452,45 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       >
         <div className="flex flex-col h-full overflow-hidden">
           {/* Cabeçalho do Menu & Logotipo */}
-          <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
+          <div
+            className={`border-b border-zinc-100 flex items-center h-16 transition-all ${
+              sidebarCollapsed ? "justify-between px-2" : "justify-between px-4"
+            }`}
+          >
             <Link
               href="/"
               onClick={() => setSidebarOpen(false)}
-              className="flex items-center gap-2 overflow-hidden"
+              className={`flex items-center overflow-hidden transition-opacity hover:opacity-90 ${
+                sidebarCollapsed ? "justify-center shrink-0" : "flex-1 min-w-0 mr-2"
+              }`}
+              title="Otimizza ERP"
             >
               {sidebarCollapsed ? (
-                <div className="w-10 h-10 rounded-xl bg-zinc-950 flex items-center justify-center text-white font-extrabold text-sm tracking-wider">
-                  OP
-                </div>
+                <Image
+                  src="/brand/simbolo-cor.png"
+                  alt="Otimizza ERP"
+                  width={34}
+                  height={34}
+                  priority
+                  className="w-8 h-8 object-contain"
+                />
               ) : (
                 <Image
                   src="/brand/principal-cor.png"
                   alt="Otimizza ERP"
-                  width={130}
-                  height={30}
+                  width={220}
+                  height={54}
                   priority
-                  className="h-7 w-auto object-contain"
+                  className="h-10 sm:h-11 w-auto max-w-[195px] object-contain object-left"
                 />
               )}
             </Link>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 shrink-0">
               <button
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="hidden md:flex text-zinc-400 hover:text-zinc-700 p-1.5 rounded-lg hover:bg-zinc-100 transition"
+                className={`hidden md:flex text-zinc-400 hover:text-zinc-700 rounded-lg hover:bg-zinc-100 transition ${
+                  sidebarCollapsed ? "p-1" : "p-1.5"
+                }`}
                 title={sidebarCollapsed ? "Expandir barra lateral" : "Recolher barra lateral"}
                 aria-label="Alternar barra lateral"
               >

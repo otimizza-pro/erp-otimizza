@@ -383,6 +383,16 @@ function ProposalsListPageContent() {
                         <td className="py-3.5 px-4">{getStatusBadge(prop.status)}</td>
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {!prop.contractId && prop.status !== "CANCELED" && prop.status !== "REJECTED" && (
+                              <Link
+                                href={`/contracts/new?proposalId=${prop.id}`}
+                                title="Cliente fechou proposta: abrir tela de contrato já preenchida para revisão"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors shrink-0"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                Fechar Proposta
+                              </Link>
+                            )}
                             <a
                               href={`/api/proposals/${prop.id}/pdf`}
                               target="_blank"

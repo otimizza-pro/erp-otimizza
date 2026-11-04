@@ -15,8 +15,10 @@ import {
   Calendar,
   DollarSign,
   AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { ContractBillingPeriod, ContractItemInput } from "@/modules/contracts/types";
+import { ProposalRecord } from "@/modules/proposals/types";
 import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatMoney } from "@/shared/money";
@@ -54,6 +56,7 @@ function NewContractFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialClientId = searchParams.get("clientId") || "";
+  const initialProposalId = searchParams.get("proposalId") || "";
 
   // Dados para seleção
   const [clients, setClients] = useState<ClientOption[]>([]);
@@ -62,6 +65,16 @@ function NewContractFormContent() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Dados de vínculo com Proposta Comercial
+  const [proposalId, setProposalId] = useState(initialProposalId);
+  const [proposalCode, setProposalCode] = useState("");
+  const [proposalInfo, setProposalInfo] = useState<{
+    code: string;
+    title: string;
+    recipientName: string;
+    versionNumber: number;
+  } | null>(null);
 
   // Formulário do contrato
   const [clientId, setClientId] = useState(initialClientId);
@@ -82,66 +95,220 @@ function NewContractFormContent() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [cRes, sRes, cbRes] = await Promise.all([
+        const [cRes, sRes, cbRes, pRes] = await Promise.all([
           fetch("/api/clients?limit=100&status=ACTIVE"),
           fetch("/api/services?status=ACTIVE"),
           fetch("/api/combos?status=ACTIVE"),
+          initialProposalId ? fetch(`/api/proposals/${initialProposalId}`) : Promise.resolve(null),
         ]);
+
+        let loadedClients: ClientOption[] = [];
+        let loadedServices: ServiceOption[] = [];
+
         if (cRes.ok) {
           const cData = await cRes.json();
-          const list: ClientOption[] = Array.isArray(cData) ? cData : (cData.clients || []);
-          if (initialClientId && !list.some((c) => c.id === initialClientId)) {
-            try {
-              const singleRes = await fetch(`/api/clients/${initialClientId}`);
-              if (singleRes.ok) {
-                const single = await singleRes.json();
-                if (single && single.id) {
-                  list.unshift({
-                    id: single.id,
-                    name: single.name,
-                    tradeName: single.tradeName,
-                    document: single.document,
-                  });
-                }
-              }
-            } catch {
-              // Silencioso
-            }
-          }
-          setClients(list);
-          const opts: AutocompleteOption[] = list.map((c) => ({
-            id: c.id,
-            label: c.name,
-            sublabel: c.tradeName ? `Fantasia: ${c.tradeName}` : null,
-          }));
-          setClientOptions(opts);
-
-          if (initialClientId) {
-            const found = list.find((c) => c.id === initialClientId);
-            if (found) {
-              setClientId(found.id);
-              setClientName(found.name);
-            }
-          }
+          loadedClients = Array.isArray(cData) ? cData : (cData.clients || []);
         }
+
         if (sRes.ok) {
           const sData = await sRes.json();
-          const list: ServiceOption[] = Array.isArray(sData) ? sData : (sData.services || []);
-          setServices(list);
+          loadedServices = Array.isArray(sData) ? sData : (sData.services || []);
+          setServices(loadedServices);
         }
+
         if (cbRes.ok) {
           const cbData = await cbRes.json();
           const list: ComboOption[] = Array.isArray(cbData) ? cbData : (cbData.combos || []);
           setCombos(list);
         }
+
+        // Se houver clientId direto na URL, carregar se não estiver na lista inicial
+        if (initialClientId && !loadedClients.some((c) => c.id === initialClientId)) {
+          try {
+            const singleRes = await fetch(`/api/clients/${initialClientId}`);
+            if (singleRes.ok) {
+              const single = await singleRes.json();
+              if (single && single.id) {
+                loadedClients.unshift({
+                  id: single.id,
+                  name: single.name,
+                  tradeName: single.tradeName,
+                  document: single.document,
+                });
+              }
+            }
+          } catch {
+            // Silencioso
+          }
+        }
+
+        // Se vier de uma Proposta Comercial (Cliente fechou proposta)
+        if (pRes && pRes.ok) {
+          const propData: ProposalRecord = await pRes.json();
+          setProposalId(propData.id);
+          setProposalCode(propData.proposalCode);
+
+          const activeVer =
+            propData.versions?.find((v) => v.versionNumber === propData.approvedVersionNumber) ||
+            propData.currentVersion ||
+            propData.versions?.[0];
+
+          setProposalInfo({
+            code: propData.proposalCode,
+            title: propData.title,
+            recipientName: propData.recipientName || "Cliente",
+            versionNumber: activeVer?.versionNumber || propData.currentVersionNumber || 1,
+          });
+
+          // 1. Resolver Cliente da proposta (converte lead caso não tenha clientId ainda)
+          let targetClientId = propData.clientId || "";
+          let targetClientName = propData.recipientName || "";
+
+          if (!targetClientId && propData.leadId) {
+            try {
+              const convRes = await fetch(`/api/crm/leads/${propData.leadId}/convert`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mode: "NEW_CLIENT" }),
+              });
+              if (convRes.ok) {
+                const convData = await convRes.json();
+                if (convData.client) {
+                  targetClientId = convData.client.id;
+                  targetClientName = convData.client.name;
+                  loadedClients.unshift({
+                    id: convData.client.id,
+                    name: convData.client.name,
+                    tradeName: convData.client.tradeName,
+                    document: convData.client.document,
+                  });
+                }
+              }
+            } catch (err) {
+              console.error("Erro ao converter lead em cliente:", err);
+            }
+          }
+
+          if (targetClientId) {
+            setClientId(targetClientId);
+            setClientName(targetClientName);
+            if (!loadedClients.some((c) => c.id === targetClientId)) {
+              loadedClients.unshift({
+                id: targetClientId,
+                name: targetClientName,
+              });
+            }
+          }
+
+          // 2. Preencher título baseado na proposta
+          setTitle(propData.title || `Contrato - ${propData.proposalCode}`);
+
+          // 3. Preencher descrição / escopo
+          const scope = activeVer?.commercialTermsSnapshot?.scopeDescription || "";
+          setDescription(scope);
+
+          // 4. Preencher notas com termos comerciais e referência da proposta
+          const terms = activeVer?.commercialTermsSnapshot?.paymentTerms || "";
+          const clientNotes = activeVer?.commercialTermsSnapshot?.clientNotes || "";
+          const notesCombined = [
+            `Proposta de referência: ${propData.proposalCode} (v${activeVer?.versionNumber || 1})`,
+            terms ? `Termos: ${terms}` : "",
+            clientNotes ? `Observações do cliente: ${clientNotes}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n");
+          setNotes(notesCombined);
+
+          // 5. Periodicidade
+          if (activeVer && activeVer.totalYearlyEffective > 0 && activeVer.totalMonthlyEffective === 0) {
+            setBillingPeriod("YEARLY");
+          } else if (activeVer && activeVer.totalOneTimeEffective > 0 && activeVer.totalMonthlyEffective === 0) {
+            setBillingPeriod("ONE_TIME");
+          } else {
+            setBillingPeriod("MONTHLY");
+          }
+
+          // 6. Preencher itens da proposta de forma customizável
+          if (activeVer && activeVer.items && activeVer.items.length > 0) {
+            const prefilledItems: ContractItemInput[] = [];
+
+            for (const item of activeVer.items) {
+              const svc =
+                loadedServices.find((s) => s.id === item.serviceId) ||
+                loadedServices.find(
+                  (s) => s.name.toLowerCase() === (item.descriptionSnapshot || "").toLowerCase()
+                );
+
+              if (svc) {
+                prefilledItems.push({
+                  serviceId: svc.id,
+                  serviceName: item.descriptionSnapshot || svc.name,
+                  comboId: item.comboId || null,
+                  comboName: item.comboId ? (item.descriptionSnapshot || null) : null,
+                  supplierId: svc.defaultSupplierId || null,
+                  supplierNameSnapshot: svc.defaultSupplierName || null,
+                  costPeriodicity: svc.defaultCostPeriodicity || "MONTHLY",
+                  quantity: item.quantity || 1,
+                  unitPrice: item.negotiatedUnitPrice ?? item.referenceUnitPrice ?? svc.defaultPrice ?? 0,
+                  unitCost: svc.defaultCost || 0,
+                });
+              } else if (item.serviceId) {
+                prefilledItems.push({
+                  serviceId: item.serviceId,
+                  serviceName: item.descriptionSnapshot || "Serviço",
+                  comboId: item.comboId || null,
+                  comboName: item.comboId ? (item.descriptionSnapshot || null) : null,
+                  supplierId: null,
+                  supplierNameSnapshot: null,
+                  costPeriodicity: "MONTHLY",
+                  quantity: item.quantity || 1,
+                  unitPrice: item.negotiatedUnitPrice ?? item.referenceUnitPrice ?? 0,
+                  unitCost: 0,
+                });
+              } else if (loadedServices.length > 0) {
+                const fallbackSvc = loadedServices[0];
+                prefilledItems.push({
+                  serviceId: fallbackSvc.id,
+                  serviceName: item.descriptionSnapshot || fallbackSvc.name,
+                  comboId: item.comboId || null,
+                  comboName: item.comboId ? (item.descriptionSnapshot || null) : null,
+                  supplierId: fallbackSvc.defaultSupplierId || null,
+                  supplierNameSnapshot: fallbackSvc.defaultSupplierName || null,
+                  costPeriodicity: fallbackSvc.defaultCostPeriodicity || "MONTHLY",
+                  quantity: item.quantity || 1,
+                  unitPrice: item.negotiatedUnitPrice ?? item.referenceUnitPrice ?? fallbackSvc.defaultPrice,
+                  unitCost: fallbackSvc.defaultCost || 0,
+                });
+              }
+            }
+
+            if (prefilledItems.length > 0) {
+              setItems(prefilledItems);
+            }
+          }
+        } else if (initialClientId) {
+          const found = loadedClients.find((c) => c.id === initialClientId);
+          if (found) {
+            setClientId(found.id);
+            setClientName(found.name);
+          }
+        }
+
+        setClients(loadedClients);
+        const opts: AutocompleteOption[] = loadedClients.map((c) => ({
+          id: c.id,
+          label: c.name,
+          sublabel: c.tradeName ? `Fantasia: ${c.tradeName}` : null,
+        }));
+        setClientOptions(opts);
       } catch (err) {
-        console.error("Erro ao carregar catálogo e clientes:", err);
+        console.error("Erro ao carregar catálogo, clientes e proposta:", err);
       } finally {
         setLoadingInitial(false);
       }
     }
     loadData();
-  }, [initialClientId]);
+  }, [initialClientId, initialProposalId]);
 
   // Adicionar serviço avulso
   const handleAddService = (serviceId: string) => {
@@ -255,6 +422,8 @@ function NewContractFormContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId,
+          proposalId: proposalId || undefined,
+          proposalCode: proposalCode || undefined,
           title: title.trim(),
           description: description.trim() || undefined,
           billingPeriod,
@@ -308,6 +477,36 @@ function NewContractFormContent() {
             Defina o cliente, regras de recorrência e vigência, dia de vencimento e componha os serviços com preços e custos customizados.
           </p>
         </div>
+
+        {proposalInfo && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start justify-between gap-3 shadow-xs">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg text-emerald-700 mt-0.5">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-emerald-900 flex items-center gap-2">
+                  Cliente fechou a proposta!
+                  <span className="px-2 py-0.5 bg-emerald-200/80 text-emerald-900 text-xs rounded-full font-mono font-bold">
+                    {proposalInfo.code}
+                  </span>
+                </h3>
+                <p className="text-xs text-emerald-700 mt-1 leading-relaxed">
+                  Os dados da proposta <strong>{proposalInfo.title}</strong> (destinada a {proposalInfo.recipientName}) foram pré-preenchidos automaticamente abaixo.
+                  Você pode alterar qualquer informação (valores, quantidades, prazos, itens) livremente. Ao final, clique em{" "}
+                  <strong>Salvar Contratação</strong>.
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/proposals/${proposalId}`}
+              className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 underline shrink-0 mt-0.5"
+              target="_blank"
+            >
+              Ver proposta
+            </Link>
+          </div>
+        )}
 
         {errorMsg && (
           <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center gap-2">

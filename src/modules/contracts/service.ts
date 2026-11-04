@@ -306,6 +306,71 @@ export async function createContract(
       [contractDb.id, JSON.stringify({ contractNumber, version: 1, total: totalVersionAmount })]
     );
 
+    // 8. Se gerado a partir de uma proposta comercial, atualizar a proposta e oportunidade
+    if (input.proposalId) {
+      await client.query(
+        `UPDATE proposals 
+         SET contract_id = $1, 
+             status = 'APPROVED', 
+             approved_version_number = COALESCE(approved_version_number, current_version_number),
+             approved_at = COALESCE(approved_at, NOW()),
+             updated_at = NOW() 
+         WHERE id = $2`,
+        [contractDb.id, input.proposalId]
+      );
+
+      await client.query(
+        `INSERT INTO proposal_events (
+           proposal_id, event_type, new_state, details
+         ) VALUES ($1, 'CONVERTED_TO_CONTRACT', 'APPROVED', $2)`,
+        [
+          input.proposalId,
+          JSON.stringify({
+            contractId: contractDb.id,
+            contractNumber,
+            totalAmount: totalVersionAmount,
+            message: "Contrato criado e customizado após fechamento da proposta.",
+          }),
+        ]
+      );
+
+      const propVerRes = await client.query<{ version_id: string | null; client_id: string; opportunity_id: string | null }>(
+        `SELECT pv.id AS version_id, p.client_id, p.opportunity_id 
+         FROM proposals p
+         LEFT JOIN proposal_versions pv ON pv.proposal_id = p.id AND pv.version_number = p.current_version_number
+         WHERE p.id = $1`,
+        [input.proposalId]
+      );
+      if (propVerRes.rows[0]) {
+        const { version_id, client_id, opportunity_id } = propVerRes.rows[0];
+        const idempotencyKey = `manual_contract_${contractDb.id}_prop_${input.proposalId}`;
+        await client.query(
+          `INSERT INTO proposal_contract_conversions (
+             proposal_id, proposal_version_id, contract_id, converted_client_id,
+             periodicity, idempotency_key
+           ) VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT DO NOTHING`,
+          [
+            input.proposalId,
+            version_id || null,
+            contractDb.id,
+            client_id || input.clientId,
+            input.billingPeriod,
+            idempotencyKey,
+          ]
+        );
+
+        if (opportunity_id) {
+          await client.query(
+            `UPDATE crm_opportunities 
+             SET status = 'WON', contract_id = $1, closed_at = NOW(), probability = 100, updated_at = NOW() 
+             WHERE id = $2`,
+            [contractDb.id, opportunity_id]
+          );
+        }
+      }
+    }
+
     const versionRecord = mapVersionRow(versionDb, itemRecords);
     return mapContractRow(contractDb, versionRecord, [versionRecord]);
   };

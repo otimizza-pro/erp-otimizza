@@ -159,8 +159,8 @@ function NewProposalForm() {
         const clientIdParam = searchParams.get("clientId");
 
         const [servicesRes, combosRes, clientsRes, leadsRes] = await Promise.all([
-          fetch("/api/services"),
-          fetch("/api/combos"),
+          fetch("/api/services?status=ACTIVE"),
+          fetch("/api/combos?status=ACTIVE"),
           fetch("/api/clients?limit=100"),
           fetch("/api/crm/leads?limit=100"),
         ]);
@@ -169,7 +169,9 @@ function NewProposalForm() {
           const data = await servicesRes.json();
           setAvailableServices(
             Array.isArray(data)
-              ? data.map((s) => ({ id: s.id, name: s.name, defaultPrice: Number(s.defaultPrice ?? s.price ?? s.default_price ?? 0), billingUnit: s.billingUnit || s.billing_unit }))
+              ? data
+                  .filter((s) => !s.name?.toLowerCase().includes("teste") && !s.name?.toLowerCase().includes("mock"))
+                  .map((s) => ({ id: s.id, name: s.name, defaultPrice: Number(s.defaultPrice ?? s.price ?? s.default_price ?? 0), billingUnit: s.billingUnit || s.billing_unit }))
               : []
           );
         }
@@ -178,7 +180,9 @@ function NewProposalForm() {
           const data = await combosRes.json();
           setAvailableCombos(
             Array.isArray(data)
-              ? data.map((c) => ({
+              ? data
+                  .filter((c) => !c.name?.toLowerCase().includes("teste") && !c.name?.toLowerCase().includes("mock"))
+                  .map((c) => ({
                   id: c.id,
                   name: c.name,
                   items: Array.isArray(c.items)

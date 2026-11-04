@@ -5,7 +5,8 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || undefined;
-    const status = (searchParams.get("status") as "ACTIVE" | "ARCHIVED") || undefined;
+    const statusParam = searchParams.get("status");
+    const status = statusParam === "ALL" ? undefined : ((statusParam as "ACTIVE" | "ARCHIVED") || "ACTIVE");
 
     const combos = await listCombos({ search, status });
     return NextResponse.json(combos);

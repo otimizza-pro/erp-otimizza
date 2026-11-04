@@ -112,13 +112,15 @@ function NewContractFormContent() {
 
         if (sRes.ok) {
           const sData = await sRes.json();
-          loadedServices = Array.isArray(sData) ? sData : (sData.services || []);
+          loadedServices = (Array.isArray(sData) ? sData : (sData.services || []))
+            .filter((s: ServiceOption) => !s.name?.toLowerCase().includes("teste") && !s.name?.toLowerCase().includes("mock"));
           setServices(loadedServices);
         }
 
         if (cbRes.ok) {
           const cbData = await cbRes.json();
-          const list: ComboOption[] = Array.isArray(cbData) ? cbData : (cbData.combos || []);
+          const list: ComboOption[] = (Array.isArray(cbData) ? cbData : (cbData.combos || []))
+            .filter((c: ComboOption) => !c.name?.toLowerCase().includes("teste") && !c.name?.toLowerCase().includes("mock"));
           setCombos(list);
         }
 

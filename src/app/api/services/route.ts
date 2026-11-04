@@ -13,7 +13,8 @@ export async function GET(request: Request) {
     }
 
     const search = searchParams.get("search") || undefined;
-    const status = (searchParams.get("status") as "ACTIVE" | "ARCHIVED") || undefined;
+    const statusParam = searchParams.get("status");
+    const status = statusParam === "ALL" ? undefined : ((statusParam as "ACTIVE" | "ARCHIVED") || "ACTIVE");
     const categoryId = searchParams.get("categoryId") || undefined;
 
     const services = await listServices({ search, status, categoryId });

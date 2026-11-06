@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description: "Plataforma empresarial integrada de gestão financeira, contratos recorrentes e BI da Otimizza.",
   icons: {
     icon: [
+      { url: "/favicon.ico", sizes: "any" },
       { url: "/brand/favicon-512.png", sizes: "32x32", type: "image/png" },
       { url: "/brand/favicon-512.png", sizes: "192x192", type: "image/png" },
       { url: "/brand/favicon-512.png", sizes: "512x512", type: "image/png" },
@@ -27,6 +28,7 @@ export const metadata: Metadata = {
     apple: [
       { url: "/brand/avatar-escuro.png", sizes: "180x180", type: "image/png" },
     ],
+    shortcut: ["/favicon.ico"],
   },
 };
 

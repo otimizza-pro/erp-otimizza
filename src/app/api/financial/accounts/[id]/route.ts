@@ -35,6 +35,8 @@ export async function PATCH(
       bankName: body.bankName,
       accountType: body.accountType,
       status: body.status,
+      currentBalance: body.currentBalance !== undefined ? Number(body.currentBalance) : undefined,
+      adjustmentReason: body.adjustmentReason,
     });
 
     return NextResponse.json(updated);

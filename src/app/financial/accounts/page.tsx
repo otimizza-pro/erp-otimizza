@@ -38,6 +38,8 @@ export default function FinancialAccountsPage() {
   const [editBankName, setEditBankName] = useState("");
   const [editAccType, setEditAccType] = useState<"CHECKING" | "SAVINGS" | "CASH" | "INVESTMENT">("CHECKING");
   const [editStatus, setEditStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
+  const [editCurrentBalance, setEditCurrentBalance] = useState<number>(0);
+  const [editReason, setEditReason] = useState("");
   const [savingEditAcc, setSavingEditAcc] = useState(false);
   const [editAccError, setEditAccError] = useState("");
 
@@ -122,6 +124,8 @@ export default function FinancialAccountsPage() {
     setEditBankName(acc.bankName || "");
     setEditAccType(acc.accountType);
     setEditStatus(acc.status === "ACTIVE" ? "ACTIVE" : "INACTIVE");
+    setEditCurrentBalance(acc.currentBalance);
+    setEditReason("");
     setEditAccError("");
     setEditAccModalOpen(true);
   };
@@ -144,6 +148,8 @@ export default function FinancialAccountsPage() {
           bankName: editBankName.trim() || null,
           accountType: editAccType,
           status: editStatus,
+          currentBalance: editCurrentBalance,
+          adjustmentReason: editReason.trim() || undefined,
         }),
       });
 
@@ -521,6 +527,28 @@ export default function FinancialAccountsPage() {
                     <option value="INACTIVE">Inativa</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl space-y-2">
+                <label className="block font-semibold text-amber-900">
+                  Saldo em Caixa / Conta (R$)
+                </label>
+                <CurrencyInput
+                  value={editCurrentBalance}
+                  onChangeValue={(val) => setEditCurrentBalance(val)}
+                  placeholder="0,00"
+                  className="w-full py-2 bg-white border border-amber-300 rounded-lg font-bold text-zinc-950 font-mono text-sm"
+                />
+                <input
+                  type="text"
+                  placeholder="Motivo do ajuste (ex: Conciliação bancária, acerto de saldo)"
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-amber-200 rounded-lg text-xs placeholder:text-zinc-400"
+                />
+                <p className="text-[10px] text-amber-700 leading-tight">
+                  A alteração direta do saldo gerará um lançamento de ajuste auditado no extrato contábil da conta.
+                </p>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-2">

@@ -1,6 +1,7 @@
 import { generateServiceRecurrence } from "@/modules/contracts/journey-service";
 import { query, withTransaction } from "@/lib/db/pool";
 import { calculateEffectiveDueDate } from "@/shared/recurrence";
+import { formatMoney } from "@/shared/money";
 import {
   FinancialStatus,
   ReceivableRecord,
@@ -102,6 +103,8 @@ export async function updateFinancialAccount(
     bankName?: string | null;
     accountType?: "CHECKING" | "SAVINGS" | "CASH" | "INVESTMENT";
     status?: "ACTIVE" | "INACTIVE";
+    currentBalance?: number;
+    adjustmentReason?: string;
   }
 ): Promise<FinancialAccountRecord> {
   const existing = await getFinancialAccountById(id);
@@ -111,33 +114,68 @@ export async function updateFinancialAccount(
   const bankName = data.bankName !== undefined ? (data.bankName ? data.bankName.trim() : null) : existing.bankName;
   const accountType = data.accountType || existing.accountType;
   const status = data.status || existing.status;
+  const targetBalance = data.currentBalance !== undefined ? Number(Number(data.currentBalance).toFixed(2)) : undefined;
 
-  const sql = `
-    UPDATE financial_accounts
-    SET name = $1, bank_name = $2, account_type = $3, status = $4, updated_at = CURRENT_TIMESTAMP
-    WHERE id = $5
-    RETURNING *
-  `;
-  const res = await query(sql, [name, bankName, accountType, status, id]);
-  const r = res.rows[0];
+  return await withTransaction(async (client) => {
+    // Se houver ajuste de saldo direto, registra movimentação no extrato e auditoria
+    if (targetBalance !== undefined && targetBalance !== existing.currentBalance) {
+      const diff = Number((targetBalance - existing.currentBalance).toFixed(2));
+      const movType = diff > 0 ? "INFLOW" : "OUTFLOW";
+      const absDiff = Math.abs(diff);
 
-  await query(
-    `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
-     VALUES ($1, $2, $3, $4)`,
-    ["financial_accounts", id, "UPDATE", JSON.stringify({ name, bankName, accountType, status })]
-  );
+      const seq = (await client.query<{ next_val: string }>("SELECT nextval('statement_number_seq') AS next_val")).rows[0].next_val;
+      const statementNum = `AJU-${String(seq).padStart(6, "0")}`;
+      const desc = data.adjustmentReason?.trim() || `Ajuste manual de saldo de ${formatMoney(existing.currentBalance)} para ${formatMoney(targetBalance)}`;
 
-  return {
-    id: r.id,
-    name: r.name,
-    bankName: r.bank_name,
-    accountType: r.account_type,
-    initialBalance: Number(r.initial_balance),
-    currentBalance: Number(r.current_balance),
-    status: r.status,
-    createdAt: r.created_at.toISOString(),
-    updatedAt: r.updated_at.toISOString(),
-  };
+      await client.query(
+        `INSERT INTO financial_statements (account_id, statement_number, movement_type, amount, balance_after, movement_date, description)
+         VALUES ($1, $2, $3, $4, $5, CURRENT_DATE, $6)`,
+        [id, statementNum, movType, absDiff, targetBalance, desc]
+      );
+    }
+
+    const newBal = targetBalance !== undefined ? targetBalance : existing.currentBalance;
+
+    const sql = `
+      UPDATE financial_accounts
+      SET name = $1, bank_name = $2, account_type = $3, status = $4, current_balance = $5, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $6
+      RETURNING *
+    `;
+    const res = await client.query(sql, [name, bankName, accountType, status, newBal, id]);
+    const r = res.rows[0];
+
+    await client.query(
+      `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
+       VALUES ($1, $2, $3, $4)`,
+      [
+        "financial_accounts",
+        id,
+        "UPDATE",
+        JSON.stringify({
+          name,
+          bankName,
+          accountType,
+          status,
+          previousBalance: existing.currentBalance,
+          newBalance: newBal,
+          reason: data.adjustmentReason || null
+        })
+      ]
+    );
+
+    return {
+      id: r.id,
+      name: r.name,
+      bankName: r.bank_name,
+      accountType: r.account_type,
+      initialBalance: Number(r.initial_balance),
+      currentBalance: Number(r.current_balance),
+      status: r.status,
+      createdAt: r.created_at.toISOString(),
+      updatedAt: r.updated_at.toISOString(),
+    };
+  });
 }
 
 export async function deleteFinancialAccount(

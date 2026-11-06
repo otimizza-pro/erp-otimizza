@@ -21,6 +21,7 @@ import {
   Trash2,
   ExternalLink,
   Info,
+  PenTool,
 } from "lucide-react";
 import {
   DocumentRecord,
@@ -45,6 +46,8 @@ function DocumentsMainContent() {
   const [detailModalDoc, setDetailModalDoc] = useState<DocumentRecord | null>(null);
 
   // Formulário Novo Documento
+  const [creationMode, setCreationMode] = useState<"UPLOAD" | "WRITE">("UPLOAD");
+  const [textContent, setTextContent] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
@@ -104,8 +107,16 @@ function DocumentsMainContent() {
 
   const handleCreateDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile) {
+    if (creationMode === "UPLOAD" && !selectedFile) {
       setErrorMsg("Selecione um arquivo para upload.");
+      return;
+    }
+    if (creationMode === "WRITE" && !newTitle.trim()) {
+      setErrorMsg("Informe o título do documento.");
+      return;
+    }
+    if (creationMode === "WRITE" && !textContent.trim()) {
+      setErrorMsg("Escreva o conteúdo do documento.");
       return;
     }
 
@@ -114,28 +125,56 @@ function DocumentsMainContent() {
 
     startTransition(async () => {
       try {
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-        formData.append("title", newTitle.trim() || selectedFile.name);
-        formData.append("description", newDescription.trim());
-        formData.append("categoryId", newCategory);
-        if (newTags.trim()) formData.append("tags", newTags.trim());
-        if (newIssueDate) formData.append("issueDate", newIssueDate);
-        if (newExpirationDate) formData.append("expirationDate", newExpirationDate);
+        let res: Response;
 
-        const res = await fetch("/api/documents", {
-          method: "POST",
-          body: formData,
-        });
+        if (creationMode === "WRITE") {
+          res = await fetch("/api/documents", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              title: newTitle.trim(),
+              description: newDescription.trim(),
+              categoryId: newCategory,
+              tags: newTags.trim() ? newTags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+              issueDate: newIssueDate || undefined,
+              expirationDate: newExpirationDate || undefined,
+              textContent: textContent.trim(),
+            }),
+          });
+        } else {
+          const formData = new FormData();
+          if (selectedFile) {
+            formData.append("file", selectedFile);
+            formData.append("title", newTitle.trim() || selectedFile.name);
+          }
+          formData.append("description", newDescription.trim());
+          formData.append("categoryId", newCategory);
+          if (newTags.trim()) formData.append("tags", newTags.trim());
+          if (newIssueDate) formData.append("issueDate", newIssueDate);
+          if (newExpirationDate) formData.append("expirationDate", newExpirationDate);
+
+          res = await fetch("/api/documents", {
+            method: "POST",
+            body: formData,
+          });
+        }
 
         if (!res.ok) {
           const err = await res.json();
           throw new Error(err.error || "Erro ao salvar documento.");
         }
 
-        setSuccessMsg("Documento cadastrado e armazenado com sucesso!");
+        setSuccessMsg(
+          creationMode === "WRITE"
+            ? "Documento escrito e salvo com sucesso no repositório!"
+            : "Documento cadastrado e armazenado com sucesso!"
+        );
         setUploadModalOpen(false);
         setSelectedFile(null);
+        setTextContent("");
+        setCreationMode("UPLOAD");
         setNewTitle("");
         setNewDescription("");
         setNewTags("");
@@ -143,7 +182,7 @@ function DocumentsMainContent() {
         setNewExpirationDate("");
         loadDocuments();
       } catch (err: unknown) {
-        setErrorMsg(err instanceof Error ? err.message : "Erro ao enviar arquivo.");
+        setErrorMsg(err instanceof Error ? err.message : "Erro ao salvar documento.");
       }
     });
   };
@@ -434,8 +473,12 @@ function DocumentsMainContent() {
             <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 border border-slate-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Upload className="w-5 h-5 text-indigo-600" />
-                  Upload de Novo Documento
+                  {creationMode === "UPLOAD" ? (
+                    <Upload className="w-5 h-5 text-indigo-600" />
+                  ) : (
+                    <PenTool className="w-5 h-5 text-indigo-600" />
+                  )}
+                  {creationMode === "UPLOAD" ? "Upload de Novo Documento" : "Escrever Novo Documento"}
                 </h3>
                 <button
                   onClick={() => setUploadModalOpen(false)}
@@ -445,27 +488,74 @@ function DocumentsMainContent() {
                 </button>
               </div>
 
+              {/* Seletor de Modo: Upload vs Escrever */}
+              <div className="flex bg-slate-100 p-1 rounded-lg mb-4">
+                <button
+                  type="button"
+                  onClick={() => setCreationMode("UPLOAD")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-md transition-colors ${
+                    creationMode === "UPLOAD"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  Upload de Arquivo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCreationMode("WRITE")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-md transition-colors ${
+                    creationMode === "WRITE"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <PenTool className="w-3.5 h-3.5" />
+                  Escrever Documento
+                </button>
+              </div>
+
               <form onSubmit={handleCreateDocument} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Arquivo do Documento *
-                  </label>
-                  <input
-                    type="file"
-                    required
-                    onChange={(e) => {
-                      const f = e.target.files?.[0] || null;
-                      setSelectedFile(f);
-                      if (f && !newTitle) {
-                        setNewTitle(f.name.replace(/\.[^/.]+$/, ""));
-                      }
-                    }}
-                    className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-lg p-1.5"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Formatos suportados: PDF, DOCX, XLSX, PNG, JPG, ZIP (máx. 25MB).
-                  </p>
-                </div>
+                {creationMode === "UPLOAD" ? (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Arquivo do Documento *
+                    </label>
+                    <input
+                      type="file"
+                      required
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] || null;
+                        setSelectedFile(f);
+                        if (f && !newTitle) {
+                          setNewTitle(f.name.replace(/\.[^/.]+$/, ""));
+                        }
+                      }}
+                      className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-lg p-1.5"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Formatos suportados: PDF, DOCX, XLSX, PNG, JPG, ZIP (máx. 25MB).
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-semibold text-slate-700">
+                        Conteúdo do Documento *
+                      </label>
+                      <span className="text-[10px] text-slate-400">Suporta formatação Markdown</span>
+                    </div>
+                    <textarea
+                      rows={8}
+                      required
+                      value={textContent}
+                      onChange={(e) => setTextContent(e.target.value)}
+                      placeholder="# Título do Documento&#10;&#10;Escreva o documento aqui com cláusulas, observações, requisitos, estratégias ou notas..."
+                      className="w-full font-mono text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Título *</label>
@@ -546,10 +636,10 @@ function DocumentsMainContent() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isPending || !selectedFile}
+                    disabled={isPending || (creationMode === "UPLOAD" ? !selectedFile : (!textContent.trim() || !newTitle.trim()))}
                     className="px-4 py-2 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
                   >
-                    {isPending ? "Gravando Arquivo..." : "Salvar no Repositório"}
+                    {isPending ? "Gravando Documento..." : "Salvar no Repositório"}
                   </button>
                 </div>
               </form>

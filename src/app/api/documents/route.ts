@@ -80,14 +80,30 @@ export async function POST(request: Request) {
       return NextResponse.json(created, { status: 201 });
     }
 
-    // JSON com payload base64
+    // JSON com payload base64 ou texto escrito diretamente
     const body = await request.json();
-    if (!body.fileBase64) {
-      return NextResponse.json({ error: "Campo fileBase64 é obrigatório para upload JSON." }, { status: 400 });
+
+    let fileBuffer: Buffer;
+    let originalFilename = body.originalFilename;
+    let mimeType = body.mimeType;
+
+    if (body.textContent !== undefined) {
+      fileBuffer = Buffer.from(String(body.textContent), "utf8");
+      originalFilename = originalFilename || `${(body.title || "documento").toLowerCase().replace(/[^a-z0-9_-]/g, "_")}.md`;
+      mimeType = mimeType || "text/markdown; charset=utf-8";
+    } else if (body.fileBase64) {
+      fileBuffer = Buffer.from(body.fileBase64, "base64");
+    } else {
+      return NextResponse.json({ error: "Envie um arquivo ou preencha o conteúdo do documento (textContent)." }, { status: 400 });
     }
 
-    const fileBuffer = Buffer.from(body.fileBase64, "base64");
-    const parsed = CreateDocumentInputSchema.safeParse(body);
+    const rawInput = {
+      ...body,
+      originalFilename,
+      mimeType,
+    };
+
+    const parsed = CreateDocumentInputSchema.safeParse(rawInput);
     if (!parsed.success) {
       const msg = parsed.error.issues.map((i) => i.message).join(", ");
       return NextResponse.json({ error: `Dados inválidos: ${msg}` }, { status: 400 });

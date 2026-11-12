@@ -54,6 +54,7 @@ interface NavGroup {
   id: string;
   title: string;
   icon: React.ElementType;
+  section: "COMERCIAL" | "PRODUÇÃO" | "ADMINISTRATIVO";
   items: NavItem[];
 }
 
@@ -91,18 +92,146 @@ export function AppShell({ children, activeSection }: AppShellProps) {
   const newDropdownRef = useRef<HTMLDivElement>(null);
   const newDropdownButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Mapeamento dos grupos do menu segundo as diretrizes
+  // Mapeamento dos grupos do menu organizados nos 3 Pilares: Comercial, Produção e Administrativo
   const navigationGroups: NavGroup[] = [
+    // =========================================================================
+    // 1. COMERCIAL (Vendas, Atendimento, Propostas e Contratos)
+    // =========================================================================
+    {
+      id: "commercial",
+      title: "CRM & Vendas",
+      icon: TrendingUp,
+      section: "COMERCIAL",
+      items: [
+        { id: "crm_overview", label: "Visão comercial", href: "/crm", icon: TrendingUp },
+        { id: "crm_leads", label: "Leads", href: "/crm/leads", icon: Users },
+        { id: "crm_opportunities", label: "Funil de vendas", href: "/crm/opportunities", icon: RefreshCw },
+        { id: "crm_activities", label: "Atividades comerciais", href: "/crm/activities", icon: Calendar },
+      ],
+    },
+    {
+      id: "proposals",
+      title: "Propostas Comerciais",
+      icon: FileText,
+      section: "COMERCIAL",
+      items: [
+        { id: "proposals_list", label: "Propostas", href: "/proposals", icon: FileText },
+        { id: "proposals_new", label: "Nova proposta", href: "/proposals/new", icon: Plus },
+      ],
+    },
+    {
+      id: "clients",
+      title: "Clientes",
+      icon: Users,
+      section: "COMERCIAL",
+      items: [
+        { id: "clients_list", label: "Base de clientes", href: "/clients", icon: Users },
+        { id: "clients_new", label: "Novo cliente", href: "/clients/new", icon: Plus },
+      ],
+    },
+    {
+      id: "contracts",
+      title: "Contratos",
+      icon: RefreshCw,
+      section: "COMERCIAL",
+      items: [
+        { id: "contracts_list", label: "Contratos vigentes", href: "/contracts", icon: RefreshCw },
+        { id: "contracts_new", label: "Novo contrato", href: "/contracts/new", icon: Plus },
+      ],
+    },
+
+    // =========================================================================
+    // 2. PRODUÇÃO (Operações, Entregas, Conteúdo e Catálogo)
+    // =========================================================================
+    {
+      id: "projects",
+      title: "Projetos & Demandas",
+      icon: Briefcase,
+      section: "PRODUÇÃO",
+      items: [
+        { id: "projects_list", label: "Projetos em andamento", href: "/projects", icon: Briefcase },
+        { id: "projects_templates", label: "Modelos de projeto", href: "/projects/templates", icon: Layers },
+      ],
+    },
+    {
+      id: "content_studio",
+      title: "Criação de Conteúdo & IA",
+      icon: Sparkles,
+      section: "PRODUÇÃO",
+      items: [
+        { id: "prompt_creator", label: "Estúdio de Conteúdo & IA", href: "/prompt-creator", icon: Sparkles },
+      ],
+    },
+    {
+      id: "cadastros",
+      title: "Catálogo de Serviços",
+      icon: Package,
+      section: "PRODUÇÃO",
+      items: [
+        { id: "services", label: "Serviços", href: "/services", icon: Package },
+        { id: "combos", label: "Combos de serviços", href: "/combos", icon: Layers },
+        { id: "service_cats", label: "Categorias de serviços", href: "/services/categories", icon: Layers },
+      ],
+    },
+
+    // =========================================================================
+    // 3. ADMINISTRATIVO (Finanças, Fornecedores, BI, Estratégia e Governança)
+    // =========================================================================
+    {
+      id: "financial",
+      title: "Financeiro",
+      icon: DollarSign,
+      section: "ADMINISTRATIVO",
+      items: [
+        { id: "receivables", label: "Contas a receber", href: "/financial/receivables", icon: DollarSign },
+        { id: "payables", label: "Contas a pagar", href: "/financial/payables", icon: Layers },
+        { id: "cashflow", label: "Fluxo de caixa", href: "/financial/cashflow", icon: Database },
+        { id: "dre", label: "DRE gerencial", href: "/financial/dre", icon: PieChart },
+        { id: "accounts", label: "Contas financeiras", href: "/financial/accounts", icon: ShieldCheck },
+        { id: "cost_centers", label: "Centros de custo", href: "/financial/cost-centers", icon: Layers },
+      ],
+    },
+    {
+      id: "suppliers",
+      title: "Fornecedores",
+      icon: Truck,
+      section: "ADMINISTRATIVO",
+      items: [
+        { id: "suppliers_list", label: "Fornecedores cadastrados", href: "/suppliers", icon: Truck },
+        { id: "suppliers_new", label: "Novo fornecedor", href: "/suppliers/new", icon: Plus },
+      ],
+    },
+    {
+      id: "reports",
+      title: "Relatórios & BI",
+      icon: BarChart3,
+      section: "ADMINISTRATIVO",
+      items: [
+        { id: "reports_comm", label: "Indicadores comerciais", href: "/reports?tab=commercial", icon: TrendingUp },
+        { id: "reports_fin", label: "Indicadores financeiros", href: "/reports?tab=financial", icon: DollarSign },
+        { id: "reports_prof", label: "Rentabilidade", href: "/reports?tab=profitability", icon: BarChart3 },
+      ],
+    },
+    {
+      id: "documents",
+      title: "Documentos & Senhas",
+      icon: FolderOpen,
+      section: "ADMINISTRATIVO",
+      items: [
+        { id: "documents_repo", label: "Repositório de documentos", href: "/documents", icon: FolderOpen },
+        { id: "passwords", label: "Gerenciador de senhas", href: "/passwords", icon: ShieldCheck },
+      ],
+    },
     {
       id: "strategy",
       title: "Gestão Estratégica",
       icon: Compass,
+      section: "ADMINISTRATIVO",
       items: [
         { id: "strategy_overview", label: "Visão geral", href: "/strategy", icon: LayoutDashboard },
         { id: "strategy_diagnosis", label: "Empresa e diagnóstico", href: "/strategy?tab=diagnosis", icon: Building },
         { id: "strategy_business", label: "Gestão empresarial", href: "/strategy?tab=business", icon: Briefcase },
         { id: "strategy_marketing", label: "Planejamento de marketing", href: "/strategy?tab=marketing", icon: TrendingUp },
-        { id: "prompt_creator", label: "Criador de Prompts", href: "/prompt-creator", icon: Sparkles },
         { id: "strategy_frameworks", label: "Ferramentas de gestão", href: "/strategy?tab=frameworks", icon: Layers },
         { id: "strategy_goals", label: "Objetivos e indicadores", href: "/strategy?tab=goals", icon: CheckCircle2 },
         { id: "strategy_budgets", label: "Orçamentos e metas", href: "/strategy?tab=budgets", icon: DollarSign },
@@ -110,100 +239,15 @@ export function AppShell({ children, activeSection }: AppShellProps) {
         { id: "strategy_competitors", label: "Concorrentes e referências", href: "/strategy?tab=competitors", icon: Users },
         { id: "strategy_decisions", label: "Decisões e revisões", href: "/strategy?tab=decisions", icon: ShieldCheck },
         { id: "strategy_export", label: "Documentos e exportações", href: "/strategy?tab=export", icon: FileText },
-      ],
-    },
-    {
-      id: "commercial",
-      title: "Comercial",
-      icon: TrendingUp,
-      items: [
-        { id: "crm_overview", label: "Visão comercial", href: "/crm", icon: TrendingUp },
-        { id: "crm_leads", label: "Leads", href: "/crm/leads", icon: Users },
-        { id: "crm_opportunities", label: "Funil de vendas", href: "/crm/opportunities", icon: RefreshCw },
-        { id: "proposals", label: "Propostas", href: "/proposals", icon: FileText },
-        { id: "crm_activities", label: "Atividades comerciais", href: "/crm/activities", icon: Calendar },
-      ],
-    },
-    {
-      id: "clients",
-      title: "Clientes",
-      icon: Users,
-      items: [
-        { id: "clients_list", label: "Clientes", href: "/clients", icon: Users },
-      ],
-    },
-    {
-      id: "contracts",
-      title: "Contratos",
-      icon: RefreshCw,
-      items: [
-        { id: "contracts_list", label: "Contratos", href: "/contracts", icon: RefreshCw },
-      ],
-    },
-    {
-      id: "financial",
-      title: "Financeiro",
-      icon: DollarSign,
-      items: [
-        { id: "receivables", label: "Contas a receber", href: "/financial/receivables", icon: DollarSign },
-        { id: "payables", label: "Contas a pagar", href: "/financial/payables", icon: Layers },
-        { id: "cashflow", label: "Fluxo de caixa", href: "/financial/cashflow", icon: Database },
-      ],
-    },
-    {
-      id: "projects",
-      title: "Projetos",
-      icon: Briefcase,
-      items: [
-        { id: "projects_list", label: "Projetos", href: "/projects", icon: Briefcase },
-        { id: "projects_templates", label: "Modelos de projeto", href: "/projects/templates", icon: Layers },
-      ],
-    },
-    {
-      id: "reports",
-      title: "Relatórios",
-      icon: BarChart3,
-      items: [
-        { id: "reports_comm", label: "Indicadores comerciais", href: "/reports?tab=commercial", icon: TrendingUp },
-        { id: "reports_fin", label: "Indicadores financeiros", href: "/reports?tab=financial", icon: DollarSign },
-        { id: "dre", label: "DRE gerencial", href: "/financial/dre", icon: PieChart },
-        { id: "reports_prof", label: "Rentabilidade", href: "/reports?tab=profitability", icon: BarChart3 },
-      ],
-    },
-    {
-      id: "cadastros",
-      title: "Cadastros",
-      icon: Layers,
-      items: [
-        { id: "services", label: "Serviços", href: "/services", icon: Package },
-        { id: "combos", label: "Combos", href: "/combos", icon: Layers },
-        { id: "service_cats", label: "Categorias de serviços", href: "/services/categories", icon: Layers },
-        { id: "suppliers", label: "Fornecedores", href: "/suppliers", icon: Truck },
-        { id: "accounts", label: "Contas financeiras", href: "/financial/accounts", icon: ShieldCheck },
-        { id: "cost_centers", label: "Centros de custo", href: "/financial/cost-centers", icon: Layers },
-      ],
-    },
-    {
-      id: "documents",
-      title: "Documentos",
-      icon: FolderOpen,
-      items: [
-        { id: "documents_repo", label: "Documentos", href: "/documents", icon: FolderOpen },
-        { id: "passwords", label: "Gerenciador de senhas", href: "/passwords", icon: ShieldCheck },
-      ],
-    },
-    {
-      id: "knowledge",
-      title: "Informações da Otimizza",
-      icon: Compass,
-      items: [
-        { id: "knowledge_manual", label: "Manual da estratégia", href: "/informacoes-otimizza", icon: BookOpen },
+        { id: "knowledge_manual", label: "Manuais da Otimizza", href: "/informacoes-otimizza", icon: BookOpen },
+        { id: "strategy_public", label: "Estratégia Pública / IA", href: "/estrategia-otimizza", icon: ExternalLink },
       ],
     },
     {
       id: "settings",
       title: "Configurações",
       icon: Settings,
+      section: "ADMINISTRATIVO",
       items: [
         { id: "settings_main", label: "Dados da empresa", href: "/settings", icon: Building },
         { id: "settings_int", label: "Integrações", href: "/settings?tab=integrations", icon: Layers },
@@ -547,8 +591,10 @@ export function AppShell({ children, activeSection }: AppShellProps) {
               {!sidebarCollapsed && <span>Início</span>}
             </Link>
 
-            {/* Grupos Expansíveis e Recolhíveis */}
-            {navigationGroups.map((group) => {
+            {/* Grupos Expansíveis e Recolhíveis nos 3 Pilares */}
+            {navigationGroups.map((group, groupIdx) => {
+              const prevGroup = groupIdx > 0 ? navigationGroups[groupIdx - 1] : null;
+              const isNewSection = !prevGroup || prevGroup.section !== group.section;
               const isGroupActive = activeGroupId === group.id;
               const isExpanded = !!expandedGroups[group.id];
               const GroupIcon = group.icon;
@@ -558,114 +604,126 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                 const isFlyoutOpen = keyboardFlyoutGroupId === group.id;
 
                 return (
-                  <div
-                    key={group.id}
-                    className="relative group/flyout"
-                    onBlur={(e) => {
-                      // Se o foco sair do botão e do flyout deste grupo, fechar o flyout
-                      if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-                        if (keyboardFlyoutGroupId === group.id) {
-                          setKeyboardFlyoutGroupId(null);
-                        }
-                      }
-                    }}
-                  >
-                    <button
-                      id={`collapsed-btn-${group.id}`}
-                      type="button"
-                      aria-haspopup="true"
-                      aria-expanded={isFlyoutOpen}
-                      aria-controls={`collapsed-flyout-${group.id}`}
-                      onClick={() => {
-                        setKeyboardFlyoutGroupId((prev) => (prev === group.id ? null : group.id));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight" || e.key === "ArrowDown") {
-                          e.preventDefault();
-                          setKeyboardFlyoutGroupId(group.id);
-                          setTimeout(() => {
-                            const firstItem = document.querySelector<HTMLAnchorElement>(`#collapsed-flyout-${group.id} a`);
-                            firstItem?.focus();
-                          }, 50);
-                        } else if (e.key === "Escape") {
-                          e.preventDefault();
-                          setKeyboardFlyoutGroupId(null);
-                        }
-                      }}
-                      className={`w-full flex items-center justify-center p-2.5 rounded-xl transition cursor-pointer focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none ${
-                        isGroupActive
-                          ? "bg-zinc-900 text-white"
-                          : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
-                      }`}
-                      title={group.title}
-                      aria-label={group.title}
-                    >
-                      <GroupIcon className="w-4 h-4" />
-                    </button>
-
-                    {/* Popover Flyout acessível tanto no hover do mouse quanto via teclado */}
+                  <React.Fragment key={group.id}>
+                    {isNewSection && groupIdx > 0 && (
+                      <div className="my-2 border-t border-zinc-200/80 w-8 mx-auto" />
+                    )}
                     <div
-                      id={`collapsed-flyout-${group.id}`}
-                      role="menu"
-                      aria-label={group.title}
-                      className={`${
-                        isFlyoutOpen ? "block" : "hidden"
-                      } group-hover/flyout:block absolute left-full top-0 ml-2 w-52 bg-white border border-zinc-200/90 rounded-xl shadow-xl z-50 py-1.5 px-1 animate-in fade-in duration-100`}
+                      className="relative group/flyout"
+                      onBlur={(e) => {
+                        // Se o foco sair do botão e do flyout deste grupo, fechar o flyout
+                        if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                          if (keyboardFlyoutGroupId === group.id) {
+                            setKeyboardFlyoutGroupId(null);
+                          }
+                        }
+                      }}
                     >
-                      <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 mb-1 flex items-center gap-1.5">
-                        <GroupIcon className="w-3 h-3 text-zinc-500" />
-                        <span>{group.title}</span>
-                      </div>
-                      <div className="space-y-0.5">
-                        {group.items.map((item, itemIdx) => {
-                          const active = isItemActive(item, group);
-                          return (
-                            <Link
-                              key={item.id}
-                              href={item.href}
-                              role="menuitem"
-                              tabIndex={0}
-                              onKeyDown={(e) => {
-                                if (e.key === "Escape" || e.key === "ArrowLeft") {
-                                  e.preventDefault();
+                      <button
+                        id={`collapsed-btn-${group.id}`}
+                        type="button"
+                        aria-haspopup="true"
+                        aria-expanded={isFlyoutOpen}
+                        aria-controls={`collapsed-flyout-${group.id}`}
+                        onClick={() => {
+                          setKeyboardFlyoutGroupId((prev) => (prev === group.id ? null : group.id));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight" || e.key === "ArrowDown") {
+                            e.preventDefault();
+                            setKeyboardFlyoutGroupId(group.id);
+                            setTimeout(() => {
+                              const firstItem = document.querySelector<HTMLAnchorElement>(`#collapsed-flyout-${group.id} a`);
+                              firstItem?.focus();
+                            }, 50);
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            setKeyboardFlyoutGroupId(null);
+                          }
+                        }}
+                        className={`w-full flex items-center justify-center p-2.5 rounded-xl transition cursor-pointer focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none ${
+                          isGroupActive
+                            ? "bg-zinc-900 text-white"
+                            : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
+                        }`}
+                        title={group.title}
+                        aria-label={group.title}
+                      >
+                        <GroupIcon className="w-4 h-4" />
+                      </button>
+
+                      {/* Popover Flyout acessível tanto no hover do mouse quanto via teclado */}
+                      <div
+                        id={`collapsed-flyout-${group.id}`}
+                        role="menu"
+                        aria-label={group.title}
+                        className={`${
+                          isFlyoutOpen ? "block" : "hidden"
+                        } group-hover/flyout:block absolute left-full top-0 ml-2 w-52 bg-white border border-zinc-200/90 rounded-xl shadow-xl z-50 py-1.5 px-1 animate-in fade-in duration-100`}
+                      >
+                        <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 mb-1 flex items-center gap-1.5">
+                          <GroupIcon className="w-3 h-3 text-zinc-500" />
+                          <span>{group.title}</span>
+                        </div>
+                        <div className="space-y-0.5">
+                          {group.items.map((item, itemIdx) => {
+                            const active = isItemActive(item, group);
+                            return (
+                              <Link
+                                key={item.id}
+                                href={item.href}
+                                role="menuitem"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Escape" || e.key === "ArrowLeft") {
+                                    e.preventDefault();
+                                    setKeyboardFlyoutGroupId(null);
+                                    document.getElementById(`collapsed-btn-${group.id}`)?.focus();
+                                  } else if (e.key === "ArrowDown") {
+                                    e.preventDefault();
+                                    const items = document.querySelectorAll<HTMLAnchorElement>(`#collapsed-flyout-${group.id} a`);
+                                    const next = (itemIdx + 1) % items.length;
+                                    items[next]?.focus();
+                                  } else if (e.key === "ArrowUp") {
+                                    e.preventDefault();
+                                    const items = document.querySelectorAll<HTMLAnchorElement>(`#collapsed-flyout-${group.id} a`);
+                                    const prev = (itemIdx - 1 + items.length) % items.length;
+                                    items[prev]?.focus();
+                                  }
+                                }}
+                                onClick={() => {
                                   setKeyboardFlyoutGroupId(null);
-                                  document.getElementById(`collapsed-btn-${group.id}`)?.focus();
-                                } else if (e.key === "ArrowDown") {
-                                  e.preventDefault();
-                                  const items = document.querySelectorAll<HTMLAnchorElement>(`#collapsed-flyout-${group.id} a`);
-                                  const next = (itemIdx + 1) % items.length;
-                                  items[next]?.focus();
-                                } else if (e.key === "ArrowUp") {
-                                  e.preventDefault();
-                                  const items = document.querySelectorAll<HTMLAnchorElement>(`#collapsed-flyout-${group.id} a`);
-                                  const prev = (itemIdx - 1 + items.length) % items.length;
-                                  items[prev]?.focus();
-                                }
-                              }}
-                              onClick={() => {
-                                setKeyboardFlyoutGroupId(null);
-                                const q = item.href.includes("?") ? item.href.split("?")[1] : "";
-                                setCurrentSearch(q ? `?${q}` : "");
-                              }}
-                              className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none ${
-                                active
-                                  ? "bg-zinc-900 text-white font-semibold"
-                                  : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 focus:bg-zinc-100"
-                              }`}
-                            >
-                              <span className="truncate">{item.label}</span>
-                              {active && <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
-                            </Link>
-                          );
-                        })}
+                                  const q = item.href.includes("?") ? item.href.split("?")[1] : "";
+                                  setCurrentSearch(q ? `?${q}` : "");
+                                }}
+                                className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none ${
+                                  active
+                                    ? "bg-zinc-900 text-white font-semibold"
+                                    : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 focus:bg-zinc-100"
+                                }`}
+                              >
+                                <span className="truncate">{item.label}</span>
+                                {active && <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />}
+                              </Link>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </React.Fragment>
                 );
               }
 
               return (
-                <div key={group.id} className="space-y-0.5 pt-1">
+                <div key={group.id} className="space-y-0.5">
+                  {/* Divisor e Título de Seção (Pilar) */}
+                  {isNewSection && (
+                    <div className="pt-4 pb-1.5 px-3 text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 select-none flex items-center gap-2">
+                      <span>{group.section}</span>
+                      <div className="h-px bg-zinc-100 flex-1" />
+                    </div>
+                  )}
+
                   {/* Cabeçalho do Grupo Expansível */}
                   <button
                     type="button"

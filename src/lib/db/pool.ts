@@ -78,6 +78,11 @@ export function assertSafeEnvironmentDatabase(
     return;
   }
 
+  // Permite conexões de preview na Vercel quando explicitamente autorizado
+  if ((process.env.ALLOW_PREVIEW_PRODUCTION_DB === "true" || process.env.ALLOW_PREVIEW_DB === "true") && isPreview && !isCi) {
+    return;
+  }
+
   const targetRef = extractProjectRef(connUrl);
   const prodRef = (
     options?.knownProdRef ||

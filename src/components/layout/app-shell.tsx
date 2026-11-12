@@ -102,6 +102,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
         { id: "strategy_diagnosis", label: "Empresa e diagnóstico", href: "/strategy?tab=diagnosis", icon: Building },
         { id: "strategy_business", label: "Gestão empresarial", href: "/strategy?tab=business", icon: Briefcase },
         { id: "strategy_marketing", label: "Planejamento de marketing", href: "/strategy?tab=marketing", icon: TrendingUp },
+        { id: "prompt_creator", label: "Criador de Prompts", href: "/prompt-creator", icon: Sparkles },
         { id: "strategy_frameworks", label: "Ferramentas de gestão", href: "/strategy?tab=frameworks", icon: Layers },
         { id: "strategy_goals", label: "Objetivos e indicadores", href: "/strategy?tab=goals", icon: CheckCircle2 },
         { id: "strategy_budgets", label: "Orçamentos e metas", href: "/strategy?tab=budgets", icon: DollarSign },

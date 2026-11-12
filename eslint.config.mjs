@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     },
   },
   globalIgnores([
+    "Sistemas de Referência/**",
+    "scratch/**",
     ".next/**",
     "out/**",
     "build/**",

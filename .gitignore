@@ -44,4 +44,5 @@ next-env.d.ts
 # backups & scratch audit tools
 database/backups/
 scratch/
+Sistemas de Referência/
 supabase/.temp/

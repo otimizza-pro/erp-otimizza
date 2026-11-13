@@ -15,6 +15,7 @@ interface GeneratePayload {
   tone?: string;
   cta?: string;
   customApiKey?: string;
+  formatConfig?: Record<string, unknown>;
 }
 
 // Modelos otimizados por especialidade via OpenRouter
@@ -109,8 +110,9 @@ TOM: ${tone || "Direto e didático"}
 IDEIA BASE: ${centralIdea}
 
 Entregue uma lista numerada de 1 a 10 com variações que mantenham o gancho forte, curiosidade ou quebra de crença.`;
-    } else if (format === "REELS") {
-      userPrompt = `Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de roteiro para vídeo/Reels do Instagram (máximo 60 segundos cada) com base na headline e tema:
+    } else if (!userPrompt || !userPrompt.trim()) {
+      if (format === "REELS") {
+        userPrompt = `Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de roteiro para vídeo/Reels do Instagram (máximo 60 segundos cada) com base na headline e tema:
 
 HEADLINE ESCOLHIDA: "${selectedHeadline || centralIdea}"
 CLIENTE / MARCA: ${clientName || "Otimizza"}
@@ -131,8 +133,8 @@ Formate com clareza:
 - Gancho (0s-5s): Fala de impacto e texto na tela
 - Desenvolvimento (5s-40s): História ou cena cotidiana de empresa
 - Fechamento & CTA (40s-50s): Chamada para ação clara`;
-    } else if (format === "CAROUSEL") {
-      userPrompt = `Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de estrutura de carrossel para o Instagram (7 a 9 slides cada) com base na headline e tema:
+      } else if (format === "CAROUSEL") {
+        userPrompt = `Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de estrutura de carrossel para o Instagram (7 a 9 slides cada) com base na headline e tema:
 
 HEADLINE ESCOLHIDA: "${selectedHeadline || centralIdea}"
 CLIENTE / MARCA: ${clientName || "Otimizza"}
@@ -150,8 +152,8 @@ Formate cada opção slide a slide:
 - Slide 1 (Capa): Título provocativo + Subtítulo
 - Slide 2 a Slide N-1: Desmistificação e exemplo real
 - Slide Final: Conclusão + CTA`;
-    } else if (format === "CAPTION" && selectedHeadline) {
-      userPrompt = `Escreva uma legenda completa para o Instagram a partir da seguinte headline aprovada:
+      } else if (format === "CAPTION" && selectedHeadline) {
+        userPrompt = `Escreva uma legenda completa para o Instagram a partir da seguinte headline aprovada:
 
 HEADLINE APROVADA: "${selectedHeadline}"
 CLIENTE: ${clientName || "Otimizza"}
@@ -164,6 +166,7 @@ Estrutura da legenda:
 2. Desenvolvimento com 2 a 3 parágrafos curtos explicando a tese com clareza.
 3. Fechamento objetivo direcionando para a ação (CTA).
 4. Forneça também 1 alternativa de parágrafo de abertura.`;
+      }
     }
 
     // 3. Fazer chamada ao OpenRouter se houver chave configurada
@@ -216,7 +219,8 @@ Estrutura da legenda:
       clientName: clientName || "sua empresa",
       audience: audience || "Empresários e gestores",
       tone: tone || "Direto e didático",
-      cta: cta || "Agende uma conversa no WhatsApp"
+      cta: cta || "Agende uma conversa no WhatsApp",
+      formatConfig: body.formatConfig,
     });
 
     return NextResponse.json({
@@ -244,22 +248,38 @@ function generateLocalHeuristicResponse(
     audience: string;
     tone: string;
     cta: string;
+    formatConfig?: Record<string, unknown>;
   }
 ): string {
   const idea = ctx.centralIdea.trim() || ctx.selectedHeadline || "gestão e resultados";
   const client = ctx.clientName;
+  const cfg = ctx.formatConfig || {};
 
   if (format === "HEADLINES" || format === "SIMILAR_HEADLINES") {
-    return `1. O empresário acha que o problema é o lead fraco, mas demora 4 horas para responder no WhatsApp.
-2. Mais tráfego não conserta processo comercial desorganizado.
-3. Por que você investe em anúncios todo mês e continua sem saber de onde vieram as vendas?
-4. A métrica que sua agência comemora é a mesma que coloca dinheiro no seu caixa?
-5. Três decisões simples de marketing que empresas que faturam alto tomam antes de colocar R$ 1 em anúncios.
-6. Se o seu comercial não sabe o que fazer com os contatos, parar de anunciar é o menor dos seus problemas.
-7. O mito do post bonito: por que design sem intenção estratégica é apenas despesa.
-8. Como saber se o seu marketing está gerando oportunidades reais ou apenas métricas de vaidade.
-9. A diferença entre delegar o marketing para um parceiro estratégico e contratar alguém que apenas aperta botões.
-10. O erro silencioso que drena 40% do orçamento de anúncios das pequenas e médias empresas.`;
+    const count = typeof cfg.headlineCount === "number" ? cfg.headlineCount : 10;
+    const all = [
+      `O empresário acha que o problema é o lead fraco, mas demora 4 horas para responder no WhatsApp.`,
+      `Mais tráfego não conserta processo comercial desorganizado.`,
+      `Por que você investe em anúncios todo mês e continua sem saber de onde vieram as vendas?`,
+      `A métrica que sua agência comemora é a mesma que coloca dinheiro no seu caixa?`,
+      `Três decisões simples de marketing que empresas que faturam alto tomam antes de colocar R$ 1 em anúncios.`,
+      `Se o seu comercial não sabe o que fazer com os contatos, parar de anunciar é o menor dos seus problemas.`,
+      `O mito do post bonito: por que design sem intenção estratégica é apenas despesa.`,
+      `Como saber se o seu marketing está gerando oportunidades reais ou apenas métricas de vaidade.`,
+      `A diferença entre delegar o marketing para um parceiro estratégico e contratar alguém que apenas aperta botões.`,
+      `O erro silencioso que drena 40% do orçamento de anúncios das pequenas e médias empresas.`,
+      `Por que baixar preço para fechar vendas é o caminho mais rápido para quebrar seu fluxo de caixa.`,
+      `Seu cliente não quer saber da sua empresa; ele quer saber se você resolve a dor dele agora.`,
+      `Como empresas maduras estruturam o funil antes mesmo de criar a primeira campanha.`,
+      `Auditoria de atendimento: o diagnóstico que todo empresário deveria fazer antes de dobrar a verba de anúncios.`,
+      `Por que contratar mais vendedores sem organizar o CRM só aumenta sua folha de pagamento.`,
+      `Cinco perguntas duras que todo diretor comercial deveria fazer para si mesmo toda segunda-feira.`,
+      `O que acontece quando o marketing e o comercial sentam na mesma mesa para olhar os mesmos números.`,
+      `Como transformar reuniões improdutivas de marketing em planos de ação de curto prazo.`,
+      `Se sua equipe comercial demora para atender no digital, seu concorrente agradece todos os dias.`,
+      `O segredo das empresas que mantêm clientes por anos sem depender de promoções apelativas.`,
+    ];
+    return all.slice(0, Math.min(count, all.length)).map((h, i) => `${i + 1}. ${h}`).join("\n");
   }
 
   if (format === "REELS") {

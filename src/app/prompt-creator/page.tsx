@@ -27,6 +27,10 @@ import {
   ExternalLink,
   MessageSquare,
   HelpCircle,
+  Sliders,
+  Settings2,
+  Hash,
+  CheckSquare,
 } from "lucide-react";
 
 // Tipos
@@ -119,6 +123,43 @@ export default function ContentStudioPage() {
   const [scheduledDate, setScheduledDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [scheduledTime, setScheduledTime] = useState<string>("18:00");
 
+  // Configurações Específicas por Formato:
+  // 1. HEADLINES
+  const [headlineCount, setHeadlineCount] = useState<number>(10);
+  const [headlineStyles, setHeadlineStyles] = useState<string[]>([
+    "Quebra de Crença",
+    "Erro/Alerta ('Pare de...')",
+    "Pergunta Provocativa",
+  ]);
+  const [headlineType, setHeadlineType] = useState<string>("Títulos Completos com Contexto");
+  const [headlineUrgency, setHeadlineUrgency] = useState<boolean>(true);
+
+  // 2. LEGENDAS
+  const [captionLength, setCaptionLength] = useState<string>("Média (~600 a 1.200 caracteres)");
+  const [captionStructure, setCaptionStructure] = useState<string>("PAS (Problema, Agitação, Solução)");
+  const [captionEmojiLevel, setCaptionEmojiLevel] = useState<string>("Mínimo (Executivo e sóbrio)");
+  const [captionIncludeAltHook, setCaptionIncludeAltHook] = useState<boolean>(true);
+  const [captionIncludeHashtags, setCaptionIncludeHashtags] = useState<boolean>(true);
+
+  // 3. REELS
+  const [reelsDuration, setReelsDuration] = useState<string>("30 a 45 segundos (Alta Retenção)");
+  const [reelsStyle, setReelsStyle] = useState<string>("Falando para câmera (Talking Head)");
+  const [reelsIncludeOnScreen, setReelsIncludeOnScreen] = useState<boolean>(true);
+  const [reelsIncludeBroll, setReelsIncludeBroll] = useState<boolean>(true);
+  const [reelsIncludeDeliveryNotes, setReelsIncludeDeliveryNotes] = useState<boolean>(true);
+
+  // 4. CARROSSEL
+  const [carouselSlides, setCarouselSlides] = useState<number>(8);
+  const [carouselType, setCarouselType] = useState<string>("Passo a Passo / Guia Prático");
+  const [carouselWordLimit, setCarouselWordLimit] = useState<string>("Máx 25-30 palavras por slide (Design limpo)");
+  const [carouselIncludeSaveShare, setCarouselIncludeSaveShare] = useState<boolean>(true);
+
+  // 5. LANDING PAGE
+  const [lpGoal, setLpGoal] = useState<string>("Agendamento de Diagnóstico / Reunião Estratégica");
+  const [lpIncludeFaq, setLpIncludeFaq] = useState<boolean>(true);
+  const [lpIncludePains, setLpIncludePains] = useState<boolean>(true);
+  const [lpIncludeGuarantee, setLpIncludeGuarantee] = useState<boolean>(true);
+
   // Modais de Diálogo (CRUD Públicos, Linha Editorial e Próximo Passo)
   const [audienceModalOpen, setAudienceModalOpen] = useState(false);
   const [editingAudience, setEditingAudience] = useState<AudienceRecord | null>(null);
@@ -170,7 +211,39 @@ export default function ContentStudioPage() {
   // 3. Atualizar prompt automaticamente conforme os parâmetros mudam
   useEffect(() => {
     buildPrompt();
-  }, [format, idea, selectedAudience, selectedTone, customTone, selectedCta, customCta, brandContext, chosenHeadline]);
+  }, [
+    format,
+    idea,
+    selectedAudience,
+    selectedTone,
+    customTone,
+    selectedCta,
+    customCta,
+    brandContext,
+    chosenHeadline,
+    headlineCount,
+    headlineStyles,
+    headlineType,
+    headlineUrgency,
+    captionLength,
+    captionStructure,
+    captionEmojiLevel,
+    captionIncludeAltHook,
+    captionIncludeHashtags,
+    reelsDuration,
+    reelsStyle,
+    reelsIncludeOnScreen,
+    reelsIncludeBroll,
+    reelsIncludeDeliveryNotes,
+    carouselSlides,
+    carouselType,
+    carouselWordLimit,
+    carouselIncludeSaveShare,
+    lpGoal,
+    lpIncludeFaq,
+    lpIncludePains,
+    lpIncludeGuarantee,
+  ]);
 
   // 4. Parse das headlines quando a IA responder no formato HEADLINES
   useEffect(() => {
@@ -279,21 +352,44 @@ export default function ContentStudioPage() {
     lines.push(idea.trim() || "[Defina a ideia central ou dor do cliente]");
 
     lines.push("");
-    lines.push("REGRAS DE ENTREGA:");
+    lines.push("REGRAS DE ENTREGA E CONFIGURAÇÕES ESPECÍFICAS:");
     if (format === "HEADLINES") {
-      lines.push("• Gere 10 headlines marcantes com ângulos distintos (pergunta forte, confronto respeitoso, quebra de crença, curiosidade).");
-      lines.push("• Entregue em lista numerada de 1 a 10.");
-    } else if (format === "REELS") {
-      lines.push("• Crie DUAS OPÇÕES COMPLETAS de roteiro de até 60 segundos.");
-      lines.push("• Cada opção deve conter: Gancho (0-5s com fala e texto na tela), Desenvolvimento (com tese e exemplo) e Fechamento/CTA.");
-    } else if (format === "CAROUSEL") {
-      lines.push("• Crie DUAS OPÇÕES COMPLETAS de carrossel slide a slide (7 a 9 slides cada).");
-      lines.push("• Inclua Título de capa, argumento progressivo de até 30 palavras por slide e CTA final.");
+      lines.push(`• Quantidade desejada: exatamente ${headlineCount} headlines.`);
+      lines.push(`• Ângulos e estilos prioritários: ${headlineStyles.join(", ") || "Variações estratégicas"}.`);
+      lines.push(`• Formato do título: ${headlineType}.`);
+      if (headlineUrgency) lines.push("• Diretriz de tom: Foco em autoridade executiva, firmeza e seriedade.");
+      lines.push("• Entregue em lista numerada de 1 a N.");
     } else if (format === "CAPTION") {
-      lines.push("• Crie legenda completa publicável com abertura envolvente, 3 parágrafos explicativos e CTA.");
-      lines.push("• Forneça 1 alternativa de parágrafo de abertura.");
+      lines.push(`• Extensão da legenda: ${captionLength}.`);
+      lines.push(`• Estrutura de copy: ${captionStructure}.`);
+      lines.push(`• Uso de emojis: ${captionEmojiLevel}.`);
+      if (captionIncludeAltHook) lines.push("• Forneça 1 opção alternativa de primeiro parágrafo/gancho de abertura (para teste A/B).");
+      lines.push("• Use quebras de linha limpas para garantir leitura escaneável no smartphone.");
+      if (captionIncludeHashtags) lines.push("• Inclua 4 a 6 hashtags estratégicas e nichadas ao final.");
+    } else if (format === "REELS") {
+      lines.push(`• Duração estimada do vídeo: ${reelsDuration}.`);
+      lines.push(`• Estilo de gravação: ${reelsStyle}.`);
+      lines.push("• Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de roteiro (Opção 1: Ângulo Direto/Confrontacional; Opção 2: Ângulo Narrativo/Bastidores).");
+      if (reelsIncludeOnScreen) lines.push("• Inclua indicações claras de [TEXTO NA TELA] (lettering) sincronizado com a fala.");
+      if (reelsIncludeBroll) lines.push("• Inclua sugestões de cortes de cena e B-rolls visuais a cada 3 a 5 segundos.");
+      if (reelsIncludeDeliveryNotes) lines.push("• Inclua instruções de entonação e linguagem corporal para quem vai gravar.");
+    } else if (format === "CAROUSEL") {
+      lines.push(`• Quantidade de slides: exatamente ${carouselSlides} slides.`);
+      lines.push(`• Tipo de estrutura: ${carouselType}.`);
+      lines.push(`• Limite de palavras: ${carouselWordLimit}.`);
+      lines.push("• Crie DUAS OPÇÕES COMPLETAS de carrossel (Estrutura A e Estrutura B) slide a slide.");
+      lines.push("• Slide 1 (Capa): Título com gancho de alto impacto + subtítulo explicativo curto.");
+      lines.push("• Slides intermediários: Apenas uma ideia central por slide para leitura rápida.");
+      if (carouselIncludeSaveShare) lines.push("• Slide final: Resumo dos pontos + CTA claro convidando a SALVAR e COMPARTILHAR.");
     } else if (format === "LANDING_PAGE") {
-      lines.push("• Crie a estrutura de seções com copy persuasiva: Hero, Dores, Como Funciona, Provas e CTA.");
+      lines.push(`• Objetivo da Landing Page: ${lpGoal}.`);
+      lines.push("• Estrutura completa de copy dividida em seções:");
+      lines.push("  - Dobra Superior (Hero): Headline de impacto, subheadline explicativa, CTA e bullet points de valor.");
+      if (lpIncludePains) lines.push("  - Dores e Sintomas do ICP: Conexão imediata com os problemas que o cliente enfrenta.");
+      lines.push("  - Como Funciona / Solução: Passo a passo claro da entrega.");
+      lines.push("  - Diferenciais e Autoridade: Por que esta assessoria/serviço.");
+      if (lpIncludeFaq) lines.push("  - FAQ: 4 a 5 dúvidas mais frequentes respondidas estrategicamente.");
+      if (lpIncludeGuarantee) lines.push("  - Chamada Final de Ação: CTA forte com garantia e alívio de risco.");
     }
 
     lines.push("• Evite clichês corporativos, travessões excessivos e promessas vazias. Mantenha vocabulário maduro.");
@@ -311,6 +407,31 @@ export default function ContentStudioPage() {
     const ctaToUse = customCta.trim() || selectedCta;
     const clientName = selectedClient ? (selectedClient.trade_name || selectedClient.name) : "Otimizza";
 
+    const formatConfigPayload = {
+      headlineCount,
+      headlineStyles,
+      headlineType,
+      headlineUrgency,
+      captionLength,
+      captionStructure,
+      captionEmojiLevel,
+      captionIncludeAltHook,
+      captionIncludeHashtags,
+      reelsDuration,
+      reelsStyle,
+      reelsIncludeOnScreen,
+      reelsIncludeBroll,
+      reelsIncludeDeliveryNotes,
+      carouselSlides,
+      carouselType,
+      carouselWordLimit,
+      carouselIncludeSaveShare,
+      lpGoal,
+      lpIncludeFaq,
+      lpIncludePains,
+      lpIncludeGuarantee,
+    };
+
     try {
       const res = await fetch("/api/ai/content/generate", {
         method: "POST",
@@ -326,6 +447,7 @@ export default function ContentStudioPage() {
           tone: toneToUse,
           cta: ctaToUse,
           customApiKey: openRouterKey.trim() || undefined,
+          formatConfig: formatConfigPayload,
           ...overridePayload,
         }),
       });
@@ -840,6 +962,419 @@ export default function ContentStudioPage() {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* PAINEL DINÂMICO DE CONFIGURAÇÕES ESPECÍFICAS DO FORMATO */}
+              <div className="p-4 bg-zinc-50 border border-zinc-200/90 rounded-2xl space-y-3.5 transition-all">
+                <div className="flex items-center justify-between border-b border-zinc-200/80 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-zinc-900">
+                      Configurações do Formato: {FORMAT_OPTIONS.find((f) => f.id === format)?.label || format}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-zinc-500">
+                    Ajuste os parâmetros abaixo para guiar a criação
+                  </span>
+                </div>
+
+                {/* 1. SE FORMATO FOR HEADLINES */}
+                {format === "HEADLINES" && (
+                  <div className="space-y-3 animate-in fade-in duration-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Quantidade */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Quantidade de Headlines
+                        </label>
+                        <div className="flex gap-1.5">
+                          {[5, 10, 15, 20].map((cnt) => (
+                            <button
+                              key={cnt}
+                              type="button"
+                              onClick={() => setHeadlineCount(cnt)}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition border cursor-pointer ${
+                                headlineCount === cnt
+                                  ? "bg-zinc-950 text-white border-zinc-950 shadow-xs"
+                                  : "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+                              }`}
+                            >
+                              {cnt} {cnt === 10 ? "(Padrão)" : ""}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Estilo do Título */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Tamanho & Estilo
+                        </label>
+                        <select
+                          value={headlineType}
+                          onChange={(e) => setHeadlineType(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs font-medium text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                        >
+                          <option value="Títulos Curtos e Diretos (até 8 palavras)">Curtos e Diretos (até 8 palavras)</option>
+                          <option value="Títulos Completos com Contexto">Títulos Completos com Contexto (Padrão)</option>
+                          <option value="Dupla: Gancho Visual + Subtítulo Explicativo">Dupla: Gancho Visual + Subtítulo</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Ângulos / Tipos de Gancho */}
+                    <div>
+                      <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                        Ângulos de Gancho Prioritários (clique para alternar)
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          "Quebra de Crença",
+                          "Erro/Alerta ('Pare de...')",
+                          "Pergunta Provocativa",
+                          "Dados & Listas",
+                          "Como Fazer Descomplicado",
+                          "Curiosidade / Contra-intuitivo",
+                        ].map((angle) => {
+                          const active = headlineStyles.includes(angle);
+                          return (
+                            <button
+                              key={angle}
+                              type="button"
+                              onClick={() => {
+                                if (active) {
+                                  if (headlineStyles.length > 1) {
+                                    setHeadlineStyles(headlineStyles.filter((s) => s !== angle));
+                                  }
+                                } else {
+                                  setHeadlineStyles([...headlineStyles, angle]);
+                                }
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border cursor-pointer ${
+                                active
+                                  ? "bg-emerald-600 text-white border-emerald-600 font-bold"
+                                  : "bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                              }`}
+                            >
+                              {active ? "✓ " : "+ "} {angle}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Checkbox Urgência/Autoridade */}
+                    <label className="flex items-center gap-2 cursor-pointer pt-1 text-xs text-zinc-700 select-none">
+                      <input
+                        type="checkbox"
+                        checked={headlineUrgency}
+                        onChange={(e) => setHeadlineUrgency(e.target.checked)}
+                        className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                      />
+                      <span className="font-medium">
+                        Foco em autoridade executiva e seriedade corporativa (sem clichês de marketing apelativo)
+                      </span>
+                    </label>
+                  </div>
+                )}
+
+                {/* 2. SE FORMATO FOR LEGENDAS */}
+                {format === "CAPTION" && (
+                  <div className="space-y-3 animate-in fade-in duration-200">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Tamanho da Legenda
+                        </label>
+                        <select
+                          value={captionLength}
+                          onChange={(e) => setCaptionLength(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs font-medium text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                        >
+                          <option value="Curta (~300 a 500 caracteres)">Curta (~300 a 500 carac.)</option>
+                          <option value="Média (~600 a 1.200 caracteres)">Média (~600 a 1.200 carac. - Padrão)</option>
+                          <option value="Longa / Storytelling (~1.300 a 2.200 caracteres)">Longa / Storytelling (~1.300 a 2.200 carac.)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Estrutura de Copywriting
+                        </label>
+                        <select
+                          value={captionStructure}
+                          onChange={(e) => setCaptionStructure(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs font-medium text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                        >
+                          <option value="PAS (Problema, Agitação, Solução)">PAS (Problema, Agitação, Solução)</option>
+                          <option value="AIDA (Atenção, Interesse, Desejo, Ação)">AIDA (Atenção, Interesse, Desejo, Ação)</option>
+                          <option value="Storytelling de Bastidores Reais">Storytelling de Bastidores Reais</option>
+                          <option value="Direta ao Ponto / 3 Dicas Práticas">Direta ao Ponto / 3 Dicas Práticas</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Uso de Emojis
+                        </label>
+                        <select
+                          value={captionEmojiLevel}
+                          onChange={(e) => setCaptionEmojiLevel(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs font-medium text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                        >
+                          <option value="Mínimo (Executivo e sóbrio)">Mínimo (Executivo e sóbrio)</option>
+                          <option value="Moderado (Marcadores e tópicos)">Moderado (Marcadores e tópicos)</option>
+                          <option value="Nenhum (100% formal)">Nenhum (100% formal)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-4 pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-700 select-none">
+                        <input
+                          type="checkbox"
+                          checked={captionIncludeAltHook}
+                          onChange={(e) => setCaptionIncludeAltHook(e.target.checked)}
+                          className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="font-medium">Gerar gancho de abertura alternativo (Teste A/B)</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-700 select-none">
+                        <input
+                          type="checkbox"
+                          checked={captionIncludeHashtags}
+                          onChange={(e) => setCaptionIncludeHashtags(e.target.checked)}
+                          className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="font-medium">Incluir 4 a 6 hashtags estratégicas no rodapé</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. SE FORMATO FOR REELS */}
+                {format === "REELS" && (
+                  <div className="space-y-3 animate-in fade-in duration-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Duração Estimada
+                        </label>
+                        <div className="flex gap-1.5">
+                          {[
+                            { id: "15 a 30s (Ultra Dinâmico / Viral)", label: "15-30s (Viral)" },
+                            { id: "30 a 45s (Alta Retenção)", label: "30-45s (Padrão)" },
+                            { id: "45 a 60s (Aprofundado / Aula)", label: "45-60s (Aula)" },
+                          ].map((dur) => (
+                            <button
+                              key={dur.id}
+                              type="button"
+                              onClick={() => setReelsDuration(dur.id)}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition border cursor-pointer ${
+                                reelsDuration === dur.id
+                                  ? "bg-zinc-950 text-white border-zinc-950 shadow-xs"
+                                  : "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+                              }`}
+                            >
+                              {dur.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Estilo de Gravação
+                        </label>
+                        <select
+                          value={reelsStyle}
+                          onChange={(e) => setReelsStyle(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs font-medium text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                        >
+                          <option value="Falando para câmera (Talking Head)">Falando para câmera (Talking Head)</option>
+                          <option value="Voz em Off com Cenas de Bastidores (B-roll)">Voz em Off com Bastidores (B-roll)</option>
+                          <option value="Diálogo / Encenação de 2 Personagens (Empresário vs Cliente)">Diálogo / Encenação (Empresário vs Cliente)</option>
+                          <option value="Tutorial Prático / Gravação de Tela">Tutorial Prático / Gravação de Tela</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-700 select-none">
+                        <input
+                          type="checkbox"
+                          checked={reelsIncludeOnScreen}
+                          onChange={(e) => setReelsIncludeOnScreen(e.target.checked)}
+                          className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="font-medium">Indicações de [Texto na Tela]</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-700 select-none">
+                        <input
+                          type="checkbox"
+                          checked={reelsIncludeBroll}
+                          onChange={(e) => setReelsIncludeBroll(e.target.checked)}
+                          className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="font-medium">Sugestões de cortes & B-roll</span>
+                      </label>
+
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-700 select-none">
+                        <input
+                          type="checkbox"
+                          checked={reelsIncludeDeliveryNotes}
+                          onChange={(e) => setReelsIncludeDeliveryNotes(e.target.checked)}
+                          className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="font-medium">Instruções de tom & energia</span>
+                      </label>
+                    </div>
+
+                    <p className="text-[11px] text-zinc-600 italic bg-white p-2.5 rounded-xl border border-zinc-200">
+                      ✨ Sempre gera <strong>2 opções completas</strong>: Opção 1 (Ângulo Direto/Confronto) e Opção 2 (Ângulo Narrativo/Bastidor).
+                    </p>
+                  </div>
+                )}
+
+                {/* 4. SE FORMATO FOR CARROSSEL */}
+                {format === "CAROUSEL" && (
+                  <div className="space-y-3 animate-in fade-in duration-200">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Quantidade de Slides
+                        </label>
+                        <div className="flex gap-1.5">
+                          {[
+                            { count: 6, label: "6 Slides" },
+                            { count: 8, label: "8 Slides (Padrão)" },
+                            { count: 10, label: "10 Slides" },
+                          ].map((sl) => (
+                            <button
+                              key={sl.count}
+                              type="button"
+                              onClick={() => setCarouselSlides(sl.count)}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition border cursor-pointer ${
+                                carouselSlides === sl.count
+                                  ? "bg-zinc-950 text-white border-zinc-950 shadow-xs"
+                                  : "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+                              }`}
+                            >
+                              {sl.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Estrutura Temática
+                        </label>
+                        <select
+                          value={carouselType}
+                          onChange={(e) => setCarouselType(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs font-medium text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                        >
+                          <option value="Passo a Passo / Guia Prático">Passo a Passo / Guia Prático</option>
+                          <option value="5 Erros Fatais / Checklist">5 Erros Fatais / Checklist</option>
+                          <option value="Desconstrução de Mito / Opinião Impopular">Desconstrução de Mito</option>
+                          <option value="Estudo de Caso / Antes e Depois">Estudo de Caso / Antes e Depois</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Densidade de Texto
+                        </label>
+                        <select
+                          value={carouselWordLimit}
+                          onChange={(e) => setCarouselWordLimit(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs font-medium text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                        >
+                          <option value="Máx 25-30 palavras por slide (Design limpo)">Máx 25-30 palavras (Design limpo)</option>
+                          <option value="Máx 45 palavras por slide (Mais explicativo)">Máx 45 palavras (Mais denso)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-4 pt-1">
+                      <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-700 select-none">
+                        <input
+                          type="checkbox"
+                          checked={carouselIncludeSaveShare}
+                          onChange={(e) => setCarouselIncludeSaveShare(e.target.checked)}
+                          className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span className="font-medium">Slide final com CTA de alta conversão para SALVAR e COMPARTILHAR</span>
+                      </label>
+                    </div>
+
+                    <p className="text-[11px] text-zinc-600 italic bg-white p-2.5 rounded-xl border border-zinc-200">
+                      🎨 Sempre entrega <strong>2 estruturas slide a slide completas</strong> com capa magnética, micro-ganchos de retenção e CTA final.
+                    </p>
+                  </div>
+                )}
+
+                {/* 5. SE FORMATO FOR LANDING PAGE */}
+                {format === "LANDING_PAGE" && (
+                  <div className="space-y-3 animate-in fade-in duration-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Objetivo da Landing Page
+                        </label>
+                        <select
+                          value={lpGoal}
+                          onChange={(e) => setLpGoal(e.target.value)}
+                          className="w-full px-3 py-1.5 rounded-xl border border-zinc-200 bg-white text-xs font-medium text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                        >
+                          <option value="Agendamento de Diagnóstico / Reunião Estratégica">Agendamento de Diagnóstico / Reunião</option>
+                          <option value="Venda Direta de Serviço / Consultoria">Venda Direta de Serviço / Consultoria</option>
+                          <option value="Captura de Lead / Isca Digital / Download">Captura de Lead / Isca Digital</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-bold text-zinc-600 uppercase tracking-wider mb-1.5">
+                          Seções Estruturais da Página
+                        </label>
+                        <div className="flex flex-wrap gap-3 pt-1">
+                          <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-700 select-none">
+                            <input
+                              type="checkbox"
+                              checked={lpIncludePains}
+                              onChange={(e) => setLpIncludePains(e.target.checked)}
+                              className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span className="font-medium">Dores do ICP</span>
+                          </label>
+
+                          <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-700 select-none">
+                            <input
+                              type="checkbox"
+                              checked={lpIncludeFaq}
+                              onChange={(e) => setLpIncludeFaq(e.target.checked)}
+                              className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span className="font-medium">FAQ de Objeções</span>
+                          </label>
+
+                          <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-700 select-none">
+                            <input
+                              type="checkbox"
+                              checked={lpIncludeGuarantee}
+                              onChange={(e) => setLpIncludeGuarantee(e.target.checked)}
+                              className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                            />
+                            <span className="font-medium">Garantia / Alívio de Risco</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Campo da Ideia Central */}

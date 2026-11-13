@@ -80,3 +80,4 @@ CREATE TABLE IF NOT EXISTS public.content_calendar_items (
 
 CREATE INDEX IF NOT EXISTS idx_content_calendar_client ON public.content_calendar_items(client_id, scheduled_date);
 CREATE INDEX IF NOT EXISTS idx_content_calendar_status ON public.content_calendar_items(status);
+

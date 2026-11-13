@@ -28,3 +28,4 @@ main().catch(err => {
   console.error("Erro na migração 021:", err);
   process.exit(1);
 });
+

@@ -596,9 +596,18 @@ export default function ContentStudioPage() {
 
                 {/* 2. Selecionar da Linha Editorial */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
-                    2. Ponto de Partida Editorial
-                  </label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
+                      2. Ponto de Partida Editorial
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditorialModalOpen(true)}
+                      className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
+                    >
+                      + Nova Linha
+                    </button>
+                  </div>
                   <select
                     onChange={(e) => {
                       const line = editorialLines.find((l) => l.id === e.target.value);

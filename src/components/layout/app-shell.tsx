@@ -544,19 +544,19 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                 <Image
                   src="/brand/perfil-otimizza-principal.png"
                   alt="Otimizza ERP"
-                  width={34}
-                  height={34}
+                  width={42}
+                  height={42}
                   priority
-                  className="w-8 h-8 object-contain"
+                  className="w-10 h-10 object-contain"
                 />
               ) : (
                 <Image
                   src="/brand/logo-principal.svg"
                   alt="Otimizza ERP"
-                  width={220}
-                  height={54}
+                  width={260}
+                  height={80}
                   priority
-                  className="h-10 sm:h-11 w-auto max-w-[195px] object-contain object-left"
+                  className="h-12 sm:h-13 w-auto max-w-[215px] object-contain object-left scale-105 origin-left"
                 />
               )}
             </Link>

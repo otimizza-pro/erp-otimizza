@@ -57,13 +57,13 @@ export default function LoginPage() {
 
         <div className="relative z-10 max-w-lg space-y-8">
           {/* Logo Principal Negativa / Clara para contraste perfeito no fundo escuro */}
-          <div className="inline-block p-3 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-2xl">
+          <div className="inline-block p-3.5 sm:p-4 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-2xl">
             <Image
               src="/brand/logo-cinza-claro.svg"
               alt="Otimizza ERP Logo"
-              width={240}
-              height={65}
-              className="h-12 w-auto object-contain drop-shadow-sm"
+              width={320}
+              height={85}
+              className="h-16 sm:h-20 w-auto object-contain drop-shadow-md"
               priority
             />
           </div>
@@ -102,9 +102,9 @@ export default function LoginPage() {
             <Image
               src="/brand/logo-principal.svg"
               alt="Otimizza ERP"
-              width={180}
-              height={50}
-              className="h-10 w-auto object-contain"
+              width={260}
+              height={70}
+              className="h-14 sm:h-16 w-auto object-contain"
               priority
             />
           </div>

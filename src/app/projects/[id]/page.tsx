@@ -39,6 +39,22 @@ import {
 import { DocumentAttachmentSection } from "@/components/documents/document-attachment-section";
 import { TaskExecutionModal } from "@/components/projects/task-execution-modal";
 
+function formatDateBR(dateStr?: string | null): string {
+  if (!dateStr) return "-";
+  try {
+    const raw = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+    const parts = raw.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+  } catch {
+    return dateStr;
+  }
+}
+
 export default function ProjectWorkspacePage({
   params,
 }: {
@@ -377,7 +393,7 @@ export default function ProjectWorkspacePage({
             <span className="text-slate-500 block">Prazo de Conclusão:</span>
             <span className="font-semibold text-slate-800 text-sm mt-0.5 block flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
-              {project.dueDate}
+              {formatDateBR(project.dueDate)}
             </span>
           </div>
 
@@ -606,7 +622,7 @@ export default function ProjectWorkspacePage({
                             </div>
 
                             <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
-                              <span>Prazo: {t.dueDate || "-"}</span>
+                              <span>Prazo: {formatDateBR(t.dueDate)}</span>
                               <span>{t.actualHours || 0}h / {t.estimatedHours || 0}h</span>
                             </div>
                           </div>
@@ -669,7 +685,7 @@ export default function ProjectWorkspacePage({
                 ) : (
                   timeEntries.map((te) => (
                     <tr key={te.id} className="hover:bg-slate-50/50 text-xs">
-                      <td className="py-2.5 px-4 font-mono text-slate-700">{te.entryDate}</td>
+                      <td className="py-2.5 px-4 font-mono text-slate-700">{formatDateBR(te.entryDate)}</td>
                       <td className="py-2.5 px-4 font-medium text-slate-800">
                         {te.taskTitle || "Atividade Geral"}
                       </td>
@@ -726,8 +742,8 @@ export default function ProjectWorkspacePage({
 
               <div>
                 <span className="font-semibold text-slate-800 block mb-1">Datas & Auditoria</span>
-                <p className="text-slate-600">Início: {project.startDate}</p>
-                <p className="text-slate-600">Prazo Previsto: {project.dueDate}</p>
+                <p className="text-slate-600">Início: {formatDateBR(project.startDate)}</p>
+                <p className="text-slate-600">Prazo Previsto: {formatDateBR(project.dueDate)}</p>
                 <p className="text-slate-600">Criado em: {new Date(project.createdAt).toLocaleString("pt-BR")}</p>
               </div>
             </div>

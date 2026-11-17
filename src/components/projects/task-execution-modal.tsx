@@ -37,6 +37,22 @@ interface TaskExecutionModalProps {
   onTaskUpdated: () => void;
 }
 
+function formatDateBR(dateStr?: string | null): string {
+  if (!dateStr) return "-";
+  try {
+    const raw = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+    const parts = raw.split("-");
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("pt-BR", { timeZone: "UTC" });
+  } catch {
+    return dateStr;
+  }
+}
+
 export function TaskExecutionModal({
   task,
   project,
@@ -358,7 +374,11 @@ export function TaskExecutionModal({
                       <input
                         type="text"
                         readOnly
-                        value={briefingUrl || "Gerando link..."}
+                        value={
+                          loadingBriefing
+                            ? "Gerando link exclusivo..."
+                            : briefingUrl || "Clique em 'Salvar Dados' abaixo para gerar o link"
+                        }
                         className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-700 select-all"
                       />
 
@@ -787,7 +807,7 @@ export function TaskExecutionModal({
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[11px]">Prazo:</span>
-                    <span className="font-semibold text-slate-700 mt-0.5 block">{task.dueDate || "-"}</span>
+                    <span className="font-semibold text-slate-700 mt-0.5 block">{formatDateBR(task.dueDate)}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[11px]">Horas Estimadas:</span>

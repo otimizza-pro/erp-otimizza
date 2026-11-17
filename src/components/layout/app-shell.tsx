@@ -542,7 +542,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
             >
               {sidebarCollapsed ? (
                 <Image
-                  src="/brand/simbolo-cor.png"
+                  src="/brand/perfil-otimizza-principal.png"
                   alt="Otimizza ERP"
                   width={34}
                   height={34}
@@ -551,7 +551,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                 />
               ) : (
                 <Image
-                  src="/brand/principal-cor.png"
+                  src="/brand/logo-principal.svg"
                   alt="Otimizza ERP"
                   width={220}
                   height={54}

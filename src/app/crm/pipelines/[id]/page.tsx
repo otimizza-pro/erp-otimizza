@@ -20,6 +20,7 @@ import {
   Building,
   Calendar,
   RefreshCw,
+  Settings,
 } from "lucide-react";
 import { PipelineRecord, OpportunityRecord, PipelineStageRecord } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
@@ -139,6 +140,12 @@ export default function PipelineKanbanPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/crm/pipelines"
+              className="px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 hover:bg-zinc-50 rounded-xl flex items-center gap-1.5 transition shadow-2xs"
+            >
+              <Settings className="w-4 h-4" /> Configurar Etapas
+            </Link>
             <Link
               href={`/crm/opportunities/new?pipelineId=${id}`}
               className="px-3.5 py-2 text-xs font-semibold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl flex items-center gap-1.5 transition shadow-2xs"

@@ -29,6 +29,7 @@ import {
   FolderOpen,
   History,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { Client } from "@/modules/clients/types";
 import { formatDocument } from "@/shared/cpf-cnpj";
@@ -425,6 +426,13 @@ function ClientDetailsContent() {
             >
               <FileText className="w-3.5 h-3.5" />
               + Proposta
+            </Link>
+            <Link
+              href={`/clients/${client.id}/identity`}
+              className="px-3.5 py-1.5 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 text-xs font-semibold hover:bg-purple-100 transition flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Identidade & DNA
             </Link>
             <Link
               href={`/contracts/new?clientId=${client.id}`}

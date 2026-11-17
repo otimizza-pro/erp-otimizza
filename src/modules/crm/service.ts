@@ -908,14 +908,22 @@ export class CrmService {
       const res = await client.query(sql, [input.name, input.description || null, input.isDefault || false]);
       const pipelineId = res.rows[0].id;
 
-      // Criação das etapas iniciais recomendadas para o novo funil
-      const stagesData = [
-        { name: "Qualificação", color: "#3b82f6", order: 1, prob: 20, type: "NORMAL" },
-        { name: "Proposta", color: "#f59e0b", order: 2, prob: 60, type: "NORMAL" },
-        { name: "Negociação", color: "#06b6d4", order: 3, prob: 80, type: "NORMAL" },
-        { name: "Fechado Ganho", color: "#10b981", order: 4, prob: 100, type: "WON" },
-        { name: "Perdido", color: "#ef4444", order: 5, prob: 0, type: "LOST" },
-      ];
+      // Criação das etapas para o novo funil (customizadas pelo usuário ou padrão sugerido)
+      const stagesData = (input.stages && input.stages.length > 0)
+        ? input.stages.map((st, idx) => ({
+            name: st.name,
+            color: st.color || "#6366f1",
+            order: typeof st.displayOrder === "number" ? st.displayOrder : idx + 1,
+            prob: typeof st.winProbability === "number" ? st.winProbability : 50,
+            type: st.stageType || "NORMAL",
+          }))
+        : [
+            { name: "Qualificação", color: "#3b82f6", order: 1, prob: 20, type: "NORMAL" },
+            { name: "Proposta", color: "#f59e0b", order: 2, prob: 60, type: "NORMAL" },
+            { name: "Negociação", color: "#06b6d4", order: 3, prob: 80, type: "NORMAL" },
+            { name: "Fechado Ganho", color: "#10b981", order: 4, prob: 100, type: "WON" },
+            { name: "Perdido", color: "#ef4444", order: 5, prob: 0, type: "LOST" },
+          ];
 
       for (const st of stagesData) {
         await client.query(

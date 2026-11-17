@@ -493,8 +493,16 @@ export default function OpportunitiesListPage() {
                                     draggedOppId === opp.id ? "opacity-50 ring-2 ring-purple-500" : ""
                                   }`}
                                 >
-                                  {/* Título e Código */}
+                                  {/* Título, Código e Tag de Funil */}
                                   <div>
+                                    {selectedPipelineId === "ALL" && (
+                                      <div className="mb-1">
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                          <Layers className="w-2.5 h-2.5" />
+                                          {pipelines.find((p) => p.id === opp.pipelineId)?.name || "Funil Comercial"}
+                                        </span>
+                                      </div>
+                                    )}
                                     <Link
                                       href={`/crm/opportunities/${opp.id}`}
                                       className="font-bold text-xs text-zinc-900 hover:text-purple-700 line-clamp-2"
@@ -626,6 +634,14 @@ export default function OpportunitiesListPage() {
                         <tr key={opp.id} className="hover:bg-zinc-50/80 transition-colors">
                           <td className="py-3 px-4">
                             <div className="flex flex-col">
+                              {selectedPipelineId === "ALL" && (
+                                <div className="mb-0.5">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                    <Layers className="w-2.5 h-2.5" />
+                                    {pipelines.find((p) => p.id === opp.pipelineId)?.name || "Funil Comercial"}
+                                  </span>
+                                </div>
+                              )}
                               <Link
                                 href={`/crm/opportunities/${opp.id}`}
                                 className="font-bold text-zinc-900 hover:text-purple-700 hover:underline"

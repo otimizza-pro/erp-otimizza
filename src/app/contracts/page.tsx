@@ -124,6 +124,39 @@ function ContractsListPageContent() {
     }
   };
 
+  const getDueLabel = (version?: {
+    billingPeriod?: string;
+    dueDay?: number;
+    startDate?: string;
+    endDate?: string | null;
+  }) => {
+    if (!version) return "-";
+    if (version.billingPeriod === "YEARLY") {
+      if (version.endDate) {
+        const [year, month, day] = version.endDate.split("-");
+        if (year && month && day) {
+          return `Vence em ${day}/${month}/${year}`;
+        }
+        return `Vence em ${version.endDate}`;
+      }
+      if (version.startDate) {
+        const [, startMonth, startDay] = version.startDate.split("-");
+        const dueDay = String(version.dueDay || startDay || 10).padStart(2, "0");
+        const currentYear = new Date().getFullYear();
+        return `Vence em ${dueDay}/${startMonth}/${currentYear}`;
+      }
+      return `Vence dia ${version.dueDay} (Anual)`;
+    }
+    if (version.billingPeriod === "ONE_TIME") {
+      if (version.endDate) {
+        const [y, m, d] = version.endDate.split("-");
+        return `Vence em ${d}/${m}/${y}`;
+      }
+      return "Pagamento único";
+    }
+    return `Vence dia ${version.dueDay || 10}`;
+  };
+
   return (
     <AppShell activeSection="contracts">
       <div className="p-8 max-w-7xl mx-auto space-y-6">
@@ -306,7 +339,7 @@ function ContractsListPageContent() {
                           {getPeriodLabel(c.currentVersion?.billingPeriod)}
                         </span>
                         <span className="text-xs text-zinc-500 block mt-1">
-                          Vence dia {c.currentVersion?.dueDay}
+                          {getDueLabel(c.currentVersion)}
                         </span>
                       </td>
                       <td className="px-6 py-4">

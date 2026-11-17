@@ -17,6 +17,9 @@ import {
   Archive,
   RefreshCw,
   ExternalLink,
+  Edit2,
+  Trash2,
+  AlertCircle,
 } from "lucide-react";
 import { formatDocument } from "@/shared/cpf-cnpj";
 import { WhatsAppLink } from "@/components/ui/whatsapp";
@@ -28,6 +31,36 @@ export default function ClientsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "ARCHIVED">("ACTIVE");
   const [typeFilter, setTypeFilter] = useState<"" | "PF" | "PJ">("");
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteClient = async (clientItem: Client) => {
+    const confirmed = window.confirm(
+      `ATENÇÃO: Deseja realmente excluir o cliente "${clientItem.name}"?\n\n` +
+      `Esta ação é definitiva e irá:\n` +
+      `• Apagar permanentemente o cadastro do cliente e seus contatos\n` +
+      `• Excluir todos os documentos e arquivos anexados no armazenamento (liberando espaço em disco)\n` +
+      `• Limpar pastas e vínculos do cliente\n\n` +
+      `Tem certeza que deseja continuar?`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(clientItem.id);
+    try {
+      const res = await fetch(`/api/clients/${clientItem.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Erro ao excluir cliente.");
+      }
+      await loadClients();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao excluir cliente.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const loadClients = async () => {
     setLoading(true);
@@ -252,13 +285,34 @@ export default function ClientsPage() {
                         </span>
                       </td>
                       <td className="py-3.5 px-3 text-right">
-                        <Link
-                          href={`/clients/${c.id}`}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-medium border border-zinc-200 transition"
-                        >
-                          Detalhes
-                          <ChevronRight className="w-3 h-3 text-zinc-400" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/clients/${c.id}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-semibold border border-zinc-200 transition"
+                            title="Ver detalhes do cliente"
+                          >
+                            Detalhes
+                            <ChevronRight className="w-3 h-3 text-zinc-400" />
+                          </Link>
+                          <Link
+                            href={`/clients/${c.id}/edit`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-semibold border border-zinc-200 transition"
+                            title="Editar cadastro do cliente"
+                          >
+                            <Edit2 className="w-3 h-3 text-zinc-500" />
+                            Editar
+                          </Link>
+                          <button
+                            type="button"
+                            disabled={deletingId === c.id}
+                            onClick={() => handleDeleteClient(c)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition disabled:opacity-50 cursor-pointer"
+                            title="Excluir cliente, documentos e liberar espaço"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            {deletingId === c.id ? "Excluindo..." : "Excluir"}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

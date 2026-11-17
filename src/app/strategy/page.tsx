@@ -90,6 +90,41 @@ function StrategyContent() {
   };
 
   useEffect(() => {
+    switch (currentTab) {
+      case "diagnosis":
+      case "business":
+        setSelectedDocCode("DIAG-01");
+        break;
+      case "marketing":
+        setSelectedDocCode("MKT-01");
+        break;
+      case "frameworks":
+        setSelectedDocCode("MKT-06");
+        break;
+      case "goals":
+        setSelectedDocCode("MKT-10");
+        break;
+      case "budgets":
+        setSelectedDocCode("MKT-11");
+        break;
+      case "initiatives":
+        setSelectedDocCode("MKT-23");
+        break;
+      case "competitors":
+        setSelectedDocCode("MKT-03");
+        break;
+      case "decisions":
+        setSelectedDocCode("MKT-24");
+        break;
+      case "export":
+        setPdfModalOpen(true);
+        break;
+      default:
+        break;
+    }
+  }, [currentTab]);
+
+  useEffect(() => {
     loadInitialData();
   }, []);
 

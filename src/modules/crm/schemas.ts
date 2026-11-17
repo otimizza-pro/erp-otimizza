@@ -58,10 +58,19 @@ export const ConvertLeadSchema = z.object({
 // =========================================================================
 // PIPELINES & STAGES SCHEMAS
 // =========================================================================
+export const PipelineStageItemSchema = z.object({
+  name: z.string().trim().min(1, "Nome da etapa deve ter pelo menos 1 caractere."),
+  color: z.string().trim().default("#6366f1"),
+  displayOrder: z.number().int().min(0).default(0),
+  winProbability: z.number().int().min(0).max(100).default(50),
+  stageType: z.enum(["NORMAL", "WON", "LOST"]).default("NORMAL"),
+});
+
 export const CreatePipelineSchema = z.object({
   name: z.string().trim().min(2, "Nome do funil deve ter pelo menos 2 caracteres."),
   description: z.string().trim().optional().nullable(),
   isDefault: z.boolean().optional().default(false),
+  stages: z.array(PipelineStageItemSchema).optional(),
 });
 
 export const UpdatePipelineSchema = CreatePipelineSchema.partial().extend({

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useTransition } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import {
   Sparkles,
@@ -31,6 +32,8 @@ import {
   Settings2,
   Hash,
   CheckSquare,
+  Image as ImageIcon,
+  Megaphone,
 } from "lucide-react";
 
 // Tipos
@@ -76,13 +79,23 @@ interface CalendarItemRecord {
   selected_carousel?: string;
 }
 
-const FORMAT_OPTIONS = [
+const SOCIAL_FORMAT_OPTIONS = [
   { id: "HEADLINES", label: "Headlines", icon: TrendingUp, desc: "Títulos de alto impacto para carrosséis, reels ou anúncios." },
-  { id: "CAPTION", label: "Legendas", icon: FileText, desc: "Copy completa para post com abertura, desenvolvimento e CTA." },
-  { id: "REELS", label: "Roteiros de Reels (2 Opções)", icon: Video, desc: "Duas opções de roteiro cronometrado com falas e textos de tela." },
+  { id: "CAPTION", label: "Legendas (Feed 4:3)", icon: FileText, desc: "Copy completa para post de feed com abertura, desenvolvimento e CTA." },
+  { id: "REELS", label: "Roteiros de Reels (16:9)", icon: Video, desc: "Duas opções de roteiro cronometrado com falas e textos de tela." },
   { id: "CAROUSEL", label: "Carrossel (2 Opções)", icon: Layers, desc: "Duas estruturas completas slide a slide com limites de palavras." },
   { id: "LANDING_PAGE", label: "Texto de Landing Page", icon: BookOpen, desc: "Seções de oferta, benefícios, dores e conversão." },
 ];
+
+const ADS_FORMAT_OPTIONS = [
+  { id: "CAPTION", label: "Anúncio Feed (Meta Ads)", icon: FileText, desc: "Copy direta com gancho visual, corpo persuasivo e CTA de conversão." },
+  { id: "REELS", label: "Roteiro de Anúncio Vídeo", icon: Video, desc: "Roteiro dinâmico para vídeos de tráfego pago (Stories/Reels Ads)." },
+  { id: "HEADLINES", label: "Headlines de Alta Conversão", icon: TrendingUp, desc: "Títulos magnéticos testados para cliques e CTR elevado." },
+  { id: "CAROUSEL", label: "Carrossel de Anúncio / Oferta", icon: Layers, desc: "Anúncios focados em quebra de objeções, prova social e oferta." },
+  { id: "LANDING_PAGE", label: "Página de Destino do Anúncio", icon: BookOpen, desc: "Copy focada na conversão imediata do tráfego pago." },
+];
+
+const FORMAT_OPTIONS = SOCIAL_FORMAT_OPTIONS;
 
 const DEFAULT_TONES = [
   "Direto e didático",
@@ -102,6 +115,7 @@ const DEFAULT_CTAS = [
 
 export default function ContentStudioPage() {
   const [activeTab, setActiveTab] = useState<"STUDIO" | "CALENDAR" | "EDITORIAL">("STUDIO");
+  const [contentMode, setContentMode] = useState<"SOCIAL_MEDIA" | "ADS">("SOCIAL_MEDIA");
 
   // Dados carregados do sistema
   const [clients, setClients] = useState<ClientRecord[]>([]);
@@ -279,18 +293,20 @@ export default function ContentStudioPage() {
   const loadClientData = async (clientId: string) => {
     setLoadingData(true);
     try {
-      const [audRes, elRes, presetRes, calRes] = await Promise.all([
+      const [audRes, elRes, presetRes, calRes, identRes] = await Promise.all([
         fetch(`/api/content-studio/audiences?clientId=${clientId}`),
         fetch(`/api/content-studio/editorial-lines?clientId=${clientId}`),
         fetch(`/api/content-studio/brand-presets?clientId=${clientId}`),
         fetch(`/api/content-studio/calendar?clientId=${clientId}`),
+        fetch(`/api/clients/${clientId}/identity`),
       ]);
 
-      const [audData, elData, presetData, calData] = await Promise.all([
+      const [audData, elData, presetData, calData, identData] = await Promise.all([
         audRes.json(),
         elRes.json(),
         presetRes.json(),
         calRes.json(),
+        identRes.ok ? identRes.json() : null,
       ]);
 
       if (audData.audiences) {
@@ -303,7 +319,14 @@ export default function ContentStudioPage() {
         setEditorialLines(elData.editorialLines);
       }
 
-      if (presetData.preset) {
+      if (identData && (identData.brandContext || identData.valueProposition)) {
+        setBrandContext(identData.brandContext || identData.valueProposition);
+        if (identData.toneOfVoice?.length > 0) setSelectedTone(identData.toneOfVoice[0]);
+        if (identData.defaultCtas?.length > 0) setSelectedCta(identData.defaultCtas[0]);
+        if (identData.targetAudiences?.length > 0 && !selectedAudience) {
+          setSelectedAudience(identData.targetAudiences[0]);
+        }
+      } else if (presetData.preset) {
         setBrandContext(presetData.preset.brand_context || "");
         if (presetData.preset.default_tones?.[0]) setSelectedTone(presetData.preset.default_tones[0]);
         if (presetData.preset.default_ctas?.[0]) setSelectedCta(presetData.preset.default_ctas[0]);
@@ -546,6 +569,50 @@ export default function ContentStudioPage() {
     }
   };
 
+  // Salvar no Feed (Social Media 4:3) ou em Campanhas de Ads
+  const handleSaveToFeedOrAds = async () => {
+    if (!selectedClientId) {
+      alert("Selecione um cliente primeiro.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/content-studio/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: selectedClientId,
+          title: chosenHeadline || idea.slice(0, 80) || `Peça de ${format}`,
+          centralIdea: idea,
+          format,
+          status: "PLANNED",
+          contentType: contentMode,
+          adStatus: "ACTIVE",
+          postTag: contentMode === "ADS" ? "Campanha Ads" : (format === "CAROUSEL" ? "Carrossel" : format === "REELS" ? "Reels" : "Feed 4:3"),
+          selectedHeadline: chosenHeadline || null,
+          selectedCaption: format === "CAPTION" ? aiOutput : null,
+          selectedReels: format === "REELS" ? aiOutput : null,
+          selectedCarousel: format === "CAROUSEL" ? aiOutput : null,
+          promptUsed: promptText,
+          toneOfVoice: customTone || selectedTone,
+          callToAction: customCta || selectedCta,
+          scheduledDate,
+        }),
+      });
+
+      if (res.ok) {
+        setNotification({
+          message: contentMode === "ADS" ? "Criativo salvo com sucesso em Campanhas & Ads!" : "Publicação salva com sucesso no Feed do Cliente (4:3)!",
+          type: "success",
+        });
+      } else {
+        alert("Erro ao salvar publicação.");
+      }
+    } catch {
+      alert("Falha ao salvar publicação.");
+    }
+  };
+
   // Salvar DNA da Marca como padrão do cliente
   const handleSaveBrandPreset = async () => {
     if (!selectedClientId) return;
@@ -666,6 +733,13 @@ export default function ContentStudioPage() {
             >
               📚 Linhas Editoriais ({editorialLines.length})
             </button>
+            <Link
+              href="/prompt-creator/saved"
+              className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 transition flex items-center gap-1.5"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              Feed & Criativos Salvos
+            </Link>
           </div>
         </div>
 
@@ -930,11 +1004,48 @@ export default function ContentStudioPage() {
             {/* SELEÇÃO DE FORMATO & PAUTA / IDEIA CENTRAL */}
             <div className="p-5 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-2">
-                  Formato do Conteúdo
-                </label>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700">
+                    {contentMode === "SOCIAL_MEDIA" ? "Formato Social Media" : "Formato Tráfego Pago & Meta Ads"}
+                  </label>
+
+                  {/* Switcher Social Media vs Ads */}
+                  <div className="flex items-center bg-zinc-100 p-1 rounded-xl text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setContentMode("SOCIAL_MEDIA");
+                        setFormat("HEADLINES");
+                      }}
+                      className={`px-3 py-1 rounded-lg transition flex items-center gap-1.5 ${
+                        contentMode === "SOCIAL_MEDIA"
+                          ? "bg-white text-zinc-950 shadow-2xs font-bold"
+                          : "text-zinc-600 hover:text-zinc-950"
+                      }`}
+                    >
+                      <Layers className="w-3.5 h-3.5 text-pink-600" />
+                      Social Media (Feed 4:3)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setContentMode("ADS");
+                        setFormat("CAPTION");
+                      }}
+                      className={`px-3 py-1 rounded-lg transition flex items-center gap-1.5 ${
+                        contentMode === "ADS"
+                          ? "bg-white text-zinc-950 shadow-2xs font-bold"
+                          : "text-zinc-600 hover:text-zinc-950"
+                      }`}
+                    >
+                      <Megaphone className="w-3.5 h-3.5 text-blue-600" />
+                      Tráfego Pago & Ads
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                  {FORMAT_OPTIONS.map((f) => {
+                  {(contentMode === "SOCIAL_MEDIA" ? SOCIAL_FORMAT_OPTIONS : ADS_FORMAT_OPTIONS).map((f) => {
                     const Icon = f.icon;
                     const isSelected = format === f.id;
                     return (
@@ -1621,14 +1732,24 @@ export default function ContentStudioPage() {
                   </div>
 
                   {aiOutput && (
-                    <button
-                      type="button"
-                      onClick={handleSaveToCalendar}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      <span>Salvar no Calendário do Cliente</span>
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSaveToFeedOrAds}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        <span>Salvar em Criativos & Feed ({contentMode === "ADS" ? "Ads" : "Feed 4:3"})</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveToCalendar}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Salvar no Calendário</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

@@ -122,10 +122,19 @@ export interface PipelineRecord {
   weightedPipelineAmount?: number;
 }
 
+export interface CreatePipelineStageItemInput {
+  name: string;
+  color?: string;
+  displayOrder?: number;
+  winProbability?: number;
+  stageType?: StageType;
+}
+
 export interface CreatePipelineInput {
   name: string;
   description?: string;
   isDefault?: boolean;
+  stages?: CreatePipelineStageItemInput[];
 }
 
 export interface UpdatePipelineInput {

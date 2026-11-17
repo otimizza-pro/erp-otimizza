@@ -9,8 +9,11 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminKnowledgePage() {
   try {
-    const pages = await listAdminPages({ status: "ALL" });
-    const tree = await getAdminPageTree();
+    const rawPages = await listAdminPages({ status: "ALL" });
+    const rawTree = await getAdminPageTree();
+
+    const pages = JSON.parse(JSON.stringify(rawPages));
+    const tree = JSON.parse(JSON.stringify(rawTree));
 
     return (
       <AppShell activeSection="knowledge_manual">

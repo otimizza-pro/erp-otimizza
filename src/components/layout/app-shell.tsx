@@ -40,6 +40,8 @@ import {
   Sparkles,
   Compass,
   BookOpen,
+  Rocket,
+  Image as ImageIcon,
 } from "lucide-react";
 import { SearchItem } from "@/app/api/search/route";
 
@@ -150,7 +152,8 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       section: "PRODUÇÃO",
       items: [
         { id: "projects_list", label: "Projetos em andamento", href: "/projects", icon: Briefcase },
-        { id: "projects_templates", label: "Modelos de projeto", href: "/projects/templates", icon: Layers },
+        { id: "projects_templates", label: "Modelos & Templates", href: "/projects/templates", icon: Layers },
+        { id: "projects_onboarding", label: "Onboardings de Clientes", href: "/projects/templates?category=onboarding", icon: Rocket },
       ],
     },
     {
@@ -160,6 +163,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       section: "PRODUÇÃO",
       items: [
         { id: "prompt_creator", label: "Estúdio de Conteúdo & IA", href: "/prompt-creator", icon: Sparkles },
+        { id: "saved_posts", label: "Feed & Criativos Salvos", href: "/prompt-creator/saved", icon: ImageIcon },
       ],
     },
     {

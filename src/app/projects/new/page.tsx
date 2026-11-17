@@ -14,6 +14,8 @@ import {
   Clock,
   DollarSign,
   Building,
+  Rocket,
+  CheckCircle2,
 } from "lucide-react";
 import { ProjectTemplateRecord, ProjectType, ProjectPriority } from "@/modules/projects/types";
 
@@ -28,9 +30,9 @@ function NewProjectFormContent() {
   const [clientId, setClientId] = useState<string>(initialClientId);
   const [contractId, setContractId] = useState<string>(searchParams.get("contractId") || "");
 
-  const [templateId, setTemplateId] = useState<string>("");
+  const [templateId, setTemplateId] = useState<string>(() => searchParams.get("templateId") || "");
   const [priority, setPriority] = useState<ProjectPriority>("MEDIUM");
-  const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().substring(0, 10));
+  const [startDate, setStartDate] = useState<string>(() => searchParams.get("startDate") || new Date().toISOString().substring(0, 10));
   const [dueDate, setDueDate] = useState<string>(() => {
     const d = new Date();
     d.setDate(d.getDate() + 30);
@@ -43,6 +45,22 @@ function NewProjectFormContent() {
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
   const [contracts, setContracts] = useState<Array<{ id: string; contractNumber: string; clientName: string }>>([]);
   const [templates, setTemplates] = useState<ProjectTemplateRecord[]>([]);
+  const [templateDetail, setTemplateDetail] = useState<{
+    stages: Array<{
+      id: string;
+      name: string;
+      orderIndex: number;
+      minDays: number;
+      maxDays: number;
+      tasks: Array<{
+        id: string;
+        title: string;
+        description: string | null;
+        relativeDueDays: number;
+        estimatedHours: number;
+      }>;
+    }>;
+  } | null>(null);
 
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,9 +143,36 @@ function NewProjectFormContent() {
       .catch((err) => console.error(err));
   }, [initialClientId]);
 
+  const loadTemplateDetail = async (tmplId: string) => {
+    if (!tmplId) {
+      setTemplateDetail(null);
+      return;
+    }
+    try {
+      const res = await fetch(`/api/projects/templates/${tmplId}`);
+      const json = await res.json();
+      if (json.success) {
+        setTemplateDetail(json.data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (templateId) {
+      loadTemplateDetail(templateId);
+    }
+  }, [templateId]);
+
   const handleTemplateChange = (tmplId: string) => {
     setTemplateId(tmplId);
-    if (!tmplId) return;
+    if (!tmplId) {
+      setTemplateDetail(null);
+      return;
+    }
+
+    loadTemplateDetail(tmplId);
 
     const tmpl = templates.find((t) => t.id === tmplId);
     if (tmpl) {
@@ -139,6 +184,13 @@ function NewProjectFormContent() {
       d.setDate(d.getDate() + (tmpl.estimatedDays || 30));
       setDueDate(d.toISOString().substring(0, 10));
     }
+  };
+
+  const calculateDate = (baseDateStr: string, daysToAdd: number) => {
+    if (!baseDateStr) return "-";
+    const d = new Date(baseDateStr + "T12:00:00");
+    d.setDate(d.getDate() + (daysToAdd || 0));
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -252,6 +304,50 @@ function NewProjectFormContent() {
               </select>
             </div>
           </div>
+
+          {/* Prévia Dinâmica das Fases com Datas Sugeridas */}
+          {templateDetail && templateDetail.stages && templateDetail.stages.length > 0 && (
+            <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-2xl p-4 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <Rocket className="w-4 h-4 text-indigo-600" />
+                  <span className="text-xs font-bold text-indigo-950">
+                    Fases do Onboarding com Datas Sugeridas (Base: Início em {calculateDate(startDate, 0)})
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono font-semibold text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                  {templateDetail.stages.length} fases estruturadas
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {templateDetail.stages.map((stage, idx) => {
+                  const stageStart = calculateDate(startDate, stage.minDays > 0 ? stage.minDays - 1 : 0);
+                  const stageEnd = calculateDate(startDate, stage.maxDays || 5);
+
+                  return (
+                    <div
+                      key={stage.id}
+                      className="bg-white p-3 rounded-xl border border-indigo-100/80 space-y-2 shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                          {stageStart} ~ {stageEnd}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-xs text-zinc-900">{stage.name}</h4>
+                      <p className="text-[11px] text-zinc-500">
+                        {stage.tasks?.length || 0} tarefas programadas
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Nome e Descrição */}
           <div>

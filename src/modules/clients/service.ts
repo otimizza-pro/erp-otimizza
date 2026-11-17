@@ -537,7 +537,7 @@ export async function purgeClient(clientId: string): Promise<{
       await client.query(
         `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
          VALUES ($1, $2, $3, $4)`,
-        ["clients", clientId, "PURGE_DOCUMENTS", JSON.stringify({ name: clientRecord.name, purgedDocs: purgedDocumentsCount, reason: "FINANCIAL_HISTORY_PRESERVED" })]
+        ["clients", clientId, "UPDATE", JSON.stringify({ event: "PURGE_DOCUMENTS", name: clientRecord.name, purgedDocs: purgedDocumentsCount, reason: "FINANCIAL_HISTORY_PRESERVED" })]
       );
 
       return {
@@ -586,7 +586,7 @@ export async function purgeClient(clientId: string): Promise<{
     await client.query(
       `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
        VALUES ($1, $2, $3, $4)`,
-      ["clients", clientId, "PURGE_COMPLETE", JSON.stringify({ name: clientRecord.name, purgedDocs: purgedDocumentsCount })]
+      ["clients", clientId, "DELETE", JSON.stringify({ event: "PURGE_COMPLETE", name: clientRecord.name, purgedDocs: purgedDocumentsCount })]
     );
 
     return {

@@ -42,6 +42,7 @@ import {
   BookOpen,
   Rocket,
   Image as ImageIcon,
+  Target,
 } from "lucide-react";
 import { SearchItem } from "@/app/api/search/route";
 
@@ -56,7 +57,7 @@ interface NavGroup {
   id: string;
   title: string;
   icon: React.ElementType;
-  section: "COMERCIAL" | "PRODUÇÃO" | "ADMINISTRATIVO";
+  section: "MARKETING & GROWTH" | "COMERCIAL" | "PRODUÇÃO" | "ADMINISTRATIVO";
   items: NavItem[];
 }
 
@@ -94,10 +95,26 @@ export function AppShell({ children, activeSection }: AppShellProps) {
   const newDropdownRef = useRef<HTMLDivElement>(null);
   const newDropdownButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Mapeamento dos grupos do menu organizados nos 3 Pilares: Comercial, Produção e Administrativo
+  // Mapeamento dos grupos do menu organizados nos Pilares Estratégicos: Marketing & Growth, Comercial, Produção e Administrativo
   const navigationGroups: NavGroup[] = [
     // =========================================================================
-    // 1. COMERCIAL (Vendas, Atendimento, Propostas e Contratos)
+    // 1. MARKETING & GROWTH (Estratégia dos 4 Funis, Conteúdo, Campanhas & BI)
+    // =========================================================================
+    {
+      id: "marketing_growth",
+      title: "Marketing & Growth",
+      icon: Target,
+      section: "MARKETING & GROWTH",
+      items: [
+        { id: "marketing_funnels", label: "Funis de Marketing (4 Funis)", href: "/marketing/funnels", icon: Target },
+        { id: "prompt_creator", label: "Estúdio de Conteúdo & IA", href: "/prompt-creator", icon: Sparkles },
+        { id: "saved_posts", label: "Feed & Criativos Salvos", href: "/prompt-creator/saved", icon: ImageIcon },
+        { id: "marketing_bi", label: "Indicadores e BI", href: "/reports", icon: BarChart3 },
+      ],
+    },
+
+    // =========================================================================
+    // 2. COMERCIAL (CRM & Vendas, Negociações, Clientes e Contratos)
     // =========================================================================
     {
       id: "commercial",
@@ -107,18 +124,10 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       items: [
         { id: "crm_overview", label: "Visão comercial", href: "/crm", icon: TrendingUp },
         { id: "crm_leads", label: "Leads", href: "/crm/leads", icon: Users },
-        { id: "crm_opportunities", label: "Funil de vendas", href: "/crm/opportunities", icon: RefreshCw },
+        { id: "crm_opportunities", label: "Funis Comerciais (Kanban)", href: "/crm/opportunities", icon: RefreshCw },
+        { id: "crm_pipelines", label: "Configurar Funis & Etapas", href: "/crm/pipelines", icon: Layers },
         { id: "crm_activities", label: "Atividades comerciais", href: "/crm/activities", icon: Calendar },
-      ],
-    },
-    {
-      id: "proposals",
-      title: "Propostas Comerciais",
-      icon: FileText,
-      section: "COMERCIAL",
-      items: [
-        { id: "proposals_list", label: "Propostas", href: "/proposals", icon: FileText },
-        { id: "proposals_new", label: "Nova proposta", href: "/proposals/new", icon: Plus },
+        { id: "proposals_list", label: "Propostas comerciais", href: "/proposals", icon: FileText },
       ],
     },
     {

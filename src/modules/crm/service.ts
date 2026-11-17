@@ -590,7 +590,7 @@ export class CrmService {
       await client.query(
         `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
          VALUES ($1, $2, $3, $4)`,
-        ["crm_leads", leadId, "PURGE", JSON.stringify({ name: leadCheck.rows[0].name, purgedDocs: purgedDocumentsCount })]
+        ["crm_leads", leadId, "DELETE", JSON.stringify({ event: "PURGE_COMPLETE", name: leadCheck.rows[0].name, purgedDocs: purgedDocumentsCount })]
       );
 
       return { success: true, purgedDocumentsCount };

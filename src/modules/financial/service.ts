@@ -197,7 +197,7 @@ export async function deleteFinancialAccount(
     await query(
       `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
        VALUES ($1, $2, $3, $4)`,
-      ["financial_accounts", id, "DEACTIVATE", JSON.stringify({ reason: "Conta possui lançamentos históricos e foi desativada." })]
+      ["financial_accounts", id, "UPDATE", JSON.stringify({ event: "DEACTIVATE", reason: "Conta possui lançamentos históricos e foi desativada." })]
     );
     return {
       action: "ARCHIVED",

@@ -38,6 +38,23 @@ const DEFAULT_STAGES_DRAFT: StageDraft[] = [
   { name: "Perdido", color: "#ef4444", winProbability: 0, stageType: "LOST" },
 ];
 
+const PROSPECTION_STAGES_DRAFT: StageDraft[] = [
+  { name: "1. Empresa identificada", color: "#3b82f6", winProbability: 10, stageType: "NORMAL" },
+  { name: "2. Contato iniciado", color: "#f59e0b", winProbability: 20, stageType: "NORMAL" },
+  { name: "3. Contato estabelecido", color: "#eab308", winProbability: 30, stageType: "NORMAL" },
+  { name: "4. Interesse identificado", color: "#8b5cf6", winProbability: 50, stageType: "NORMAL" },
+  { name: "5. Reunião ou diagnóstico agendado", color: "#10b981", winProbability: 70, stageType: "NORMAL" },
+];
+
+const COMMERCIAL_STAGES_DRAFT: StageDraft[] = [
+  { name: "1. Oportunidade qualificada", color: "#3b82f6", winProbability: 20, stageType: "NORMAL" },
+  { name: "2. Diagnóstico & Briefing", color: "#f59e0b", winProbability: 40, stageType: "NORMAL" },
+  { name: "3. Proposta apresentada", color: "#ea580c", winProbability: 60, stageType: "NORMAL" },
+  { name: "4. Negociação final", color: "#8b5cf6", winProbability: 80, stageType: "NORMAL" },
+  { name: "5. Ganho (Contrato Fechado)", color: "#10b981", winProbability: 100, stageType: "WON" },
+  { name: "6. Perdido", color: "#ef4444", winProbability: 0, stageType: "LOST" },
+];
+
 const STAGE_COLORS = ["#3b82f6", "#f59e0b", "#06b6d4", "#10b981", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6", "#64748b"];
 
 export default function PipelinesManagementPage() {
@@ -408,6 +425,38 @@ export default function PipelinesManagementPage() {
 
               {/* Construtor Dinâmico de Etapas */}
               <div className="space-y-3 pt-2 border-t border-zinc-100">
+                <div className="flex items-center gap-2 flex-wrap pb-1">
+                  <span className="text-[11px] font-semibold text-zinc-500">Modelos sugeridos:</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNewPipeline((prev) => ({
+                        ...prev,
+                        name: prev.name || "Prospecção Ativa",
+                        description: prev.description || "Prospecção ativa de empresas para os serviços da Otimizza",
+                        stages: PROSPECTION_STAGES_DRAFT.map((s) => ({ ...s })),
+                      }))
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-[10px] font-bold transition"
+                  >
+                    Usar Modelo: Prospecção Ativa (5 etapas)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setNewPipeline((prev) => ({
+                        ...prev,
+                        name: prev.name || "Funil Comercial Padrão",
+                        description: prev.description || "Funil padrão de negociação comercial até o fechamento de contrato",
+                        stages: COMMERCIAL_STAGES_DRAFT.map((s) => ({ ...s })),
+                      }))
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 text-[10px] font-bold transition"
+                  >
+                    Usar Modelo: Funil Comercial Padrão (6 etapas)
+                  </button>
+                </div>
+
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-xs font-bold text-zinc-900">Etapas do Funil</h4>
@@ -626,6 +675,34 @@ export default function PipelinesManagementPage() {
 
               {/* Gerenciamento das Etapas */}
               <div className="space-y-3 pt-2 border-t border-zinc-100">
+                <div className="flex items-center gap-2 flex-wrap pb-1">
+                  <span className="text-[11px] font-semibold text-zinc-500">Substituir etapas por modelo sugerido:</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        stages: PROSPECTION_STAGES_DRAFT.map((s) => ({ ...s })),
+                      }))
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-[10px] font-bold transition"
+                  >
+                    Carregar: Prospecção Ativa (5 etapas)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        stages: COMMERCIAL_STAGES_DRAFT.map((s) => ({ ...s })),
+                      }))
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 text-[10px] font-bold transition"
+                  >
+                    Carregar: Funil Comercial Padrão (6 etapas)
+                  </button>
+                </div>
+
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="text-xs font-bold text-zinc-900">Etapas do Funil</h4>

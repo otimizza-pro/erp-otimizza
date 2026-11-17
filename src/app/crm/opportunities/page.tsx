@@ -26,10 +26,29 @@ import {
   ChevronRight,
   MoveRight,
   Sparkles,
+  Rocket,
+  Check,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { OpportunityRecord, OpportunityStatus, PipelineRecord, PipelineStageRecord } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
+
+const statusBadges: Record<
+  OpportunityStatus,
+  { label: string; bg: string; icon: LucideIcon }
+> = {
+  OPEN: { label: "Aberta", bg: "bg-blue-50 text-blue-700 border-blue-200", icon: Clock },
+  WON: { label: "Ganha", bg: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: CheckCircle2 },
+  LOST: { label: "Perdida", bg: "bg-rose-50 text-rose-700 border-rose-200", icon: XCircle },
+  CANCELED: { label: "Cancelada", bg: "bg-zinc-100 text-zinc-600 border-zinc-200", icon: Ban },
+};
+
+const periodLabels: Record<string, string> = {
+  MONTHLY: "Mensal",
+  ONE_TIME: "Pontual",
+  ANNUAL: "Anual",
+};
 
 export default function OpportunitiesListPage() {
   const [opportunities, setOpportunities] = useState<OpportunityRecord[]>([]);
@@ -40,12 +59,19 @@ export default function OpportunitiesListPage() {
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<OpportunityStatus | "ALL">("ALL");
 
-  // Fechamento modal
+  // Fechamento modal (Ganha / Perdida)
   const [closeModalOpp, setCloseModalOpp] = useState<OpportunityRecord | null>(null);
   const [closeTargetStatus, setCloseTargetStatus] = useState<"WON" | "LOST" | "CANCELED">("WON");
   const [lostReason, setLostReason] = useState("");
   const [closeNotes, setCloseNotes] = useState("");
   const [submittingClose, setSubmittingClose] = useState(false);
+
+  // Transferência entre Funis & Etapas Modal
+  const [transferModalOpp, setTransferModalOpp] = useState<OpportunityRecord | null>(null);
+  const [transferPipelineId, setTransferPipelineId] = useState<string>("");
+  const [transferStageId, setTransferStageId] = useState<string>("");
+  const [submittingTransfer, setSubmittingTransfer] = useState(false);
+  const [transferFeedback, setTransferFeedback] = useState<string | null>(null);
 
   // Drag and Drop State
   const [draggedOppId, setDraggedOppId] = useState<string | null>(null);
@@ -90,15 +116,18 @@ export default function OpportunitiesListPage() {
     return () => clearTimeout(delay);
   }, [searchTerm, selectedPipelineId, statusFilter]);
 
+  // Funil Comercial Padrão (final)
+  const defaultPipeline = pipelines.find((p) => p.isDefault) || pipelines[0];
+
   // Funil ativo para a visão Kanban
   const activeKanbanPipeline =
     selectedPipelineId !== "ALL"
       ? pipelines.find((p) => p.id === selectedPipelineId) || pipelines[0]
-      : pipelines.find((p) => p.isDefault) || pipelines[0];
+      : defaultPipeline;
 
   const kanbanStages: PipelineStageRecord[] = activeKanbanPipeline?.stages || [];
 
-  // Mover oportunidade de etapa
+  // Mover oportunidade de etapa no mesmo funil
   async function handleMoveStage(oppId: string, toStageId: string) {
     const opp = opportunities.find((o) => o.id === oppId);
     if (!opp || opp.stageId === toStageId) return;
@@ -132,7 +161,6 @@ export default function OpportunitiesListPage() {
         throw new Error(err.error || "Falha ao mover etapa.");
       }
     } catch (err: unknown) {
-      // Reverte otimista
       setOpportunities((prev) =>
         prev.map((o) => (o.id === oppId ? { ...o, stageId: previousStageId } : o))
       );
@@ -140,7 +168,91 @@ export default function OpportunitiesListPage() {
     }
   }
 
-  // Encerrar oportunidade
+  // Avanço com 1 Clique para o Funil Comercial Padrão (Ex: saindo da Prospecção Ativa)
+  async function handleQuickAdvanceToCommercial(opp: OpportunityRecord) {
+    if (!defaultPipeline || !defaultPipeline.stages || defaultPipeline.stages.length === 0) {
+      alert("Funil Comercial Padrão não possui etapas configuradas.");
+      return;
+    }
+    const targetStage = defaultPipeline.stages[0]; // Primeira etapa: "Oportunidade qualificada"
+    try {
+      const res = await fetch(`/api/crm/opportunities/${opp.id}/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toPipelineId: defaultPipeline.id,
+          toStageId: targetStage.id,
+          notes: `Avançado com 1 clique para o Funil Comercial Padrão (${targetStage.name}).`,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Erro ao transferir oportunidade.");
+      }
+
+      setTransferFeedback(`Negociação "${opp.title}" transferida com 1 clique para "${defaultPipeline.name}" (${targetStage.name})!`);
+      loadData();
+      setTimeout(() => setTransferFeedback(null), 6000);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao transferir oportunidade.");
+    }
+  }
+
+  // Abrir Modal de Transferência de Funil
+  function handleOpenTransferModal(opp: OpportunityRecord) {
+    setTransferModalOpp(opp);
+    // Sugere outro funil diferente do atual se houver
+    const otherPipe = pipelines.find((p) => p.id !== opp.pipelineId) || defaultPipeline;
+    if (otherPipe) {
+      setTransferPipelineId(otherPipe.id);
+      if (otherPipe.stages && otherPipe.stages.length > 0) {
+        setTransferStageId(otherPipe.stages[0].id);
+      } else {
+        setTransferStageId("");
+      }
+    }
+  }
+
+  // Submissão do Modal de Transferência
+  async function handleTransferSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!transferModalOpp || !transferPipelineId || !transferStageId) return;
+
+    setSubmittingTransfer(true);
+    try {
+      const targetPipe = pipelines.find((p) => p.id === transferPipelineId);
+      const targetStage = targetPipe?.stages?.find((s) => s.id === transferStageId);
+
+      const res = await fetch(`/api/crm/opportunities/${transferModalOpp.id}/move`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          toPipelineId: transferPipelineId,
+          toStageId: transferStageId,
+          notes: `Transferido para o funil "${targetPipe?.name}" na etapa "${targetStage?.name}".`,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Erro ao transferir oportunidade de funil.");
+      }
+
+      setTransferFeedback(
+        `Negociação "${transferModalOpp.title}" movida para "${targetPipe?.name}" (${targetStage?.name}) com sucesso!`
+      );
+      setTransferModalOpp(null);
+      loadData();
+      setTimeout(() => setTransferFeedback(null), 6000);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao transferir oportunidade.");
+    } finally {
+      setSubmittingTransfer(false);
+    }
+  }
+
+  // Encerrar oportunidade (Ganha / Perdida)
   async function handleCloseSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!closeModalOpp) return;
@@ -156,23 +268,22 @@ export default function OpportunitiesListPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           status: closeTargetStatus,
-          lostReason: closeTargetStatus === "LOST" ? lostReason : undefined,
-          notes: closeNotes || undefined,
+          lostReason: closeTargetStatus === "LOST" ? lostReason.trim() : undefined,
+          closeNotes: closeNotes.trim() || undefined,
         }),
       });
 
-      if (res.ok) {
-        setCloseModalOpp(null);
-        setLostReason("");
-        setCloseNotes("");
-        loadData();
-      } else {
+      if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Erro ao encerrar oportunidade");
+        throw new Error(err.error || "Erro ao encerrar oportunidade.");
       }
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao conectar com o servidor");
+
+      setCloseModalOpp(null);
+      setLostReason("");
+      setCloseNotes("");
+      loadData();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao encerrar oportunidade.");
     } finally {
       setSubmittingClose(false);
     }
@@ -180,26 +291,22 @@ export default function OpportunitiesListPage() {
 
   // Reabrir oportunidade
   async function handleReopen(opp: OpportunityRecord) {
-    if (!confirm(`Deseja reabrir a oportunidade "${opp.title}" para a primeira etapa ativa do funil?`)) return;
+    if (!confirm(`Deseja reabrir a oportunidade "${opp.title}"?`)) return;
     try {
       const res = await fetch(`/api/crm/opportunities/${opp.id}/reopen`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: "Reaberto manualmente pelo funil de vendas" }),
       });
-      if (res.ok) {
-        loadData();
-      } else {
+      if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Erro ao reabrir oportunidade");
+        throw new Error(err.error || "Erro ao reabrir oportunidade.");
       }
-    } catch (e) {
-      console.error(e);
-      alert("Erro ao reabrir oportunidade");
+      loadData();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao reabrir.");
     }
   }
 
-  // Métricas agregadas da listagem atual
+  // Métricas
   const totalOpen = opportunities.filter((o) => o.status === "OPEN").length;
   const totalOpenAmount = opportunities
     .filter((o) => o.status === "OPEN")
@@ -211,41 +318,33 @@ export default function OpportunitiesListPage() {
   const totalLost = opportunities.filter((o) => o.status === "LOST").length;
   const winRate = totalWon + totalLost > 0 ? (totalWon / (totalWon + totalLost)) * 100 : 0;
 
-  const statusBadges: Record<OpportunityStatus, { label: string; bg: string; text: string; icon: LucideIcon }> = {
-    OPEN: { label: "Aberta", bg: "bg-blue-50 text-blue-700 border-blue-200", text: "text-blue-700", icon: Clock },
-    WON: { label: "Ganha", bg: "bg-emerald-50 text-emerald-700 border-emerald-200", text: "text-emerald-700", icon: CheckCircle2 },
-    LOST: { label: "Perdida", bg: "bg-rose-50 text-rose-700 border-rose-200", text: "text-rose-700", icon: XCircle },
-    CANCELED: { label: "Cancelada", bg: "bg-slate-100 text-slate-700 border-slate-200", text: "text-slate-700", icon: Ban },
-  };
-
-  const periodLabels: Record<string, string> = {
-    MONTHLY: "MRR",
-    YEARLY: "Anual",
-    ONE_TIME: "Pontual",
-  };
+  const transferPipeSelected = pipelines.find((p) => p.id === transferPipelineId);
+  const transferStagesAvailable = transferPipeSelected?.stages || [];
 
   return (
     <AppShell activeSection="crm_opportunities">
-      <div className="space-y-6 pb-16">
-        {/* Cabeçalho */}
+      <div className="space-y-6 pb-20">
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-xs">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-2 bg-zinc-900 text-white rounded-xl shadow-xs">
-                <TrendingUp className="h-5 w-5" />
+              <span className="p-2 rounded-xl bg-purple-600 text-white">
+                <TrendingUp className="w-5 h-5" />
               </span>
               <div>
-                <h1 className="text-2xl font-bold text-zinc-950 tracking-tight">Funil de Vendas & Oportunidades</h1>
+                <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
+                  Funis Comerciais & Negociações (CRM)
+                </h1>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  Visualização Kanban e Lista das negociações, previsão de receita e evolução entre etapas.
+                  Gestão operacional de oportunidades, transição rápida entre funis e avanço para fechamento.
                 </p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Alternância Kanban / Lista */}
-            <div className="bg-zinc-100 p-1 rounded-xl flex items-center gap-1 border border-zinc-200/60">
+            {/* Alternador Kanban / Lista */}
+            <div className="flex items-center rounded-xl bg-zinc-100 p-1 border border-zinc-200">
               <button
                 type="button"
                 onClick={() => setViewMode("KANBAN")}
@@ -277,7 +376,7 @@ export default function OpportunitiesListPage() {
               title="Configurar funis e ordenar etapas comerciais"
             >
               <Layers className="h-4 w-4 text-purple-600" />
-              Configurar funis
+              Configurar Funis & Etapas
             </Link>
 
             {/* Nova Oportunidade */}
@@ -290,6 +389,19 @@ export default function OpportunitiesListPage() {
             </Link>
           </div>
         </div>
+
+        {/* Feedback Banner */}
+        {transferFeedback && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-2 font-medium">
+              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>{transferFeedback}</span>
+            </div>
+            <button onClick={() => setTransferFeedback(null)} className="text-emerald-700 font-bold hover:underline">
+              Fechar
+            </button>
+          </div>
+        )}
 
         {moveError && (
           <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center justify-between gap-2">
@@ -411,6 +523,11 @@ export default function OpportunitiesListPage() {
                 <span className="font-semibold text-zinc-800">
                   Visualizando Funil:{" "}
                   <strong className="text-purple-700">{activeKanbanPipeline.name}</strong>
+                  {activeKanbanPipeline.isDefault && (
+                    <span className="ml-2 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[10px] font-bold">
+                      Funil Comercial Padrão (Final)
+                    </span>
+                  )}
                 </span>
                 <span>
                   {opportunities.length} negócio(s) correspondente(s) aos filtros
@@ -451,7 +568,7 @@ export default function OpportunitiesListPage() {
                             setDraggedOppId(null);
                           }
                         }}
-                        className="w-80 shrink-0 bg-zinc-50/80 rounded-2xl border border-zinc-200/80 flex flex-col max-h-[750px] transition"
+                        className="w-80 shrink-0 bg-zinc-50/80 rounded-2xl border border-zinc-200/80 flex flex-col max-h-[780px] transition"
                       >
                         {/* Header da Coluna */}
                         <div className="p-3.5 border-b border-zinc-200/80 bg-white rounded-t-2xl">
@@ -482,6 +599,7 @@ export default function OpportunitiesListPage() {
                           ) : (
                             stageOpps.map((opp) => {
                               const isClient = opp.contactType === "CLIENT";
+                              const isNonDefaultPipeline = defaultPipeline && opp.pipelineId !== defaultPipeline.id;
 
                               return (
                                 <div
@@ -550,28 +668,52 @@ export default function OpportunitiesListPage() {
                                     </span>
                                   </div>
 
-                                  {/* Controles de Ação & Mover Etapa por Teclado/Celular */}
-                                  <div className="flex items-center justify-between pt-1 text-[11px]">
+                                  {/* BOTÃO 1-CLIQUE: Avançar para Funil Comercial Padrão */}
+                                  {isNonDefaultPipeline && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleQuickAdvanceToCommercial(opp)}
+                                      className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg text-[11px] font-bold transition shadow-2xs"
+                                      title="Avançar diretamente esta oportunidade para a primeira etapa do Funil Comercial Padrão com 1 clique"
+                                    >
+                                      <Rocket className="w-3 h-3 text-emerald-600" />
+                                      Avançar p/ Funil Comercial
+                                    </button>
+                                  )}
+
+                                  {/* Controles de Ação: Mover Etapa e Transferir de Funil */}
+                                  <div className="flex items-center justify-between pt-1 text-[11px] border-t border-zinc-100">
                                     <select
                                       value={opp.stageId}
                                       onChange={(e) => handleMoveStage(opp.id, e.target.value)}
-                                      className="text-[10px] font-semibold bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                                      title="Mover para outra etapa do funil (sem arrastar)"
+                                      className="text-[10px] font-semibold bg-zinc-50 border border-zinc-200 rounded-lg px-2 py-1 text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-900 max-w-[150px] truncate"
+                                      title="Mover para outra etapa deste funil"
                                     >
                                       {kanbanStages.map((s) => (
                                         <option key={s.id} value={s.id}>
-                                          Mover: {s.name}
+                                          {s.name}
                                         </option>
                                       ))}
                                     </select>
 
-                                    <Link
-                                      href={`/crm/opportunities/${opp.id}`}
-                                      className="p-1 text-zinc-400 hover:text-zinc-900"
-                                      title="Ver detalhes da oportunidade"
-                                    >
-                                      <ExternalLink className="w-3.5 h-3.5" />
-                                    </Link>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenTransferModal(opp)}
+                                        className="p-1 rounded-lg text-zinc-500 hover:text-purple-700 hover:bg-purple-50 transition"
+                                        title="Transferir para outro Funil"
+                                      >
+                                        <MoveRight className="w-3.5 h-3.5" />
+                                      </button>
+
+                                      <Link
+                                        href={`/crm/opportunities/${opp.id}`}
+                                        className="p-1 text-zinc-400 hover:text-zinc-900"
+                                        title="Ver detalhes da oportunidade"
+                                      >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                      </Link>
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -629,6 +771,7 @@ export default function OpportunitiesListPage() {
                     {opportunities.map((opp) => {
                       const st = statusBadges[opp.status] || statusBadges.OPEN;
                       const StatusIcon = st.icon;
+                      const isNonDefaultPipeline = defaultPipeline && opp.pipelineId !== defaultPipeline.id;
 
                       return (
                         <tr key={opp.id} className="hover:bg-zinc-50/80 transition-colors">
@@ -737,6 +880,28 @@ export default function OpportunitiesListPage() {
 
                           <td className="py-3 px-4 text-right">
                             <div className="flex items-center justify-end gap-1.5">
+                              {/* 1-Clique para avançar ao Funil Comercial */}
+                              {isNonDefaultPipeline && opp.status === "OPEN" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleQuickAdvanceToCommercial(opp)}
+                                  className="px-2 py-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-300 transition flex items-center gap-1"
+                                  title="Avançar para Funil Comercial Padrão com 1 clique"
+                                >
+                                  <Rocket className="w-3 h-3 text-emerald-600" />
+                                  Avançar
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => handleOpenTransferModal(opp)}
+                                className="px-2 py-1 text-[10px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition"
+                                title="Mover de Funil"
+                              >
+                                Mover Funil
+                              </button>
+
                               {opp.status === "OPEN" ? (
                                 <>
                                   <button
@@ -782,6 +947,108 @@ export default function OpportunitiesListPage() {
                 </table>
               </div>
             )}
+          </div>
+        )}
+
+        {/* =========================================================================
+            MODAL DE TRANSFERÊNCIA DE FUNIL & ETAPA
+           ========================================================================= */}
+        {transferModalOpp && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+            <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 space-y-4">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="p-2 bg-purple-50 text-purple-700 rounded-xl">
+                    <MoveRight className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h2 className="text-base font-bold text-zinc-950">Transferir de Funil</h2>
+                    <p className="text-xs text-zinc-500">
+                      Mova esta negociação para outro funil e defina a etapa de destino.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setTransferModalOpp(null)}
+                  className="p-1 text-zinc-400 hover:text-zinc-700 rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200/80 text-xs space-y-1">
+                <span className="text-[10px] text-zinc-400 font-semibold uppercase">Oportunidade</span>
+                <p className="font-bold text-zinc-900">{transferModalOpp.title}</p>
+                <p className="text-[11px] text-zinc-500">
+                  Funil atual: <strong>{transferModalOpp.pipelineName}</strong> • Etapa atual: <strong>{transferModalOpp.stageName}</strong>
+                </p>
+              </div>
+
+              <form onSubmit={handleTransferSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Funil de Destino *
+                  </label>
+                  <select
+                    required
+                    value={transferPipelineId}
+                    onChange={(e) => {
+                      const pId = e.target.value;
+                      setTransferPipelineId(pId);
+                      const p = pipelines.find((item) => item.id === pId);
+                      if (p && p.stages && p.stages.length > 0) {
+                        setTransferStageId(p.stages[0].id);
+                      } else {
+                        setTransferStageId("");
+                      }
+                    }}
+                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  >
+                    {pipelines.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} {p.isDefault ? "(Funil Comercial Padrão)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 mb-1">
+                    Etapa de Destino *
+                  </label>
+                  <select
+                    required
+                    value={transferStageId}
+                    onChange={(e) => setTransferStageId(e.target.value)}
+                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  >
+                    {transferStagesAvailable.map((stg) => (
+                      <option key={stg.id} value={stg.id}>
+                        {stg.name} (Probabilidade: {stg.winProbability}%)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-100">
+                  <button
+                    type="button"
+                    onClick={() => setTransferModalOpp(null)}
+                    disabled={submittingTransfer}
+                    className="px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 rounded-xl"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingTransfer}
+                    className="px-5 py-2 text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 rounded-xl shadow-xs transition disabled:opacity-50"
+                  >
+                    {submittingTransfer ? "Transferindo..." : "Transferir Oportunidade"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 

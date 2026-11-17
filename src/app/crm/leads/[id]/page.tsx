@@ -231,7 +231,9 @@ export default function LeadDetailPage() {
   const handleDeleteLead = async () => {
     if (!lead) return;
     const confirmDelete = window.confirm(
-      `Tem certeza que deseja excluir/arquivar o lead "${lead.name}"?\n\nAs oportunidades e propostas vinculadas serão mantidas para histórico.`
+      `Atenção: Tem certeza que deseja EXCLUIR DEFINITIVAMENTE o lead "${lead.name}"?\n\n` +
+      `• Todos os documentos, arquivos anexados, oportunidades e dados deste lead serão apagados permanentemente para liberar espaço.\n\n` +
+      `Esta ação não pode ser desfeita. Continuar?`
     );
     if (!confirmDelete) return;
 
@@ -242,11 +244,14 @@ export default function LeadDetailPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || "Erro ao arquivar lead.");
+        throw new Error(data.error || "Erro ao excluir lead.");
+      }
+      if (data.message) {
+        alert(data.message);
       }
       router.push("/crm/leads");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao arquivar lead.");
+      alert(err instanceof Error ? err.message : "Erro ao excluir lead.");
       setActionLoading(false);
     }
   };

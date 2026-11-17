@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getClientById, updateClient, archiveClient, reactivateClient } from "@/modules/clients/service";
+import { getClientById, updateClient, archiveClient, reactivateClient, purgeClient } from "@/modules/clients/service";
 
 export async function GET(
   _request: Request,
@@ -48,9 +48,27 @@ export async function PATCH(
       const client = await reactivateClient(id);
       return NextResponse.json(client);
     }
+    if (body.action === "PURGE") {
+      const result = await purgeClient(id);
+      return NextResponse.json(result);
+    }
     return NextResponse.json({ error: "Ação não suportada." }, { status: 400 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao alterar status do cliente.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const result = await purgeClient(id);
+    return NextResponse.json(result);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro ao excluir cliente.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

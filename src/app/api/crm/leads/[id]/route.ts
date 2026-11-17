@@ -34,15 +34,27 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    await CrmService.archiveLead(id);
-    return NextResponse.json({ success: true, message: "Lead arquivado com sucesso." });
+    const url = new URL(request.url);
+    const onlyArchive = url.searchParams.get("archive") === "true";
+
+    if (onlyArchive) {
+      await CrmService.archiveLead(id);
+      return NextResponse.json({ success: true, message: "Lead arquivado com sucesso." });
+    }
+
+    const result = await CrmService.purgeLead(id);
+    return NextResponse.json({
+      success: true,
+      message: `Lead e todos os seus documentos foram excluídos permanentemente (${result.purgedDocumentsCount} arquivos liberados).`,
+      purgedDocumentsCount: result.purgedDocumentsCount,
+    });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Erro ao arquivar lead.";
+    const message = error instanceof Error ? error.message : "Erro ao excluir lead.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

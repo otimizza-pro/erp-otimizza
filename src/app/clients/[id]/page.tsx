@@ -28,6 +28,7 @@ import {
   ExternalLink,
   FolderOpen,
   History,
+  Trash2,
 } from "lucide-react";
 import { Client } from "@/modules/clients/types";
 import { formatDocument } from "@/shared/cpf-cnpj";
@@ -272,6 +273,32 @@ function ClientDetailsContent() {
     }
   };
 
+  const handlePurgeClient = async () => {
+    if (!client) return;
+    const confirmMsg =
+      `Atenção: Deseja realmente EXCLUIR DEFINITIVAMENTE o cliente "${client.tradeName || client.name}"?\n\n` +
+      `• Todos os documentos, arquivos físicos no storage, anexos, projetos e dados operacionais serão apagados permanentemente para liberar espaço.\n` +
+      `• Caso existam recebimentos contábeis consolidados no caixa, o registro cadastral será arquivado para preservar a integridade fiscal da empresa.\n\n` +
+      `Esta ação não poderá ser desfeita. Deseja prosseguir com a exclusão e limpeza de arquivos?`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/clients/${id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      alert(data.message || "Cliente e arquivos excluídos com sucesso.");
+      router.push("/clients");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao excluir cliente.");
+      setActionLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <AppShell activeSection="clients">
@@ -374,13 +401,23 @@ function ClientDetailsContent() {
             <button
               onClick={handleToggleArchive}
               disabled={actionLoading}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
                 client.status === "ACTIVE"
-                  ? "bg-white border-zinc-200 text-zinc-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200"
+                  ? "bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-100"
                   : "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100"
               }`}
             >
               {client.status === "ACTIVE" ? "Arquivar" : "Reativar"}
+            </button>
+            <button
+              type="button"
+              onClick={handlePurgeClient}
+              disabled={actionLoading}
+              title="Excluir cliente e apagar permanentemente todos os arquivos e documentos para liberar espaço"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              Excluir Tudo & Liberar Espaço
             </button>
             <Link
               href={`/proposals/new?clientId=${client.id}`}

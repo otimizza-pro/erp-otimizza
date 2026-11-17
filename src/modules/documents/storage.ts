@@ -122,4 +122,20 @@ export class DocumentStorage {
       return null;
     }
   }
+
+  /**
+   * Remove arquivo do Supabase Storage
+   */
+  static async deleteFile(storagePath: string): Promise<void> {
+    if (!storagePath) return;
+    const env = getEnv();
+    if (env.NEXT_PUBLIC_SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY && env.NODE_ENV !== "test") {
+      try {
+        const supabase = createSupabaseClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+        await supabase.storage.from("documents").remove([storagePath]);
+      } catch (err) {
+        console.warn("Aviso ao remover arquivo do Supabase Storage:", err);
+      }
+    }
+  }
 }

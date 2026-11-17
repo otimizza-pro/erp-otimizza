@@ -1,4 +1,5 @@
-import { getDbPool } from "@/lib/db/pool";
+import { getDbPool, withTransaction } from "@/lib/db/pool";
+import { DocumentService } from "@/modules/documents/service";
 import { normalizeDocument } from "@/shared/cpf-cnpj";
 import {
   PersonType,
@@ -499,6 +500,101 @@ export class CrmService {
       `UPDATE crm_leads SET status = 'ARCHIVED', archived_at = NOW(), updated_at = NOW() WHERE id = $1`,
       [id]
     );
+  }
+
+  /**
+   * Exclusão Definitiva (Purge) do Lead e de todos os documentos e registros vinculados.
+   * Libera espaço de storage e banco.
+   */
+  static async purgeLead(leadId: string): Promise<{ success: boolean; purgedDocumentsCount: number }> {
+    return withTransaction(async (client) => {
+      const leadCheck = await client.query<{ id: string; name: string }>(
+        `SELECT id, name FROM crm_leads WHERE id = $1`,
+        [leadId]
+      );
+      if (leadCheck.rows.length === 0) {
+        throw new Error("Lead não encontrado.");
+      }
+
+      const oppsRes = await client.query<{ id: string }>(
+        `SELECT id FROM crm_opportunities WHERE lead_id = $1`,
+        [leadId]
+      );
+      const oppIds = oppsRes.rows.map((r) => r.id);
+
+      const propsRes = await client.query<{ id: string }>(
+        `SELECT id FROM proposals WHERE lead_id = $1`,
+        [leadId]
+      );
+      const propIds = propsRes.rows.map((r) => r.id);
+
+      const docIdsToPurge: string[] = [];
+
+      // Docs do lead
+      const leadDocsRes = await client.query<{ document_id: string }>(
+        `SELECT document_id FROM document_links WHERE entity_type = 'LEAD' AND entity_id = $1`,
+        [leadId]
+      );
+      docIdsToPurge.push(...leadDocsRes.rows.map((r) => r.document_id));
+
+      // Docs das oportunidades
+      if (oppIds.length > 0) {
+        const oppDocsRes = await client.query<{ document_id: string }>(
+          `SELECT document_id FROM document_links WHERE entity_type = 'OPPORTUNITY' AND entity_id = ANY($1::uuid[])`,
+          [oppIds]
+        );
+        docIdsToPurge.push(...oppDocsRes.rows.map((r) => r.document_id));
+      }
+
+      // Docs das propostas e versões
+      if (propIds.length > 0) {
+        const propDocsRes = await client.query<{ document_id: string }>(
+          `SELECT document_id FROM document_links 
+           WHERE (entity_type = 'PROPOSAL' AND entity_id = ANY($1::uuid[]))
+              OR (entity_type = 'PROPOSAL_VERSION' AND entity_id IN (SELECT id FROM proposal_versions WHERE proposal_id = ANY($1::uuid[])))`,
+          [propIds]
+        );
+        docIdsToPurge.push(...propDocsRes.rows.map((r) => r.document_id));
+      }
+
+      // Purgar documentos fisicamente do storage e banco
+      const purgedDocumentsCount = await DocumentService.purgeDocumentsByIds(docIdsToPurge, client);
+
+      // Deletar itens das versões e versões de propostas
+      if (propIds.length > 0) {
+        await client.query(
+          `DELETE FROM proposal_version_items WHERE proposal_version_id IN (SELECT id FROM proposal_versions WHERE proposal_id = ANY($1::uuid[]))`,
+          [propIds]
+        );
+        await client.query(`DELETE FROM proposal_versions WHERE proposal_id = ANY($1::uuid[])`, [propIds]);
+        await client.query(`DELETE FROM proposals WHERE id = ANY($1::uuid[])`, [propIds]);
+      }
+
+      // Deletar histórico de etapas de oportunidades e atividades
+      if (oppIds.length > 0) {
+        await client.query(`DELETE FROM crm_opportunity_stages_history WHERE opportunity_id = ANY($1::uuid[])`, [oppIds]);
+        await client.query(`DELETE FROM crm_activities WHERE opportunity_id = ANY($1::uuid[])`, [oppIds]);
+        await client.query(`DELETE FROM crm_opportunities WHERE id = ANY($1::uuid[])`, [oppIds]);
+      }
+
+      // Deletar atividades diretas do lead
+      await client.query(`DELETE FROM crm_activities WHERE lead_id = $1`, [leadId]);
+
+      // Deletar links de documentos restantes
+      await client.query(`DELETE FROM document_links WHERE entity_type = 'LEAD' AND entity_id = $1`, [leadId]);
+
+      // Deletar o lead
+      await client.query(`DELETE FROM crm_leads WHERE id = $1`, [leadId]);
+
+      // Auditoria
+      await client.query(
+        `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
+         VALUES ($1, $2, $3, $4)`,
+        ["crm_leads", leadId, "PURGE", JSON.stringify({ name: leadCheck.rows[0].name, purgedDocs: purgedDocumentsCount })]
+      );
+
+      return { success: true, purgedDocumentsCount };
+    });
   }
 
   /**

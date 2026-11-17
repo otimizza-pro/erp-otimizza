@@ -226,16 +226,21 @@ function LeadsListContent() {
   const handleDeleteLead = async (leadId: string, leadName: string) => {
     if (
       !window.confirm(
-        `Deseja realmente excluir/arquivar o lead "${leadName}"?\n\nAs oportunidades vinculadas permanecerão registradas no histórico.`
+        `Atenção: Deseja realmente EXCLUIR DEFINITIVAMENTE o lead "${leadName}"?\n\n` +
+        `• Todos os documentos, arquivos anexados, oportunidades e dados deste lead serão apagados permanentemente para liberar espaço.\n\n` +
+        `Esta ação não pode ser desfeita. Continuar?`
       )
     ) {
       return;
     }
     try {
       const res = await fetch(`/api/crm/leads/${leadId}`, { method: "DELETE" });
+      const data = await res.json();
       if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Erro ao excluir lead.");
+        throw new Error(data.error || "Erro ao excluir lead.");
+      }
+      if (data.message) {
+        alert(data.message);
       }
       loadLeads();
     } catch (err: unknown) {

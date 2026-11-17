@@ -1,4 +1,5 @@
 import { query, withTransaction } from "@/lib/db/pool";
+import type { PoolClient } from "pg";
 import {
   DocumentRecord,
   DocumentVersionRecord,
@@ -667,5 +668,99 @@ export class DocumentService {
       },
       pdfBuffer
     );
+  }
+
+  /**
+   * Exclusão permanente e física de documentos e seus arquivos binários (Storage e DB).
+   * Libera espaço de armazenamento real.
+   */
+  static async purgeDocumentsByIds(docIds: string[], clientRunner?: PoolClient): Promise<number> {
+    if (!docIds || docIds.length === 0) return 0;
+    const uniqueIds = Array.from(new Set(docIds.filter(Boolean)));
+    if (uniqueIds.length === 0) return 0;
+
+    const execute = async (client: PoolClient) => {
+      // 1. Obter todos os arquivos físicos nas versões dos documentos
+      const verRes = await client.query<{ id: string; storage_path: string; storage_provider: string }>(
+        `SELECT id, storage_path, storage_provider FROM document_versions WHERE document_id = ANY($1::uuid[])`,
+        [uniqueIds]
+      );
+
+      // 2. Apagar arquivos do Supabase Storage
+      for (const ver of verRes.rows) {
+        if (ver.storage_provider === "SUPABASE_STORAGE" && ver.storage_path) {
+          await DocumentStorage.deleteFile(ver.storage_path).catch(() => {});
+        }
+      }
+
+      const versionIds = verRes.rows.map((v) => v.id);
+
+      // 3. Apagar payloads binários do banco
+      if (versionIds.length > 0) {
+        await client.query(`DELETE FROM document_file_payloads WHERE version_id = ANY($1::uuid[])`, [versionIds]);
+      }
+
+      // 4. Apagar eventos, links e versões
+      await client.query(`DELETE FROM document_events WHERE document_id = ANY($1::uuid[])`, [uniqueIds]);
+      await client.query(`DELETE FROM document_links WHERE document_id = ANY($1::uuid[])`, [uniqueIds]);
+      await client.query(`DELETE FROM document_versions WHERE document_id = ANY($1::uuid[])`, [uniqueIds]);
+
+      // 5. Apagar os documentos
+      const delRes = await client.query(`DELETE FROM documents WHERE id = ANY($1::uuid[])`, [uniqueIds]);
+      return delRes.rowCount || 0;
+    };
+
+    if (clientRunner) {
+      return execute(clientRunner);
+    }
+    return withTransaction(execute);
+  }
+
+  /**
+   * Expurga todos os documentos vinculados a uma entidade (se não estiverem compartilhados com outras).
+   */
+  static async purgeDocumentsForEntity(
+    entityType: DocumentEntityType,
+    entityId: string,
+    clientRunner?: PoolClient
+  ): Promise<number> {
+    const execute = async (client: PoolClient) => {
+      const linksRes = await client.query<{ document_id: string }>(
+        `SELECT document_id FROM document_links WHERE entity_type = $1 AND entity_id = $2`,
+        [entityType, entityId]
+      );
+      if (linksRes.rows.length === 0) return 0;
+
+      const docIds = linksRes.rows.map((r) => r.document_id);
+
+      // Filtrar apenas documentos que não estão vinculados a NENHUMA outra entidade
+      const sharedRes = await client.query<{ document_id: string }>(
+        `SELECT document_id FROM document_links 
+         WHERE document_id = ANY($1::uuid[]) 
+           AND NOT (entity_type = $2 AND entity_id = $3)`,
+        [docIds, entityType, entityId]
+      );
+      const sharedDocIds = new Set(sharedRes.rows.map((r) => r.document_id));
+
+      const docsToPurge = docIds.filter((id) => !sharedDocIds.has(id));
+      const linksToUnlink = docIds.filter((id) => sharedDocIds.has(id));
+
+      if (linksToUnlink.length > 0) {
+        await client.query(
+          `DELETE FROM document_links WHERE entity_type = $1 AND entity_id = $2 AND document_id = ANY($3::uuid[])`,
+          [entityType, entityId, linksToUnlink]
+        );
+      }
+
+      if (docsToPurge.length > 0) {
+        return this.purgeDocumentsByIds(docsToPurge, client);
+      }
+      return 0;
+    };
+
+    if (clientRunner) {
+      return execute(clientRunner);
+    }
+    return withTransaction(execute);
   }
 }

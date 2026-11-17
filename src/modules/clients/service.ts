@@ -512,7 +512,7 @@ export async function purgeClient(clientId: string): Promise<{
     // 9. Limpar propostas
     if (proposalIds.length > 0) {
       await client.query(
-        `DELETE FROM proposal_version_items WHERE proposal_version_id IN (SELECT id FROM proposal_versions WHERE proposal_id = ANY($1::uuid[]))`,
+        `DELETE FROM proposal_items WHERE proposal_version_id IN (SELECT id FROM proposal_versions WHERE proposal_id = ANY($1::uuid[]))`,
         [proposalIds]
       );
       await client.query(`DELETE FROM proposal_versions WHERE proposal_id = ANY($1::uuid[])`, [proposalIds]);

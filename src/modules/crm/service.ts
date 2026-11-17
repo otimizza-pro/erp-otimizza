@@ -563,7 +563,7 @@ export class CrmService {
       // Deletar itens das versões e versões de propostas
       if (propIds.length > 0) {
         await client.query(
-          `DELETE FROM proposal_version_items WHERE proposal_version_id IN (SELECT id FROM proposal_versions WHERE proposal_id = ANY($1::uuid[]))`,
+          `DELETE FROM proposal_items WHERE proposal_version_id IN (SELECT id FROM proposal_versions WHERE proposal_id = ANY($1::uuid[]))`,
           [propIds]
         );
         await client.query(`DELETE FROM proposal_versions WHERE proposal_id = ANY($1::uuid[])`, [propIds]);

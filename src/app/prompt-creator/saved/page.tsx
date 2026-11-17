@@ -710,3 +710,4 @@ export default function SavedPostsPage() {
     </AppShell>
   );
 }
+

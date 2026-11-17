@@ -28,6 +28,7 @@ import {
   Trash2,
   Save,
   X,
+  Sparkles,
 } from "lucide-react";
 import { LeadRecord, OpportunityRecord, ActivityRecord, LeadStatus, ActivityType } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
@@ -54,6 +55,8 @@ export default function LeadDetailPage() {
     validUntil: string;
     createdAt: string;
   }>>([]);
+  const [onboardingSession, setOnboardingSession] = useState<any>(null);
+  const [showBriefingTranscriptModal, setShowBriefingTranscriptModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -136,6 +139,12 @@ export default function LeadDetailPage() {
         const pData = await propRes.json();
         setProposals(pData.proposals || []);
       }
+      fetch(`/api/crm/leads/${id}/briefing`)
+        .then((r) => r.json())
+        .then((b) => {
+          if (b.success && b.session) setOnboardingSession(b.session);
+        })
+        .catch(() => {});
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : "Erro ao carregar lead.");
     } finally {
@@ -585,6 +594,84 @@ export default function LeadDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Onboarding & Briefing de Redes Sociais */}
+        {onboardingSession && (
+          <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-500/30 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-500/20 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-700">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
+                    Onboarding — Social Media
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        onboardingSession.status === "COMPLETED"
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                          : "bg-amber-100 text-amber-800 border-amber-300"
+                      }`}
+                    >
+                      {onboardingSession.status === "COMPLETED"
+                        ? "Briefing Concluído"
+                        : `Em Andamento (${onboardingSession.progress_percent || 0}%)`}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Processo de entrada e inteligência de conteúdo via IA da Otimizza
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowBriefingTranscriptModal(true)}
+                  className="px-3.5 py-1.5 text-xs font-semibold bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-800 rounded-xl transition shadow-2xs flex items-center gap-1.5"
+                >
+                  <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                  Revisar Histórico do Onboarding
+                </button>
+
+                {onboardingSession.project_id && (
+                  <Link
+                    href={`/projects/${onboardingSession.project_id}`}
+                    className="px-3.5 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition shadow-2xs flex items-center gap-1.5"
+                  >
+                    Ver Projeto &rarr;
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            {/* Resumo das Diretrizes Extraídas */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="bg-white/80 border border-emerald-500/20 rounded-xl p-3">
+                <span className="font-bold text-zinc-700 block mb-1">Público-Alvo Validado</span>
+                <p className="text-zinc-600 line-clamp-3">
+                  {onboardingSession.extracted_identity?.targetAudience || "Não informado no briefing"}
+                </p>
+              </div>
+
+              <div className="bg-white/80 border border-emerald-500/20 rounded-xl p-3">
+                <span className="font-bold text-zinc-700 block mb-1">Diferenciais Principais</span>
+                <p className="text-zinc-600 line-clamp-3">
+                  {onboardingSession.extracted_identity?.differentials || "Não informado no briefing"}
+                </p>
+              </div>
+
+              <div className="bg-white/80 border border-emerald-500/20 rounded-xl p-3">
+                <span className="font-bold text-zinc-700 block mb-1">Tom de Voz</span>
+                <p className="text-zinc-600 line-clamp-3">
+                  {Array.isArray(onboardingSession.extracted_identity?.toneOfVoice)
+                    ? onboardingSession.extracted_identity.toneOfVoice.join(", ")
+                    : onboardingSession.extracted_identity?.toneOfVoice || "Direto e didático"}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Oportunidades do Lead */}
         <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs space-y-4">
@@ -1273,6 +1360,75 @@ export default function LeadDetailPage() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Modal de Revisão do Histórico de Onboarding */}
+        {showBriefingTranscriptModal && onboardingSession && (
+          <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full border border-zinc-200 overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+              <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/80">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-700 flex items-center justify-center font-bold">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-zinc-950 text-sm">
+                      Histórico do Onboarding com IA (Sofia)
+                    </h3>
+                    <p className="text-[11px] text-zinc-500">
+                      Empresa: {onboardingSession.company_name} • Contato: {onboardingSession.contact_name}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowBriefingTranscriptModal(false)}
+                  className="p-1.5 text-zinc-400 hover:text-zinc-700 rounded-lg"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="p-4 overflow-y-auto space-y-3 flex-1 bg-zinc-50/30">
+                {Array.isArray(onboardingSession.conversation_history) &&
+                  onboardingSession.conversation_history.map((msg: any, idx: number) => {
+                    const isAssistant = msg.sender === "assistant";
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex flex-col ${isAssistant ? "items-start" : "items-end"}`}
+                      >
+                        <span className="text-[10px] text-zinc-400 mb-0.5 px-1 font-semibold">
+                          {isAssistant ? "Sofia (Otimizza)" : onboardingSession.contact_name}
+                        </span>
+                        <div
+                          className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed ${
+                            isAssistant
+                              ? "bg-white border border-zinc-200 text-zinc-800 rounded-tl-xs shadow-2xs"
+                              : "bg-emerald-600 text-white rounded-tr-xs"
+                          }`}
+                        >
+                          <div className="whitespace-pre-wrap">{msg.text}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+
+              <div className="p-3 border-t border-zinc-100 bg-zinc-50 flex items-center justify-between">
+                <span className="text-xs text-zinc-500">
+                  Progresso registrado: <strong>{onboardingSession.progress_percent || 0}%</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowBriefingTranscriptModal(false)}
+                  className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-xl"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -21,6 +21,7 @@ import {
   RefreshCw,
   TrendingUp,
   X,
+  Sparkles,
 } from "lucide-react";
 import {
   ProjectRecord,
@@ -31,6 +32,7 @@ import {
   ProjectPriority,
 } from "@/modules/projects/types";
 import { DocumentAttachmentSection } from "@/components/documents/document-attachment-section";
+import { TaskExecutionModal } from "@/components/projects/task-execution-modal";
 
 export default function ProjectWorkspacePage({
   params,
@@ -46,6 +48,7 @@ export default function ProjectWorkspacePage({
   const [activeTab, setActiveTab] = useState<"TASKS" | "TIMES" | "DOCS" | "DETAILS">("TASKS");
 
   // Modais
+  const [selectedTaskForModal, setSelectedTaskForModal] = useState<ProjectTaskRecord | null>(null);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState<boolean>(false);
   const [taskTitle, setTaskTitle] = useState<string>("");
   const [taskDesc, setTaskDesc] = useState<string>("");
@@ -407,13 +410,14 @@ export default function ProjectWorkspacePage({
                         return (
                           <div
                             key={t.id}
-                            className="bg-white border border-slate-200 rounded-lg p-3.5 shadow-sm hover:shadow transition-shadow space-y-2.5"
+                            onClick={() => setSelectedTaskForModal(t)}
+                            className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer space-y-2.5 group"
                           >
                             <div className="flex items-center justify-between">
-                              <span className="font-mono text-[10px] font-bold text-slate-400">
+                              <span className="font-mono text-[10px] font-bold text-slate-400 group-hover:text-indigo-600 transition">
                                 {t.taskNumber}
                               </span>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                                 <select
                                   value={t.status}
                                   onChange={(e) =>
@@ -427,7 +431,10 @@ export default function ProjectWorkspacePage({
                                   <option value="DONE">Concluído</option>
                                 </select>
                                 <button
-                                  onClick={() => handleDeleteTask(t.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteTask(t.id);
+                                  }}
                                   className="text-slate-400 hover:text-rose-600 p-0.5"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -435,7 +442,7 @@ export default function ProjectWorkspacePage({
                               </div>
                             </div>
 
-                            <h5 className="font-semibold text-xs text-slate-900 leading-snug">
+                            <h5 className="font-bold text-xs text-slate-900 group-hover:text-indigo-600 transition leading-snug">
                               {t.title}
                             </h5>
 
@@ -445,8 +452,21 @@ export default function ProjectWorkspacePage({
                               </p>
                             )}
 
+                            {/* Botão de Execução / Detalhes */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedTaskForModal(t);
+                              }}
+                              className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-indigo-50/70 group-hover:bg-indigo-600 text-indigo-700 group-hover:text-white text-[11px] font-semibold border border-indigo-200/80 group-hover:border-transparent transition-all shadow-2xs"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              <span>Executar Tarefa / Detalhes</span>
+                            </button>
+
                             {/* Checklists */}
-                            <div className="pt-2 border-t border-slate-100 space-y-1">
+                            <div className="pt-2 border-t border-slate-100 space-y-1" onClick={(e) => e.stopPropagation()}>
                               {totalChecks > 0 && (
                                 <div className="text-[10px] font-medium text-slate-500 flex items-center justify-between mb-1">
                                   <span>Checklist:</span>
@@ -856,6 +876,14 @@ export default function ProjectWorkspacePage({
             </div>
           </div>
         )}
+        {/* Modal Interativo de Execução de Tarefa & Automações */}
+        <TaskExecutionModal
+          task={selectedTaskForModal}
+          project={project}
+          isOpen={!!selectedTaskForModal}
+          onClose={() => setSelectedTaskForModal(null)}
+          onTaskUpdated={loadProject}
+        />
       </div>
     </AppShell>
   );

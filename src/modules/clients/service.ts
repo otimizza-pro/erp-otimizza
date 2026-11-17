@@ -491,30 +491,43 @@ export async function purgeClient(clientId: string): Promise<{
     // 6. Purgar documentos fisicamente do storage e payloads binários
     const purgedDocumentsCount = await DocumentService.purgeDocumentsByIds(docIdsToPurge, client);
 
+    // Limpar pastas e placements de documentos do cliente
+    await client.query(`DELETE FROM client_document_placements WHERE client_id = $1`, [clientId]).catch(() => {});
+    await client.query(`DELETE FROM client_document_folders WHERE client_id = $1`, [clientId]).catch(() => {});
+
     // 7. Limpar dados do Estúdio de Conteúdo / Redes Sociais do cliente
-    await client.query(`DELETE FROM content_calendar_items WHERE client_id = $1`, [clientId]);
-    await client.query(`DELETE FROM client_editorial_lines WHERE client_id = $1`, [clientId]);
-    await client.query(`DELETE FROM client_brand_voice_presets WHERE client_id = $1`, [clientId]);
-    await client.query(`DELETE FROM client_audiences WHERE client_id = $1`, [clientId]);
+    await client.query(`DELETE FROM content_calendar_items WHERE client_id = $1`, [clientId]).catch(() => {});
+    await client.query(`DELETE FROM client_editorial_lines WHERE client_id = $1`, [clientId]).catch(() => {});
+    await client.query(`DELETE FROM client_brand_voice_presets WHERE client_id = $1`, [clientId]).catch(() => {});
+    await client.query(`DELETE FROM client_audiences WHERE client_id = $1`, [clientId]).catch(() => {});
+    await client.query(`DELETE FROM client_identities WHERE client_id = $1`, [clientId]).catch(() => {});
+    await client.query(`DELETE FROM client_briefing_sessions WHERE client_id = $1`, [clientId]).catch(() => {});
 
     // 8. Limpar projetos
     if (projectIds.length > 0) {
-      await client.query(`DELETE FROM project_time_entries WHERE project_id = ANY($1::uuid[])`, [projectIds]);
+      await client.query(`DELETE FROM client_briefing_sessions WHERE project_id = ANY($1::uuid[])`, [projectIds]).catch(() => {});
+      await client.query(`DELETE FROM project_time_entries WHERE project_id = ANY($1::uuid[])`, [projectIds]).catch(() => {});
       await client.query(
         `DELETE FROM project_checklists WHERE task_id IN (SELECT id FROM project_tasks WHERE project_id = ANY($1::uuid[]))`,
         [projectIds]
-      );
-      await client.query(`DELETE FROM project_tasks WHERE project_id = ANY($1::uuid[])`, [projectIds]);
-      await client.query(`DELETE FROM project_stages WHERE project_id = ANY($1::uuid[])`, [projectIds]);
-      await client.query(`DELETE FROM projects WHERE id = ANY($1::uuid[])`, [projectIds]);
+      ).catch(() => {});
+      await client.query(`DELETE FROM project_tasks WHERE project_id = ANY($1::uuid[])`, [projectIds]).catch(() => {});
+      await client.query(`DELETE FROM project_stages WHERE project_id = ANY($1::uuid[])`, [projectIds]).catch(() => {});
+      await client.query(`DELETE FROM projects WHERE id = ANY($1::uuid[])`, [projectIds]).catch(() => {});
     }
 
-    // 9. Limpar propostas
+    // 9. Limpar conversões e propostas
+    await client.query(`DELETE FROM proposal_contract_conversions WHERE converted_client_id = $1`, [clientId]).catch(() => {});
+    if (contractIds.length > 0) {
+      await client.query(`DELETE FROM proposal_contract_conversions WHERE contract_id = ANY($1::uuid[])`, [contractIds]).catch(() => {});
+    }
     if (proposalIds.length > 0) {
+      await client.query(`DELETE FROM proposal_contract_conversions WHERE proposal_id = ANY($1::uuid[])`, [proposalIds]).catch(() => {});
+      await client.query(`DELETE FROM proposal_events WHERE proposal_id = ANY($1::uuid[])`, [proposalIds]).catch(() => {});
       await client.query(
         `DELETE FROM proposal_items WHERE proposal_version_id IN (SELECT id FROM proposal_versions WHERE proposal_id = ANY($1::uuid[]))`,
         [proposalIds]
-      );
+      ).catch(() => {});
       await client.query(`DELETE FROM proposal_versions WHERE proposal_id = ANY($1::uuid[])`, [proposalIds]);
       await client.query(`DELETE FROM proposals WHERE id = ANY($1::uuid[])`, [proposalIds]);
     }
@@ -523,7 +536,7 @@ export async function purgeClient(clientId: string): Promise<{
     const paidSettlementsCheck = await client.query<{ count: string }>(
       `SELECT count(*) as count FROM financial_settlements s 
        JOIN receivables r ON r.id = s.receivable_id 
-       WHERE r.client_id = $1 AND s.status = 'CONFIRMED'`,
+       WHERE r.client_id = $1 AND s.is_reversed = false AND s.settlement_type = 'RECEIPT'`,
       [clientId]
     );
     const hasPaidSettlements = Number(paidSettlementsCheck.rows[0]?.count || 0) > 0;
@@ -549,21 +562,37 @@ export async function purgeClient(clientId: string): Promise<{
     }
 
     // Caso NÃO haja liquidações pagas:
-    // 11. Limpar cobranças/receivables pendentes
-    await client.query(`DELETE FROM contract_billing_plans WHERE contract_id = ANY($1::uuid[])`, [contractIds]);
-    await client.query(`DELETE FROM receivables WHERE client_id = $1`, [clientId]);
-
-    // 12. Limpar contratos
+    // 11. Limpar cobranças/receivables pendentes e agendamentos
+    await client.query(
+      `DELETE FROM receivable_items WHERE receivable_id IN (SELECT id FROM receivables WHERE client_id = $1)`,
+      [clientId]
+    ).catch(() => {});
+    await client.query(
+      `DELETE FROM financial_settlements WHERE receivable_id IN (SELECT id FROM receivables WHERE client_id = $1)`,
+      [clientId]
+    ).catch(() => {});
+    await client.query(`DELETE FROM revenue_accruals WHERE client_id = $1`, [clientId]).catch(() => {});
     if (contractIds.length > 0) {
+      await client.query(`DELETE FROM contract_billing_plans WHERE contract_id = ANY($1::uuid[])`, [contractIds]).catch(() => {});
+      await client.query(`DELETE FROM revenue_accruals WHERE contract_id = ANY($1::uuid[])`, [contractIds]).catch(() => {});
+      await client.query(
+        `DELETE FROM contract_item_schedules WHERE contract_item_id IN (
+          SELECT ci.id FROM contract_items ci 
+          JOIN contract_versions cv ON cv.id = ci.contract_version_id 
+          WHERE cv.contract_id = ANY($1::uuid[])
+        )`,
+        [contractIds]
+      ).catch(() => {});
       await client.query(
         `DELETE FROM contract_items WHERE contract_version_id IN (SELECT id FROM contract_versions WHERE contract_id = ANY($1::uuid[]))`,
         [contractIds]
-      );
+      ).catch(() => {});
       await client.query(`DELETE FROM contract_versions WHERE contract_id = ANY($1::uuid[])`, [contractIds]);
       await client.query(`DELETE FROM contracts WHERE id = ANY($1::uuid[])`, [contractIds]);
     }
+    await client.query(`DELETE FROM receivables WHERE client_id = $1`, [clientId]);
 
-    // 13. Limpar oportunidades CRM do cliente
+    // 12. Limpar oportunidades CRM do cliente
     const crmOppsRes = await client.query<{ id: string }>(`SELECT id FROM crm_opportunities WHERE client_id = $1`, [clientId]);
     const crmOppIds = crmOppsRes.rows.map((r) => r.id);
     if (crmOppIds.length > 0) {
@@ -572,10 +601,10 @@ export async function purgeClient(clientId: string): Promise<{
       await client.query(`DELETE FROM crm_opportunities WHERE id = ANY($1::uuid[])`, [crmOppIds]);
     }
 
-    // 14. Desvincular leads convertidos
+    // 13. Desvincular leads convertidos
     await client.query(`UPDATE crm_leads SET converted_client_id = NULL WHERE converted_client_id = $1`, [clientId]);
 
-    // 15. Limpar contatos e histórico
+    // 14. Limpar contatos e histórico
     await client.query(`DELETE FROM client_activity_history WHERE client_id = $1`, [clientId]).catch(() => {});
     await client.query(`DELETE FROM client_contacts WHERE client_id = $1`, [clientId]);
 

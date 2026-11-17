@@ -560,12 +560,17 @@ export class CrmService {
       // Purgar documentos fisicamente do storage e banco
       const purgedDocumentsCount = await DocumentService.purgeDocumentsByIds(docIdsToPurge, client);
 
+      // Deletar briefing sessions vinculadas ao lead
+      await client.query(`DELETE FROM client_briefing_sessions WHERE lead_id = $1`, [leadId]).catch(() => {});
+
       // Deletar itens das versões e versões de propostas
       if (propIds.length > 0) {
+        await client.query(`DELETE FROM proposal_contract_conversions WHERE proposal_id = ANY($1::uuid[])`, [propIds]).catch(() => {});
+        await client.query(`DELETE FROM proposal_events WHERE proposal_id = ANY($1::uuid[])`, [propIds]).catch(() => {});
         await client.query(
           `DELETE FROM proposal_items WHERE proposal_version_id IN (SELECT id FROM proposal_versions WHERE proposal_id = ANY($1::uuid[]))`,
           [propIds]
-        );
+        ).catch(() => {});
         await client.query(`DELETE FROM proposal_versions WHERE proposal_id = ANY($1::uuid[])`, [propIds]);
         await client.query(`DELETE FROM proposals WHERE id = ANY($1::uuid[])`, [propIds]);
       }

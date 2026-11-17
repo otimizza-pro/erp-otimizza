@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Sparkles,
   Users,
@@ -34,6 +35,8 @@ import {
   CheckSquare,
   Image as ImageIcon,
   Megaphone,
+  Wand2,
+  Lightbulb,
 } from "lucide-react";
 
 // Tipos
@@ -186,6 +189,13 @@ export default function ContentStudioPage() {
   const [newTheme, setNewTheme] = useState("");
   const [newObjective, setNewObjective] = useState("");
 
+  // Dores e Diferenciais da Identidade do Cliente
+  const [clientPains, setClientPains] = useState<string[]>([]);
+  const [clientDifferentials, setClientDifferentials] = useState<string[]>([]);
+  const [aiSuggestedIdeas, setAiSuggestedIdeas] = useState<string[]>([]);
+  const [loadingSuggestedIdeas, setLoadingSuggestedIdeas] = useState<boolean>(false);
+  const [generatingEditorialLines, setGeneratingEditorialLines] = useState<boolean>(false);
+
   // Chave OpenRouter
   const [openRouterKey, setOpenRouterKey] = useState<string>("");
   const [showKeyInput, setShowKeyInput] = useState(false);
@@ -319,6 +329,15 @@ export default function ContentStudioPage() {
         setEditorialLines(elData.editorialLines);
       }
 
+      if (identData) {
+        setClientPains(Array.isArray(identData.painPoints) ? identData.painPoints : []);
+        setClientDifferentials(Array.isArray(identData.differentials) ? identData.differentials : []);
+      } else {
+        setClientPains([]);
+        setClientDifferentials([]);
+      }
+      setAiSuggestedIdeas([]);
+
       if (identData && (identData.brandContext || identData.valueProposition)) {
         setBrandContext(identData.brandContext || identData.valueProposition);
         if (identData.toneOfVoice?.length > 0) setSelectedTone(identData.toneOfVoice[0]);
@@ -342,6 +361,51 @@ export default function ContentStudioPage() {
       console.error("Erro ao carregar dados do cliente:", err);
     } finally {
       setLoadingData(false);
+    }
+  };
+
+  const handleGenerateEditorialLines = async () => {
+    if (!selectedClientId) return;
+    setGeneratingEditorialLines(true);
+    try {
+      const res = await fetch("/api/content-studio/editorial-lines/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: selectedClientId }),
+      });
+      const data = await res.json();
+      if (data.editorialLines) {
+        setEditorialLines(data.editorialLines);
+        setNotification({ message: "4 Linhas Editoriais Geradas com Sucesso!", type: "success" });
+      } else if (data.error) {
+        setNotification({ message: data.error, type: "error" });
+      }
+    } catch (e) {
+      console.error(e);
+      setNotification({ message: "Erro ao gerar linhas com IA.", type: "error" });
+    } finally {
+      setGeneratingEditorialLines(false);
+    }
+  };
+
+  const handleSuggestIdeasWithAi = async () => {
+    if (!selectedClientId) return;
+    setLoadingSuggestedIdeas(true);
+    try {
+      const res = await fetch("/api/content-studio/ideas/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientId: selectedClientId }),
+      });
+      const data = await res.json();
+      if (data.ideas && data.ideas.length > 0) {
+        setAiSuggestedIdeas(data.ideas);
+        setNotification({ message: "5 ideias estratégicas geradas pela IA!", type: "success" });
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingSuggestedIdeas(false);
     }
   };
 
@@ -772,22 +836,22 @@ export default function ContentStudioPage() {
             {/* BARRA DE SELEÇÃO DE CLIENTE & PONTO DE PARTIDA */}
             <div className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* 1. Selecionar Cliente */}
+                {/* 1. Selecionar Cliente com Digitação e Busca */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
                     1. Cliente do Conteúdo
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={clients.map((c) => ({
+                      value: c.id,
+                      label: c.trade_name ? `${c.trade_name} (${c.name})` : c.name,
+                    }))}
                     value={selectedClientId}
-                    onChange={(e) => setSelectedClientId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-zinc-50 font-bold text-xs text-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950"
-                  >
-                    {clients.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.trade_name ? `${c.trade_name} (${c.name})` : c.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setSelectedClientId(val)}
+                    placeholder="Selecionar cliente..."
+                    searchPlaceholder="Digitar para buscar cliente..."
+                    className="w-full"
+                  />
                 </div>
 
                 {/* 2. Selecionar da Linha Editorial */}
@@ -796,13 +860,25 @@ export default function ContentStudioPage() {
                     <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
                       2. Ponto de Partida Editorial
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setEditorialModalOpen(true)}
-                      className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
-                    >
-                      + Nova Linha
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleGenerateEditorialLines}
+                        disabled={generatingEditorialLines || !selectedClientId}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-2 py-0.5 rounded-lg border border-purple-200 transition"
+                        title="Gerar automaticamente 4 pilares de alta conversão para este cliente"
+                      >
+                        {generatingEditorialLines ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3 text-purple-600" />}
+                        Gerar com IA
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditorialModalOpen(true)}
+                        className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
+                      >
+                        + Nova
+                      </button>
+                    </div>
                   </div>
                   <select
                     onChange={(e) => {
@@ -814,7 +890,11 @@ export default function ContentStudioPage() {
                     defaultValue=""
                     className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
                   >
-                    <option value="">Escolher pilar da linha editorial...</option>
+                    <option value="">
+                      {editorialLines.length === 0
+                        ? "Nenhum pilar salvo. Clique em 'Gerar com IA' ao lado!"
+                        : "Escolher pilar da linha editorial..."}
+                    </option>
                     {editorialLines.map((el) => (
                       <option key={el.id} value={el.id}>
                         [{el.pillar_name}] {el.theme}
@@ -1488,28 +1568,137 @@ export default function ContentStudioPage() {
                 )}
               </div>
 
-              {/* Campo da Ideia Central */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-700">
-                    Ideia Central / Dúvida do Empresário
-                  </label>
-                  {chosenHeadline && (
-                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                      Headline Ativa: &quot;{chosenHeadline}&quot;
-                    </span>
+              {/* Campo da Ideia Central e Seleção de Dores/Diferenciais do Cliente */}
+              <div className="space-y-3">
+                {/* Sugestões Rápidas: Dores, Diferenciais e IA */}
+                <div className="space-y-2.5 p-3.5 bg-gradient-to-r from-zinc-50 via-purple-50/30 to-white rounded-xl border border-zinc-200">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                      <span className="text-xs font-bold text-zinc-900">
+                        Ideias & Dores Cadastradas no Cliente (1-Clique para Preencher):
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSuggestIdeasWithAi}
+                        disabled={loadingSuggestedIdeas || !selectedClientId}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-100/70 hover:bg-purple-100 px-2.5 py-1 rounded-lg transition"
+                      >
+                        {loadingSuggestedIdeas ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
+                        Sugerir 5 Ideias com IA
+                      </button>
+
+                      {selectedClientId && (
+                        <Link
+                          href={`/clients/${selectedClientId}/identity`}
+                          target="_blank"
+                          className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-900 underline"
+                        >
+                          Configurar DNA & Dores &rarr;
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Chips de Dores */}
+                  {clientPains.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-rose-600 block">
+                        🔥 Dores do Cliente Cadastradas:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {clientPains.map((pain, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setIdea(`Como solucionar o desafio de: "${pain}" sem desperdiçar tempo e dinheiro.`)}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition text-left"
+                            title="Clique para usar esta dor como ideia central"
+                          >
+                            {pain}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chips de Diferenciais */}
+                  {clientDifferentials.length > 0 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] uppercase font-bold text-blue-600 block">
+                        💎 Diferenciais da Marca:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {clientDifferentials.map((diff, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setIdea(`Por que ${diff} é a nossa maior vantagem competitiva e como isso gera resultado.`)}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-blue-50 text-blue-800 border border-blue-200 hover:bg-blue-100 hover:border-blue-300 transition text-left"
+                            title="Clique para usar este diferencial como ideia central"
+                          >
+                            {diff}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Chips de Ideias sugeridas com IA */}
+                  {aiSuggestedIdeas.length > 0 && (
+                    <div className="space-y-1 pt-1 border-t border-purple-100">
+                      <span className="text-[10px] uppercase font-bold text-purple-700 block flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-purple-600" />
+                        Sugestões Criativas da IA para {selectedClient ? (selectedClient.trade_name || selectedClient.name) : "este Cliente"}:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {aiSuggestedIdeas.map((aiIdea, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setIdea(aiIdea)}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition text-left"
+                            title="Clique para aplicar esta ideia"
+                          >
+                            💡 {aiIdea}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {clientPains.length === 0 && clientDifferentials.length === 0 && aiSuggestedIdeas.length === 0 && (
+                    <p className="text-[11px] text-zinc-500">
+                      Nenhuma dor ou diferencial salvo ainda no cadastro deste cliente. Clique em &quot;Sugerir 5 Ideias com IA&quot; acima para gerar na hora ou cadastre no DNA do Cliente.
+                    </p>
                   )}
                 </div>
-                <textarea
-                  rows={3}
-                  value={idea}
-                  onChange={(e) => setIdea(e.target.value)}
-                  placeholder="Ex: O empresário reclama que o lead é desqualificado, mas demora 4 horas para responder no WhatsApp e perde a venda."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-950"
-                />
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-700">
+                      Ideia Central / Dúvida do Empresário
+                    </label>
+                    {chosenHeadline && (
+                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                        Headline Ativa: &quot;{chosenHeadline}&quot;
+                      </span>
+                    )}
+                  </div>
+                  <textarea
+                    rows={3}
+                    value={idea}
+                    onChange={(e) => setIdea(e.target.value)}
+                    placeholder="Ex: O empresário reclama que o lead é desqualificado, mas demora 4 horas para responder no WhatsApp e perde a venda."
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-950"
+                  />
+                </div>
               </div>
 
-              {/* Configuração de Contexto da Marca & Chave OpenRouter */}
+              {/* Configuração de Contexto da Marca & Status da IA */}
               <div className="pt-2 border-t border-zinc-100 flex flex-wrap items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2">
                   <button
@@ -1523,13 +1712,18 @@ export default function ContentStudioPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Motor IA Otimizza Ativo (Servidor)
+                  </span>
+
                   <button
                     type="button"
                     onClick={() => setShowKeyInput(!showKeyInput)}
-                    className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-900 underline"
+                    className="text-[11px] text-zinc-400 hover:text-zinc-600 p-1"
+                    title="Configurações avançadas de API"
                   >
-                    <Key className="w-3.5 h-3.5" />
-                    {openRouterKey ? "Chave OpenRouter Configurada" : "Inserir Token OpenRouter"}
+                    <Settings2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1537,7 +1731,7 @@ export default function ContentStudioPage() {
               {showKeyInput && (
                 <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2 text-xs animate-in fade-in">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-zinc-700">Chave de API OpenRouter (Opcional):</span>
+                    <span className="font-bold text-zinc-700">Chave de API OpenRouter (Opcional - Substitui a chave do Servidor):</span>
                     <span className="text-zinc-400 text-[10px]">Salvo com segurança no seu navegador</span>
                   </div>
                   <div className="flex gap-2">

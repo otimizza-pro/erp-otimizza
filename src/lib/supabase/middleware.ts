@@ -45,13 +45,18 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/estrategia-otimizza") ||
     request.nextUrl.pathname.startsWith("/api/knowledge/files/");
 
+  const isPublicBriefingRoute =
+    request.nextUrl.pathname.startsWith("/briefing/") ||
+    request.nextUrl.pathname.startsWith("/api/briefing/");
+
   const isPublicRoute =
     request.nextUrl.pathname.startsWith("/login") ||
     request.nextUrl.pathname.startsWith("/api/health") ||
     isCronRoute ||
-    isPublicKnowledgeRoute;
+    isPublicKnowledgeRoute ||
+    isPublicBriefingRoute;
 
-  if (isPublicKnowledgeRoute) {
+  if (isPublicKnowledgeRoute || isPublicBriefingRoute) {
     supabaseResponse.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }
 

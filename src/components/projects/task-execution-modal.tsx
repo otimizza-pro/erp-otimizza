@@ -501,6 +501,55 @@ export function TaskExecutionModal({
                     </div>
                   </div>
 
+                  {/* Informações Coletadas pela Sofia (IA) */}
+                  {briefingSession?.extracted_identity && Object.keys(briefingSession.extracted_identity).length > 0 && (
+                    <div className="bg-gradient-to-r from-purple-50/60 to-white border border-purple-200 rounded-2xl p-4.5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-purple-900 text-xs font-bold uppercase tracking-wide">
+                          <Sparkles className="w-4 h-4 text-purple-600" />
+                          <span>Informações Coletadas e Estruturadas pela Sofia (IA)</span>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-300">
+                          {briefingSession.status === "COMPLETED" ? "Briefing 100% Concluído" : "Em Andamento"}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        {briefingSession.extracted_identity.differentials && (
+                          <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
+                            <span className="text-[10px] font-bold text-purple-600 uppercase">Diferenciais da Marca</span>
+                            <p className="text-zinc-800 font-medium">{String(briefingSession.extracted_identity.differentials)}</p>
+                          </div>
+                        )}
+
+                        {briefingSession.extracted_identity.targetAudience && (
+                          <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
+                            <span className="text-[10px] font-bold text-purple-600 uppercase">Público-Alvo Prioritário</span>
+                            <p className="text-zinc-800 font-medium">{String(briefingSession.extracted_identity.targetAudience)}</p>
+                          </div>
+                        )}
+
+                        {briefingSession.extracted_identity.toneOfVoice && (
+                          <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
+                            <span className="text-[10px] font-bold text-purple-600 uppercase">Tom de Voz Aprovado</span>
+                            <p className="text-zinc-800 font-medium">
+                              {Array.isArray(briefingSession.extracted_identity.toneOfVoice)
+                                ? briefingSession.extracted_identity.toneOfVoice.join(", ")
+                                : String(briefingSession.extracted_identity.toneOfVoice)}
+                            </p>
+                          </div>
+                        )}
+
+                        {briefingSession.extracted_identity.competitors && (
+                          <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
+                            <span className="text-[10px] font-bold text-purple-600 uppercase">Concorrentes Informados</span>
+                            <p className="text-zinc-800 font-medium">{String(briefingSession.extracted_identity.competitors)}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Sincronização direta com a Identidade do Cliente */}
                   <div className="border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white">
                     <div>

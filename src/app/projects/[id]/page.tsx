@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, use } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Briefcase,
   ArrowLeft,
@@ -22,6 +23,9 @@ import {
   TrendingUp,
   X,
   Sparkles,
+  Pause,
+  Play,
+  Check,
 } from "lucide-react";
 import {
   ProjectRecord,
@@ -30,6 +34,7 @@ import {
   ProjectTimeEntryRecord,
   TaskStatus,
   ProjectPriority,
+  ProjectStatus,
 } from "@/modules/projects/types";
 import { DocumentAttachmentSection } from "@/components/documents/document-attachment-section";
 import { TaskExecutionModal } from "@/components/projects/task-execution-modal";
@@ -40,6 +45,7 @@ export default function ProjectWorkspacePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
 
   const [project, setProject] = useState<ProjectRecord | null>(null);
   const [timeEntries, setTimeEntries] = useState<ProjectTimeEntryRecord[]>([]);
@@ -88,6 +94,39 @@ export default function ProjectWorkspacePage({
   useEffect(() => {
     loadProject();
   }, [loadProject]);
+
+  const handleUpdateProjectStatus = async (newStatus: ProjectStatus) => {
+    try {
+      const res = await fetch(`/api/projects/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        loadProject();
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar status do projeto:", err);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!confirm("Tem certeza que deseja excluir este projeto permanentemente? Todas as tarefas, checklists e sessões vinculadas serão removidas.")) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        router.push("/projects");
+      } else {
+        const json = await res.json();
+        alert(json.error || "Erro ao excluir projeto.");
+      }
+    } catch (err) {
+      console.error("Erro ao excluir projeto:", err);
+      alert("Erro ao excluir projeto.");
+    }
+  };
 
   const handleUpdateTaskStatus = async (taskId: string, newStatus: TaskStatus) => {
     try {
@@ -257,20 +296,52 @@ export default function ProjectWorkspacePage({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {project.status === "PAUSED" ? (
+              <button
+                type="button"
+                onClick={() => handleUpdateProjectStatus("IN_PROGRESS")}
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-emerald-200 rounded-lg text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 shadow-2xs transition-colors"
+                title="Retomar execução do projeto"
+              >
+                <Play className="w-3.5 h-3.5 text-emerald-700" />
+                Retomar Projeto
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleUpdateProjectStatus("PAUSED")}
+                className="inline-flex items-center gap-1.5 px-3 py-2 border border-amber-200 rounded-lg text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 shadow-2xs transition-colors"
+                title="Pausar projeto temporariamente"
+              >
+                <Pause className="w-3.5 h-3.5 text-amber-700" />
+                Pausar Projeto
+              </button>
+            )}
+
             <button
               onClick={() => setIsTimeModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 shadow-sm transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 shadow-2xs transition-colors"
             >
-              <Clock className="w-4 h-4 text-indigo-600" />
+              <Clock className="w-3.5 h-3.5 text-indigo-600" />
               Apontar Horas
             </button>
             <button
               onClick={() => setIsTaskModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 shadow-sm transition-colors"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 shadow-2xs transition-colors"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               Nova Tarefa
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDeleteProject}
+              className="inline-flex items-center gap-1.5 px-3 py-2 border border-rose-200 rounded-lg text-xs font-bold text-rose-700 bg-rose-50/70 hover:bg-rose-100 hover:text-rose-800 shadow-2xs transition-colors"
+              title="Excluir este projeto"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              Excluir
             </button>
           </div>
         </div>
@@ -278,14 +349,28 @@ export default function ProjectWorkspacePage({
         {/* Resumo do Projeto (Header Banner) */}
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
           <div>
-            <span className="text-slate-500 block">Status:</span>
-            <span className="font-semibold text-slate-800 text-sm mt-0.5 block">
-              {project.status === "PLANNED" && "Planejado"}
-              {project.status === "IN_PROGRESS" && "Em Andamento"}
-              {project.status === "PAUSED" && "Pausado"}
-              {project.status === "COMPLETED" && "Concluído"}
-              {project.status === "CANCELED" && "Cancelado"}
-            </span>
+            <span className="text-slate-500 block mb-1">Status do Projeto:</span>
+            <select
+              value={project.status}
+              onChange={(e) => handleUpdateProjectStatus(e.target.value as ProjectStatus)}
+              className={`text-xs font-bold px-2.5 py-1 rounded-lg border focus:outline-none transition ${
+                project.status === "IN_PROGRESS"
+                  ? "bg-blue-50 text-blue-800 border-blue-200"
+                  : project.status === "PAUSED"
+                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                  : project.status === "COMPLETED"
+                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                  : project.status === "CANCELED"
+                  ? "bg-rose-50 text-rose-800 border-rose-200"
+                  : "bg-slate-50 text-slate-800 border-slate-200"
+              }`}
+            >
+              <option value="PLANNED">Planejado</option>
+              <option value="IN_PROGRESS">Em Andamento</option>
+              <option value="PAUSED">Pausado</option>
+              <option value="COMPLETED">Concluído</option>
+              <option value="CANCELED">Cancelado</option>
+            </select>
           </div>
 
           <div>

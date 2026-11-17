@@ -36,7 +36,7 @@ export async function GET(
         p.name as project_name,
         c.trade_name,
         c.name as client_name,
-        c.website as client_website,
+        ci.website_url as client_website,
         ci.instagram_handle as client_instagram
       FROM public.project_tasks t
       JOIN public.projects p ON p.id = t.project_id

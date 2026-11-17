@@ -4,6 +4,7 @@ import React, { useState, useEffect, Suspense } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Briefcase,
   ArrowLeft,
@@ -124,15 +125,6 @@ function NewProjectFormContent() {
       })
       .catch((err) => console.error(err));
 
-    // Carregar contratos
-    fetch("/api/contracts?limit=100")
-      .then((res) => res.json())
-      .then((json) => {
-        const contractList = Array.isArray(json) ? json : json.contracts || (json.success && json.data) || [];
-        setContracts(contractList);
-      })
-      .catch((err) => console.error(err));
-
     // Carregar templates
     fetch("/api/projects/templates")
       .then((res) => res.json())
@@ -142,6 +134,33 @@ function NewProjectFormContent() {
       })
       .catch((err) => console.error(err));
   }, [initialClientId]);
+
+  // Carregar contratos filtrados exclusivamente pelo cliente selecionado
+  useEffect(() => {
+    if (!clientId) {
+      setContracts([]);
+      setContractId("");
+      return;
+    }
+
+    fetch(`/api/contracts?clientId=${clientId}&status=ACTIVE`)
+      .then((res) => res.json())
+      .then((json) => {
+        const list = Array.isArray(json) ? json : json.contracts || (json.success && json.data) || [];
+        const formatted = list.map((co: { id: string; contractNumber?: string; contract_number?: string; clientTradeName?: string; clientName?: string; description?: string }) => ({
+          id: co.id,
+          contractNumber: co.contractNumber || co.contract_number || "Contrato",
+          clientName: co.clientTradeName || co.clientName || co.description || "",
+        }));
+        setContracts(formatted);
+        setContractId((prev) => (formatted.some((c: { id: string }) => c.id === prev) ? prev : ""));
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar contratos do cliente:", err);
+        setContracts([]);
+        setContractId("");
+      });
+  }, [clientId]);
 
   const loadTemplateDetail = async (tmplId: string) => {
     if (!tmplId) {
@@ -379,24 +398,22 @@ function NewProjectFormContent() {
 
           {/* Vínculo com Cliente e Contrato */}
           {projectType !== "INTERNAL" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100 items-start">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Cliente Vinculado *
                 </label>
-                <select
-                  required
+                <SearchableSelect
+                  options={clients.map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                  }))}
                   value={clientId}
-                  onChange={(e) => setClientId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Selecione o Cliente...</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => setClientId(val)}
+                  placeholder="Selecione ou digite para buscar o cliente..."
+                  searchPlaceholder="Buscar cliente por nome..."
+                  className="w-full"
+                />
               </div>
 
               <div>
@@ -405,15 +422,24 @@ function NewProjectFormContent() {
                 </label>
                 <select
                   value={contractId}
+                  disabled={!clientId}
                   onChange={(e) => setContractId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
                 >
-                  <option value="">Sem contrato vinculado</option>
-                  {contracts.map((co) => (
-                    <option key={co.id} value={co.id}>
-                      {co.contractNumber} - {co.clientName}
-                    </option>
-                  ))}
+                  {!clientId ? (
+                    <option value="">Selecione um cliente primeiro...</option>
+                  ) : contracts.length === 0 ? (
+                    <option value="">Nenhum contrato ativo encontrado para este cliente</option>
+                  ) : (
+                    <>
+                      <option value="">Sem contrato vinculado</option>
+                      {contracts.map((co) => (
+                        <option key={co.id} value={co.id}>
+                          {co.contractNumber} {co.clientName ? `- ${co.clientName}` : ""}
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
               </div>
             </div>

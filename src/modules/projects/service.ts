@@ -458,6 +458,30 @@ export async function archiveProject(id: string): Promise<void> {
   );
 }
 
+export async function deleteProject(id: string): Promise<void> {
+  await withTransaction(async (client) => {
+    // 1. Limpar sessões de briefing vinculadas
+    await client.query("DELETE FROM client_briefing_sessions WHERE project_id = $1", [id]);
+    // 2. Limpar lançamentos de horas
+    await client.query("DELETE FROM project_time_entries WHERE project_id = $1", [id]);
+    // 3. Limpar checklists das tarefas
+    await client.query(
+      `DELETE FROM project_checklists WHERE task_id IN (
+        SELECT id FROM project_tasks WHERE project_id = $1
+      )`,
+      [id]
+    );
+    // 4. Limpar tarefas
+    await client.query("DELETE FROM project_tasks WHERE project_id = $1", [id]);
+    // 5. Limpar etapas
+    await client.query("DELETE FROM project_stages WHERE project_id = $1", [id]);
+    // 6. Limpar histórico de geração recorrente se houver
+    await client.query("DELETE FROM project_generation_history WHERE project_id = $1", [id]);
+    // 7. Excluir o projeto
+    await client.query("DELETE FROM projects WHERE id = $1", [id]);
+  });
+}
+
 // ----------------------------------------------------------------------
 // 3. Etapas & Tarefas (Kanban & Checklists)
 // ----------------------------------------------------------------------

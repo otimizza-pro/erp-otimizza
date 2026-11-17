@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProjectById, updateProject, archiveProject } from "@/modules/projects/service";
+import { getProjectById, updateProject, archiveProject, deleteProject } from "@/modules/projects/service";
 
 export async function GET(
   _req: NextRequest,
@@ -40,17 +40,25 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    await archiveProject(id);
-    return NextResponse.json({ success: true, message: "Projeto arquivado com sucesso." });
+    const { searchParams } = new URL(req.url);
+    const archiveOnly = searchParams.get("archive") === "true";
+
+    if (archiveOnly) {
+      await archiveProject(id);
+      return NextResponse.json({ success: true, message: "Projeto arquivado com sucesso." });
+    } else {
+      await deleteProject(id);
+      return NextResponse.json({ success: true, message: "Projeto excluído com sucesso." });
+    }
   } catch (error: unknown) {
-    console.error("Erro ao arquivar projeto:", error);
+    console.error("Erro ao excluir/arquivar projeto:", error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Erro ao arquivar projeto." },
+      { success: false, error: error instanceof Error ? error.message : "Erro ao excluir/arquivar projeto." },
       { status: 400 }
     );
   }

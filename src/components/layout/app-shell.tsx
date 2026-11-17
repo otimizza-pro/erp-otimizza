@@ -98,7 +98,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
   // Mapeamento dos grupos do menu organizados nos Pilares Estratégicos: Marketing & Growth, Comercial, Produção e Administrativo
   const navigationGroups: NavGroup[] = [
     // =========================================================================
-    // 1. MARKETING & GROWTH (Estratégia dos 4 Funis, Conteúdo, Campanhas & BI)
+    // 1. MARKETING & GROWTH (Estratégia dos 4 Funis, Campanhas & BI)
     // =========================================================================
     {
       id: "marketing_growth",
@@ -107,8 +107,6 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       section: "MARKETING & GROWTH",
       items: [
         { id: "marketing_funnels", label: "Funis de Marketing (4 Funis)", href: "/marketing/funnels", icon: Target },
-        { id: "prompt_creator", label: "Estúdio de Conteúdo & IA", href: "/prompt-creator", icon: Sparkles },
-        { id: "saved_posts", label: "Feed & Criativos Salvos", href: "/prompt-creator/saved", icon: ImageIcon },
         { id: "marketing_bi", label: "Indicadores e BI", href: "/reports", icon: BarChart3 },
       ],
     },

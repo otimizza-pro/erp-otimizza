@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Target,
   Megaphone,
@@ -25,12 +26,41 @@ import {
   Building,
   HelpCircle,
   Lightbulb,
-  Rocket
+  Rocket,
+  Activity,
+  Zap,
 } from "lucide-react";
 
 interface ClientOption {
   id: string;
   name: string;
+}
+
+interface ERPFunnelsMetrics {
+  acquisition: {
+    realLeadsMonth: number;
+    totalActiveLeads: number;
+    topSources: { source: string; count: number }[];
+  };
+  nutrition: {
+    openOpportunities: number;
+    pipelineAmount: number;
+    monthlyActivities: number;
+  };
+  conversion: {
+    wonMonthCount: number;
+    wonMonthAmount: number;
+    lostMonthCount: number;
+    totalWonCount: number;
+    realConversionRate: number;
+    avgTicket: number;
+  };
+  retention: {
+    activeContracts: number;
+    realMrr: number;
+    canceledContractsMonth: number;
+    retentionRate: number;
+  };
 }
 
 type FunnelTab = "acquisition" | "nutrition" | "conversion" | "retention";
@@ -40,6 +70,10 @@ export default function MarketingFunnelsPage() {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("otimizza");
   const [loadingClients, setLoadingClients] = useState(true);
+
+  // Métricas Reais do ERP
+  const [erpMetrics, setErpMetrics] = useState<ERPFunnelsMetrics | null>(null);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
 
   // Anotações e Estratégia persistida localmente por cliente
   const [strategyNotes, setStrategyNotes] = useState<Record<string, Record<FunnelTab, string>>>({});
@@ -65,6 +99,20 @@ export default function MarketingFunnelsPage() {
       }
     } catch {}
   }, []);
+
+  // Carrega métricas reais do ERP
+  useEffect(() => {
+    setLoadingMetrics(true);
+    fetch(`/api/marketing/funnels/metrics?clientId=${selectedClientId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.metrics) {
+          setErpMetrics(data.metrics);
+        }
+      })
+      .catch((err) => console.error("Erro ao carregar métricas do ERP:", err))
+      .finally(() => setLoadingMetrics(false));
+  }, [selectedClientId]);
 
   const currentNotes = strategyNotes[selectedClientId]?.[activeTab] || "";
 
@@ -123,21 +171,28 @@ export default function MarketingFunnelsPage() {
               </div>
             </div>
 
-            {/* Seletor de Empresa / Cliente */}
+            {/* Seletor de Empresa / Cliente com Digitação e Busca */}
             <div className="flex items-center gap-2 bg-zinc-50 p-1.5 rounded-xl border border-zinc-200">
               <span className="text-xs font-semibold text-zinc-600 pl-2">Estratégia para:</span>
-              <select
+              <SearchableSelect
+                options={[
+                  {
+                    value: "otimizza",
+                    label: "⭐ Otimizza Data & Growth (Própria Empresa)",
+                    sublabel: "Visão Geral Consolidada",
+                  },
+                  ...clients.map((c) => ({
+                    value: c.id,
+                    label: `Cliente: ${c.name}`,
+                    sublabel: "Estratégia do Cliente",
+                  })),
+                ]}
                 value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                className="text-xs font-bold bg-white border border-zinc-200 rounded-lg px-3 py-1.5 text-zinc-900 focus:outline-none focus:ring-1 focus:ring-purple-600"
-              >
-                <option value="otimizza">⭐ Otimizza Data & Growth (Própria Empresa)</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    Cliente: {c.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setSelectedClientId(val)}
+                placeholder="Selecionar cliente..."
+                searchPlaceholder="Digitar para buscar cliente..."
+                className="w-72"
+              />
             </div>
           </div>
 
@@ -287,6 +342,67 @@ export default function MarketingFunnelsPage() {
                   <p className="text-[10px] text-zinc-400">Otimizados para Instagram e Meta Ads</p>
                 </div>
               </div>
+
+              {/* Métricas Reais do ERP Otimizza */}
+              <div className="p-4 bg-gradient-to-r from-blue-50/50 via-zinc-50 to-white rounded-xl border border-blue-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-blue-600 text-white shadow-2xs">
+                      <BarChart3 className="w-3.5 h-3.5" />
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-950 flex items-center gap-2">
+                        Real do ERP Otimizza: Base & Captação
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800">
+                          Sincronizado
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-zinc-500">Dados consolidados do CRM de Leads</p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/crm/leads"
+                    className="text-[11px] font-bold text-blue-700 hover:text-blue-800 hover:underline flex items-center gap-1"
+                  >
+                    Gerenciar Leads <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Leads Captados este Mês</span>
+                    <div className="text-lg font-bold text-blue-700">
+                      {loadingMetrics ? "..." : erpMetrics?.acquisition?.realLeadsMonth || 0}
+                      <span className="text-xs font-normal text-zinc-400 ml-1">leads</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Criados a partir de 1º do mês</p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Total na Base CRM</span>
+                    <div className="text-lg font-bold text-zinc-900">
+                      {loadingMetrics ? "..." : erpMetrics?.acquisition?.totalActiveLeads || 0}
+                      <span className="text-xs font-normal text-zinc-400 ml-1">contatos ativos</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Total não arquivado no pipeline</p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Canais Mais Ativos no ERP</span>
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {erpMetrics?.acquisition?.topSources && erpMetrics.acquisition.topSources.length > 0 ? (
+                        erpMetrics.acquisition.topSources.map((s, i) => (
+                          <span key={i} className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-zinc-100 text-zinc-700 border border-zinc-200">
+                            {s.source}: {s.count}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[11px] text-zinc-400">Nenhum canal registrado ainda</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Etapas da Jornada & Plano de Ação */}
@@ -416,6 +532,60 @@ export default function MarketingFunnelsPage() {
                   <span className="text-[11px] font-semibold text-zinc-400 uppercase">Objetivo da Nutrição</span>
                   <div className="text-sm font-bold text-emerald-700">Gerar Desejo & Agendar</div>
                   <p className="text-[10px] text-zinc-400">Levar o lead para o diagnóstico</p>
+                </div>
+              </div>
+
+              {/* Métricas Reais do ERP Otimizza */}
+              <div className="p-4 bg-gradient-to-r from-amber-50/50 via-zinc-50 to-white rounded-xl border border-amber-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-amber-600 text-white shadow-2xs">
+                      <BarChart3 className="w-3.5 h-3.5" />
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-950 flex items-center gap-2">
+                        Real do ERP Otimizza: Negociações & Relacionamento
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                          Sincronizado
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-zinc-500">Pipeline ativo de oportunidades no Kanban</p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/crm/deals"
+                    className="text-[11px] font-bold text-amber-700 hover:text-amber-800 hover:underline flex items-center gap-1"
+                  >
+                    Ver Kanban Comercial <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Oportunidades em Aberto</span>
+                    <div className="text-lg font-bold text-amber-700">
+                      {loadingMetrics ? "..." : erpMetrics?.nutrition?.openOpportunities || 0}
+                      <span className="text-xs font-normal text-zinc-400 ml-1">negociações</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Aguardando avanço de etapa</p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Pipeline em Negociação</span>
+                    <div className="text-lg font-bold text-zinc-900">
+                      R$ {loadingMetrics ? "..." : (erpMetrics?.nutrition?.pipelineAmount || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Valor total em aberto no CRM</p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Atividades no Mês</span>
+                    <div className="text-lg font-bold text-purple-700">
+                      {loadingMetrics ? "..." : erpMetrics?.nutrition?.monthlyActivities || 0}
+                      <span className="text-xs font-normal text-zinc-400 ml-1">tarefas/reuniões</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Registradas no CRM este mês</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -549,6 +719,72 @@ export default function MarketingFunnelsPage() {
                   <p className="text-[10px] text-zinc-400">Alimenta o financeiro e faturamento</p>
                 </div>
               </div>
+
+              {/* Métricas Reais do ERP Otimizza */}
+              <div className="p-4 bg-gradient-to-r from-emerald-50/50 via-zinc-50 to-white rounded-xl border border-emerald-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-emerald-600 text-white shadow-2xs">
+                      <BarChart3 className="w-3.5 h-3.5" />
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-950 flex items-center gap-2">
+                        Real do ERP Otimizza: Conversões & Contratos Fechados
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          Sincronizado
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-zinc-500">Taxa efetiva de conversão e faturamento conquistado</p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/proposals"
+                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1"
+                  >
+                    Ver Propostas <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Taxa Real de Conversão</span>
+                    <div className="text-lg font-bold text-emerald-700">
+                      {loadingMetrics ? "..." : `${erpMetrics?.conversion?.realConversionRate || 0}%`}
+                    </div>
+                    <p className="text-[10px] text-zinc-400">
+                      {(erpMetrics?.conversion?.realConversionRate || 0) >= 20 ? "✅ Dentro do esperado" : "⚠️ Meta: 20% a 35%"}
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Ganhos no Mês Atual</span>
+                    <div className="text-lg font-bold text-zinc-900">
+                      {loadingMetrics ? "..." : erpMetrics?.conversion?.wonMonthCount || 0}
+                      <span className="text-xs font-normal text-zinc-400 ml-1">fechados</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">
+                      R$ {loadingMetrics ? "..." : (erpMetrics?.conversion?.wonMonthAmount || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Ticket Médio Ganho</span>
+                    <div className="text-lg font-bold text-blue-700">
+                      R$ {loadingMetrics ? "..." : (erpMetrics?.conversion?.avgTicket || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Média por oportunidade ganha</p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Total Ganho no Histórico</span>
+                    <div className="text-lg font-bold text-purple-700">
+                      {loadingMetrics ? "..." : erpMetrics?.conversion?.totalWonCount || 0}
+                      <span className="text-xs font-normal text-zinc-400 ml-1">contratos</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Desde o início da operação</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Alinhamento de Conversão */}
@@ -678,6 +914,69 @@ export default function MarketingFunnelsPage() {
                   <span className="text-[11px] font-semibold text-zinc-400 uppercase">Satisfação (NPS)</span>
                   <div className="text-sm font-bold text-blue-700">Zona de Excelência (&gt; 75)</div>
                   <p className="text-[10px] text-zinc-400">Pesquisas trimestrais de feedback</p>
+                </div>
+              </div>
+
+              {/* Métricas Reais do ERP Otimizza */}
+              <div className="p-4 bg-gradient-to-r from-indigo-50/50 via-zinc-50 to-white rounded-xl border border-indigo-200/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-indigo-600 text-white shadow-2xs">
+                      <BarChart3 className="w-3.5 h-3.5" />
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-bold text-zinc-950 flex items-center gap-2">
+                        Real do ERP Otimizza: Contratos Vigentes & MRR
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800">
+                          Sincronizado
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-zinc-500">Módulo de Contratos e Faturamento Ativo</p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/contracts"
+                    className="text-[11px] font-bold text-indigo-700 hover:text-indigo-800 hover:underline flex items-center gap-1"
+                  >
+                    Ver Contratos <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Contratos Ativos</span>
+                    <div className="text-lg font-bold text-indigo-700">
+                      {loadingMetrics ? "..." : erpMetrics?.retention?.activeContracts || 0}
+                      <span className="text-xs font-normal text-zinc-400 ml-1">vigentes</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Com faturamento recorrente</p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">MRR Recorrente Real</span>
+                    <div className="text-lg font-bold text-emerald-700">
+                      R$ {loadingMetrics ? "..." : (erpMetrics?.retention?.realMrr || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      <span className="text-xs font-normal text-zinc-400 ml-1">/mês</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Receita mensal contratada</p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Taxa de Retenção</span>
+                    <div className="text-lg font-bold text-zinc-900">
+                      {loadingMetrics ? "..." : `${erpMetrics?.retention?.retentionRate || 100}%`}
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Contratos ativos vs churn</p>
+                  </div>
+
+                  <div className="p-3 bg-white rounded-lg border border-zinc-200/80 space-y-0.5">
+                    <span className="text-[10px] font-semibold text-zinc-500 uppercase">Cancelamentos no Mês</span>
+                    <div className="text-lg font-bold text-rose-700">
+                      {loadingMetrics ? "..." : erpMetrics?.retention?.canceledContractsMonth || 0}
+                      <span className="text-xs font-normal text-zinc-400 ml-1">churn</span>
+                    </div>
+                    <p className="text-[10px] text-zinc-400">Contratos cancelados este mês</p>
+                  </div>
                 </div>
               </div>
             </div>

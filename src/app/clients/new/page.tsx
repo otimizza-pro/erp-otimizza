@@ -106,7 +106,7 @@ export default function NewClientPage() {
   };
 
   return (
-    <AppShell activeSection="clients">
+    <AppShell activeSection="clients_new">
       <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl">
         {/* Top Header */}
         <div className="flex items-center justify-between">

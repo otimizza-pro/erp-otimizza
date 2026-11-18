@@ -110,7 +110,7 @@ export default function NewSupplierPage() {
   };
 
   return (
-    <AppShell activeSection="suppliers">
+    <AppShell activeSection="suppliers_new">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Navigation Breadcrumb */}
         <div className="flex items-center justify-between pb-2">

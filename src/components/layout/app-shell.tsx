@@ -107,7 +107,6 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       section: "MARKETING & GROWTH",
       items: [
         { id: "marketing_funnels", label: "Funis de Marketing (4 Funis)", href: "/marketing/funnels", icon: Target },
-        { id: "marketing_bi", label: "Indicadores e BI", href: "/reports", icon: BarChart3 },
       ],
     },
 
@@ -159,6 +158,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       section: "PRODUÇÃO",
       items: [
         { id: "projects_list", label: "Projetos em andamento", href: "/projects", icon: Briefcase },
+        { id: "projects_new", label: "Novo projeto", href: "/projects/new", icon: Plus },
         { id: "projects_templates", label: "Modelos & Templates", href: "/projects/templates", icon: Layers },
         { id: "projects_onboarding", label: "Onboardings de Clientes", href: "/projects/templates?category=onboarding", icon: Rocket },
       ],
@@ -263,12 +263,11 @@ export function AppShell({ children, activeSection }: AppShellProps) {
         { id: "settings_main", label: "Dados da empresa", href: "/settings", icon: Building },
         { id: "settings_int", label: "Integrações", href: "/settings?tab=integrations", icon: Layers },
         { id: "settings_pref", label: "Preferências", href: "/settings?tab=preferences", icon: Settings },
-        { id: "settings_crm", label: "Configurações comerciais", href: "/crm/pipelines", icon: TrendingUp },
       ],
     },
   ];
 
-  // Estado da busca de URL (para sincronização perfeita de ?tab=)
+  // Estado da busca de URL (para sincronização perfeita de ?tab= e ?category=)
   const [currentSearch, setCurrentSearch] = useState("");
 
   useEffect(() => {
@@ -279,7 +278,12 @@ export function AppShell({ children, activeSection }: AppShellProps) {
     };
     handleLocationChange();
     window.addEventListener("popstate", handleLocationChange);
-    return () => window.removeEventListener("popstate", handleLocationChange);
+    // Sincronização periódica em transições do Next.js
+    const interval = setInterval(handleLocationChange, 250);
+    return () => {
+      window.removeEventListener("popstate", handleLocationChange);
+      clearInterval(interval);
+    };
   }, [pathname]);
 
   // Determina de forma estrita e unívoca exatamente um único item ativo no menu
@@ -289,32 +293,35 @@ export function AppShell({ children, activeSection }: AppShellProps) {
 
     const allItems = navigationGroups.flatMap((g) => g.items);
 
-    // 1. Prioridade para activeSection explícito se corresponder exatamente a um item
-    if (activeSection) {
-      const directMatch = allItems.find((it) => it.id === activeSection);
-      if (directMatch) return directMatch.id;
-      // Casos especiais de alias comuns
-      if (activeSection === "clients") return "clients_list";
-      if (activeSection === "contracts") return "contracts_list";
-      if (activeSection === "projects") return "projects_list";
-      if (activeSection === "crm") return "crm_overview";
-    }
-
     const currentParams = new URLSearchParams(currentSearch);
     const currentTab = currentParams.get("tab");
+    const currentCategory = currentParams.get("category");
 
-    // 2. Correspondência exata por rota + parâmetro de tab
+    // 1. PRIORIDADE MÁXIMA: Correspondência exata por rota + query parameter
+    // Ex: /projects/templates?category=onboarding casa com projects_onboarding
+    // Ex: /reports?tab=commercial casa com reports_comm
+    // Ex: /strategy?tab=diagnosis casa com strategy_diagnosis
     for (const item of allItems) {
       const [itemPath, itemQuery] = item.href.split("?");
-      const itemParams = new URLSearchParams(itemQuery || "");
-      const itemTab = itemParams.get("tab");
+      if (itemQuery && pathname === itemPath) {
+        const itemParams = new URLSearchParams(itemQuery);
+        const itemTab = itemParams.get("tab");
+        const itemCategory = itemParams.get("category");
 
-      if (itemTab && pathname === itemPath && currentTab === itemTab) {
-        return item.id;
+        if (itemCategory && currentCategory === itemCategory) {
+          return item.id;
+        }
+        if (itemTab && currentTab === itemTab) {
+          return item.id;
+        }
+        if (currentSearch === `?${itemQuery}` || currentSearch.includes(itemQuery)) {
+          return item.id;
+        }
       }
     }
 
-    // 3. Correspondência exata de rota (pathname puro igual ao href puro)
+    // 2. CORRESPONDÊNCIA EXATA DE PATHNAME PURO (sem query string no item)
+    // Garante que /contracts/new sempre ative contracts_new, /clients/new sempre ative clients_new, etc.
     for (const item of allItems) {
       const [itemPath, itemQuery] = item.href.split("?");
       if (!itemQuery && pathname === itemPath) {
@@ -322,7 +329,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       }
     }
 
-    // 4. Sub-rotas (ex: /crm/leads/new ou /projects/123): seleciona o prefixo mais longo/específico
+    // 3. SUB-ROTAS E PREFIXOS MAIS ESPECÍFICOS (ex: /contracts/uuid -> contracts_list, /crm/leads/uuid -> crm_leads)
     let bestMatch: { id: string; pathLength: number } | null = null;
     for (const item of allItems) {
       const itemPath = item.href.split("?")[0];
@@ -337,7 +344,26 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       return bestMatch.id;
     }
 
-    // 5. Fallback por rota base sem tab
+    // 4. CORRESPONDÊNCIA POR ACTIVE SECTION EXPLÍCITO (apenas como fallback quando a rota não casou diretamente)
+    if (activeSection) {
+      const directMatch = allItems.find((it) => it.id === activeSection);
+      if (directMatch) return directMatch.id;
+      if (activeSection === "clients_new") return "clients_new";
+      if (activeSection === "contracts_new") return "contracts_new";
+      if (activeSection === "suppliers_new") return "suppliers_new";
+      if (activeSection === "projects_new") return "projects_new";
+      if (activeSection === "projects_templates") return "projects_templates";
+      if (activeSection === "projects_onboarding") return "projects_onboarding";
+      if (activeSection === "clients") return "clients_list";
+      if (activeSection === "contracts") return "contracts_list";
+      if (activeSection === "projects") return "projects_list";
+      if (activeSection === "crm") return "crm_overview";
+      if (activeSection === "catalog") return "services";
+      if (activeSection === "suppliers") return "suppliers_list";
+      if (activeSection === "reports") return "reports_comm";
+    }
+
+    // 5. Fallback por rota base sem query (ex: /reports sem parâmetros ativa o primeiro relatório)
     for (const item of allItems) {
       const itemPath = item.href.split("?")[0];
       if (pathname === itemPath) {

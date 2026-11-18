@@ -454,7 +454,7 @@ function NewContractFormContent() {
   };
 
   return (
-    <AppShell activeSection="contracts">
+    <AppShell activeSection="contracts_new">
       <div className="p-8 max-w-5xl mx-auto space-y-6">
         {/* Navigation Breadcrumb */}
         <div className="flex items-center gap-3">
@@ -846,7 +846,7 @@ export default function NewContractPage() {
   return (
     <Suspense
       fallback={
-        <AppShell activeSection="contracts">
+        <AppShell activeSection="contracts_new">
           <div className="p-12 text-center text-xs text-zinc-400">Carregando formulário...</div>
         </AppShell>
       }

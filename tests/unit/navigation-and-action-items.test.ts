@@ -202,4 +202,103 @@ describe("Revisão de Navegação, Pendências e Acessibilidade", () => {
       expect(createSearchItem("PROJECT", "107")).toBe("/projects/107");
     });
   });
+
+  describe("6. Resolução Estrita e Unívoca de Item Ativo no Menu (Sem Sobrescrever 'Novo' por 'Lista')", () => {
+    const navigationItems = [
+      { id: "clients_list", href: "/clients" },
+      { id: "clients_new", href: "/clients/new" },
+      { id: "contracts_list", href: "/contracts" },
+      { id: "contracts_new", href: "/contracts/new" },
+      { id: "projects_list", href: "/projects" },
+      { id: "projects_new", href: "/projects/new" },
+      { id: "projects_templates", href: "/projects/templates" },
+      { id: "projects_onboarding", href: "/projects/templates?category=onboarding" },
+      { id: "services", href: "/services" },
+      { id: "combos", href: "/combos" },
+      { id: "service_cats", href: "/services/categories" },
+      { id: "suppliers_list", href: "/suppliers" },
+      { id: "suppliers_new", href: "/suppliers/new" },
+    ];
+
+    const resolveActiveItem = (pathname: string, search: string = "", activeSection?: string): string => {
+      const currentParams = new URLSearchParams(search);
+      const currentCategory = currentParams.get("category");
+      const currentTab = currentParams.get("tab");
+
+      // 1. Prioridade para rota + query
+      for (const item of navigationItems) {
+        const [itemPath, itemQuery] = item.href.split("?");
+        if (itemQuery && pathname === itemPath) {
+          const itemParams = new URLSearchParams(itemQuery);
+          if (itemParams.get("category") && currentCategory === itemParams.get("category")) {
+            return item.id;
+          }
+          if (itemParams.get("tab") && currentTab === itemParams.get("tab")) {
+            return item.id;
+          }
+        }
+      }
+
+      // 2. Prioridade para rota exata sem query
+      for (const item of navigationItems) {
+        const [itemPath, itemQuery] = item.href.split("?");
+        if (!itemQuery && pathname === itemPath) {
+          return item.id;
+        }
+      }
+
+      // 3. Sub-rotas e prefixos
+      let bestMatch: { id: string; pathLength: number } | null = null;
+      for (const item of navigationItems) {
+        const itemPath = item.href.split("?")[0];
+        if (itemPath !== "/" && (pathname === itemPath || pathname.startsWith(`${itemPath}/`))) {
+          if (!bestMatch || itemPath.length > bestMatch.pathLength) {
+            bestMatch = { id: item.id, pathLength: itemPath.length };
+          }
+        }
+      }
+      if (bestMatch) return bestMatch.id;
+
+      // 4. Fallback por activeSection
+      if (activeSection) {
+        const direct = navigationItems.find((it) => it.id === activeSection);
+        if (direct) return direct.id;
+      }
+
+      return "";
+    };
+
+    it("ao clicar em 'Novo contrato' (/contracts/new), deve ativar contracts_new e NÃO contracts_list", () => {
+      expect(resolveActiveItem("/contracts/new", "", "contracts")).toBe("contracts_new");
+      expect(resolveActiveItem("/contracts/new", "?clientId=abc", "contracts")).toBe("contracts_new");
+    });
+
+    it("ao clicar em 'Contratos vigentes' (/contracts), deve ativar contracts_list", () => {
+      expect(resolveActiveItem("/contracts", "", "contracts")).toBe("contracts_list");
+    });
+
+    it("ao visualizar detalhes de um contrato (/contracts/[id]), deve ativar contracts_list", () => {
+      expect(resolveActiveItem("/contracts/07ce0b51-e552-44c2", "", "contracts")).toBe("contracts_list");
+    });
+
+    it("ao clicar em 'Novo cliente' (/clients/new), deve ativar clients_new e NÃO clients_list", () => {
+      expect(resolveActiveItem("/clients/new", "", "clients")).toBe("clients_new");
+    });
+
+    it("ao clicar em 'Categorias de serviços' (/services/categories), deve ativar service_cats e NÃO services", () => {
+      expect(resolveActiveItem("/services/categories", "", "catalog")).toBe("service_cats");
+    });
+
+    it("ao clicar em 'Onboardings de Clientes' (/projects/templates?category=onboarding), deve ativar projects_onboarding", () => {
+      expect(resolveActiveItem("/projects/templates", "?category=onboarding", "projects")).toBe("projects_onboarding");
+    });
+
+    it("ao clicar em 'Modelos & Templates' (/projects/templates), deve ativar projects_templates", () => {
+      expect(resolveActiveItem("/projects/templates", "", "projects")).toBe("projects_templates");
+    });
+
+    it("ao clicar em 'Novo fornecedor' (/suppliers/new), deve ativar suppliers_new", () => {
+      expect(resolveActiveItem("/suppliers/new", "", "suppliers")).toBe("suppliers_new");
+    });
+  });
 });

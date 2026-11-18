@@ -156,7 +156,7 @@ export default function ServiceCategoriesPage() {
   });
 
   return (
-    <AppShell activeSection="catalog">
+    <AppShell activeSection="service_cats">
       <div className="space-y-6 max-w-5xl">
         {/* Header */}
         <div className="flex items-center justify-between">

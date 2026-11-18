@@ -203,14 +203,14 @@ export default function EditServicePage() {
 
   if (loading) {
     return (
-      <AppShell activeSection="catalog">
+      <AppShell activeSection="services">
         <div className="p-12 text-center text-xs text-zinc-400">Carregando formulário...</div>
       </AppShell>
     );
   }
 
   return (
-    <AppShell activeSection="catalog">
+    <AppShell activeSection="services">
       <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl">
         {/* Header */}
         <div className="flex items-center justify-between">

@@ -114,7 +114,7 @@ function ProjectTemplatesContent() {
   });
 
   return (
-    <AppShell activeSection="projects">
+    <AppShell activeSection={categoryFilter === "ONBOARDING" ? "projects_onboarding" : "projects_templates"}>
       <div className="p-6 max-w-6xl mx-auto space-y-6 pb-20">
         {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

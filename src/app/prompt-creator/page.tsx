@@ -84,7 +84,7 @@ interface CalendarItemRecord {
 
 const SOCIAL_FORMAT_OPTIONS = [
   { id: "HEADLINES", label: "Headlines", icon: TrendingUp, desc: "Títulos de alto impacto para carrosséis, reels ou anúncios." },
-  { id: "CAPTION", label: "Legendas (Feed 4:3)", icon: FileText, desc: "Copy completa para post de feed com abertura, desenvolvimento e CTA." },
+  { id: "CAPTION", label: "Legendas (Feed 4:5)", icon: FileText, desc: "Copy completa para post de feed com abertura, desenvolvimento e CTA." },
   { id: "REELS", label: "Roteiros de Reels (16:9)", icon: Video, desc: "Duas opções de roteiro cronometrado com falas e textos de tela." },
   { id: "CAROUSEL", label: "Carrossel (2 Opções)", icon: Layers, desc: "Duas estruturas completas slide a slide com limites de palavras." },
   { id: "LANDING_PAGE", label: "Texto de Landing Page", icon: BookOpen, desc: "Seções de oferta, benefícios, dores e conversão." },
@@ -633,7 +633,7 @@ export default function ContentStudioPage() {
     }
   };
 
-  // Salvar no Feed (Social Media 4:3) ou em Campanhas de Ads
+  // Salvar no Feed (Social Media 4:5) ou em Campanhas de Ads
   const handleSaveToFeedOrAds = async () => {
     if (!selectedClientId) {
       alert("Selecione um cliente primeiro.");
@@ -652,7 +652,7 @@ export default function ContentStudioPage() {
           status: "PLANNED",
           contentType: contentMode,
           adStatus: "ACTIVE",
-          postTag: contentMode === "ADS" ? "Campanha Ads" : (format === "CAROUSEL" ? "Carrossel" : format === "REELS" ? "Reels" : "Feed 4:3"),
+          postTag: contentMode === "ADS" ? "Campanha Ads" : (format === "CAROUSEL" ? "Carrossel" : format === "REELS" ? "Reels" : "Feed 4:5"),
           selectedHeadline: chosenHeadline || null,
           selectedCaption: format === "CAPTION" ? aiOutput : null,
           selectedReels: format === "REELS" ? aiOutput : null,
@@ -666,7 +666,7 @@ export default function ContentStudioPage() {
 
       if (res.ok) {
         setNotification({
-          message: contentMode === "ADS" ? "Criativo salvo com sucesso em Campanhas & Ads!" : "Publicação salva com sucesso no Feed do Cliente (4:3)!",
+          message: contentMode === "ADS" ? "Criativo salvo com sucesso em Campanhas & Ads!" : "Publicação salva com sucesso no Feed do Cliente (4:5)!",
           type: "success",
         });
       } else {
@@ -1104,7 +1104,7 @@ export default function ContentStudioPage() {
                       }`}
                     >
                       <Layers className="w-3.5 h-3.5 text-pink-600" />
-                      Social Media (Feed 4:3)
+                      Social Media (Feed 4:5)
                     </button>
                     <button
                       type="button"
@@ -1933,7 +1933,7 @@ export default function ContentStudioPage() {
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition cursor-pointer"
                       >
                         <ImageIcon className="w-3.5 h-3.5" />
-                        <span>Salvar em Criativos & Feed ({contentMode === "ADS" ? "Ads" : "Feed 4:3"})</span>
+                        <span>Salvar em Criativos & Feed ({contentMode === "ADS" ? "Ads" : "Feed 4:5"})</span>
                       </button>
                       <button
                         type="button"

@@ -102,13 +102,38 @@ export async function GET(
         ]
       );
       session = insertRes.rows[0];
+    } else {
+      // Complementar com dados cadastrais do cliente se a sessão estiver com campos em branco
+      if (!session.company_name || session.company_name === "Sua Empresa") {
+        session.company_name = task.trade_name || task.client_name || task.project_name || "Sua Empresa";
+      }
+      if (!session.contact_name) {
+        session.contact_name = task.client_name || "Parceiro";
+      }
+      if (!session.website_url && task.client_website) {
+        session.website_url = task.client_website;
+      }
+      if (!session.instagram_url && task.client_instagram) {
+        session.instagram_url = `https://instagram.com/${task.client_instagram.replace("@", "")}`;
+      }
+    }
+
+    // Buscar Identidade do Cliente registrada se houver
+    let clientIdentity = null;
+    if (task.client_id) {
+      const idRes = await query(
+        `SELECT * FROM public.client_identities WHERE client_id = $1 LIMIT 1`,
+        [task.client_id]
+      );
+      clientIdentity = idRes.rows[0] || null;
     }
 
     return NextResponse.json({
       success: true,
       task,
       session,
-      publicUrl: `/briefing/${session.token}`,
+      clientIdentity,
+      publicUrl: session ? `/briefing/${session.token}` : "",
     });
   } catch (err: unknown) {
     console.error("Erro ao buscar sessão de briefing:", err);

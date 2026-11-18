@@ -45,6 +45,7 @@ import {
   Target,
 } from "lucide-react";
 import { SearchItem } from "@/app/api/search/route";
+import { CompanySelector } from "@/components/layout/company-selector";
 
 interface NavItem {
   id: string;
@@ -107,6 +108,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       section: "MARKETING & GROWTH",
       items: [
         { id: "marketing_funnels", label: "Funis de Marketing (4 Funis)", href: "/marketing/funnels", icon: Target },
+        { id: "marketing_strategy", label: "Estratégia da Empresa", href: "/marketing/strategy", icon: Compass },
       ],
     },
 
@@ -234,33 +236,13 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       ],
     },
     {
-      id: "strategy",
-      title: "Gestão Estratégica",
-      icon: Compass,
-      section: "ADMINISTRATIVO",
-      items: [
-        { id: "strategy_overview", label: "Visão geral", href: "/strategy", icon: LayoutDashboard },
-        { id: "strategy_diagnosis", label: "Empresa e diagnóstico", href: "/strategy?tab=diagnosis", icon: Building },
-        { id: "strategy_business", label: "Gestão empresarial", href: "/strategy?tab=business", icon: Briefcase },
-        { id: "strategy_marketing", label: "Planejamento de marketing", href: "/strategy?tab=marketing", icon: TrendingUp },
-        { id: "strategy_frameworks", label: "Ferramentas de gestão", href: "/strategy?tab=frameworks", icon: Layers },
-        { id: "strategy_goals", label: "Objetivos e indicadores", href: "/strategy?tab=goals", icon: CheckCircle2 },
-        { id: "strategy_budgets", label: "Orçamentos e metas", href: "/strategy?tab=budgets", icon: DollarSign },
-        { id: "strategy_initiatives", label: "Iniciativas e ações", href: "/strategy?tab=initiatives", icon: Calendar },
-        { id: "strategy_competitors", label: "Concorrentes e referências", href: "/strategy?tab=competitors", icon: Users },
-        { id: "strategy_decisions", label: "Decisões e revisões", href: "/strategy?tab=decisions", icon: ShieldCheck },
-        { id: "strategy_export", label: "Documentos e exportações", href: "/strategy?tab=export", icon: FileText },
-        { id: "knowledge_manual", label: "Manuais da Otimizza", href: "/informacoes-otimizza", icon: BookOpen },
-        { id: "strategy_public", label: "Estratégia Pública / IA", href: "/estrategia-otimizza", icon: ExternalLink },
-      ],
-    },
-    {
       id: "settings",
       title: "Configurações",
       icon: Settings,
       section: "ADMINISTRATIVO",
       items: [
         { id: "settings_main", label: "Dados da empresa", href: "/settings", icon: Building },
+        { id: "knowledge_manual", label: "Manuais da Otimizza", href: "/informacoes-otimizza", icon: BookOpen },
         { id: "settings_int", label: "Integrações", href: "/settings?tab=integrations", icon: Layers },
         { id: "settings_pref", label: "Preferências", href: "/settings?tab=preferences", icon: Settings },
       ],
@@ -849,8 +831,11 @@ export function AppShell({ children, activeSection }: AppShellProps) {
             </button>
           </div>
 
-          {/* Lado Direito: Botão "+ Novo", Perfil e Logout Único */}
-          <div className="flex items-center gap-3">
+          {/* Lado Direito: Seletor de Empresa, Botão "+ Novo", Perfil e Logout Único */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Seletor de Empresa em Foco (Otimizza Growth / Clientes) */}
+            <CompanySelector />
+
             {/* Botão de Atalho Global "+ Novo" */}
             <div className="relative" ref={newDropdownRef}>
               <button

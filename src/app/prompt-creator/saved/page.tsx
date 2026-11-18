@@ -258,7 +258,7 @@ export default function SavedPostsPage() {
                 Feed & Criativos Salvos dos Clientes
               </h1>
               <p className="text-xs text-zinc-500">
-                Organize os posts no formato de feed (4:3), suba imagens e gerencie campanhas de Ads ativas, pausadas e finalizadas.
+                Organize os posts no formato de feed (4:5), suba imagens e gerencie campanhas de Ads ativas, pausadas e finalizadas.
               </p>
             </div>
           </div>
@@ -306,7 +306,7 @@ export default function SavedPostsPage() {
                 }`}
               >
                 <Layers className="w-3.5 h-3.5 text-pink-600" />
-                Social Media (Feed 4:3)
+                Social Media (Feed 4:5)
               </button>
               <button
                 type="button"
@@ -373,7 +373,7 @@ export default function SavedPostsPage() {
           )}
         </div>
 
-        {/* Feed Grid (Visualização em Formato de Feed 4:3) */}
+        {/* Feed Grid (Visualização em Formato de Feed 4:5) */}
         {loading ? (
           <div className="p-20 text-center text-xs text-zinc-400">
             <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-zinc-600" />
@@ -403,8 +403,8 @@ export default function SavedPostsPage() {
                   key={post.id}
                   className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between"
                 >
-                  {/* Container da Imagem com Aspect Ratio 4:3 Exato */}
-                  <div className="relative aspect-[4/3] bg-zinc-950 overflow-hidden group">
+                  {/* Container da Imagem com Aspect Ratio 4:5 Vertical Exato */}
+                  <div className="relative aspect-[4/5] bg-zinc-950 overflow-hidden group">
                     {post.imageUrl ? (
                       <img
                         src={post.imageUrl}
@@ -415,7 +415,7 @@ export default function SavedPostsPage() {
                       <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-zinc-900 to-zinc-950 text-white">
                         <ImageIcon className="w-8 h-8 text-zinc-500 mb-2" />
                         <span className="text-xs font-semibold text-zinc-400">
-                          {isAd ? "Criativo do Anúncio" : "Imagem do Post (4:3)"}
+                          {isAd ? "Criativo do Anúncio" : "Imagem do Post (4:5)"}
                         </span>
                         <span className="text-[10px] text-zinc-600 mt-1 max-w-[200px] line-clamp-2">
                           {post.selectedHeadline || post.title}
@@ -426,7 +426,7 @@ export default function SavedPostsPage() {
                     {/* Botão de Upload Overlay */}
                     <label
                       className="absolute bottom-3 right-3 p-2 bg-black/60 hover:bg-black/90 backdrop-blur-xs text-white rounded-xl cursor-pointer transition shadow-md flex items-center gap-1.5 text-[10px] font-semibold"
-                      title="Subir / Trocar imagem (formato feed 4:3)"
+                      title="Subir / Trocar imagem (formato feed 4:5)"
                     >
                       <Upload className="w-3.5 h-3.5" />
                       <span>{uploadingPostId === post.id ? "Enviando..." : "Subir Imagem"}</span>

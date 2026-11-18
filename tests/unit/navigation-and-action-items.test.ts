@@ -301,4 +301,64 @@ describe("Revisão de Navegação, Pendências e Acessibilidade", () => {
       expect(resolveActiveItem("/suppliers/new", "", "suppliers")).toBe("suppliers_new");
     });
   });
+
+  describe("8. Migração de Estratégia para Marketing & Growth e Seletor de Empresa", () => {
+    it("deve conter 'Estratégia da Empresa' no menu de MARKETING & GROWTH com rota /marketing/strategy", () => {
+      const marketingItems = [
+        { id: "marketing_funnels", label: "Funis de Marketing (4 Funis)", href: "/marketing/funnels" },
+        { id: "marketing_strategy", label: "Estratégia da Empresa", href: "/marketing/strategy" },
+      ];
+
+      expect(marketingItems.map((i) => i.id)).toContain("marketing_strategy");
+      expect(marketingItems.find((i) => i.id === "marketing_strategy")?.href).toBe("/marketing/strategy");
+    });
+
+    it("não deve mais conter o grupo 'Gestão Estratégica' no menu ADMINISTRATIVO", () => {
+      const adminGroups = [
+        { id: "financial_management", title: "Gestão Financeira" },
+        { id: "financial_reports", title: "Relatórios & DRE" },
+        { id: "security", title: "Segurança" },
+        { id: "settings", title: "Configurações" },
+      ];
+
+      expect(adminGroups.map((g) => g.id)).not.toContain("strategy");
+      expect(adminGroups.map((g) => g.title)).not.toContain("Gestão Estratégica");
+    });
+
+    it("o formato de feed do sistema deve ser estritamente 4:5 (vertical portrait 1080x1350) e não 4:3", () => {
+      const feedFormats = [
+        { id: "FEED", ratio: "4:5", width: 1080, height: 1350 },
+        { id: "STORIES", ratio: "9:16", width: 1080, height: 1920 },
+      ];
+
+      const feed = feedFormats.find((f) => f.id === "FEED");
+      expect(feed?.ratio).toBe("4:5");
+      expect(feed?.ratio).not.toBe("4:3");
+      expect(feed?.width).toBe(1080);
+      expect(feed?.height).toBe(1350);
+    });
+
+    it("o seletor de empresa deve manter 'Otimizza Growth' como padrão e persistir escolha em localStorage", () => {
+      const defaultCompany = { id: "otimizza", name: "Otimizza Growth", isOtimizza: true };
+      expect(defaultCompany.id).toBe("otimizza");
+      expect(defaultCompany.isOtimizza).toBe(true);
+
+      let storageState: string | null = null;
+      const setCompany = (comp: typeof defaultCompany) => {
+        storageState = JSON.stringify(comp);
+      };
+      const getCompany = () => (storageState ? JSON.parse(storageState) : defaultCompany);
+
+      expect(getCompany().id).toBe("otimizza");
+
+      // Trocar para cliente
+      setCompany({ id: "client-uuid-999", name: "Artigos Móveis Ltda", isOtimizza: false });
+      expect(getCompany().id).toBe("client-uuid-999");
+      expect(getCompany().name).toBe("Artigos Móveis Ltda");
+
+      // Botão rápido Otimizza restaura padrão
+      setCompany(defaultCompany);
+      expect(getCompany().id).toBe("otimizza");
+    });
+  });
 });

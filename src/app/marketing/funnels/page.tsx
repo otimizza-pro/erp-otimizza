@@ -338,7 +338,7 @@ export default function MarketingFunnelsPage() {
 
                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200/70 space-y-1">
                   <span className="text-[11px] font-semibold text-zinc-400 uppercase">Formatos de Criativos</span>
-                  <div className="text-sm font-bold text-purple-700">Feed 4:3 & Stories 9:16</div>
+                  <div className="text-sm font-bold text-purple-700">Feed 4:5 & Stories 9:16</div>
                   <p className="text-[10px] text-zinc-400">Otimizados para Instagram e Meta Ads</p>
                 </div>
               </div>
@@ -519,7 +519,7 @@ export default function MarketingFunnelsPage() {
                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200/70 space-y-1">
                   <span className="text-[11px] font-semibold text-zinc-400 uppercase">Frequência Semanal</span>
                   <div className="text-sm font-bold text-amber-700">4 Posts / Semana</div>
-                  <p className="text-[10px] text-zinc-400">Feed 4:3 e carrosséis instrutivos</p>
+                  <p className="text-[10px] text-zinc-400">Feed 4:5 e carrosséis instrutivos</p>
                 </div>
 
                 <div className="p-4 bg-zinc-50 rounded-xl border border-zinc-200/70 space-y-1">

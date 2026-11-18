@@ -64,6 +64,7 @@ export function TaskExecutionModal({
 
   // Briefing state
   const [briefingSession, setBriefingSession] = useState<any>(null);
+  const [clientIdentity, setClientIdentity] = useState<any>(null);
   const [loadingBriefing, setLoadingBriefing] = useState<boolean>(false);
   const [briefingFeedback, setBriefingFeedback] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
@@ -98,20 +99,23 @@ export function TaskExecutionModal({
       const json = await res.json();
       if (json.success && json.session) {
         setBriefingSession(json.session);
-        setCompanyName(json.session.company_name || "");
-        setContactName(json.session.contact_name || "");
+        setCompanyName(json.session.company_name || project.clientName || project.name || "");
+        setContactName(json.session.contact_name || project.clientName || "Decisor");
         setWebsiteUrl(json.session.website_url || "");
         setMapsUrl(json.session.maps_url || "");
         setInstagramUrl(json.session.instagram_url || "");
         setInitialNotes(json.session.initial_notes || "");
         setCompetitorNotes(json.session.competitor_notes || "");
+        if (json.clientIdentity) {
+          setClientIdentity(json.clientIdentity);
+        }
       }
     } catch (err) {
       console.error("Erro ao carregar briefing:", err);
     } finally {
       setLoadingBriefing(false);
     }
-  }, [taskId]);
+  }, [taskId, project.clientName, project.name]);
 
   useEffect(() => {
     if (isOpen && task) {
@@ -181,6 +185,16 @@ export function TaskExecutionModal({
     try {
       const res = await fetch(`/api/projects/tasks/${task.id}/briefing/sync`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName,
+          contactName,
+          websiteUrl,
+          mapsUrl,
+          instagramUrl,
+          initialNotes,
+          competitorNotes,
+        }),
       });
       const json = await res.json();
       if (json.success) {
@@ -422,10 +436,10 @@ export function TaskExecutionModal({
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wide">
-                        Informações que o Valdemar já possui sobre o Cliente
+                        1. Informações Base do Cliente (Cadastro & Presença Digital)
                       </h4>
                       <span className="text-[11px] text-slate-500">
-                        A IA lerá estes dados antes de falar com o cliente
+                        Base cadastral permanente da empresa no ERP
                       </span>
                     </div>
 
@@ -521,54 +535,110 @@ export function TaskExecutionModal({
                     </div>
                   </div>
 
-                  {/* Informações Coletadas pela Sofia (IA) */}
-                  {briefingSession?.extracted_identity && Object.keys(briefingSession.extracted_identity).length > 0 && (
-                    <div className="bg-gradient-to-r from-purple-50/60 to-white border border-purple-200 rounded-2xl p-4.5 space-y-3">
+                  {/* Informações Coletadas pela Sofia (IA) organizadas por Domínio */}
+                  <div className="space-y-4">
+                    {/* 2. DIRETRIZES PARA HEADLINES & COPYWRITING */}
+                    <div className="bg-gradient-to-r from-purple-50/70 to-white border border-purple-200 rounded-2xl p-4.5 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-purple-900 text-xs font-bold uppercase tracking-wide">
                           <Sparkles className="w-4 h-4 text-purple-600" />
-                          <span>Informações Coletadas e Estruturadas pela Sofia (IA)</span>
+                          <span>2. Informações para Construção de Headlines & Copywriting</span>
                         </div>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-300">
-                          {briefingSession.status === "COMPLETED" ? "Briefing 100% Concluído" : "Em Andamento"}
+                          Texto & Estratégia
                         </span>
                       </div>
+                      <p className="text-[11px] text-zinc-500">
+                        Dados utilizados pela IA para gerar ganchos de retenção, headlines de alto impacto e legendas persuasivas.
+                      </p>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        {briefingSession.extracted_identity.differentials && (
-                          <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
-                            <span className="text-[10px] font-bold text-purple-600 uppercase">Diferenciais da Marca</span>
-                            <p className="text-zinc-800 font-medium">{String(briefingSession.extracted_identity.differentials)}</p>
-                          </div>
-                        )}
-
-                        {briefingSession.extracted_identity.targetAudience && (
-                          <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
-                            <span className="text-[10px] font-bold text-purple-600 uppercase">Público-Alvo Prioritário</span>
-                            <p className="text-zinc-800 font-medium">{String(briefingSession.extracted_identity.targetAudience)}</p>
-                          </div>
-                        )}
-
-                        {briefingSession.extracted_identity.toneOfVoice && (
-                          <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
-                            <span className="text-[10px] font-bold text-purple-600 uppercase">Tom de Voz Aprovado</span>
-                            <p className="text-zinc-800 font-medium">
-                              {Array.isArray(briefingSession.extracted_identity.toneOfVoice)
+                        <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
+                          <span className="text-[10px] font-bold text-purple-600 uppercase">Tom de Voz Aprovado</span>
+                          <p className="text-zinc-800 font-medium">
+                            {briefingSession?.extracted_identity?.toneOfVoice
+                              ? Array.isArray(briefingSession.extracted_identity.toneOfVoice)
                                 ? briefingSession.extracted_identity.toneOfVoice.join(", ")
-                                : String(briefingSession.extracted_identity.toneOfVoice)}
-                            </p>
-                          </div>
-                        )}
+                                : String(briefingSession.extracted_identity.toneOfVoice)
+                              : clientIdentity?.tone_of_voice && clientIdentity.tone_of_voice.length > 0
+                              ? clientIdentity.tone_of_voice.join(", ")
+                              : "Direto, especialista e focado em resultados reais"}
+                          </p>
+                        </div>
 
-                        {briefingSession.extracted_identity.competitors && (
-                          <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
-                            <span className="text-[10px] font-bold text-purple-600 uppercase">Concorrentes Informados</span>
-                            <p className="text-zinc-800 font-medium">{String(briefingSession.extracted_identity.competitors)}</p>
-                          </div>
-                        )}
+                        <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
+                          <span className="text-[10px] font-bold text-purple-600 uppercase">Diferenciais da Marca</span>
+                          <p className="text-zinc-800 font-medium">
+                            {String(
+                              briefingSession?.extracted_identity?.differentials ||
+                                (clientIdentity?.differentials && clientIdentity.differentials.length > 0
+                                  ? clientIdentity.differentials.join(", ")
+                                  : "Velocidade na entrega, atendimento direto e resultados mensuráveis")
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
+                          <span className="text-[10px] font-bold text-purple-600 uppercase">Público-Alvo Prioritário (ICP)</span>
+                          <p className="text-zinc-800 font-medium">
+                            {String(
+                              briefingSession?.extracted_identity?.targetAudience ||
+                                (clientIdentity?.target_audiences && clientIdentity.target_audiences.length > 0
+                                  ? clientIdentity.target_audiences.join(", ")
+                                  : "Clientes qualificados buscando soluções completas")
+                            )}
+                          </p>
+                        </div>
+
+                        <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
+                          <span className="text-[10px] font-bold text-purple-600 uppercase">Concorrentes Informados</span>
+                          <p className="text-zinc-800 font-medium">
+                            {String(
+                              briefingSession?.extracted_identity?.competitors ||
+                                competitorNotes ||
+                                "Mapeamento em andamento no Estúdio de Estratégia"
+                            )}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  )}
+
+                    {/* 3. DIRETRIZES VISUAIS PARA PROMPTS DE IMAGEM */}
+                    <div className="bg-gradient-to-r from-blue-50/70 to-white border border-blue-200 rounded-2xl p-4.5 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-blue-900 text-xs font-bold uppercase tracking-wide">
+                          <Layers className="w-4 h-4 text-blue-600" />
+                          <span>3. Informações para Construção do Prompt para Imagem</span>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300">
+                          Diretrizes Visuais
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-zinc-500">
+                        Diretrizes estéticas aplicadas exclusivamente na geração de prompts visuais, renders e criativos.
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1">
+                          <span className="text-[10px] font-bold text-blue-600 uppercase">Proporção / Aspect Ratio Padrão</span>
+                          <p className="text-zinc-800 font-semibold">Feed Vertical 4:5 (1080x1350) & Stories 9:16 (1080x1920)</p>
+                          <p className="text-[10px] text-zinc-500">Otimizado para máxima ocupação de tela nos smartphones.</p>
+                        </div>
+
+                        <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1">
+                          <span className="text-[10px] font-bold text-blue-600 uppercase">Estilo Visual & Iluminação</span>
+                          <p className="text-zinc-800 font-medium">Fotografia profissional de alta qualidade, iluminação suave comercial, render limpo e sofisticado.</p>
+                        </div>
+
+                        <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1 sm:col-span-2">
+                          <span className="text-[10px] font-bold text-blue-600 uppercase">Regras de Exclusão (Negative Prompts)</span>
+                          <p className="text-zinc-700 text-[11px]">
+                            Sem mãos deformadas, sem textos borrados ou ilegíveis dentro da imagem, sem poluição visual, sem logos de terceiros conflitantes.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Sincronização direta com a Identidade do Cliente */}
                   <div className="border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 bg-white">

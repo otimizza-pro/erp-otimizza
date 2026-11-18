@@ -5,14 +5,22 @@ import { requireAdminUser } from "@/lib/auth/require-auth";
 export const dynamic = "force-dynamic";
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdminUser();
     const { id: taskId } = await params;
 
-    // Buscar a sessão e a tarefa
+    // Obter payload opcional com dados do formulário
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
+
+    // Buscar a sessão vinculada à tarefa ou ao projeto
     const res = await query<{
       session_id: string;
       client_id: string | null;
@@ -26,25 +34,38 @@ export async function POST(
       `
       SELECT 
         s.id as session_id,
-        s.client_id,
+        COALESCE(s.client_id, p.client_id) as client_id,
         s.extracted_identity,
-        s.company_name,
-        s.instagram_url,
-        s.website_url,
-        s.initial_notes,
-        s.competitor_notes
-      FROM public.client_briefing_sessions s
-      WHERE s.task_id = $1
-      ORDER BY s.created_at DESC LIMIT 1
+        COALESCE($2, s.company_name) as company_name,
+        COALESCE($3, s.instagram_url) as instagram_url,
+        COALESCE($4, s.website_url) as website_url,
+        COALESCE($5, s.initial_notes) as initial_notes,
+        COALESCE($6, s.competitor_notes) as competitor_notes
+      FROM public.project_tasks t
+      JOIN public.projects p ON p.id = t.project_id
+      LEFT JOIN public.client_briefing_sessions s ON (s.task_id = t.id OR s.project_id = p.id)
+      WHERE t.id = $1
+      ORDER BY s.created_at DESC NULLS LAST
+      LIMIT 1
       `,
-      [taskId]
+      [
+        taskId,
+        body.companyName || null,
+        body.instagramUrl || null,
+        body.websiteUrl || null,
+        body.initialNotes || null,
+        body.competitorNotes || null,
+      ]
     );
 
-    if (res.rows.length === 0) {
-      return NextResponse.json({ error: "Sessão de briefing não encontrada para esta tarefa." }, { status: 404 });
+    if (res.rows.length === 0 || !res.rows[0].client_id) {
+      return NextResponse.json({
+        error: "Este projeto não possui um cliente associado na base do ERP para vincular a identidade."
+      }, { status: 400 });
     }
 
     const {
+      session_id,
       client_id,
       extracted_identity,
       instagram_url,
@@ -53,20 +74,20 @@ export async function POST(
       competitor_notes
     } = res.rows[0];
 
-    if (!client_id) {
-      return NextResponse.json({
-        error: "Este projeto não possui um cliente associado diretamente na base de clientes."
-      }, { status: 400 });
-    }
-
     const ext = extracted_identity || {};
-    const valueProposition = (ext.valueProposition as string) || (ext.differentials as string) || "";
-    const marketNiche = (ext.marketNiche as string) || "";
-    const archetype = (ext.archetype as string) || "SABIO";
-    const toneOfVoice = Array.isArray(ext.toneOfVoice) ? ext.toneOfVoice : ["Direto e didático", "Focado em decisões e crescimento"];
-    const targetAudiences = Array.isArray(ext.targetAudiences) ? ext.targetAudiences : (ext.targetAudience ? [String(ext.targetAudience)] : []);
+    const valueProposition = (ext.valueProposition as string) || (ext.differentials as string) || body.valueProposition || "";
+    const marketNiche = (ext.marketNiche as string) || body.marketNiche || "";
+    const archetype = (ext.archetype as string) || body.archetype || "SABIO";
+    const toneOfVoice = Array.isArray(ext.toneOfVoice) && ext.toneOfVoice.length > 0
+      ? ext.toneOfVoice
+      : ["Direto e didático", "Focado em decisões e crescimento"];
+    const targetAudiences = Array.isArray(ext.targetAudiences) && ext.targetAudiences.length > 0
+      ? ext.targetAudiences
+      : (ext.targetAudience ? [String(ext.targetAudience)] : ["Decisores e compradores"]);
     const painPoints = Array.isArray(ext.painPoints) ? ext.painPoints : [];
-    const differentials = Array.isArray(ext.differentialsList) ? ext.differentialsList : (ext.differentials ? [String(ext.differentials)] : []);
+    const differentials = Array.isArray(ext.differentialsList)
+      ? ext.differentialsList
+      : (ext.differentials ? [String(ext.differentials)] : []);
     const forbiddenWords = Array.isArray(ext.forbiddenWords) ? ext.forbiddenWords : [];
     const mandatoryTerms = Array.isArray(ext.mandatoryTerms) ? ext.mandatoryTerms : [];
     const defaultCtas = Array.isArray(ext.defaultCtas) ? ext.defaultCtas : ["Iniciar uma conversa qualificada no WhatsApp"];
@@ -120,7 +141,20 @@ export async function POST(
       notes,
     ]);
 
-    // Marcar a tarefa como concluída se o briefing estiver pronto
+    // Atualizar também na tabela de clientes caso não tenha preenchido
+    if (website_url) {
+      await query(`UPDATE public.clients SET website = COALESCE(website, $1) WHERE id = $2`, [website_url, client_id]).catch(() => {});
+    }
+
+    // Se houver session_id, marcar como COMPLETED se ainda não estiver
+    if (session_id) {
+      await query(
+        `UPDATE public.client_briefing_sessions SET status = 'COMPLETED', progress_percent = 100, completed_at = COALESCE(completed_at, NOW()) WHERE id = $1`,
+        [session_id]
+      ).catch(() => {});
+    }
+
+    // Marcar a tarefa como concluída
     await query(
       `UPDATE public.project_tasks SET status = 'DONE', completed_at = NOW() WHERE id = $1`,
       [taskId]

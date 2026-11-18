@@ -67,6 +67,35 @@ export default function LeadDetailPage() {
   const [selectedClientId, setSelectedClientId] = useState("");
   const [converting, setConverting] = useState(false);
   const [convertError, setConvertError] = useState("");
+  const [convertForm, setConvertForm] = useState({
+    name: "",
+    tradeName: "",
+    document: "",
+    email: "",
+    phone: "",
+    whatsapp: "",
+    primaryContact: "",
+    city: "",
+    state: "",
+  });
+
+  const openConvertModal = () => {
+    if (lead) {
+      setConvertForm({
+        name: lead.name || "",
+        tradeName: lead.tradeName || "",
+        document: lead.document ? formatDocument(lead.document) : "",
+        email: lead.email || "",
+        phone: lead.phone || "",
+        whatsapp: lead.whatsapp || "",
+        primaryContact: lead.primaryContact || "",
+        city: lead.city || "",
+        state: lead.state || "",
+      });
+    }
+    setConvertError("");
+    setShowConvertModal(true);
+  };
 
   // Modal de Edição de Lead
   const [showEditModal, setShowEditModal] = useState(false);
@@ -270,13 +299,29 @@ export default function LeadDetailPage() {
     setConvertError("");
 
     try {
+      const payload: Record<string, unknown> = {
+        mode: convertMode,
+        existingClientId: convertMode === "LINK_EXISTING" ? selectedClientId : undefined,
+      };
+
+      if (convertMode === "NEW_CLIENT") {
+        payload.clientDataOverride = {
+          name: convertForm.name.trim() || undefined,
+          tradeName: convertForm.tradeName.trim() || undefined,
+          document: convertForm.document.trim() || undefined,
+          email: convertForm.email.trim() || undefined,
+          phone: convertForm.phone.trim() || undefined,
+          whatsapp: convertForm.whatsapp.trim() || undefined,
+          primaryContact: convertForm.primaryContact.trim() || undefined,
+          city: convertForm.city.trim() || undefined,
+          state: convertForm.state.trim() || undefined,
+        };
+      }
+
       const res = await fetch(`/api/crm/leads/${id}/convert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mode: convertMode,
-          existingClientId: convertMode === "LINK_EXISTING" ? selectedClientId : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -417,7 +462,7 @@ export default function LeadDetailPage() {
             ) : (
               <button
                 type="button"
-                onClick={() => setShowConvertModal(true)}
+                onClick={openConvertModal}
                 className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4" /> Converter em Cliente
@@ -965,6 +1010,137 @@ export default function LeadDetailPage() {
                     </div>
                   </label>
                 </div>
+
+                {convertMode === "NEW_CLIENT" && (
+                  <div className="pt-2 space-y-3 max-h-[340px] overflow-y-auto pr-1">
+                    <div className="p-3 bg-zinc-50 border border-zinc-200 rounded-xl space-y-3">
+                      <div className="flex items-center justify-between border-b border-zinc-200/60 pb-2">
+                        <span className="text-[11px] font-bold text-zinc-700 uppercase tracking-wider">
+                          Dados Cadastrais do Cliente
+                        </span>
+                        <span className="text-[10px] text-zinc-500">Revise ou complete antes de salvar</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div className="sm:col-span-2">
+                          <label className="text-[11px] font-semibold text-zinc-700 block mb-1">
+                            Razão Social / Nome Completo *
+                          </label>
+                          <input
+                            type="text"
+                            value={convertForm.name}
+                            onChange={(e) => setConvertForm((prev) => ({ ...prev, name: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                            placeholder="Nome do cliente"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-zinc-700 block mb-1">
+                            Nome Fantasia
+                          </label>
+                          <input
+                            type="text"
+                            value={convertForm.tradeName}
+                            onChange={(e) => setConvertForm((prev) => ({ ...prev, tradeName: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                            placeholder="Nome fantasia"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-zinc-700 block mb-1">
+                            CPF ou CNPJ
+                          </label>
+                          <input
+                            type="text"
+                            value={convertForm.document}
+                            onChange={(e) => setConvertForm((prev) => ({ ...prev, document: formatDocument(e.target.value) }))}
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                            placeholder="00.000.000/0000-00"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-zinc-700 block mb-1">
+                            Contato Autorizado (Pessoa)
+                          </label>
+                          <input
+                            type="text"
+                            value={convertForm.primaryContact}
+                            onChange={(e) => setConvertForm((prev) => ({ ...prev, primaryContact: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                            placeholder="Ex: Fabrício"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-zinc-700 block mb-1 flex items-center gap-1 text-emerald-700">
+                            <WhatsAppIcon className="w-3 h-3 text-emerald-600" /> WhatsApp Corporativo
+                          </label>
+                          <input
+                            type="text"
+                            value={convertForm.whatsapp}
+                            onChange={(e) => setConvertForm((prev) => ({ ...prev, whatsapp: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                            placeholder="(00) 90000-0000"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-zinc-700 block mb-1">
+                            Telefone Fixo / Outro
+                          </label>
+                          <input
+                            type="text"
+                            value={convertForm.phone}
+                            onChange={(e) => setConvertForm((prev) => ({ ...prev, phone: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                            placeholder="(00) 0000-0000"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-zinc-700 block mb-1">
+                            E-mail Comercial
+                          </label>
+                          <input
+                            type="email"
+                            value={convertForm.email}
+                            onChange={(e) => setConvertForm((prev) => ({ ...prev, email: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                            placeholder="contato@empresa.com"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-zinc-700 block mb-1">
+                            Cidade
+                          </label>
+                          <input
+                            type="text"
+                            value={convertForm.city}
+                            onChange={(e) => setConvertForm((prev) => ({ ...prev, city: e.target.value }))}
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] font-semibold text-zinc-700 block mb-1">
+                            Estado (UF)
+                          </label>
+                          <input
+                            type="text"
+                            maxLength={2}
+                            value={convertForm.state}
+                            onChange={(e) => setConvertForm((prev) => ({ ...prev, state: e.target.value.toUpperCase() }))}
+                            className="w-full px-2.5 py-1.5 text-xs bg-white border border-zinc-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 uppercase"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {convertMode === "LINK_EXISTING" && (
                   <div className="pt-2">

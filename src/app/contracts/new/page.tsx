@@ -16,6 +16,9 @@ import {
   DollarSign,
   AlertCircle,
   CheckCircle2,
+  Tag,
+  Percent,
+  Sparkles,
 } from "lucide-react";
 import { ContractBillingPeriod, ContractItemInput } from "@/modules/contracts/types";
 import { ProposalRecord } from "@/modules/proposals/types";
@@ -395,6 +398,90 @@ function NewContractFormContent() {
     (acc, it) => acc + (Number(it.quantity) || 1) * (Number(it.unitCost) || 0),
     0
   );
+
+  // Desconto e Ajuste Comercial para Valor Fechado
+  const [targetClosedAmount, setTargetClosedAmount] = useState<string>("");
+  const [discountAmount, setDiscountAmount] = useState<string>("");
+  const [discountPercent, setDiscountPercent] = useState<string>("");
+  const [appliedDiscountFeedback, setAppliedDiscountFeedback] = useState<string>("");
+
+  const handleTargetAmountChange = (valStr: string) => {
+    setTargetClosedAmount(valStr);
+    const val = parseFloat(valStr.replace(/\./g, "").replace(",", ".")) || 0;
+    if (totalAmount > 0 && val > 0) {
+      const diff = Math.max(0, totalAmount - val);
+      const pct = (diff / totalAmount) * 100;
+      setDiscountAmount(diff > 0 ? diff.toFixed(2).replace(".", ",") : "");
+      setDiscountPercent(pct > 0 ? pct.toFixed(1).replace(".", ",") : "");
+    } else {
+      setDiscountAmount("");
+      setDiscountPercent("");
+    }
+  };
+
+  const handleDiscountAmountChange = (valStr: string) => {
+    setDiscountAmount(valStr);
+    const diff = parseFloat(valStr.replace(/\./g, "").replace(",", ".")) || 0;
+    if (totalAmount > 0) {
+      const target = Math.max(0, totalAmount - diff);
+      const pct = (diff / totalAmount) * 100;
+      setTargetClosedAmount(target > 0 ? target.toFixed(2).replace(".", ",") : "");
+      setDiscountPercent(pct > 0 ? pct.toFixed(1).replace(".", ",") : "");
+    }
+  };
+
+  const handleDiscountPercentChange = (valStr: string) => {
+    setDiscountPercent(valStr);
+    const pct = parseFloat(valStr.replace(/\./g, "").replace(",", ".")) || 0;
+    if (totalAmount > 0) {
+      const diff = (totalAmount * pct) / 100;
+      const target = Math.max(0, totalAmount - diff);
+      setDiscountAmount(diff > 0 ? diff.toFixed(2).replace(".", ",") : "");
+      setTargetClosedAmount(target > 0 ? target.toFixed(2).replace(".", ",") : "");
+    }
+  };
+
+  const handleApplyDiscountToItems = () => {
+    if (items.length === 0) return;
+    const target = parseFloat(targetClosedAmount.replace(/\./g, "").replace(",", ".")) || 0;
+    if (target <= 0) {
+      alert("Informe um valor fechado válido maior que zero.");
+      return;
+    }
+    if (totalAmount <= 0) return;
+
+    const ratio = target / totalAmount;
+    let runningSum = 0;
+    const originalTotal = totalAmount;
+
+    const updated = items.map((it, idx) => {
+      const qty = it.quantity || 1;
+      if (idx === items.length - 1) {
+        const remainingTotal = Math.max(0, Math.round((target - runningSum) * 100) / 100);
+        const newUnitPrice = Math.round((remainingTotal / qty) * 100) / 100;
+        return {
+          ...it,
+          unitPrice: newUnitPrice,
+        };
+      } else {
+        const currentItemSubtotal = (it.unitPrice || 0) * qty;
+        const newItemSubtotal = Math.round(currentItemSubtotal * ratio * 100) / 100;
+        runningSum += newItemSubtotal;
+        const newUnitPrice = Math.round((newItemSubtotal / qty) * 100) / 100;
+        return {
+          ...it,
+          unitPrice: newUnitPrice,
+        };
+      }
+    });
+
+    setItems(updated);
+    const diff = originalTotal - target;
+    const pct = ((diff / originalTotal) * 100).toFixed(1);
+    const msg = `Desconto de ${formatMoney(diff)} (${pct}%) distribuído com sucesso entre os serviços! Novo total: ${formatMoney(target)}.`;
+    setAppliedDiscountFeedback(msg);
+    setTimeout(() => setAppliedDiscountFeedback(""), 7000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -797,6 +884,103 @@ function NewContractFormContent() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Ajuste Comercial: Desconto e Valor Fechado Negociado */}
+            {items.length > 0 && (
+              <div className="mt-4 border border-emerald-200/90 bg-emerald-50/50 rounded-xl p-4 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200/60 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-emerald-700" />
+                    <span className="text-xs font-bold text-emerald-950 uppercase tracking-wide">
+                      Ajuste Comercial • Desconto ou Valor Fechado
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-emerald-800 font-medium">
+                    Coloque o valor final acordado com o cliente para recalcular os itens automaticamente.
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-zinc-700 block mb-1">
+                      Valor Final Fechado (R$)
+                    </label>
+                    <input
+                      type="text"
+                      value={targetClosedAmount}
+                      onChange={(e) => handleTargetAmountChange(e.target.value)}
+                      placeholder={totalAmount > 0 ? totalAmount.toFixed(2).replace('.', ',') : "0,00"}
+                      className="w-full px-3 py-2 text-xs bg-white border border-emerald-300 rounded-lg font-mono font-bold text-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
+                    />
+                    <span className="text-[10px] text-zinc-500 mt-0.5 block">Ex: 2000,00</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-zinc-700 block mb-1">
+                      Desconto em R$
+                    </label>
+                    <input
+                      type="text"
+                      value={discountAmount}
+                      onChange={(e) => handleDiscountAmountChange(e.target.value)}
+                      placeholder="0,00"
+                      className="w-full px-3 py-2 text-xs bg-white border border-emerald-300 rounded-lg font-mono text-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
+                    />
+                    <span className="text-[10px] text-zinc-500 mt-0.5 block">Ex: 500,00</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-zinc-700 block mb-1">
+                      Desconto em %
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={discountPercent}
+                        onChange={(e) => handleDiscountPercentChange(e.target.value)}
+                        placeholder="0"
+                        className="w-full px-3 py-2 text-xs bg-white border border-emerald-300 rounded-lg font-mono text-zinc-950 focus:outline-none focus:ring-2 focus:ring-emerald-600 shadow-2xs"
+                      />
+                      <span className="text-xs font-bold text-emerald-800">%</span>
+                    </div>
+                    <span className="text-[10px] text-zinc-500 mt-0.5 block">Ex: 10 ou 20</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-zinc-500 font-medium">Atalhos rápidos:</span>
+                    {[5, 10, 15, 20].map((pct) => (
+                      <button
+                        key={pct}
+                        type="button"
+                        onClick={() => handleDiscountPercentChange(String(pct))}
+                        className="px-2.5 py-1 text-[11px] font-bold bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-lg transition shadow-2xs cursor-pointer"
+                      >
+                        -{pct}%
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleApplyDiscountToItems}
+                    disabled={!targetClosedAmount && !discountAmount && !discountPercent}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition shadow-xs disabled:opacity-40 cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Distribuir e Ajustar nos Itens
+                  </button>
+                </div>
+
+                {appliedDiscountFeedback && (
+                  <div className="p-2.5 bg-emerald-100 border border-emerald-300 rounded-lg text-xs text-emerald-950 font-medium flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>{appliedDiscountFeedback}</span>
+                  </div>
+                )}
               </div>
             )}
 

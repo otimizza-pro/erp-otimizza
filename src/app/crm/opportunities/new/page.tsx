@@ -344,7 +344,12 @@ function NewOpportunityForm() {
 
       if (res.ok) {
         const data = await res.json();
-        router.push(`/crm/opportunities/${data.opportunity.id}`);
+        const oppId = data.id || data.opportunity?.id;
+        if (oppId) {
+          router.push(`/crm/opportunities/${oppId}`);
+        } else {
+          router.push("/crm/opportunities");
+        }
       } else {
         const err = await res.json();
         setErrorMessage(err.error || "Erro ao criar oportunidade.");

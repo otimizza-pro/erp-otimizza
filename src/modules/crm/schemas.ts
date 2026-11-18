@@ -51,6 +51,10 @@ export const ConvertLeadSchema = z.object({
       document: z.string().trim().optional(),
       email: z.string().trim().optional(),
       phone: z.string().trim().optional(),
+      whatsapp: z.string().trim().optional(),
+      primaryContact: z.string().trim().optional(),
+      city: z.string().trim().optional(),
+      state: z.string().trim().optional(),
     })
     .optional(),
 });

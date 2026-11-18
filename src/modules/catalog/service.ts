@@ -437,26 +437,32 @@ export async function deleteService(id: string): Promise<{ action: "deleted" | "
     "SELECT COUNT(*) as count FROM combo_items WHERE service_id = $1",
     [id]
   );
-  // Check usage in payables
-  const payableCheck = await query<{ count: string }>(
-    "SELECT COUNT(*) as count FROM payables WHERE service_id = $1",
+  // Check usage in proposals
+  const proposalCheck = await query<{ count: string }>(
+    "SELECT COUNT(*) as count FROM proposal_items WHERE service_id = $1",
     [id]
   );
+  // Check usage in payables allocations
+  const allocCheck = await query<{ count: string }>(
+    "SELECT COUNT(*) as count FROM payable_allocations WHERE service_id = $1",
+    [id]
+  ).catch(() => ({ rows: [{ count: "0" }] }));
 
   const contractCount = parseInt(contractCheck.rows[0]?.count || "0", 10);
   const comboCount = parseInt(comboCheck.rows[0]?.count || "0", 10);
-  const payableCount = parseInt(payableCheck.rows[0]?.count || "0", 10);
+  const proposalCount = parseInt(proposalCheck.rows[0]?.count || "0", 10);
+  const allocCount = parseInt(allocCheck.rows[0]?.count || "0", 10);
 
-  if (contractCount > 0 || comboCount > 0 || payableCount > 0) {
+  if (contractCount > 0 || comboCount > 0 || proposalCount > 0 || allocCount > 0) {
     await archiveService(id);
     return {
       action: "archived",
-      message: `Serviço arquivado com sucesso! Como possui movimentações históricas (${contractCount} contratos, ${comboCount} combos, ${payableCount} despesas), ele foi mantido como inativo para preservar a rastreabilidade contábil.`,
+      message: `Serviço arquivado com sucesso! Como possui movimentações históricas (${contractCount} contratos, ${comboCount} combos, ${proposalCount} propostas), ele foi mantido como inativo para preservar a rastreabilidade contábil.`,
     };
   }
 
-  // If clean, remove bindings and delete
-  await query("DELETE FROM supplier_cost_bindings WHERE service_id = $1", [id]);
+  // If clean, clean any presentation bindings and delete service
+  await query("DELETE FROM service_presentations WHERE service_id = $1", [id]).catch(() => {});
   await query("DELETE FROM services WHERE id = $1", [id]);
   await query(
     `INSERT INTO audit_logs (entity_name, entity_id, action, old_data)
@@ -468,6 +474,33 @@ export async function deleteService(id: string): Promise<{ action: "deleted" | "
     action: "deleted",
     message: "Serviço excluído permanentemente com sucesso!",
   };
+}
+
+export async function batchDeleteServices(ids: string[]): Promise<{
+  deletedCount: number;
+  archivedCount: number;
+  results: Array<{ id: string; action: "deleted" | "archived"; message: string }>;
+}> {
+  let deletedCount = 0;
+  let archivedCount = 0;
+  const results: Array<{ id: string; action: "deleted" | "archived"; message: string }> = [];
+
+  for (const id of ids) {
+    try {
+      const res = await deleteService(id);
+      if (res.action === "deleted") deletedCount++;
+      if (res.action === "archived") archivedCount++;
+      results.push({ id, action: res.action, message: res.message });
+    } catch (err: unknown) {
+      results.push({
+        id,
+        action: "archived",
+        message: err instanceof Error ? err.message : "Erro ao processar serviço.",
+      });
+    }
+  }
+
+  return { deletedCount, archivedCount, results };
 }
 
 // -----------------------------------------------------------------------------

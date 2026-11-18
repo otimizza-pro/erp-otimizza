@@ -347,7 +347,8 @@ function LeadsListContent() {
 
       if (res.ok) {
         const data = await res.json();
-        setCreatedOppId(data.opportunity.id);
+        const createdId = data.id || data.opportunity?.id || "";
+        setCreatedOppId(createdId);
         loadLeads();
       } else {
         const err = await res.json();

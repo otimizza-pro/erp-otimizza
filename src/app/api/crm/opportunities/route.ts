@@ -35,7 +35,14 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const opportunity = await CrmService.createOpportunity(body);
-    return NextResponse.json(opportunity, { status: 201 });
+    return NextResponse.json(
+      {
+        ...opportunity,
+        success: true,
+        opportunity,
+      },
+      { status: 201 }
+    );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao criar oportunidade.";
     return NextResponse.json({ error: message }, { status: 400 });

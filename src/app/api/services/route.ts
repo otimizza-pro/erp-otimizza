@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { listServices, createService, listServiceCategories, createServiceCategory } from "@/modules/catalog/service";
+import {
+  listServices,
+  createService,
+  listServiceCategories,
+  createServiceCategory,
+  batchDeleteServices,
+} from "@/modules/catalog/service";
 
 export async function GET(request: Request) {
   try {
@@ -52,5 +58,25 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao criar serviço/categoria.";
     return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const body = await request.json();
+    const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "Nenhum serviço selecionado para exclusão." }, { status: 400 });
+    }
+
+    const result = await batchDeleteServices(ids);
+    return NextResponse.json({
+      success: true,
+      ...result,
+      message: `${result.deletedCount} serviço(s) excluído(s) e ${result.archivedCount} arquivado(s).`,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro ao excluir serviços em lote.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

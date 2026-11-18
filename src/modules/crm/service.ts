@@ -637,6 +637,8 @@ export class CrmService {
         document: string | null;
         email: string | null;
         phone: string | null;
+        whatsapp: string | null;
+        primary_contact: string | null;
         city: string | null;
         state: string | null;
         notes: string | null;
@@ -658,6 +660,10 @@ export class CrmService {
         const clientDoc = rawDoc ? normalizeDocument(rawDoc) : null;
         const clientEmail = input.clientDataOverride?.email || rawLead.email || null;
         const clientPhone = input.clientDataOverride?.phone || rawLead.phone || null;
+        const clientWhatsapp = input.clientDataOverride?.whatsapp || rawLead.whatsapp || null;
+        const clientCity = input.clientDataOverride?.city || rawLead.city || null;
+        const clientState = input.clientDataOverride?.state || rawLead.state || null;
+        const primaryContactName = input.clientDataOverride?.primaryContact || rawLead.primary_contact || null;
 
         // Se houver documento, verificar se já pertence a outro cliente
         if (clientDoc && clientDoc.length > 0) {
@@ -675,8 +681,8 @@ export class CrmService {
         // Criar o novo cliente
         const insertClientSql = `
           INSERT INTO clients (
-            type, name, trade_name, document, email, phone, city, state, notes, status
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'ACTIVE')
+            type, name, trade_name, document, email, phone, whatsapp, city, state, notes, status
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ACTIVE')
           RETURNING id, name
         `;
         const insertClientRes = await client.query(insertClientSql, [
@@ -686,12 +692,30 @@ export class CrmService {
           clientDoc,
           clientEmail,
           clientPhone,
-          rawLead.city || null,
-          rawLead.state || null,
+          clientWhatsapp,
+          clientCity,
+          clientState,
           `Convertido a partir do Lead ${rawLead.lead_code}. ${rawLead.notes || ""}`.trim(),
         ]);
         finalClientId = insertClientRes.rows[0].id;
         finalClientName = insertClientRes.rows[0].name;
+
+        // Inserir contato responsável em client_contacts
+        const contactNameToInsert = primaryContactName?.trim() || (rawLead.person_type === "PF" ? clientName : null);
+        if (contactNameToInsert) {
+          await client.query(
+            `INSERT INTO client_contacts (client_id, name, role, email, phone, whatsapp, is_primary)
+             VALUES ($1, $2, $3, $4, $5, $6, true)`,
+            [
+              finalClientId,
+              contactNameToInsert,
+              "Contato Principal",
+              clientEmail,
+              clientPhone,
+              clientWhatsapp,
+            ]
+          );
+        }
       } else {
         // LINK_EXISTING
         if (!input.existingClientId) {

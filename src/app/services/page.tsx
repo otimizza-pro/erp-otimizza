@@ -30,6 +30,10 @@ export default function ServicesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
+  // Seleção múltipla para exclusão em massa
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [batchDeleting, setBatchDeleting] = useState(false);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -49,10 +53,62 @@ export default function ServicesPage() {
 
       setServices(servicesData || []);
       setCategories(categoriesData || []);
+      setSelectedServiceIds([]);
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedServiceIds.length === services.length && services.length > 0) {
+      setSelectedServiceIds([]);
+    } else {
+      setSelectedServiceIds(services.map((s) => s.id));
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedServiceIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedServiceIds.length === 0) return;
+    if (
+      !window.confirm(
+        `Tem certeza que deseja excluir os ${selectedServiceIds.length} serviços selecionados? Serviços sem histórico contábil serão excluídos permanentemente; aqueles com histórico de contratos ou combos serão arquivados com segurança.`
+      )
+    ) {
+      return;
+    }
+
+    setBatchDeleting(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/services", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedServiceIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao excluir serviços selecionados");
+
+      setFeedback({
+        type: "success",
+        msg: data.message || `${data.deletedCount} serviço(s) excluído(s) e ${data.archivedCount} arquivado(s).`,
+      });
+      setSelectedServiceIds([]);
+      loadData();
+    } catch (err: unknown) {
+      setFeedback({
+        type: "error",
+        msg: err instanceof Error ? err.message : "Erro ao processar exclusão em lote.",
+      });
+    } finally {
+      setBatchDeleting(false);
     }
   };
 
@@ -216,10 +272,46 @@ export default function ServicesPage() {
             </span>
           </div>
 
+          {/* Barra de Ações em Massa */}
+          {selectedServiceIds.length > 0 && (
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between animate-in fade-in">
+              <span className="text-xs font-bold text-purple-900">
+                {selectedServiceIds.length} serviço(s) selecionado(s)
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedServiceIds([])}
+                  className="px-3 py-1.5 text-xs text-zinc-600 hover:bg-white rounded-lg transition cursor-pointer"
+                >
+                  Limpar seleção
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteSelected}
+                  disabled={batchDeleting}
+                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs disabled:opacity-50 transition cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {batchDeleting ? "Excluindo..." : `Excluir Selecionados (${selectedServiceIds.length})`}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-zinc-600">
               <thead className="text-[10px] uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
                 <tr>
+                  <th className="py-3 px-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={selectedServiceIds.length === services.length && services.length > 0}
+                      onChange={handleToggleSelectAll}
+                      className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                      title="Selecionar todos os serviços visíveis"
+                    />
+                  </th>
                   <th className="py-3 px-3">Serviço</th>
                   <th className="py-3 px-3">Categoria</th>
                   <th className="py-3 px-3">Unidade</th>
@@ -232,13 +324,13 @@ export default function ServicesPage() {
               <tbody className="divide-y divide-zinc-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-zinc-400">
+                    <td colSpan={8} className="py-12 text-center text-zinc-400">
                       Carregando catálogo de serviços...
                     </td>
                   </tr>
                 ) : services.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-zinc-400 space-y-2">
+                    <td colSpan={8} className="py-12 text-center text-zinc-400 space-y-2">
                       <Package className="w-8 h-8 text-zinc-300 mx-auto" />
                       <p>Nenhum serviço cadastrado.</p>
                       <Link
@@ -251,7 +343,20 @@ export default function ServicesPage() {
                   </tr>
                 ) : (
                   services.map((s) => (
-                    <tr key={s.id} className="hover:bg-zinc-50/70 transition">
+                    <tr
+                      key={s.id}
+                      className={`hover:bg-zinc-50/70 transition ${
+                        selectedServiceIds.includes(s.id) ? "bg-purple-50/30" : ""
+                      }`}
+                    >
+                      <td className="py-3.5 px-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedServiceIds.includes(s.id)}
+                          onChange={() => handleToggleSelect(s.id)}
+                          className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                        />
+                      </td>
                       <td className="py-3.5 px-3">
                         <div className="font-semibold text-zinc-900">{s.name}</div>
                         {s.description && (

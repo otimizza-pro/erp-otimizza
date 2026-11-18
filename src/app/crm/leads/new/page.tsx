@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
@@ -13,9 +13,24 @@ import {
   AlertCircle,
   CheckCircle2,
   Phone,
+  Layers,
+  DollarSign,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { formatDocument } from "@/shared/cpf-cnpj";
+
+interface PipelineStage {
+  id: string;
+  name: string;
+  stageType: string;
+}
+
+interface PipelineOption {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  stages?: PipelineStage[];
+}
 
 export default function NewLeadPage() {
   const router = useRouter();
@@ -37,6 +52,49 @@ export default function NewLeadPage() {
     source: "Indicação",
     notes: "",
   });
+
+  // Funil e Oportunidade Integrada
+  const [pipelines, setPipelines] = useState<PipelineOption[]>([]);
+  const [addToPipeline, setAddToPipeline] = useState(false);
+  const [selectedPipelineId, setSelectedPipelineId] = useState("");
+  const [selectedStageId, setSelectedStageId] = useState("");
+  const [oppTitle, setOppTitle] = useState("");
+  const [oppAmount, setOppAmount] = useState("");
+
+  useEffect(() => {
+    async function fetchPipelines() {
+      try {
+        const res = await fetch("/api/crm/pipelines");
+        if (res.ok) {
+          const data = await res.json();
+          const list: PipelineOption[] = data.pipelines || [];
+          setPipelines(list);
+          const defaultPipe = list.find((p) => p.isDefault) || list[0];
+          if (defaultPipe) {
+            setSelectedPipelineId(defaultPipe.id);
+            if (defaultPipe.stages && defaultPipe.stages.length > 0) {
+              setSelectedStageId(defaultPipe.stages[0].id);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Erro ao carregar funis:", e);
+      }
+    }
+    fetchPipelines();
+  }, []);
+
+  const handlePipelineChange = (pId: string) => {
+    setSelectedPipelineId(pId);
+    const pipe = pipelines.find((p) => p.id === pId);
+    if (pipe && pipe.stages && pipe.stages.length > 0) {
+      setSelectedStageId(pipe.stages[0].id);
+    } else {
+      setSelectedStageId("");
+    }
+  };
+
+  const currentStages = pipelines.find((p) => p.id === selectedPipelineId)?.stages || [];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -62,6 +120,37 @@ export default function NewLeadPage() {
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Erro ao salvar lead.");
+      }
+
+      // Se marcou para adicionar ao funil, criar oportunidade
+      if (addToPipeline && selectedPipelineId) {
+        try {
+          const numericAmount = parseFloat(oppAmount.replace(/\./g, "").replace(",", ".")) || 0;
+          const oppRes = await fetch("/api/crm/opportunities", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: oppTitle.trim() || `Negociação - ${form.name}`,
+              leadId: data.id,
+              pipelineId: selectedPipelineId,
+              stageId: selectedStageId || undefined,
+              amount: numericAmount,
+              billingPeriod: "MONTHLY",
+              probability: 20,
+              source: form.source || undefined,
+            }),
+          });
+          if (oppRes.ok) {
+            const oppData = await oppRes.json();
+            const oppId = oppData.id || oppData.opportunity?.id;
+            if (oppId) {
+              router.push(`/crm/opportunities/${oppId}`);
+              return;
+            }
+          }
+        } catch (oppErr) {
+          console.error("Erro ao adicionar oportunidade ao funil:", oppErr);
+        }
       }
 
       router.push(`/crm/leads/${data.id}`);
@@ -287,6 +376,103 @@ export default function NewLeadPage() {
                 />
               </div>
             </div>
+          </div>
+
+          {/* Inclusão Direta em Funil Comercial */}
+          <div className="pt-4 border-t border-zinc-100 space-y-3">
+            <div className="flex items-center justify-between p-3.5 bg-zinc-50 border border-zinc-200/80 rounded-xl cursor-pointer hover:bg-zinc-100/60 transition"
+              onClick={() => setAddToPipeline(!addToPipeline)}
+            >
+              <div className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  id="addToPipeline"
+                  checked={addToPipeline}
+                  onChange={(e) => setAddToPipeline(e.target.checked)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950 w-4 h-4 cursor-pointer"
+                />
+                <div>
+                  <label htmlFor="addToPipeline" className="text-xs font-bold text-zinc-900 cursor-pointer block flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                    Adicionar diretamente ao Funil de Vendas (Criar Oportunidade)
+                  </label>
+                  <p className="text-[11px] text-zinc-500">
+                    Cria simultaneamente uma negociação comercial no funil selecionado para acompanhamento imediato.
+                  </p>
+                </div>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${addToPipeline ? 'bg-indigo-100 text-indigo-700' : 'bg-zinc-200 text-zinc-600'}`}>
+                {addToPipeline ? "ATIVADO" : "OPCIONAL"}
+              </span>
+            </div>
+
+            {addToPipeline && (
+              <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                      Funil Comercial *
+                    </label>
+                    <select
+                      value={selectedPipelineId}
+                      onChange={(e) => handlePipelineChange(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    >
+                      {pipelines.map((pipe) => (
+                        <option key={pipe.id} value={pipe.id}>
+                          {pipe.name} {pipe.isDefault ? "(Padrão)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                      Etapa Inicial do Funil *
+                    </label>
+                    <select
+                      value={selectedStageId}
+                      onChange={(e) => setSelectedStageId(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    >
+                      {currentStages.map((stage) => (
+                        <option key={stage.id} value={stage.id}>
+                          {stage.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                      Título da Negociação
+                    </label>
+                    <input
+                      type="text"
+                      value={oppTitle}
+                      onChange={(e) => setOppTitle(e.target.value)}
+                      placeholder={form.name ? `Negociação - ${form.name}` : "Negociação Comercial"}
+                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1 flex items-center gap-1">
+                      <DollarSign className="w-3.5 h-3.5 text-zinc-500" />
+                      Valor Estimado Mensal / Projeto (R$)
+                    </label>
+                    <input
+                      type="text"
+                      value={oppAmount}
+                      onChange={(e) => setOppAmount(e.target.value)}
+                      placeholder="Ex: 2.500,00"
+                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Observações */}

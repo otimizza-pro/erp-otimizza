@@ -1,5 +1,6 @@
 "use client";
 
+import { useCompany } from "@/lib/context/company-context";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
@@ -57,7 +58,9 @@ interface PostItem {
 export default function SavedPostsPage() {
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
+  const {selectedCompany}=useCompany();
   const [selectedClientId, setSelectedClientId] = useState<string>("ALL");
+  useEffect(()=>{setSelectedClientId(selectedCompany.isOtimizza?"ALL":selectedCompany.id);},[selectedCompany.id,selectedCompany.isOtimizza]);
   const [activeTab, setActiveTab] = useState<"SOCIAL_MEDIA" | "ADS">("SOCIAL_MEDIA");
   const [adStatusFilter, setAdStatusFilter] = useState<"ALL" | "ACTIVE" | "PAUSED" | "FINISHED">("ALL");
   const [loading, setLoading] = useState(true);

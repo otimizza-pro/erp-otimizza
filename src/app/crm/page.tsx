@@ -27,6 +27,7 @@ export default function CrmDashboardPage() {
   const [recentLeads, setRecentLeads] = useState<LeadRecord[]>([]);
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string>("");
 
   async function loadData() {
     setLoading(true);
@@ -175,57 +176,97 @@ export default function CrmDashboardPage() {
 
           {/* Gráfico de Distribuição por Etapas do Funil */}
           <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
-            <div className="mb-4">
-              <h4 className="text-sm font-bold text-zinc-950">Distribuição do Pipeline por Etapa</h4>
-              <p className="text-[11px] text-zinc-400 mt-0.5">
-                Volume financeiro e contagem de negócios em cada fase
-              </p>
-            </div>
+            {(() => {
+              const allStages = kpis?.opportunitiesByStage || [];
+              const distinctPipelines = Array.from(
+                new Map(
+                  allStages
+                    .filter((s) => s.pipelineId && s.pipelineName)
+                    .map((s) => [s.pipelineId!, s.pipelineName!])
+                ).entries()
+              );
 
-            {(!kpis?.opportunitiesByStage || kpis.opportunitiesByStage.length === 0) ? (
-              <div className="py-12 text-center text-xs text-zinc-400">
-                Nenhuma oportunidade aberta nas etapas do funil.
-              </div>
-            ) : (
-              <div className="space-y-3.5 my-auto">
-                {kpis.opportunitiesByStage.map((st) => {
-                  const maxAmount = Math.max(
-                    1,
-                    ...kpis.opportunitiesByStage.map((item) => item.totalAmount)
-                  );
-                  const widthPct = Math.min(100, Math.max(6, (st.totalAmount / maxAmount) * 100));
+              const currentPipeId = selectedPipelineId || (distinctPipelines[0]?.[0] ?? "");
+              const displayedStages = currentPipeId
+                ? allStages.filter((s) => s.pipelineId === currentPipeId)
+                : allStages;
 
-                  return (
-                    <div key={st.stageId} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full"
-                            style={{ backgroundColor: st.stageColor }}
-                          />
-                          <span className="font-semibold text-zinc-800">{st.stageName}</span>
-                          <span className="text-[10px] text-zinc-400">
-                            ({st.count} {st.count === 1 ? "negócio" : "negócios"})
-                          </span>
-                        </div>
-                        <span className="font-bold text-zinc-900 font-mono">
-                          {formatBRL(st.totalAmount)}
-                        </span>
-                      </div>
-                      <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{
-                            width: `${widthPct}%`,
-                            backgroundColor: st.stageColor,
-                          }}
-                        />
-                      </div>
+              return (
+                <>
+                  <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-zinc-100 pb-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-zinc-950">Distribuição do Pipeline por Etapa</h4>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">
+                        Volume financeiro e contagem de negócios em cada fase
+                      </p>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+
+                    {distinctPipelines.length > 1 && (
+                      <div className="flex items-center gap-1 bg-zinc-100 p-0.5 rounded-lg shrink-0">
+                        {distinctPipelines.map(([pId, pName]) => (
+                          <button
+                            key={pId}
+                            onClick={() => setSelectedPipelineId(pId)}
+                            className={`px-2.5 py-1 text-xs font-semibold rounded-md transition ${
+                              currentPipeId === pId
+                                ? "bg-white text-zinc-950 shadow-xs"
+                                : "text-zinc-600 hover:text-zinc-900"
+                            }`}
+                          >
+                            {pName}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {displayedStages.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-zinc-400">
+                      Nenhuma oportunidade aberta nas etapas deste funil.
+                    </div>
+                  ) : (
+                    <div className="space-y-3.5 my-auto">
+                      {displayedStages.map((st) => {
+                        const maxAmount = Math.max(
+                          1,
+                          ...displayedStages.map((item) => item.totalAmount)
+                        );
+                        const widthPct = Math.min(100, Math.max(6, (st.totalAmount / maxAmount) * 100));
+
+                        return (
+                          <div key={st.stageId} className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                                  style={{ backgroundColor: st.stageColor }}
+                                />
+                                <span className="font-semibold text-zinc-800">{st.stageName}</span>
+                                <span className="text-[10px] text-zinc-400">
+                                  ({st.count} {st.count === 1 ? "negócio" : "negócios"})
+                                </span>
+                              </div>
+                              <span className="font-bold text-zinc-900 font-mono">
+                                {formatBRL(st.totalAmount)}
+                              </span>
+                            </div>
+                            <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${widthPct}%`,
+                                  backgroundColor: st.stageColor,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
 

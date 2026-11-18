@@ -1,20 +1,38 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { CrmService } from "@/modules/crm/service";
 import { LeadStatus } from "@/modules/crm/types";
 import { getDbPool } from "@/lib/db/pool";
 
 export async function GET(request: Request) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || undefined;
     const status = (searchParams.get("status") as LeadStatus | "ALL") || undefined;
     const source = searchParams.get("source") || undefined;
+    const acquisitionType = (searchParams.get("acquisitionType") as any) || undefined;
+    const leadSource = searchParams.get("leadSource") || undefined;
+    const firstContactChannel = searchParams.get("firstContactChannel") || undefined;
     const pipelineId = searchParams.get("pipelineId") || undefined;
     const stageId = searchParams.get("stageId") || undefined;
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
     const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!, 10) : undefined;
 
-    const result = await CrmService.listLeads({ search, status, source, pipelineId, stageId, limit, offset });
+    const result = await CrmService.listLeads({
+      ownerClientId: searchParams.get("ownerClientId") || undefined,
+      search,
+      status,
+      source,
+      acquisitionType,
+      leadSource,
+      firstContactChannel,
+      pipelineId,
+      stageId,
+      limit,
+      offset,
+    });
     return NextResponse.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao listar leads.";
@@ -23,11 +41,16 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const body = await request.json();
     const lead = await CrmService.createLead(body);
     return NextResponse.json(lead, { status: 201 });
   } catch (error: unknown) {
+    if (error instanceof z.ZodError) {
+      const msg = error.issues.map((i) => i.message).join(", ");
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
     const message = error instanceof Error ? error.message : "Erro ao cadastrar lead.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
@@ -37,6 +60,7 @@ export async function POST(request: Request) {
  * Exclusão em Massa de Leads com expurgo de documentos e arquivos
  */
 export async function DELETE(request: Request) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const body = await request.json();
     const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
@@ -73,6 +97,7 @@ export async function DELETE(request: Request) {
  * Edição em Massa de Leads (Status, Origem, Vinculação ao Funil & Etapa)
  */
 export async function PATCH(request: Request) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const body = await request.json();
     const ids: string[] = Array.isArray(body.ids) ? body.ids : [];

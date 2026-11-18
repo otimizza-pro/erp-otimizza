@@ -133,6 +133,7 @@ describe("Fase 7 - Integração de CRM, Funis, Oportunidades e Atividades", () =
     });
 
     it("cria oportunidade comercial associada ao Lead", async () => {
+      await CrmService.updateLead(testLeadId, {status:"QUALIFIED"});
       const opp = await CrmService.createOpportunity({
         title: "[TEST-CRM] Contrato SEO + Ads Alpha",
         leadId: testLeadId,

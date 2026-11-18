@@ -170,7 +170,10 @@ export function getDbPool(): pg.Pool {
 
   // Em produção tradicional
   if (process.env.NODE_ENV === "production") {
-    return new Pool(createPoolConfig(env.DATABASE_URL));
+    if (!global.__dbPool) {
+      global.__dbPool = new Pool(createPoolConfig(env.DATABASE_URL));
+    }
+    return global.__dbPool;
   }
 
   // Em desenvolvimento local, reutilizar pool global para evitar vazamento no Hot Reload

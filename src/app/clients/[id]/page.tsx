@@ -930,7 +930,7 @@ function ClientDetailsContent() {
                         <Link
                           href={`/contracts/${c.id}`}
                           className="p-1.5 rounded-lg bg-zinc-50 hover:bg-zinc-100 text-zinc-600"
-                          title="Abrir contrato"
+                          title={c.status === "ACTIVE" ? "Gerenciar ou cancelar contrato" : "Abrir histórico do contrato"}
                         >
                           <ExternalLink className="w-4 h-4" />
                         </Link>

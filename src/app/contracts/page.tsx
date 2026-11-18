@@ -26,7 +26,7 @@ function ContractsListPageContent() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("ACTIVE");
   const [expiringFilter, setExpiringFilter] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
 

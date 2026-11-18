@@ -155,7 +155,7 @@ export default function ServicesPage() {
               </span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
-              Catálogo de Serviços
+              Serviços
             </h1>
             <p className="text-xs text-zinc-500">
               Serviços especializados, custos, precificação de referência e vinculação categórica
@@ -163,7 +163,7 @@ export default function ServicesPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              href="/services/categories"
+              href="/combos" className="px-4 py-2 border rounded-full text-xs">Combos</Link><Link href="/services/categories"
               className="px-4 py-2 rounded-full bg-white border border-zinc-200 text-zinc-700 text-xs font-semibold hover:bg-zinc-50 transition shadow-2xs flex items-center gap-1.5"
             >
               <FolderTree className="w-3.5 h-3.5 text-zinc-500" />

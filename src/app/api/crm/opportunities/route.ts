@@ -1,8 +1,10 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { CrmService } from "@/modules/crm/service";
 import { OpportunityStatus } from "@/modules/crm/types";
 
 export async function GET(request: Request) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const { searchParams } = new URL(request.url);
     const pipelineId = searchParams.get("pipelineId") || undefined;
@@ -32,6 +34,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const body = await request.json();
     const opportunity = await CrmService.createOpportunity(body);

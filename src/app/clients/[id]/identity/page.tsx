@@ -1,4 +1,6 @@
 "use client";
+import {CommunicationProfileFields} from "@/components/clients/communication-profile";
+import {CommunicationProfileSchema,emptyCommunicationProfile} from "@/modules/clients/communication-profile";
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -56,6 +58,7 @@ export default function ClientIdentityPage() {
   const [feedback, setFeedback] = useState<string | null>(null);
 
   // Form Fields
+  const [communicationProfile,setCommunicationProfile]=useState(emptyCommunicationProfile);
   const [valueProposition, setValueProposition] = useState("");
   const [marketNiche, setMarketNiche] = useState("");
   const [archetype, setArchetype] = useState("");
@@ -103,6 +106,7 @@ export default function ClientIdentityPage() {
         if (idRes.ok) {
           const data = await idRes.json();
           setValueProposition(data.valueProposition || "");
+          setCommunicationProfile(CommunicationProfileSchema.parse(data.communicationProfile||{}));
           setMarketNiche(data.marketNiche || "");
           setArchetype(data.archetype || "");
           setSelectedTones(data.toneOfVoice || []);
@@ -154,6 +158,7 @@ export default function ClientIdentityPage() {
 
     try {
       const payload = {
+        communicationProfile,
         valueProposition,
         marketNiche,
         archetype,
@@ -250,6 +255,7 @@ export default function ClientIdentityPage() {
         )}
 
         <form onSubmit={handleSave} className="space-y-6">
+          <CommunicationProfileFields value={communicationProfile} onChange={setCommunicationProfile}/>
           {/* 1. Proposta de Valor e Nicho */}
           <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4">
             <h2 className="text-sm font-bold text-zinc-900 border-b border-zinc-100 pb-2">

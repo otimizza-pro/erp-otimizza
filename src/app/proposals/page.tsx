@@ -20,6 +20,8 @@ import {
   Download,
   Building,
   UserCheck,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 import { ProposalRecord, ProposalStatus, ProposalMetrics } from "@/modules/proposals/types";
 
@@ -33,7 +35,28 @@ function ProposalsListPageContent() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>(initialStatus);
   const [metrics, setMetrics] = useState<ProposalMetrics | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+
+  const handleDeleteProposal = async (id: string, code: string) => {
+    if (!confirm(`Deseja realmente excluir permanentemente a proposta ${code}? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/proposals/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        await loadProposals();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao excluir proposta.");
+      }
+    } catch {
+      alert("Falha de comunicação com o servidor.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   useEffect(() => {
     const s = searchParams.get("status");
@@ -409,6 +432,19 @@ function ProposalsListPageContent() {
                               Ver Detalhes
                               <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
                             </Link>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteProposal(prop.id, prop.proposalCode)}
+                              disabled={deletingId === prop.id}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Excluir proposta"
+                            >
+                              {deletingId === prop.id ? (
+                                <RefreshCw className="w-4 h-4 animate-spin text-rose-400" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </button>
                           </div>
                         </td>
                       </tr>

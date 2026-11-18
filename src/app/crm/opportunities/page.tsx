@@ -333,7 +333,7 @@ export default function OpportunitiesListPage() {
               </span>
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
-                  Funis Comerciais & Negociações (CRM)
+                  Oportunidades
                 </h1>
                 <p className="text-xs text-zinc-500 mt-0.5">
                   Gestão operacional de oportunidades, transição rápida entre funis e avanço para fechamento.

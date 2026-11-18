@@ -135,7 +135,7 @@ export function CompanySelector() {
             </div>
 
             <div className="border-t border-zinc-100 pt-1.5 px-2 text-[10px] text-zinc-400 leading-tight">
-              A seleção altera os painéis de <strong>Estratégia</strong> e <strong>Estúdio de Conteúdo</strong>. O CRM e a carteira de clientes permanecem intactos.
+              A seleção define o cliente nos módulos de produção e acompanhamento. O CRM e o financeiro mantêm seus próprios filtros.
             </div>
           </div>
         )}

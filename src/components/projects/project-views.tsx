@@ -142,6 +142,8 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
   // Carregamento de Projetos
   const loadProjects = async () => {
     setLoading(true);
+    setError("");
+    setProjects([]);
     try {
       const res = await fetch(`/api/projects${clientId ? `?clientId=${clientId}` : ""}`);
       const data = await res.json();
@@ -322,7 +324,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
       )}
 
       {/* 4 Cards de Métricas / KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {!loading && !error && <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total */}
         <div className="p-4 bg-white border border-zinc-200/90 rounded-2xl shadow-xs space-y-1">
           <div className="flex items-center justify-between">
@@ -392,7 +394,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
             Estimadas: {filtered.reduce((sum, p) => sum + Number(p.estimatedHours || 0), 0)}h
           </p>
         </div>
-      </div>
+      </div>}
 
       {/* Barra de Filtros & Seletor de Modo de Visualização */}
       <div className="p-4 bg-white border border-zinc-200/90 rounded-2xl shadow-xs space-y-3">
@@ -537,7 +539,8 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
       {/* Estados de Carregamento & Erro */}
       {error && (
         <div className="p-4 bg-rose-50 text-rose-900 border border-rose-200 rounded-2xl text-xs font-medium">
-          {error}
+          <p>{/timeout|ENOTFOUND|ECONNREFUSED|ECONNRESET|connection terminated/i.test(error) ? "Não foi possível conectar ao banco de dados. Os projetos estão indisponíveis no momento; isso não significa que foram apagados." : error}</p>
+          <button type="button" onClick={loadProjects} disabled={loading} className="mt-3 px-3 py-2 rounded-lg border border-rose-300 hover:bg-rose-100 disabled:opacity-50">{loading ? "Tentando..." : "Tentar novamente"}</button>
         </div>
       )}
 

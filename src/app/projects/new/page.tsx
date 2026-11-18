@@ -1,5 +1,6 @@
 "use client";
 
+import { useCompany } from "@/lib/context/company-context";
 import React, { useState, useEffect, Suspense } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,7 +24,8 @@ import { ProjectTemplateRecord, ProjectType, ProjectPriority } from "@/modules/p
 function NewProjectFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const initialClientId = searchParams.get("clientId") || "";
+  const { selectedCompany } = useCompany();
+  const initialClientId = searchParams.get("clientId") || (selectedCompany.isOtimizza ? "" : selectedCompany.id);
 
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");

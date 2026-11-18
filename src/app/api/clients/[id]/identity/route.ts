@@ -1,3 +1,5 @@
+import {CommunicationProfileSchema,emptyCommunicationProfile} from "@/modules/clients/communication-profile";
+import {requireAdminUser} from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 
@@ -5,6 +7,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const { id } = await params;
 
@@ -17,6 +20,7 @@ export async function GET(
       // Retornar estrutura padrão vazia
       return NextResponse.json({
         clientId: id,
+        communicationProfile:emptyCommunicationProfile,
         valueProposition: "",
         marketNiche: "",
         archetype: "",
@@ -39,6 +43,7 @@ export async function GET(
     return NextResponse.json({
       id: row.id,
       clientId: row.client_id,
+      communicationProfile:CommunicationProfileSchema.parse(row.communication_profile || {}),
       valueProposition: row.value_proposition || "",
       marketNiche: row.market_niche || "",
       archetype: row.archetype || "",
@@ -68,18 +73,21 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const { id } = await params;
     const body = await request.json();
+    const profile=CommunicationProfileSchema.safeParse(body.communicationProfile);
+    if(body.communicationProfile !== undefined && !profile.success)return NextResponse.json({error:"Perfil de comunicação inválido"},{status:400});
 
     const sql = `
       INSERT INTO client_identities (
         client_id, value_proposition, market_niche, archetype,
         tone_of_voice, brand_context, target_audiences, pain_points,
         differentials, forbidden_words, mandatory_terms, default_ctas,
-        instagram_handle, website_url, whatsapp_cta, notes, updated_at
+        instagram_handle, website_url, whatsapp_cta, notes, communication_profile, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, COALESCE($17::jsonb,'{}'::jsonb), NOW()
       )
       ON CONFLICT (client_id) DO UPDATE SET
         value_proposition = EXCLUDED.value_proposition,
@@ -97,6 +105,7 @@ export async function PUT(
         website_url = EXCLUDED.website_url,
         whatsapp_cta = EXCLUDED.whatsapp_cta,
         notes = EXCLUDED.notes,
+        communication_profile = COALESCE($17::jsonb,client_identities.communication_profile),
         updated_at = NOW()
       RETURNING *
     `;
@@ -118,6 +127,7 @@ export async function PUT(
       body.websiteUrl || null,
       body.whatsappCta || null,
       body.notes || null,
+      body.communicationProfile !== undefined && profile.success ? JSON.stringify(profile.data) : null,
     ]);
 
     return NextResponse.json({ success: true, data: res.rows[0] });

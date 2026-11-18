@@ -1,6 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import { useCompany } from "@/lib/context/company-context";
+import {ContentCalendar} from "@/components/operations/content-calendar";
+import {CommunicationProfileSchema,emptyCommunicationProfile} from "@/modules/clients/communication-profile";
+import React, { useRef, Suspense, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import { SearchableSelect } from "@/components/ui/searchable-select";
@@ -116,13 +120,24 @@ const DEFAULT_CTAS = [
   "Salve este post para consultar com sua equipe",
 ];
 
-export default function ContentStudioPage() {
-  const [activeTab, setActiveTab] = useState<"STUDIO" | "CALENDAR" | "EDITORIAL">("STUDIO");
+function ContentStudioPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { selectedCompany, selectCompany, availableCompanies } = useCompany();
+  const [activeTab, setActiveTabState] = useState<"STUDIO" | "CALENDAR" | "EDITORIAL">("STUDIO");
+  useEffect(() => {const tab=searchParams.get("tab");setActiveTabState(tab==="CALENDAR"||tab==="EDITORIAL"?tab:"STUDIO");},[searchParams]);
+  const setActiveTab = (tab:"STUDIO"|"CALENDAR"|"EDITORIAL") => {setActiveTabState(tab);router.replace("/prompt-creator"+(tab==="STUDIO"?"":"?tab="+tab),{scroll:false});};
   const [contentMode, setContentMode] = useState<"SOCIAL_MEDIA" | "ADS">("SOCIAL_MEDIA");
 
   // Dados carregados do sistema
+  const [communicationProfile,setCommunicationProfile]=useState(emptyCommunicationProfile);
+  const [pieceSpeaker,setPieceSpeaker]=useState("");
+  const [pieceAudience,setPieceAudience]=useState("");
+  const [pieceVoice,setPieceVoice]=useState("");
+  const contextRequest=useRef(0);
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
+  useEffect(() => { setSelectedClientId(selectedCompany.isOtimizza ? "" : selectedCompany.id); }, [selectedCompany.id, selectedCompany.isOtimizza]);
   const [audiences, setAudiences] = useState<AudienceRecord[]>([]);
   const [editorialLines, setEditorialLines] = useState<EditorialLineRecord[]>([]);
   const [calendarItems, setCalendarItems] = useState<CalendarItemRecord[]>([]);
@@ -224,6 +239,9 @@ export default function ContentStudioPage() {
   // 2. Carregar públicos, DNA e linhas editoriais ao mudar cliente
   useEffect(() => {
     if (!selectedClientId) {
+      contextRequest.current++;
+      setCommunicationProfile(emptyCommunicationProfile);
+      setPieceSpeaker("");setPieceAudience("");setPieceVoice("");
       setAudiences([]);
       setEditorialLines([]);
       setBrandContext("");
@@ -293,7 +311,7 @@ export default function ContentStudioPage() {
       if (data.clients && data.clients.length > 0) {
         setClients(data.clients);
         // Selecionar o primeiro cliente por padrão se houver
-        setSelectedClientId(data.clients[0].id);
+        // O cliente é escolhido explicitamente no seletor global.
       }
     } catch (e) {
       console.error("Erro ao buscar clientes:", e);
@@ -301,6 +319,7 @@ export default function ContentStudioPage() {
   };
 
   const loadClientData = async (clientId: string) => {
+    const requestId=++contextRequest.current;
     setLoadingData(true);
     try {
       const [audRes, elRes, presetRes, calRes, identRes] = await Promise.all([
@@ -319,6 +338,12 @@ export default function ContentStudioPage() {
         identRes.ok ? identRes.json() : null,
       ]);
 
+      if(requestId!==contextRequest.current)return;
+      const profile=CommunicationProfileSchema.parse(identData?.communicationProfile||{});
+      setCommunicationProfile(profile);
+      setPieceSpeaker(profile.speakerTypes.length===1?profile.speakerTypes[0]:"");
+      setPieceAudience(profile.audienceTypes.length===1?profile.audienceTypes[0]:"");
+      setPieceVoice(profile.contentVoices.length===1?profile.contentVoices[0]:"");
       if (audData.audiences) {
         setAudiences(audData.audiences);
         const def = audData.audiences.find((a: AudienceRecord) => a.is_default);
@@ -351,7 +376,7 @@ export default function ContentStudioPage() {
         if (presetData.preset.default_ctas?.[0]) setSelectedCta(presetData.preset.default_ctas[0]);
       } else {
         // Fallback para contexto padrão Otimizza
-        setBrandContext("Assessoria de marketing próxima e estratégica, orientada a empresários e tomadores de decisão.");
+        setBrandContext("");
       }
 
       if (calData.items) {
@@ -360,7 +385,7 @@ export default function ContentStudioPage() {
     } catch (err) {
       console.error("Erro ao carregar dados do cliente:", err);
     } finally {
-      setLoadingData(false);
+      if(requestId===contextRequest.current)setLoadingData(false);
     }
   };
 
@@ -374,6 +399,7 @@ export default function ContentStudioPage() {
         body: JSON.stringify({ clientId: selectedClientId }),
       });
       const data = await res.json();
+      if (!res.ok || data.success !== true || data.source !== "OPENROUTER") throw new Error(data.error || "A geração de linhas editoriais não foi confirmada.");
       if (data.editorialLines) {
         setEditorialLines(data.editorialLines);
         setNotification({ message: "4 Linhas Editoriais Geradas com Sucesso!", type: "success" });
@@ -382,7 +408,7 @@ export default function ContentStudioPage() {
       }
     } catch (e) {
       console.error(e);
-      setNotification({ message: "Erro ao gerar linhas com IA.", type: "error" });
+      setNotification({ message: e instanceof Error ? e.message : "Erro ao gerar linhas com IA.", type: "error" });
     } finally {
       setGeneratingEditorialLines(false);
     }
@@ -391,6 +417,8 @@ export default function ContentStudioPage() {
   const handleSuggestIdeasWithAi = async () => {
     if (!selectedClientId) return;
     setLoadingSuggestedIdeas(true);
+    setAiSuggestedIdeas([]);
+    setNotification(null);
     try {
       const res = await fetch("/api/content-studio/ideas/suggest", {
         method: "POST",
@@ -398,12 +426,14 @@ export default function ContentStudioPage() {
         body: JSON.stringify({ clientId: selectedClientId }),
       });
       const data = await res.json();
+      if (!res.ok || data.success !== true || data.source !== "OPENROUTER") throw new Error(data.error || "A geração de ideias não foi confirmada.");
       if (data.ideas && data.ideas.length > 0) {
         setAiSuggestedIdeas(data.ideas);
         setNotification({ message: "5 ideias estratégicas geradas pela IA!", type: "success" });
       }
     } catch (e) {
       console.error(e);
+      setNotification({ message: e instanceof Error ? e.message : "Não foi possível gerar ideias pela IA.", type: "error" });
     } finally {
       setLoadingSuggestedIdeas(false);
     }
@@ -421,7 +451,7 @@ export default function ContentStudioPage() {
       "Atue como Diretor Criativo e Redator Sênior de Marketing. Escreva em português brasileiro com alto rigor editorial.",
       "",
       `CLIENTE / MARCA: ${clientName}`,
-      `PÚBLICO-ALVO: ${selectedAudience || "Empresários, diretores e gestores de pequenas e médias empresas"}`,
+      `PÚBLICO-ALVO: ${pieceAudience || selectedAudience || "Público não informado; consultar a identidade da empresa"}`,
       `TOM DE VOZ: ${toneToUse}`,
       `CHAMADA PARA AÇÃO (CTA): ${ctaToUse}`,
     ];
@@ -486,7 +516,9 @@ export default function ContentStudioPage() {
 
   // Disparo da IA com OpenRouter
   const handleGenerateAi = async (overrideFormat?: string, overridePayload?: Record<string, unknown>) => {
+    if(loadingData){setNotification({message:"Aguarde o contexto do cliente terminar de carregar.",type:"info"});return;}
     setAiLoading(true);
+    setAiOutput("");
     setNotification(null);
 
     const formatToUse = overrideFormat || format;
@@ -524,6 +556,8 @@ export default function ContentStudioPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          clientId: selectedClientId || "otimizza",
+          communicationChoice:{speaker:pieceSpeaker||undefined,audience:pieceAudience||undefined,voice:pieceVoice||undefined},
           format: formatToUse,
           prompt: promptText,
           clientName,
@@ -540,8 +574,8 @@ export default function ContentStudioPage() {
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Erro na geração da IA.");
+      if (!res.ok || data.success !== true || data.source !== "OPENROUTER") {
+        throw new Error(data.error || "A geração pela IA não foi confirmada.");
       }
 
       setAiOutput(data.result || "");
@@ -831,6 +865,7 @@ export default function ContentStudioPage() {
         {/* ==================================================================== */}
         {/* ABA 1: ESTÚDIO CRIATIVO PRINCIPAL */}
         {/* ==================================================================== */}
+        {activeTab==="STUDIO"&&(communicationProfile.speakerTypes.length>0||communicationProfile.audienceTypes.length>0||communicationProfile.contentVoices.length>0)&&<section className="p-4 bg-white border rounded-xl mb-4"><h2 className="font-semibold text-sm mb-3">Quem comunica e para quem é esta peça</h2><div className="grid gap-3 sm:grid-cols-3">{([{label:"Quem comunica",options:communicationProfile.speakerTypes,value:pieceSpeaker,set:setPieceSpeaker},{label:"Público desta peça",options:communicationProfile.audienceTypes,value:pieceAudience,set:setPieceAudience},{label:"Como aparece",options:communicationProfile.contentVoices,value:pieceVoice,set:setPieceVoice}]).map(field=><label className="text-xs" key={field.label}>{field.label}<select className="block w-full border rounded-lg p-2 mt-1" value={field.value} onChange={e=>field.set(e.target.value)} disabled={loadingData}><option value="">{field.options.length?"Selecione":"Não definido no cadastro"}</option>{field.options.map(option=><option key={option}>{option}</option>)}</select></label>)}</div></section>}
         {activeTab === "STUDIO" && (
           <div className="space-y-6">
             {/* BARRA DE SELEÇÃO DE CLIENTE & PONTO DE PARTIDA */}
@@ -847,7 +882,7 @@ export default function ContentStudioPage() {
                       label: c.trade_name ? `${c.trade_name} (${c.name})` : c.name,
                     }))}
                     value={selectedClientId}
-                    onChange={(val) => setSelectedClientId(val)}
+                    onChange={(val) => {setSelectedClientId(val); const company=availableCompanies.find(c=>c.id===val);if(company)selectCompany(company);}}
                     placeholder="Selecionar cliente..."
                     searchPlaceholder="Digitar para buscar cliente..."
                     className="w-full"
@@ -1954,81 +1989,8 @@ export default function ContentStudioPage() {
         {/* ==================================================================== */}
         {/* ABA 2: CALENDÁRIO EDITORIAL DO CLIENTE */}
         {/* ==================================================================== */}
-        {activeTab === "CALENDAR" && (
-          <div className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h2 className="text-base font-bold text-zinc-950">
-                  Calendário de Conteúdo — {selectedClient?.name || "Cliente"}
-                </h2>
-                <p className="text-xs text-zinc-500">Histórico de todas as peças planejadas, aprovadas e geradas.</p>
-              </div>
+        {activeTab === "CALENDAR" && <ContentCalendar key={selectedClientId} clientId={selectedClientId} />}
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("STUDIO")}
-                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Criar Nova Peça
-              </button>
-            </div>
-
-            {calendarItems.length === 0 ? (
-              <div className="text-center py-12 text-zinc-400 border border-dashed border-zinc-200 rounded-xl space-y-2">
-                <Calendar className="w-8 h-8 mx-auto text-zinc-300" />
-                <p className="text-xs font-semibold">Nenhuma publicação agendada ainda para este cliente.</p>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("STUDIO")}
-                  className="text-xs font-bold text-emerald-600 underline"
-                >
-                  Começar a criar no Estúdio
-                </button>
-              </div>
-            ) : (
-              <div className="divide-y divide-zinc-100">
-                {calendarItems.map((item) => (
-                  <div key={item.id} className="py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider bg-zinc-100 text-zinc-700">
-                          {item.format}
-                        </span>
-                        <span className="text-xs font-bold text-zinc-900">{item.title}</span>
-                      </div>
-                      <p className="text-xs text-zinc-500 line-clamp-1">{item.central_idea}</p>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0 text-xs">
-                      <div className="text-zinc-500 text-right">
-                        <div>{item.scheduled_date || "Sem data"}</div>
-                        <div className="text-[10px] text-zinc-400">{item.scheduled_time || "--:--"}</div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIdea(item.central_idea);
-                          setFormat(item.format);
-                          if (item.selected_headline) setChosenHeadline(item.selected_headline);
-                          setActiveTab("STUDIO");
-                        }}
-                        className="px-3 py-1.5 rounded-lg border border-zinc-200 font-bold text-zinc-700 hover:bg-zinc-50 transition"
-                      >
-                        Carregar no Estúdio
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ==================================================================== */}
-        {/* ABA 3: LINHAS EDITORIAIS DO CLIENTE */}
-        {/* ==================================================================== */}
         {activeTab === "EDITORIAL" && (
           <div className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-4">
             <div className="flex items-center justify-between">
@@ -2313,3 +2275,5 @@ export default function ContentStudioPage() {
     </AppShell>
   );
 }
+
+export default function ContentStudioPage(){return <Suspense fallback={<p>Carregando estúdio...</p>}><ContentStudioPageContent /></Suspense>;}

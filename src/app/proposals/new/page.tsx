@@ -307,7 +307,9 @@ function NewProposalWizard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          clientName: currentClientName,
+          clientId: recipientType === "CLIENT" ? selectedClientId || undefined : undefined,
+            leadId: recipientType === "LEAD" ? selectedLeadId || undefined : undefined,
+            clientName: currentClientName,
           currentScenario,
           partnershipFocus,
           trackingMetrics,
@@ -530,6 +532,7 @@ function NewProposalWizard() {
             comboNameSnapshot: i.sourceType === "COMBO" ? i.name.split(" — ")[0] : null,
             periodicity: i.periodicity,
             quantity: i.quantity,
+            referenceUnitPrice: i.referenceUnitPrice ?? i.negotiatedUnitPrice,
             negotiatedUnitPrice: i.negotiatedUnitPrice,
             discountAmount: i.discountAmount,
           })),

@@ -1503,8 +1503,15 @@ export class ProposalService {
         it.supplierNameSnapshot || (supplierId ? supplierNameMap.get(supplierId) : null) || null;
 
       const qty = (it.quantity && it.quantity > 0) ? Number(it.quantity) : 1;
-      const refPriceCents = toCents(it.referenceUnitPrice);
-      const negPriceCents = toCents(it.negotiatedUnitPrice);
+      const effectiveNegPrice = (it.negotiatedUnitPrice !== undefined && it.negotiatedUnitPrice !== null && it.negotiatedUnitPrice > 0)
+        ? it.negotiatedUnitPrice
+        : (it.unitPrice ?? it.referenceUnitPrice ?? Number(sInfo?.default_price || 0));
+      const effectiveRefPrice = (it.referenceUnitPrice !== undefined && it.referenceUnitPrice !== null && it.referenceUnitPrice > 0)
+        ? it.referenceUnitPrice
+        : (effectiveNegPrice || Number(sInfo?.default_price || 0));
+
+      const refPriceCents = toCents(effectiveRefPrice);
+      const negPriceCents = toCents(effectiveNegPrice);
       const itemDiscountCents = toCents(it.discountAmount || 0);
 
       const grossCents = Math.round(qty * negPriceCents);
@@ -1702,5 +1709,28 @@ export class ProposalService {
       totalApprovedOneTime: Number(v.approved_one_time),
       totalApprovedYearly: Number(v.approved_yearly),
     };
+  }
+
+  static async deleteProposal(id: string): Promise<boolean> {
+    return withTransaction(async (client) => {
+      const propRes = await client.query<{ id: string; contract_id: string | null }>(
+        "SELECT id, contract_id FROM proposals WHERE id = $1",
+        [id]
+      );
+      if (!propRes.rows[0]) throw new Error("Proposta não encontrada.");
+      if (propRes.rows[0].contract_id) {
+        throw new Error("Esta proposta já gerou um contrato ativo e não pode ser excluída.");
+      }
+
+      await client.query(`
+        DELETE FROM proposal_items 
+        WHERE proposal_version_id IN (SELECT id FROM proposal_versions WHERE proposal_id = $1)
+      `, [id]);
+
+      await client.query("DELETE FROM proposal_events WHERE proposal_id = $1", [id]);
+      await client.query("DELETE FROM proposal_versions WHERE proposal_id = $1", [id]);
+      const res = await client.query("DELETE FROM proposals WHERE id = $1", [id]);
+      return (res.rowCount ?? 0) > 0;
+    });
   }
 }

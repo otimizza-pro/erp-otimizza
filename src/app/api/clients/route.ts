@@ -11,7 +11,8 @@ export async function GET(request: Request) {
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
     const offset = searchParams.get("offset") ? parseInt(searchParams.get("offset")!, 10) : undefined;
 
-    const result = await listClients({ search, status, type, limit, offset });
+    const relationship = searchParams.get("relationship");
+    const result = await listClients({ search, status, type, limit, offset, relationship: relationship === "former" || relationship === "current" ? relationship : undefined });
     return NextResponse.json(result);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro interno ao listar clientes.";

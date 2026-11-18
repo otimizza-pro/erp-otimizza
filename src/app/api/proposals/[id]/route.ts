@@ -17,3 +17,17 @@ export async function GET(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await context.params;
+    await ProposalService.deleteProposal(id);
+    return NextResponse.json({ success: true, message: "Proposta excluída com sucesso." });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro ao excluir proposta.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

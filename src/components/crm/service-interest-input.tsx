@@ -1,0 +1,3 @@
+"use client";
+import {useEffect,useState,useId} from "react";
+export function ServiceInterestInput({value,onChange}:{value:string;onChange:(v:string)=>void}){const id=useId();const [services,setServices]=useState<string[]>([]);useEffect(()=>{fetch("/api/services?status=ACTIVE").then(async r=>{if(!r.ok)return;const d=await r.json();const list=Array.isArray(d)?d:d.services||[];setServices(list.map((s:{name:string})=>s.name));}).catch(()=>{});},[]);return <><input aria-label="Serviço de interesse" list={id} value={value} onChange={e=>onChange(e.target.value)} className="w-full border rounded-xl p-2 text-xs" placeholder="Não informado"/><datalist id={id}>{services.map(s=><option key={s} value={s}/>)}</datalist></>;}

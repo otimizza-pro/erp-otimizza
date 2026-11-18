@@ -133,7 +133,7 @@ function ProjectTemplatesContent() {
               </div>
               <h1 className="text-2xl font-bold text-slate-950 mt-0.5 flex items-center gap-2">
                 <Rocket className="w-6 h-6 text-indigo-600" />
-                Processos, Modelos & Onboardings de Clientes
+                Onboarding e Templates
               </h1>
             </div>
           </div>

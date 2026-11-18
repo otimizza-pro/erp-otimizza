@@ -87,6 +87,7 @@ describe("Fase 8 - Testes de Integração do Módulo de Propostas Comerciais", (
     testStageId = stg.id;
 
     // Criar Oportunidade vinculada ao Lead
+    await CrmService.updateLead(testLeadId, {status:"QUALIFIED"});
     const opp = await CrmService.createOpportunity({
       pipelineId: testPipelineId,
       stageId: testStageId,

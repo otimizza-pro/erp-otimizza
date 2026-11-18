@@ -32,11 +32,42 @@ export const CreateLeadSchema = z.object({
   state: z.string().trim().max(2, "UF deve ter 2 caracteres.").optional().nullable(),
   source: z.string().trim().default("OUTROS"),
   notes: z.string().trim().optional().nullable(),
+  ownerClientId: z.string().uuid().optional().nullable(),
+  acquisitionVerified: z.boolean().optional(),
+  acquisitionType: z.enum(["INBOUND", "OUTBOUND", "NAO_INFORMADO"]).optional().default("NAO_INFORMADO"),
+  leadSource: z.string().trim().optional().nullable(),
+  firstContactChannel: z.string().trim().optional().nullable(),
+  utmSource: z.string().trim().optional().nullable(),
+  utmMedium: z.string().trim().optional().nullable(),
+  utmCampaign: z.string().trim().optional().nullable(),
+  utmTerm: z.string().trim().optional().nullable(),
+  utmContent: z.string().trim().optional().nullable(),
+  serviceOfInterest: z.string().trim().optional().nullable(),
+  needSummary: z.string().trim().optional().nullable(),
+  urgencyTimeline: z.string().trim().optional().nullable(),
+  estimatedBudget: z.number().nonnegative().optional().default(0),
+  nurtureReason: z.string().trim().optional().nullable(),
+  nurtureNextActionDate: z.string().trim().optional().nullable(),
+  disqualificationReason: z.string().trim().optional().nullable(),
+  qualificationNotes: z.string().trim().optional().nullable(),
 });
 
 export const UpdateLeadSchema = CreateLeadSchema.partial().extend({
   status: z
-    .enum(["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "UNQUALIFIED", "ARCHIVED"])
+    .enum([
+      "NEW",
+      "CONTACTED",
+      "QUALIFIED",
+      "CONVERTED",
+      "UNQUALIFIED",
+      "ARCHIVED",
+      "NOVO",
+      "QUALIFICANDO",
+      "NUTRICAO",
+      "QUALIFICADO",
+      "OPORTUNIDADE",
+      "DESQUALIFICADO",
+    ])
     .optional(),
 });
 
@@ -191,5 +222,7 @@ export const UpdateActivitySchema = z.object({
   title: z.string().trim().min(2).optional(),
   description: z.string().trim().optional().nullable(),
   dueDate: z.string().optional().nullable(),
-  status: z.enum(["PENDING", "COMPLETED", "CANCELED"]).optional(),
+  status: z.enum(["PENDING", "COMPLETED", "CANCELED", "NO_SHOW", "RESCHEDULED"]).optional(),
+  outcomeReason: z.string().trim().optional().nullable(),
+  newDueDate: z.string().optional().nullable(),
 });

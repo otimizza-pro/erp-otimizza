@@ -3,6 +3,7 @@ import { DocumentService } from "@/modules/documents/service";
 import { normalizeDocument } from "@/shared/cpf-cnpj";
 import {
   PersonType,
+  AcquisitionType,
   LeadStatus,
   PipelineStatus,
   StageType,
@@ -108,6 +109,10 @@ export class CrmService {
     search?: string;
     status?: LeadStatus | "ALL";
     source?: string;
+    ownerClientId?: string;
+    acquisitionType?: AcquisitionType | "ALL";
+    leadSource?: string;
+    firstContactChannel?: string;
     pipelineId?: string;
     stageId?: string;
     limit?: number;
@@ -118,16 +123,46 @@ export class CrmService {
     const values: unknown[] = [];
     let idx = 1;
 
+    if (params?.ownerClientId) {
+      conditions.push(params.ownerClientId === "otimizza" ? "l.owner_client_id IS NULL" : `l.owner_client_id = ${idx++}`);
+      if (params.ownerClientId !== "otimizza") values.push(params.ownerClientId);
+    }
     if (params?.status && params.status !== "ALL") {
-      conditions.push(`l.status = $${idx++}`);
-      values.push(params.status);
+      // Compatibilidade com novos e antigos status
+      if (params.status === "NEW" || params.status === "NOVO") {
+        conditions.push(`l.status IN ('NEW', 'NOVO')`);
+      } else if (params.status === "QUALIFIED" || params.status === "QUALIFICADO") {
+        conditions.push(`l.status IN ('QUALIFIED', 'QUALIFICADO')`);
+      } else if (params.status === "UNQUALIFIED" || params.status === "DESQUALIFICADO") {
+        conditions.push(`l.status IN ('UNQUALIFIED', 'DESQUALIFICADO')`);
+      } else {
+        conditions.push(`l.status = $${idx++}`);
+        values.push(params.status);
+      }
     } else if (!params?.status) {
       conditions.push(`l.status <> 'ARCHIVED'`);
     }
 
     if (params?.source && params.source !== "ALL") {
-      conditions.push(`l.source = $${idx++}`);
+      conditions.push(`(l.source = $${idx} OR l.lead_source = $${idx})`);
       values.push(params.source);
+      idx++;
+    }
+
+    if (params?.acquisitionType && params.acquisitionType !== "ALL") {
+      conditions.push(`(CASE WHEN l.acquisition_verified THEN l.acquisition_type ELSE 'NAO_INFORMADO' END) = ${idx++}`);
+      values.push(params.acquisitionType);
+    }
+
+    if (params?.leadSource && params.leadSource !== "ALL") {
+      conditions.push(`(l.lead_source = $${idx} OR l.source = $${idx})`);
+      values.push(params.leadSource);
+      idx++;
+    }
+
+    if (params?.firstContactChannel && params.firstContactChannel !== "ALL") {
+      conditions.push(`l.first_contact_channel = $${idx++}`);
+      values.push(params.firstContactChannel);
     }
 
     if (params?.pipelineId) {
@@ -185,6 +220,27 @@ export class CrmService {
         l.source,
         l.notes,
         l.status,
+        l.acquisition_type,
+        l.acquisition_verified,
+        l.owner_client_id,
+        l.lead_source,
+        l.first_contact_channel,
+        l.utm_source,
+        l.utm_medium,
+        l.utm_campaign,
+        l.utm_term,
+        l.utm_content,
+        l.service_of_interest,
+        l.need_summary,
+        l.urgency_timeline,
+        l.estimated_budget,
+        l.nurture_reason,
+        l.nurture_next_action_date,
+        l.disqualification_reason,
+        l.qualification_notes,
+        l.qualified_at,
+        l.nurtured_at,
+        l.disqualified_at,
         l.converted_client_id,
         l.converted_at,
         l.archived_at,
@@ -245,6 +301,27 @@ export class CrmService {
       source: r.source,
       notes: r.notes,
       status: r.status,
+      ownerClientId: r.owner_client_id,
+      acquisitionVerified: r.acquisition_verified,
+      acquisitionType: r.acquisition_verified ? (r.acquisition_type || "NAO_INFORMADO") : "NAO_INFORMADO",
+      leadSource: r.lead_source || r.source || "OUTROS",
+      firstContactChannel: r.acquisition_verified ? r.first_contact_channel : null,
+      utmSource: r.utm_source,
+      utmMedium: r.utm_medium,
+      utmCampaign: r.utm_campaign,
+      utmTerm: r.utm_term,
+      utmContent: r.utm_content,
+      serviceOfInterest: r.service_of_interest,
+      needSummary: r.need_summary,
+      urgencyTimeline: r.urgency_timeline,
+      estimatedBudget: Number(r.estimated_budget || 0),
+      nurtureReason: r.nurture_reason,
+      nurtureNextActionDate: r.nurture_next_action_date,
+      disqualificationReason: r.disqualification_reason,
+      qualificationNotes: r.qualification_notes,
+      qualifiedAt: r.qualified_at?.toISOString?.() || r.qualified_at,
+      nurturedAt: r.nurtured_at?.toISOString?.() || r.nurtured_at,
+      disqualifiedAt: r.disqualified_at?.toISOString?.() || r.disqualified_at,
       convertedClientId: r.converted_client_id,
       convertedAt: r.converted_at?.toISOString?.() || r.converted_at,
       archivedAt: r.archived_at?.toISOString?.() || r.archived_at,
@@ -279,6 +356,27 @@ export class CrmService {
         l.source,
         l.notes,
         l.status,
+        l.acquisition_type,
+        l.acquisition_verified,
+        l.owner_client_id,
+        l.lead_source,
+        l.first_contact_channel,
+        l.utm_source,
+        l.utm_medium,
+        l.utm_campaign,
+        l.utm_term,
+        l.utm_content,
+        l.service_of_interest,
+        l.need_summary,
+        l.urgency_timeline,
+        l.estimated_budget,
+        l.nurture_reason,
+        l.nurture_next_action_date,
+        l.disqualification_reason,
+        l.qualification_notes,
+        l.qualified_at,
+        l.nurtured_at,
+        l.disqualified_at,
         l.converted_client_id,
         l.converted_at,
         l.archived_at,
@@ -312,6 +410,27 @@ export class CrmService {
       source: r.source,
       notes: r.notes,
       status: r.status,
+      ownerClientId: r.owner_client_id,
+      acquisitionVerified: r.acquisition_verified,
+      acquisitionType: r.acquisition_verified ? (r.acquisition_type || "NAO_INFORMADO") : "NAO_INFORMADO",
+      leadSource: r.lead_source || r.source || "OUTROS",
+      firstContactChannel: r.acquisition_verified ? r.first_contact_channel : null,
+      utmSource: r.utm_source,
+      utmMedium: r.utm_medium,
+      utmCampaign: r.utm_campaign,
+      utmTerm: r.utm_term,
+      utmContent: r.utm_content,
+      serviceOfInterest: r.service_of_interest,
+      needSummary: r.need_summary,
+      urgencyTimeline: r.urgency_timeline,
+      estimatedBudget: Number(r.estimated_budget || 0),
+      nurtureReason: r.nurture_reason,
+      nurtureNextActionDate: r.nurture_next_action_date,
+      disqualificationReason: r.disqualification_reason,
+      qualificationNotes: r.qualification_notes,
+      qualifiedAt: r.qualified_at?.toISOString?.() || r.qualified_at,
+      nurturedAt: r.nurtured_at?.toISOString?.() || r.nurtured_at,
+      disqualifiedAt: r.disqualified_at?.toISOString?.() || r.disqualified_at,
       convertedClientId: r.converted_client_id,
       convertedAt: r.converted_at?.toISOString?.() || r.converted_at,
       archivedAt: r.archived_at?.toISOString?.() || r.archived_at,
@@ -409,8 +528,19 @@ export class CrmService {
     const sql = `
       INSERT INTO crm_leads (
         person_type, name, trade_name, document, email, phone, whatsapp,
-        primary_contact, segment, city, state, source, notes, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'NEW')
+        primary_contact, segment, city, state, source, notes, status,
+        acquisition_type, lead_source, first_contact_channel,
+        utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+        service_of_interest, need_summary, urgency_timeline, estimated_budget,
+        nurture_reason, nurture_next_action_date, disqualification_reason, qualification_notes, owner_client_id, acquisition_verified
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7,
+        $8, $9, $10, $11, $12, $13, 'NEW',
+        $14, $15, $16,
+        $17, $18, $19, $20, $21,
+        $22, $23, $24, $25,
+        $26, $27, $28, $29, $30, $31
+      )
       RETURNING *
     `;
 
@@ -426,15 +556,35 @@ export class CrmService {
       input.segment || null,
       input.city || null,
       input.state || null,
-      input.source || "OUTROS",
+      input.leadSource || input.source || "OUTROS",
       input.notes || null,
+      input.acquisitionType || "NAO_INFORMADO",
+      input.leadSource || input.source || "OUTROS",
+      input.firstContactChannel || null,
+      input.utmSource || null,
+      input.utmMedium || null,
+      input.utmCampaign || null,
+      input.utmTerm || null,
+      input.utmContent || null,
+      input.serviceOfInterest || null,
+      input.needSummary || null,
+      input.urgencyTimeline || null,
+      input.estimatedBudget || 0,
+      input.nurtureReason || null,
+      input.nurtureNextActionDate || null,
+      input.disqualificationReason || null,
+      input.qualificationNotes || null,
+      input.ownerClientId || null,
+      Boolean(input.acquisitionType && input.acquisitionType !== "NAO_INFORMADO"),
     ];
 
     const res = await pool.query(sql, values);
-    return this.getLeadById(res.rows[0].id) as Promise<LeadRecord>;
+    const newLead = await this.getLeadById(res.rows[0].id);
+
+    return newLead as LeadRecord;
   }
 
-  static async updateLead(id: string, rawInput: UpdateLeadInput): Promise<LeadRecord> {
+  static async updateLead(id: string, rawInput: UpdateLeadInput, auditUser?: string): Promise<LeadRecord> {
     const input = UpdateLeadSchema.parse(rawInput);
     const existing = await this.getLeadById(id);
     if (!existing) throw new Error("Lead não encontrado.");
@@ -451,6 +601,27 @@ export class CrmService {
     }
 
     const pool = getDbPool();
+    const newStatus = input.status || existing.status;
+    const isStatusChanging = input.status && input.status !== existing.status;
+    if (isStatusChanging && input.status === "OPORTUNIDADE") {
+      const linked = await pool.query("SELECT 1 FROM crm_opportunities WHERE lead_id=$1 LIMIT 1", [id]);
+      if (!linked.rowCount) throw new Error("Crie uma oportunidade comercial pela ação correspondente na ficha do lead.");
+    }
+
+    let qualifiedAt = existing.qualifiedAt ? new Date(existing.qualifiedAt) : null;
+    let nurturedAt = existing.nurturedAt ? new Date(existing.nurturedAt) : null;
+    let disqualifiedAt = existing.disqualifiedAt ? new Date(existing.disqualifiedAt) : null;
+
+    if (isStatusChanging) {
+      if (newStatus === "QUALIFIED" || newStatus === "QUALIFICADO") {
+        qualifiedAt = new Date();
+      } else if (newStatus === "NUTRICAO") {
+        nurturedAt = new Date();
+      } else if (newStatus === "DESQUALIFICADO" || newStatus === "UNQUALIFIED") {
+        disqualifiedAt = new Date();
+      }
+    }
+
     const sql = `
       UPDATE crm_leads SET
         person_type = COALESCE($1, person_type),
@@ -467,8 +638,28 @@ export class CrmService {
         source = COALESCE($12, source),
         notes = $13,
         status = COALESCE($14, status),
+        acquisition_type = COALESCE($15, acquisition_type),
+        acquisition_verified = CASE WHEN $15 IS NOT NULL THEN $15 <> 'NAO_INFORMADO' ELSE acquisition_verified END,
+        lead_source = COALESCE($16, lead_source),
+        first_contact_channel = COALESCE($17, first_contact_channel),
+        utm_source = COALESCE($18, utm_source),
+        utm_medium = COALESCE($19, utm_medium),
+        utm_campaign = COALESCE($20, utm_campaign),
+        utm_term = COALESCE($21, utm_term),
+        utm_content = COALESCE($22, utm_content),
+        service_of_interest = COALESCE($23, service_of_interest),
+        need_summary = COALESCE($24, need_summary),
+        urgency_timeline = COALESCE($25, urgency_timeline),
+        estimated_budget = COALESCE($26, estimated_budget),
+        nurture_reason = COALESCE($27, nurture_reason),
+        nurture_next_action_date = COALESCE($28, nurture_next_action_date),
+        disqualification_reason = COALESCE($29, disqualification_reason),
+        qualification_notes = COALESCE($30, qualification_notes),
+        qualified_at = $31,
+        nurtured_at = $32,
+        disqualified_at = $33,
         updated_at = NOW()
-      WHERE id = $15
+      WHERE id = $34
       RETURNING *
     `;
 
@@ -484,14 +675,88 @@ export class CrmService {
       input.segment !== undefined ? input.segment : existing.segment,
       input.city !== undefined ? input.city : existing.city,
       input.state !== undefined ? input.state : existing.state,
-      input.source || null,
+      input.leadSource || input.source || null,
       input.notes !== undefined ? input.notes : existing.notes,
       input.status || null,
+      input.acquisitionType || null,
+      input.leadSource || null,
+      input.firstContactChannel || null,
+      input.utmSource !== undefined ? input.utmSource : null,
+      input.utmMedium !== undefined ? input.utmMedium : null,
+      input.utmCampaign !== undefined ? input.utmCampaign : null,
+      input.utmTerm !== undefined ? input.utmTerm : null,
+      input.utmContent !== undefined ? input.utmContent : null,
+      input.serviceOfInterest !== undefined ? input.serviceOfInterest : null,
+      input.needSummary !== undefined ? input.needSummary : null,
+      input.urgencyTimeline !== undefined ? input.urgencyTimeline : null,
+      input.estimatedBudget !== undefined ? input.estimatedBudget : null,
+      input.nurtureReason !== undefined ? input.nurtureReason : null,
+      input.nurtureNextActionDate !== undefined ? input.nurtureNextActionDate : null,
+      input.disqualificationReason !== undefined ? input.disqualificationReason : null,
+      input.qualificationNotes !== undefined ? input.qualificationNotes : null,
+      qualifiedAt,
+      nurturedAt,
+      disqualifiedAt,
       id,
     ];
 
-    await pool.query(sql, values);
+    await withTransaction(async client => {
+      await client.query("SELECT set_config('app.actor', $1, true)", [auditUser || "Sistema ERP"]);
+      await client.query(sql, values);
+    });
+
     return this.getLeadById(id) as Promise<LeadRecord>;
+  }
+
+  static async recordLeadStatusHistory(params: {
+    leadId: string;
+    fromStatus: string | null;
+    toStatus: string;
+    reason?: string | null;
+    notes?: string | null;
+    changedBy?: string | null;
+  }): Promise<void> {
+    const pool = getDbPool();
+    await pool.query(
+      `INSERT INTO crm_lead_status_history (lead_id, from_status, to_status, reason, notes, changed_by)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        params.leadId,
+        params.fromStatus,
+        params.toStatus,
+        params.reason || null,
+        params.notes || null,
+        params.changedBy || "Sistema ERP",
+      ]
+    );
+  }
+
+  static async getLeadStatusHistory(leadId: string): Promise<Array<{
+    id: string;
+    fromStatus: string | null;
+    toStatus: string;
+    reason: string | null;
+    notes: string | null;
+    changedBy: string | null;
+    createdAt: string;
+  }>> {
+    const pool = getDbPool();
+    const res = await pool.query(
+      `SELECT id, from_status, to_status, reason, notes, changed_by, created_at
+       FROM crm_lead_status_history
+       WHERE lead_id = $1
+       ORDER BY created_at DESC`,
+      [leadId]
+    );
+    return res.rows.map((r) => ({
+      id: r.id,
+      fromStatus: r.from_status,
+      toStatus: r.to_status,
+      reason: r.reason,
+      notes: r.notes,
+      changedBy: r.changed_by,
+      createdAt: r.created_at?.toISOString?.() || r.created_at,
+    }));
   }
 
   static async archiveLead(id: string): Promise<void> {
@@ -1398,7 +1663,7 @@ export class CrmService {
 
       if (!targetStageId) {
         const firstStage = await client.query(
-          `SELECT id, win_probability FROM crm_pipeline_stages WHERE pipeline_id = $1 AND status = 'ACTIVE' ORDER BY display_order ASC LIMIT 1`,
+          `SELECT id, win_probability FROM crm_pipeline_stages WHERE pipeline_id = $1 AND status = 'ACTIVE' AND stage_type = 'NORMAL' ORDER BY display_order ASC LIMIT 1`,
           [input.pipelineId]
         );
         if (firstStage.rowCount === 0) {
@@ -1680,6 +1945,25 @@ export class CrmService {
     }
   }
 
+  static async deleteOpportunity(id: string): Promise<boolean> {
+    const pool = getDbPool();
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("DELETE FROM crm_activities WHERE opportunity_id = $1", [id]);
+      await client.query("DELETE FROM crm_opportunity_history WHERE opportunity_id = $1", [id]);
+      await client.query("UPDATE proposals SET opportunity_id = NULL WHERE opportunity_id = $1", [id]);
+      const res = await client.query("DELETE FROM crm_opportunities WHERE id = $1", [id]);
+      await client.query("COMMIT");
+      return (res.rowCount ?? 0) > 0;
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
   static async reopenOpportunity(
     id: string,
     toStageIdOrNotes?: string,
@@ -1927,6 +2211,60 @@ export class CrmService {
     const pool = getDbPool();
 
     const normalizedDueDate = normalizeSaoPauloTimestamp(input.dueDate);
+    const normalizedNewDueDate = normalizeSaoPauloTimestamp(input.newDueDate);
+
+    if (input.status === "RESCHEDULED" || Boolean(normalizedNewDueDate)) {
+      const existing = await pool.query<{ due_date: Date | null; reschedule_count: number; reschedule_history: unknown[] }>(
+        "SELECT due_date, reschedule_count, reschedule_history FROM crm_activities WHERE id = $1",
+        [id]
+      );
+      if (existing.rowCount && existing.rowCount > 0) {
+        const cur = existing.rows[0];
+        const targetDue = normalizedNewDueDate || normalizedDueDate;
+        const newHistoryItem = {
+          previousDueDate: cur.due_date?.toISOString?.() || null,
+          newDueDate: targetDue,
+          reason: input.outcomeReason || "Reagendamento solicitado",
+          rescheduledAt: new Date().toISOString(),
+        };
+        const currentHist = Array.isArray(cur.reschedule_history) ? cur.reschedule_history : [];
+        const updatedHist = [...currentHist, newHistoryItem];
+
+        const res = await pool.query(
+          `UPDATE crm_activities SET
+            status = 'RESCHEDULED',
+            previous_due_date = due_date,
+            due_date = COALESCE($1, due_date),
+            reschedule_count = reschedule_count + 1,
+            reschedule_history = $2,
+            outcome_reason = COALESCE($3, outcome_reason),
+            updated_at = NOW()
+          WHERE id = $4
+          RETURNING *`,
+          [targetDue, JSON.stringify(updatedHist), input.outcomeReason || null, id]
+        );
+        const r = res.rows[0];
+        return {
+          id: r.id,
+          activityType: r.activity_type,
+          title: r.title,
+          description: r.description,
+          dueDate: r.due_date?.toISOString?.() || r.due_date,
+          completedAt: r.completed_at?.toISOString?.() || r.completed_at,
+          status: r.status,
+          outcomeReason: r.outcome_reason,
+          rescheduleCount: r.reschedule_count,
+          rescheduleHistory: r.reschedule_history,
+          previousDueDate: r.previous_due_date?.toISOString?.() || r.previous_due_date,
+          leadId: r.lead_id,
+          clientId: r.client_id,
+          opportunityId: r.opportunity_id,
+          createdBy: r.created_by,
+          createdAt: r.created_at?.toISOString?.() || r.created_at,
+          updatedAt: r.updated_at?.toISOString?.() || r.updated_at,
+        };
+      }
+    }
 
     const sql = `
       UPDATE crm_activities SET
@@ -1935,9 +2273,10 @@ export class CrmService {
         description = COALESCE($3, description),
         due_date = COALESCE($4, due_date),
         status = COALESCE($5, status),
+        outcome_reason = COALESCE($6, outcome_reason),
         completed_at = CASE WHEN $5 = 'COMPLETED' THEN NOW() ELSE completed_at END,
         updated_at = NOW()
-      WHERE id = $6
+      WHERE id = $7
       RETURNING *
     `;
 
@@ -1947,6 +2286,7 @@ export class CrmService {
       input.description !== undefined ? input.description : null,
       normalizedDueDate,
       input.status || null,
+      input.outcomeReason || null,
       id,
     ]);
 
@@ -1960,12 +2300,53 @@ export class CrmService {
       dueDate: r.due_date?.toISOString?.() || r.due_date,
       completedAt: r.completed_at?.toISOString?.() || r.completed_at,
       status: r.status,
+      outcomeReason: r.outcome_reason,
+      rescheduleCount: r.reschedule_count,
+      rescheduleHistory: r.reschedule_history,
+      previousDueDate: r.previous_due_date?.toISOString?.() || r.previous_due_date,
       leadId: r.lead_id,
       clientId: r.client_id,
       opportunityId: r.opportunity_id,
       createdBy: r.created_by,
       createdAt: r.created_at?.toISOString?.() || r.created_at,
       updatedAt: r.updated_at?.toISOString?.() || r.updated_at,
+    };
+  }
+
+  static async getActivityMetrics(): Promise<{
+    pending: number;
+    overdue: number;
+    completed: number;
+    noShow: number;
+    rescheduled: number;
+    total: number;
+  }> {
+    const pool = getDbPool();
+    const res = await pool.query<{
+      pending: string;
+      overdue: string;
+      completed: string;
+      no_show: string;
+      rescheduled: string;
+      total: string;
+    }>(`
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'PENDING') as pending,
+        COUNT(*) FILTER (WHERE status = 'PENDING' AND due_date < NOW()) as overdue,
+        COUNT(*) FILTER (WHERE status = 'COMPLETED') as completed,
+        COUNT(*) FILTER (WHERE status = 'NO_SHOW') as no_show,
+        COUNT(*) FILTER (WHERE status = 'RESCHEDULED') as rescheduled,
+        COUNT(*) as total
+      FROM crm_activities
+    `);
+    const r = res.rows[0];
+    return {
+      pending: parseInt(r?.pending || "0", 10),
+      overdue: parseInt(r?.overdue || "0", 10),
+      completed: parseInt(r?.completed || "0", 10),
+      noShow: parseInt(r?.no_show || "0", 10),
+      rescheduled: parseInt(r?.rescheduled || "0", 10),
+      total: parseInt(r?.total || "0", 10),
     };
   }
 
@@ -2084,6 +2465,9 @@ export class CrmService {
       stage_id: string;
       stage_name: string;
       stage_color: string;
+      display_order: number;
+      pipeline_id: string;
+      pipeline_name: string;
       count: string;
       total_amount: string;
     }>(
@@ -2091,19 +2475,26 @@ export class CrmService {
         st.id as stage_id,
         st.name as stage_name,
         st.color as stage_color,
+        st.display_order,
+        p.id as pipeline_id,
+        p.name as pipeline_name,
         COUNT(o.id) as count,
         COALESCE(SUM(o.amount), 0) as total_amount
       FROM crm_pipeline_stages st
+      JOIN crm_pipelines p ON p.id = st.pipeline_id AND p.status = 'ACTIVE'
       LEFT JOIN crm_opportunities o ON o.stage_id = st.id AND o.status = 'OPEN'
-      WHERE st.status = 'ACTIVE'
-      GROUP BY st.id, st.name, st.color, st.display_order
-      ORDER BY st.display_order ASC`
+      WHERE st.status = 'ACTIVE' ${pipelineId ? `AND st.pipeline_id = '${pipelineId}'` : ""}
+      GROUP BY st.id, st.name, st.color, st.display_order, p.id, p.name, p.is_default
+      ORDER BY p.is_default DESC, p.name ASC, st.display_order ASC`
     );
 
     const opportunitiesByStage = stagesDistRes.rows.map((r) => ({
       stageId: r.stage_id,
       stageName: r.stage_name,
       stageColor: r.stage_color,
+      pipelineId: r.pipeline_id,
+      pipelineName: r.pipeline_name,
+      displayOrder: r.display_order,
       count: parseInt(r.count, 10),
       totalAmount: Number(r.total_amount),
     }));

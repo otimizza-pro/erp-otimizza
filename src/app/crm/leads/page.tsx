@@ -1,5 +1,6 @@
 "use client";
 
+import {useCompany} from "@/lib/context/company-context";
 import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -48,6 +49,9 @@ function LeadsListContent() {
   const initialPipeline = searchParams.get("pipelineId") || "ALL";
   const initialStage = searchParams.get("stageId") || "ALL";
 
+  const {selectedCompany}=useCompany();
+  const [acquisitionFilter,setAcquisitionFilter]=useState(searchParams.get("acquisitionType")||"ALL");
+  const [contactFilter,setContactFilter]=useState(searchParams.get("firstContactChannel")||"");
   const [leads, setLeads] = useState<LeadRecord[]>([]);
   const [totalLeads, setTotalLeads] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -123,7 +127,9 @@ function LeadsListContent() {
   async function loadLeads() {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ownerClientId:searchParams.get("ownerClientId")||selectedCompany.id});
+      if(acquisitionFilter!=="ALL")params.set("acquisitionType",acquisitionFilter);
+      if(contactFilter)params.set("firstContactChannel",contactFilter);
       if (searchTerm.trim()) params.set("search", searchTerm.trim());
       if (statusFilter !== "ALL") params.set("status", statusFilter);
       if (sourceFilter !== "ALL") params.set("source", sourceFilter);
@@ -154,7 +160,7 @@ function LeadsListContent() {
       loadLeads();
     }, 250);
     return () => clearTimeout(delay);
-  }, [searchTerm, statusFilter, sourceFilter, pipelineFilter, stageFilter]);
+  }, [searchTerm, statusFilter, sourceFilter, pipelineFilter, stageFilter, acquisitionFilter, contactFilter, selectedCompany.id]);
 
   function handleClearFilters() {
     setSearchTerm("");
@@ -173,6 +179,12 @@ function LeadsListContent() {
     stageFilter !== "ALL";
 
   const statusBadges: Record<LeadStatus, { label: string; color: string }> = {
+NOVO: {label:"Novo", color:"bg-zinc-50 text-zinc-700 border-zinc-200"},
+QUALIFICANDO: {label:"Em qualificação", color:"bg-zinc-50 text-zinc-700 border-zinc-200"},
+NUTRICAO: {label:"Em nutrição", color:"bg-zinc-50 text-zinc-700 border-zinc-200"},
+QUALIFICADO: {label:"Qualificado", color:"bg-zinc-50 text-zinc-700 border-zinc-200"},
+OPORTUNIDADE: {label:"Convertido em oportunidade", color:"bg-zinc-50 text-zinc-700 border-zinc-200"},
+DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-zinc-200"},
     NEW: { label: "Novo Lead", color: "bg-blue-50 text-blue-700 border-blue-200" },
     CONTACTED: { label: "Contatado", color: "bg-purple-50 text-purple-700 border-purple-200" },
     QUALIFIED: { label: "Qualificado", color: "bg-amber-50 text-amber-700 border-amber-200" },
@@ -390,6 +402,7 @@ function LeadsListContent() {
 
   return (
     <AppShell activeSection="crm_leads">
+      <div className="flex flex-wrap gap-3 mb-4"><label className="text-xs">Aquisição<select className="block border rounded-lg p-2" value={acquisitionFilter} onChange={e=>setAcquisitionFilter(e.target.value)}><option value="ALL">Todas</option><option value="INBOUND">Inbound</option><option value="OUTBOUND">Outbound</option><option value="NAO_INFORMADO">Não informado</option></select></label><label className="text-xs">Primeiro contato<input className="block border rounded-lg p-2" value={contactFilter} placeholder="Todos" onChange={e=>setContactFilter(e.target.value)}/></label></div>
       <div className="space-y-6 pb-24">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-xs">

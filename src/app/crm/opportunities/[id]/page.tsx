@@ -27,6 +27,7 @@ import {
   AlertCircle,
   FileCheck,
   FileText,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -250,6 +251,27 @@ export default function OpportunityDetailPage() {
     }
   }
 
+  const [deleting, setDeleting] = useState(false);
+  const handleDeleteOpportunity = async () => {
+    if (!confirm(`Deseja realmente excluir permanentemente a oportunidade "${opp?.title}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/crm/opportunities/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        router.push("/crm/opportunities");
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao excluir oportunidade.");
+      }
+    } catch {
+      alert("Falha de comunicação.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <AppShell>
@@ -400,6 +422,16 @@ export default function OpportunityDetailPage() {
               <Plus className="h-3.5 w-3.5 text-emerald-600" />
               Nova Atividade
             </button>
+
+            <button
+              onClick={handleDeleteOpportunity}
+              disabled={deleting}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 rounded-lg shadow-xs transition-colors"
+              title="Excluir Oportunidade"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {deleting ? "Excluindo..." : "Excluir"}
+            </button>
           </div>
         </div>
 
@@ -463,13 +495,12 @@ export default function OpportunityDetailPage() {
                     key={stage.id}
                     disabled={!isAvailable || isCurrent}
                     onClick={() => handleMoveStage(stage.id)}
-                    className={`relative p-2.5 rounded-lg border text-left transition-all ${
-                      isCurrent
+                    className={`relative p-2.5 rounded-lg border text-left transition-all ${isCurrent
                         ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/50"
                         : isAvailable
-                        ? "border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
-                        : "border-slate-100 opacity-60 cursor-not-allowed"
-                    }`}
+                          ? "border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
+                          : "border-slate-100 opacity-60 cursor-not-allowed"
+                      }`}
                   >
                     <div className="flex items-center justify-between text-[11px] mb-1">
                       <span className="font-mono text-slate-400 font-bold">#{idx + 1}</span>
@@ -670,13 +701,12 @@ export default function OpportunityDetailPage() {
                   activities.map((act) => (
                     <div
                       key={act.id}
-                      className={`p-3 rounded-lg border text-xs transition-colors ${
-                        act.status === "COMPLETED"
+                      className={`p-3 rounded-lg border text-xs transition-colors ${act.status === "COMPLETED"
                           ? "bg-slate-50/70 border-slate-200 text-slate-400 line-through"
                           : act.isOverdue
-                          ? "bg-rose-50/50 border-rose-200"
-                          : "bg-white border-slate-200"
-                      }`}
+                            ? "bg-rose-50/50 border-rose-200"
+                            : "bg-white border-slate-200"
+                        }`}
                     >
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-semibold text-slate-800 no-underline">{act.title}</span>
@@ -717,8 +747,8 @@ export default function OpportunityDetailPage() {
                 {closeTargetStatus === "WON"
                   ? "Concluir como Oportunidade Ganha"
                   : closeTargetStatus === "LOST"
-                  ? "Registrar Perda da Oportunidade"
-                  : "Cancelar Oportunidade"}
+                    ? "Registrar Perda da Oportunidade"
+                    : "Cancelar Oportunidade"}
               </h2>
 
               <form onSubmit={handleCloseSubmit} className="mt-4 space-y-4">
@@ -763,13 +793,12 @@ export default function OpportunityDetailPage() {
                   <button
                     type="submit"
                     disabled={submittingClose}
-                    className={`px-4 py-2 text-sm font-medium text-white rounded-lg ${
-                      closeTargetStatus === "WON"
+                    className={`px-4 py-2 text-sm font-medium text-white rounded-lg ${closeTargetStatus === "WON"
                         ? "bg-emerald-600 hover:bg-emerald-700"
                         : closeTargetStatus === "LOST"
-                        ? "bg-rose-600 hover:bg-rose-700"
-                        : "bg-slate-700 hover:bg-slate-800"
-                    }`}
+                          ? "bg-rose-600 hover:bg-rose-700"
+                          : "bg-slate-700 hover:bg-slate-800"
+                      }`}
                   >
                     {submittingClose ? "Salvando..." : "Confirmar"}
                   </button>

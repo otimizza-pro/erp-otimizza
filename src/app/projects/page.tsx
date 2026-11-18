@@ -1,10 +1,13 @@
+"use client";
 import React from "react";
+import { useCompany } from "@/lib/context/company-context";
 import { AppShell } from "@/components/layout/app-shell";
 import { ProjectViews } from "@/components/projects/project-views";
 import Link from "next/link";
 import { FolderKanban, Plus, CopyCheck } from "lucide-react";
 
 export default function ProjectsPage() {
+  const { selectedCompany } = useCompany();
   return (
     <AppShell activeSection="projects">
       <div className="space-y-6 pb-16">
@@ -43,7 +46,7 @@ export default function ProjectsPage() {
         </div>
 
         {/* Módulo de Visualizações e Kanban Funcional */}
-        <ProjectViews />
+        <ProjectViews clientId={selectedCompany.isOtimizza ? undefined : selectedCompany.id} />
       </div>
     </AppShell>
   );

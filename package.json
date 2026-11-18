@@ -13,7 +13,8 @@
     "test:watch": "vitest",
     "db:migrate": "tsx src/lib/db/migrate.ts",
     "db:seed": "tsx src/lib/db/seed.ts",
-    "db:status": "tsx src/lib/db/status.ts"
+    "db:status": "tsx src/lib/db/status.ts",
+    "db:audit": "tsx src/lib/db/audit-migrations.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

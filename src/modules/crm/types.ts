@@ -1,11 +1,26 @@
 export type PersonType = "PF" | "PJ";
-export type LeadStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "CONVERTED" | "UNQUALIFIED" | "ARCHIVED";
+export type LeadStatus =
+  | "NEW"
+  | "CONTACTED"
+  | "QUALIFIED"
+  | "CONVERTED"
+  | "UNQUALIFIED"
+  | "ARCHIVED"
+  | "NOVO"
+  | "QUALIFICANDO"
+  | "NUTRICAO"
+  | "QUALIFICADO"
+  | "OPORTUNIDADE"
+  | "DESQUALIFICADO";
+
+export type AcquisitionType = "INBOUND" | "OUTBOUND" | "NAO_INFORMADO";
+
 export type PipelineStatus = "ACTIVE" | "ARCHIVED";
 export type StageType = "NORMAL" | "WON" | "LOST";
 export type BillingPeriod = "ONE_TIME" | "MONTHLY" | "YEARLY";
 export type OpportunityStatus = "OPEN" | "WON" | "LOST" | "CANCELED";
 export type ActivityType = "CALL" | "WHATSAPP" | "EMAIL" | "MEETING" | "FOLLOW_UP" | "NOTE" | "OTHER";
-export type ActivityStatus = "PENDING" | "COMPLETED" | "CANCELED";
+export type ActivityStatus = "PENDING" | "COMPLETED" | "CANCELED" | "NO_SHOW" | "RESCHEDULED";
 
 // =========================================================================
 // 1. LEADS
@@ -27,6 +42,27 @@ export interface LeadRecord {
   source: string;
   notes?: string | null;
   status: LeadStatus;
+  ownerClientId?: string | null;
+  acquisitionVerified?: boolean;
+  acquisitionType?: AcquisitionType;
+  leadSource?: string | null;
+  firstContactChannel?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  utmTerm?: string | null;
+  utmContent?: string | null;
+  serviceOfInterest?: string | null;
+  needSummary?: string | null;
+  urgencyTimeline?: string | null;
+  estimatedBudget?: number;
+  nurtureReason?: string | null;
+  nurtureNextActionDate?: string | null;
+  disqualificationReason?: string | null;
+  qualificationNotes?: string | null;
+  qualifiedAt?: string | null;
+  nurturedAt?: string | null;
+  disqualifiedAt?: string | null;
   convertedClientId?: string | null;
   convertedAt?: string | null;
   archivedAt?: string | null;
@@ -67,6 +103,22 @@ export interface CreateLeadInput {
   state?: string;
   source?: string;
   notes?: string;
+  acquisitionType?: AcquisitionType;
+  leadSource?: string;
+  firstContactChannel?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
+  serviceOfInterest?: string;
+  needSummary?: string;
+  urgencyTimeline?: string;
+  estimatedBudget?: number;
+  nurtureReason?: string;
+  nurtureNextActionDate?: string;
+  disqualificationReason?: string;
+  qualificationNotes?: string;
 }
 
 export interface UpdateLeadInput extends Partial<CreateLeadInput> {
@@ -259,6 +311,13 @@ export interface OpportunityHistoryRecord {
 // =========================================================================
 // 4. ATIVIDADES E FOLLOW-UPS
 // =========================================================================
+export interface RescheduleHistoryItem {
+  previousDueDate?: string | null;
+  newDueDate?: string | null;
+  reason?: string | null;
+  rescheduledAt: string;
+}
+
 export interface ActivityRecord {
   id: string;
   activityType: ActivityType;
@@ -267,6 +326,10 @@ export interface ActivityRecord {
   dueDate?: string | null;
   completedAt?: string | null;
   status: ActivityStatus;
+  outcomeReason?: string | null;
+  rescheduleCount?: number;
+  rescheduleHistory?: RescheduleHistoryItem[];
+  previousDueDate?: string | null;
   leadId?: string | null;
   clientId?: string | null;
   opportunityId?: string | null;
@@ -295,6 +358,8 @@ export interface UpdateActivityInput {
   description?: string;
   dueDate?: string;
   status?: ActivityStatus;
+  outcomeReason?: string;
+  newDueDate?: string;
 }
 
 // =========================================================================
@@ -318,6 +383,9 @@ export interface CrmKpiSummary {
     stageId: string;
     stageName: string;
     stageColor: string;
+    pipelineId?: string;
+    pipelineName?: string;
+    displayOrder?: number;
     count: number;
     totalAmount: number;
   }[];

@@ -12,14 +12,23 @@ export async function GET(request: Request) {
     const overdueOnly = searchParams.get("overdueOnly") === "true";
     const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
 
-    const activities = await CrmService.listActivities({
-      leadId,
-      clientId,
-      opportunityId,
-      status,
-      overdueOnly,
-      limit,
-    });
+    const includeMetrics = searchParams.get("includeMetrics") === "true";
+
+    const [activities, metrics] = await Promise.all([
+      CrmService.listActivities({
+        leadId,
+        clientId,
+        opportunityId,
+        status,
+        overdueOnly,
+        limit,
+      }),
+      includeMetrics ? CrmService.getActivityMetrics() : Promise.resolve(undefined),
+    ]);
+
+    if (metrics) {
+      return NextResponse.json({ activities, metrics });
+    }
     return NextResponse.json(activities);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao listar atividades.";

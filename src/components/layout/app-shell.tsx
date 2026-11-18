@@ -98,155 +98,75 @@ export function AppShell({ children, activeSection }: AppShellProps) {
 
   // Mapeamento dos grupos do menu organizados nos Pilares Estratégicos: Marketing & Growth, Comercial, Produção e Administrativo
   const navigationGroups: NavGroup[] = [
-    // =========================================================================
-    // 1. MARKETING & GROWTH (Estratégia dos 4 Funis, Campanhas & BI)
-    // =========================================================================
-    {
-      id: "marketing_growth",
-      title: "Marketing & Growth",
-      icon: Target,
-      section: "MARKETING & GROWTH",
-      items: [
-        { id: "marketing_funnels", label: "Funis de Marketing (4 Funis)", href: "/marketing/funnels", icon: Target },
-        { id: "marketing_strategy", label: "Estratégia da Empresa", href: "/marketing/strategy", icon: Compass },
-      ],
-    },
-
-    // =========================================================================
-    // 2. COMERCIAL (CRM & Vendas, Negociações, Clientes e Contratos)
-    // =========================================================================
-    {
-      id: "commercial",
-      title: "CRM & Vendas",
-      icon: TrendingUp,
-      section: "COMERCIAL",
-      items: [
-        { id: "crm_overview", label: "Visão comercial", href: "/crm", icon: TrendingUp },
-        { id: "crm_leads", label: "Leads", href: "/crm/leads", icon: Users },
-        { id: "crm_opportunities", label: "Funis Comerciais (Kanban)", href: "/crm/opportunities", icon: RefreshCw },
-        { id: "crm_pipelines", label: "Configurar Funis & Etapas", href: "/crm/pipelines", icon: Layers },
-        { id: "crm_activities", label: "Atividades comerciais", href: "/crm/activities", icon: Calendar },
-        { id: "proposals_list", label: "Propostas comerciais", href: "/proposals", icon: FileText },
-      ],
-    },
-    {
-      id: "clients",
-      title: "Clientes",
-      icon: Users,
-      section: "COMERCIAL",
-      items: [
-        { id: "clients_list", label: "Base de clientes", href: "/clients", icon: Users },
-        { id: "clients_new", label: "Novo cliente", href: "/clients/new", icon: Plus },
-      ],
-    },
-    {
-      id: "contracts",
-      title: "Contratos",
-      icon: RefreshCw,
-      section: "COMERCIAL",
-      items: [
-        { id: "contracts_list", label: "Contratos vigentes", href: "/contracts", icon: RefreshCw },
-        { id: "contracts_new", label: "Novo contrato", href: "/contracts/new", icon: Plus },
-      ],
-    },
-
-    // =========================================================================
-    // 2. PRODUÇÃO (Operações, Entregas, Conteúdo e Catálogo)
-    // =========================================================================
-    {
-      id: "projects",
-      title: "Projetos & Demandas",
-      icon: Briefcase,
-      section: "PRODUÇÃO",
-      items: [
-        { id: "projects_list", label: "Projetos em andamento", href: "/projects", icon: Briefcase },
-        { id: "projects_new", label: "Novo projeto", href: "/projects/new", icon: Plus },
-        { id: "projects_templates", label: "Modelos & Templates", href: "/projects/templates", icon: Layers },
-        { id: "projects_onboarding", label: "Onboardings de Clientes", href: "/projects/templates?category=onboarding", icon: Rocket },
-      ],
-    },
-    {
-      id: "content_studio",
-      title: "Criação de Conteúdo & IA",
-      icon: Sparkles,
-      section: "PRODUÇÃO",
-      items: [
-        { id: "prompt_creator", label: "Estúdio de Conteúdo & IA", href: "/prompt-creator", icon: Sparkles },
-        { id: "saved_posts", label: "Feed & Criativos Salvos", href: "/prompt-creator/saved", icon: ImageIcon },
-      ],
-    },
-    {
-      id: "cadastros",
-      title: "Catálogo de Serviços",
-      icon: Package,
-      section: "PRODUÇÃO",
-      items: [
-        { id: "services", label: "Serviços", href: "/services", icon: Package },
-        { id: "combos", label: "Combos de serviços", href: "/combos", icon: Layers },
-        { id: "service_cats", label: "Categorias de serviços", href: "/services/categories", icon: Layers },
-      ],
-    },
-
-    // =========================================================================
-    // 3. ADMINISTRATIVO (Finanças, Fornecedores, BI, Estratégia e Governança)
-    // =========================================================================
-    {
-      id: "financial",
-      title: "Financeiro",
-      icon: DollarSign,
-      section: "ADMINISTRATIVO",
-      items: [
-        { id: "receivables", label: "Contas a receber", href: "/financial/receivables", icon: DollarSign },
-        { id: "payables", label: "Contas a pagar", href: "/financial/payables", icon: Layers },
-        { id: "cashflow", label: "Fluxo de caixa", href: "/financial/cashflow", icon: Database },
-        { id: "dre", label: "DRE gerencial", href: "/financial/dre", icon: PieChart },
-        { id: "accounts", label: "Contas financeiras", href: "/financial/accounts", icon: ShieldCheck },
-        { id: "cost_centers", label: "Centros de custo", href: "/financial/cost-centers", icon: Layers },
-      ],
-    },
-    {
-      id: "suppliers",
-      title: "Fornecedores",
-      icon: Truck,
-      section: "ADMINISTRATIVO",
-      items: [
-        { id: "suppliers_list", label: "Fornecedores cadastrados", href: "/suppliers", icon: Truck },
-        { id: "suppliers_new", label: "Novo fornecedor", href: "/suppliers/new", icon: Plus },
-      ],
-    },
-    {
-      id: "reports",
-      title: "Relatórios & BI",
-      icon: BarChart3,
-      section: "ADMINISTRATIVO",
-      items: [
-        { id: "reports_comm", label: "Indicadores comerciais", href: "/reports?tab=commercial", icon: TrendingUp },
-        { id: "reports_fin", label: "Indicadores financeiros", href: "/reports?tab=financial", icon: DollarSign },
-        { id: "reports_prof", label: "Rentabilidade", href: "/reports?tab=profitability", icon: BarChart3 },
-      ],
-    },
-    {
-      id: "documents",
-      title: "Documentos & Senhas",
-      icon: FolderOpen,
-      section: "ADMINISTRATIVO",
-      items: [
-        { id: "documents_repo", label: "Repositório de documentos", href: "/documents", icon: FolderOpen },
-        { id: "passwords", label: "Gerenciador de senhas", href: "/passwords", icon: ShieldCheck },
-      ],
-    },
-    {
-      id: "settings",
-      title: "Configurações",
-      icon: Settings,
-      section: "ADMINISTRATIVO",
-      items: [
-        { id: "settings_main", label: "Dados da empresa", href: "/settings", icon: Building },
-        { id: "knowledge_manual", label: "Manuais da Otimizza", href: "/informacoes-otimizza", icon: BookOpen },
-        { id: "settings_int", label: "Integrações", href: "/settings?tab=integrations", icon: Layers },
-        { id: "settings_pref", label: "Preferências", href: "/settings?tab=preferences", icon: Settings },
-      ],
-    },
+    { id: "marketing_growth", title: "Marketing & Growth", icon: Target, section: "MARKETING & GROWTH", items: [
+      { id: "marketing_funnels", label: "Funis de Marketing", href: "/marketing/funnels", icon: Target },
+      { id: "marketing_strategy", label: "Estratégia da Empresa", href: "/marketing/strategy", icon: Target },
+    ] },
+    { id: "commercial", title: "CRM & Vendas", icon: TrendingUp, section: "COMERCIAL", items: [
+      { id: "crm_overview", label: "Visão comercial", href: "/crm", icon: TrendingUp },
+      { id: "crm_leads", label: "Leads", href: "/crm/leads", icon: TrendingUp },
+      { id: "crm_opportunities", label: "Oportunidades", href: "/crm/opportunities", icon: TrendingUp },
+      { id: "crm_activities", label: "Atividades comerciais", href: "/crm/activities", icon: TrendingUp },
+    ] },
+    { id: "clients", title: "Clientes", icon: Users, section: "COMERCIAL", items: [
+      { id: "clients_list", label: "Clientes", href: "/clients", icon: Users },
+      { id: "former_clients", label: "Ex-Clientes", href: "/clients/former", icon: Users },
+    ] },
+    { id: "contracts", title: "Propostas e Contratos", icon: FileText, section: "COMERCIAL", items: [
+      { id: "proposals_list", label: "Propostas comerciais", href: "/proposals", icon: FileText },
+      { id: "contracts_list", label: "Contratos vigentes", href: "/contracts", icon: FileText },
+    ] },
+    { id: "projects", title: "Projetos", icon: Briefcase, section: "PRODUÇÃO", items: [
+      { id: "projects_new", label: "Novo projeto", href: "/projects/new", icon: Briefcase },
+      { id: "projects_list", label: "Projetos em andamento", href: "/projects", icon: Briefcase },
+    ] },
+    { id: "content_studio", title: "Social Media", icon: Sparkles, section: "PRODUÇÃO", items: [
+      { id: "prompt_creator", label: "Estúdio Criativo", href: "/prompt-creator", icon: Sparkles },
+      { id: "editorial", label: "Linha Editorial", href: "/prompt-creator?tab=EDITORIAL", icon: Sparkles },
+      { id: "calendar", label: "Calendário de Conteúdo", href: "/prompt-creator?tab=CALENDAR", icon: Sparkles },
+      { id: "saved_posts", label: "Feed & Criativos", href: "/prompt-creator/saved", icon: Sparkles },
+    ] },
+    { id: "paid_media", title: "Tráfego pago", icon: Target, section: "PRODUÇÃO", items: [
+      { id: "meta-ads", label: "Anúncios Meta Ads", href: "/operations/meta-ads", icon: Target },
+      { id: "google-ads", label: "Anúncios Google Ads", href: "/operations/google-ads", icon: Target },
+    ] },
+    { id: "web", title: "WEB", icon: Layers, section: "PRODUÇÃO", items: [
+      { id: "domains", label: "Domínios", href: "/operations/domains", icon: Layers },
+      { id: "hosting", label: "Hospedagem", href: "/operations/hosting", icon: Layers },
+      { id: "landing-pages", label: "Landing Pages", href: "/operations/landing-pages", icon: Layers },
+      { id: "websites", label: "Sites Institucionais", href: "/operations/websites", icon: Layers },
+      { id: "google-business", label: "Google Meu Negócio", href: "/operations/google-business", icon: Layers },
+      { id: "search", label: "SEO, AEO, GEO, SXO", href: "/operations/search", icon: Layers },
+      { id: "web-settings", label: "Outras Configurações", href: "/operations/web-settings", icon: Layers },
+    ] },
+    { id: "financial", title: "Financeiro", icon: DollarSign, section: "ADMINISTRATIVO", items: [
+      { id: "receivables", label: "Contas a Receber", href: "/financial/receivables", icon: DollarSign },
+      { id: "payables", label: "Contas a pagar", href: "/financial/payables", icon: DollarSign },
+      { id: "cashflow", label: "Fluxo de caixa", href: "/financial/cashflow", icon: DollarSign },
+      { id: "dre", label: "DRE gerencial", href: "/financial/dre", icon: DollarSign },
+      { id: "cost_centers", label: "Centros de custo", href: "/financial/cost-centers", icon: DollarSign },
+    ] },
+    { id: "reports", title: "Relatórios & BI", icon: BarChart3, section: "ADMINISTRATIVO", items: [
+      { id: "reports_comm", label: "Indicadores comerciais", href: "/reports?tab=commercial", icon: BarChart3 },
+      { id: "reports_fin", label: "Indicadores financeiros", href: "/reports?tab=financial", icon: BarChart3 },
+      { id: "delivery", label: "Indicadores de Entrega", href: "/reports/delivery", icon: BarChart3 },
+      { id: "performance", label: "Indicadores de Performance", href: "/reports/performance", icon: BarChart3 },
+    ] },
+    { id: "documents", title: "Documentos & Senhas", icon: FolderOpen, section: "ADMINISTRATIVO", items: [
+      { id: "documents_repo", label: "Repositório de documentos", href: "/documents", icon: FolderOpen },
+      { id: "passwords", label: "Gerenciador de senhas", href: "/passwords", icon: FolderOpen },
+    ] },
+    { id: "settings", title: "Configurações", icon: Settings, section: "ADMINISTRATIVO", items: [
+      { id: "crm_pipelines", label: "Configurar Funis & Etapas", href: "/crm/pipelines", icon: Settings },
+      { id: "projects_templates", label: "Onboarding e Templates", href: "/projects/templates", icon: Settings },
+      { id: "services", label: "Serviços", href: "/services", icon: Settings },
+      { id: "accounts", label: "Contas financeiras", href: "/financial/accounts", icon: Settings },
+      { id: "suppliers_list", label: "Fornecedores", href: "/suppliers", icon: Settings },
+      { id: "settings_main", label: "Dados da empresa", href: "/settings", icon: Settings },
+      { id: "knowledge_manual", label: "Manuais da Otimizza", href: "/informacoes-otimizza", icon: Settings },
+      { id: "settings_int", label: "Integrações", href: "/settings?tab=integrations", icon: Settings },
+      { id: "settings_pref", label: "Preferências", href: "/settings?tab=preferences", icon: Settings },
+    ] },
   ];
 
   // Estado da busca de URL (para sincronização perfeita de ?tab= e ?category=)
@@ -280,23 +200,25 @@ export function AppShell({ children, activeSection }: AppShellProps) {
     const currentCategory = currentParams.get("category");
 
     // 0. PRIORIDADE ABSOLUTA: activeSection explícito declarado no AppShell da página
-    if (activeSection) {
+    if (activeSection && !currentTab && !currentCategory) {
       const directMatch = allItems.find((it) => it.id === activeSection);
       if (directMatch) return directMatch.id;
-      if (activeSection === "clients_new") return "clients_new";
-      if (activeSection === "contracts_new") return "contracts_new";
-      if (activeSection === "suppliers_new") return "suppliers_new";
+      if (activeSection === "clients_new") return "clients_list";
+      if (activeSection === "contracts_new") return "contracts_list";
+      if (activeSection === "suppliers_new") return "suppliers_list";
       if (activeSection === "projects_new") return "projects_new";
       if (activeSection === "projects_templates") return "projects_templates";
-      if (activeSection === "projects_onboarding") return "projects_onboarding";
+      if (activeSection === "projects_onboarding") return "projects_templates";
       if (activeSection === "clients") return "clients_list";
       if (activeSection === "contracts") return "contracts_list";
       if (activeSection === "projects") return "projects_list";
       if (activeSection === "crm") return "crm_overview";
-      if (activeSection === "catalog") return "services";
+      if (activeSection === "catalog" || activeSection === "combos" || activeSection === "service_cats") return "services";
       if (activeSection === "suppliers") return "suppliers_list";
       if (activeSection === "reports") return "reports_comm";
     }
+
+    if (pathname === "/combos" || pathname.startsWith("/combos/")) return "services";
 
     // 1. Correspondência exata por rota + query parameter
     // Ex: /projects/templates?category=onboarding casa com projects_onboarding
@@ -321,8 +243,10 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       }
     }
 
+    if (pathname === "/reports" && currentTab === "profitability") return "reports_fin";
+
     // 2. CORRESPONDÊNCIA EXATA DE PATHNAME PURO (sem query string no item)
-    // Garante que /contracts/new sempre ative contracts_new, /clients/new sempre ative clients_new, etc.
+    // Identifica a página pelo caminho exato antes de verificar sub-rotas.
     for (const item of allItems) {
       const [itemPath, itemQuery] = item.href.split("?");
       if (!itemQuery && pathname === itemPath) {
@@ -537,7 +461,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
           {/* Cabeçalho do Menu & Logotipo */}
           <div
             className={`border-b border-zinc-100 flex items-center h-16 transition-all ${
-              sidebarCollapsed ? "justify-between px-2" : "justify-between px-4"
+              sidebarCollapsed ? "justify-between px-2.5" : "justify-between px-4"
             }`}
           >
             <Link
@@ -552,19 +476,19 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                 <Image
                   src="/brand/perfil-otimizza-principal.png"
                   alt="Otimizza ERP"
-                  width={42}
-                  height={42}
+                  width={34}
+                  height={34}
                   priority
-                  className="w-10 h-10 object-contain"
+                  className="w-8 h-8 object-contain"
                 />
               ) : (
                 <Image
                   src="/brand/logo-principal.svg"
                   alt="Otimizza ERP"
-                  width={260}
-                  height={80}
+                  width={200}
+                  height={50}
                   priority
-                  className="h-12 sm:h-13 w-auto max-w-[215px] object-contain object-left scale-105 origin-left"
+                  className="h-10 w-auto max-w-[190px] object-contain object-left"
                 />
               )}
             </Link>

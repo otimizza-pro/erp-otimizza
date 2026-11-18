@@ -65,6 +65,7 @@ function mapClientRow(row: DbClientRow): Client {
 }
 
 export async function listClients(options?: {
+  relationship?: "current" | "former";
   search?: string;
   status?: "ACTIVE" | "ARCHIVED";
   type?: "PF" | "PJ";
@@ -77,6 +78,10 @@ export async function listClients(options?: {
   const params: unknown[] = [];
   let paramIdx = 1;
 
+  if (options?.relationship) {
+    const former = "EXISTS (SELECT 1 FROM contracts c WHERE c.client_id = clients.id AND c.status = 'CANCELED') AND NOT EXISTS (SELECT 1 FROM contracts c WHERE c.client_id = clients.id AND c.status = 'ACTIVE')";
+    conditions.push(options.relationship === "former" ? '(' + former + ')' : 'NOT (' + former + ')');
+  }
   if (options?.status) {
     conditions.push(`status = $${paramIdx++}`);
     params.push(options.status);

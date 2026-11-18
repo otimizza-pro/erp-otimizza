@@ -23,6 +23,9 @@ import {
   TrendingUp,
   RefreshCw,
   ExternalLink,
+  UserX,
+  CalendarClock,
+  Trash2,
   type LucideIcon,
 } from "lucide-react";
 import { ActivityRecord, ActivityStatus, ActivityType } from "@/modules/crm/types";
@@ -36,6 +39,25 @@ function CommercialActivitiesPageContent() {
   const [statusFilter, setStatusFilter] = useState<string>("PENDING");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
   const [searchTerm, setSearchTerm] = useState("");
+  const [metrics, setMetrics] = useState({
+    pending: 0,
+    overdue: 0,
+    completed: 0,
+    noShow: 0,
+    rescheduled: 0,
+    total: 0,
+  });
+
+  // Modal de Reagendamento / Adiamento
+  const [rescheduleTarget, setRescheduleTarget] = useState<ActivityRecord | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleReason, setRescheduleReason] = useState("");
+  const [rescheduling, setRescheduling] = useState(false);
+
+  // Modal de No-Show
+  const [noShowTarget, setNoShowTarget] = useState<ActivityRecord | null>(null);
+  const [noShowReason, setNoShowReason] = useState("");
+  const [savingNoShow, setSavingNoShow] = useState(false);
 
   useEffect(() => {
     const s = searchParams.get("status");
@@ -100,7 +122,8 @@ function CommercialActivitiesPageContent() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (statusFilter === "PENDING" || statusFilter === "COMPLETED" || statusFilter === "CANCELED") {
+      params.set("includeMetrics", "true");
+      if (statusFilter && statusFilter !== "ALL" && statusFilter !== "OVERDUE") {
         params.set("status", statusFilter);
       }
       if (typeFilter !== "ALL") {
@@ -110,7 +133,12 @@ function CommercialActivitiesPageContent() {
       const res = await fetch(`/api/crm/activities?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setActivities(Array.isArray(data) ? data : data.activities || []);
+        if (data.metrics) {
+          setMetrics(data.metrics);
+          setActivities(data.activities || []);
+        } else {
+          setActivities(Array.isArray(data) ? data : data.activities || []);
+        }
       }
     } catch (e) {
       console.error("Erro ao carregar atividades:", e);
@@ -133,6 +161,77 @@ function CommercialActivitiesPageContent() {
       }
     } catch (e) {
       console.error(e);
+    }
+  }
+
+  async function handleNoShowConfirm() {
+    if (!noShowTarget) return;
+    setSavingNoShow(true);
+    try {
+      const res = await fetch(`/api/crm/activities/${noShowTarget.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "NO_SHOW",
+          outcomeReason: noShowReason.trim() || "Cliente não compareceu à reunião/compromisso",
+        }),
+      });
+      if (res.ok) {
+        setNoShowTarget(null);
+        setNoShowReason("");
+        loadActivities();
+      } else {
+        alert("Erro ao registrar no-show.");
+      }
+    } catch {
+      alert("Falha de conexão com o servidor.");
+    } finally {
+      setSavingNoShow(false);
+    }
+  }
+
+  async function handleRescheduleConfirm() {
+    if (!rescheduleTarget || !rescheduleDate) {
+      alert("Informe a nova data e horário para o reagendamento.");
+      return;
+    }
+    setRescheduling(true);
+    try {
+      const res = await fetch(`/api/crm/activities/${rescheduleTarget.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "RESCHEDULED",
+          newDueDate: rescheduleDate,
+          outcomeReason: rescheduleReason.trim() || "Atividade adiada / reagendada",
+        }),
+      });
+      if (res.ok) {
+        setRescheduleTarget(null);
+        setRescheduleDate("");
+        setRescheduleReason("");
+        loadActivities();
+      } else {
+        alert("Erro ao reagendar atividade.");
+      }
+    } catch {
+      alert("Falha de conexão com o servidor.");
+    } finally {
+      setRescheduling(false);
+    }
+  }
+
+  async function handleDeleteActivity(id: string) {
+    if (!confirm("Deseja realmente excluir esta atividade comercial?")) return;
+    try {
+      const res = await fetch(`/api/crm/activities/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        loadActivities();
+      } else {
+        alert("Erro ao excluir atividade.");
+      }
+    } catch {
+      alert("Falha de comunicação.");
     }
   }
 
@@ -244,35 +343,55 @@ function CommercialActivitiesPageContent() {
         </div>
 
         {/* Métricas rápidas */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                 Pendentes
               </span>
-              <div className="mt-1 text-2xl font-bold text-slate-900">{totalPending}</div>
+              <div className="mt-1 text-2xl font-bold text-slate-900">{metrics.pending}</div>
             </div>
-            <Clock className="h-8 w-8 text-blue-500/20" />
+            <Clock className="h-7 w-7 text-blue-500/20" />
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-rose-600 uppercase tracking-wider">
-                Atrasadas (Follow-up Urgente)
+              <span className="text-[11px] font-semibold text-rose-600 uppercase tracking-wider">
+                Atrasadas
               </span>
-              <div className="mt-1 text-2xl font-bold text-rose-600">{totalOverdue}</div>
+              <div className="mt-1 text-2xl font-bold text-rose-600">{metrics.overdue}</div>
             </div>
-            <AlertTriangle className="h-8 w-8 text-rose-500/20" />
+            <AlertTriangle className="h-7 w-7 text-rose-500/20" />
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
             <div>
-              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
+              <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">
                 Concluídas
               </span>
-              <div className="mt-1 text-2xl font-bold text-emerald-700">{totalCompleted}</div>
+              <div className="mt-1 text-2xl font-bold text-emerald-700">{metrics.completed}</div>
             </div>
-            <CheckCircle2 className="h-8 w-8 text-emerald-500/20" />
+            <CheckCircle2 className="h-7 w-7 text-emerald-500/20" />
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider">
+                No-Show (Faltas)
+              </span>
+              <div className="mt-1 text-2xl font-bold text-amber-700">{metrics.noShow}</div>
+            </div>
+            <UserX className="h-7 w-7 text-amber-500/20" />
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-semibold text-purple-600 uppercase tracking-wider">
+                Reagendadas
+              </span>
+              <div className="mt-1 text-2xl font-bold text-purple-700">{metrics.rescheduled}</div>
+            </div>
+            <CalendarClock className="h-7 w-7 text-purple-500/20" />
           </div>
         </div>
 
@@ -297,12 +416,15 @@ function CommercialActivitiesPageContent() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="border border-slate-300 rounded-lg text-sm px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="border border-slate-300 rounded-lg text-sm px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
                 >
-                  <option value="ALL">Todas</option>
+                  <option value="ALL">Todas as Atividades</option>
                   <option value="PENDING">Pendentes</option>
                   <option value="OVERDUE">Apenas Atrasadas</option>
                   <option value="COMPLETED">Concluídas</option>
+                  <option value="NO_SHOW">No-Show (Não compareceu)</option>
+                  <option value="RESCHEDULED">Reagendadas / Adiadas</option>
+                  <option value="CANCELED">Canceladas</option>
                 </select>
               </div>
 
@@ -393,7 +515,28 @@ function CommercialActivitiesPageContent() {
                               Concluída
                             </span>
                           )}
+                          {act.status === "NO_SHOW" && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                              <UserX className="h-3 w-3" /> No-Show (Faltou)
+                            </span>
+                          )}
+                          {act.status === "RESCHEDULED" && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
+                              <CalendarClock className="h-3 w-3" /> Reagendada ({act.rescheduleCount || 1}x)
+                            </span>
+                          )}
+                          {act.status === "CANCELED" && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                              Cancelada
+                            </span>
+                          )}
                         </div>
+
+                        {act.outcomeReason && (
+                          <div className="text-[11px] text-amber-800 bg-amber-50/70 border border-amber-200/60 rounded-md px-2 py-1 mt-1 inline-block">
+                            <span className="font-semibold">Motivo: </span>{act.outcomeReason}
+                          </div>
+                        )}
 
                         {act.description && (
                           <p className="text-xs text-slate-500 max-w-2xl">{act.description}</p>
@@ -449,15 +592,49 @@ function CommercialActivitiesPageContent() {
                         </div>
                       )}
 
-                      {act.status === "PENDING" && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {act.status === "PENDING" && (
+                          <>
+                            <button
+                              onClick={() => handleComplete(act.id)}
+                              className="px-2.5 py-1 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition flex items-center gap-1"
+                              title="Marcar como realizada"
+                            >
+                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                              Concluir
+                            </button>
+
+                            <button
+                              onClick={() => setNoShowTarget(act)}
+                              className="px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition flex items-center gap-1"
+                              title="Registrar falta / No-show"
+                            >
+                              <UserX className="h-3.5 w-3.5 text-amber-600" />
+                              No-Show
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setRescheduleTarget(act);
+                                setRescheduleDate(act.dueDate ? act.dueDate.slice(0, 16) : "");
+                              }}
+                              className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition flex items-center gap-1"
+                              title="Adiar / Reagendar com novo horário"
+                            >
+                              <CalendarClock className="h-3.5 w-3.5 text-purple-600" />
+                              Adiar
+                            </button>
+                          </>
+                        )}
+
                         <button
-                          onClick={() => handleComplete(act.id)}
-                          className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors flex items-center gap-1"
+                          onClick={() => handleDeleteActivity(act.id)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                          title="Excluir atividade"
                         >
-                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                          Concluir
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                      )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -631,15 +808,35 @@ function CommercialActivitiesPageContent() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Data Limite (Prazo)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Data e Horário Previsto
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">Intervalos de 15 min</span>
+                  </div>
                   <input
-                    type="date"
+                    type="datetime-local"
+                    step="900"
                     value={actDueDate}
                     onChange={(e) => setActDueDate(e.target.value)}
                     className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    <span className="text-[10px] text-slate-400 font-medium">Horários:</span>
+                    {["09:00", "09:30", "10:00", "11:15", "14:00", "14:30", "15:00", "16:15", "17:00"].map((time) => (
+                      <button
+                        key={time}
+                        type="button"
+                        onClick={() => {
+                          const base = actDueDate ? actDueDate.split("T")[0] : new Date().toISOString().split("T")[0];
+                          setActDueDate(`${base}T${time}`);
+                        }}
+                        className="text-[10px] font-mono font-medium px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition"
+                      >
+                        {time}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>
@@ -676,6 +873,143 @@ function CommercialActivitiesPageContent() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+        {/* Modal de Confirmação de No-Show */}
+        {noShowTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
+              <div className="flex items-center gap-2 text-amber-600 mb-2">
+                <UserX className="h-5 w-5" />
+                <h3 className="text-base font-bold text-slate-900">Registrar No-Show (Falta do Cliente)</h3>
+              </div>
+              <p className="text-xs text-slate-600 mb-4">
+                Confirma que o cliente não compareceu ao compromisso &quot;<strong>{noShowTarget.title}</strong>&quot;?
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Motivo ou Observação da Ausência
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Ex: Não atendeu à ligação, esqueceu o horário, remarcou para próxima semana..."
+                    value={noShowReason}
+                    onChange={(e) => setNoShowReason(e.target.value)}
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNoShowTarget(null);
+                      setNoShowReason("");
+                    }}
+                    disabled={savingNoShow}
+                    className="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-lg"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNoShowConfirm}
+                    disabled={savingNoShow}
+                    className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {savingNoShow ? "Registrando..." : "Confirmar No-Show"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Reagendamento / Adiamento */}
+        {rescheduleTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
+              <div className="flex items-center gap-2 text-purple-600 mb-2">
+                <CalendarClock className="h-5 w-5" />
+                <h3 className="text-base font-bold text-slate-900">Adiar / Reagendar Atividade</h3>
+              </div>
+              <p className="text-xs text-slate-600 mb-4">
+                Selecione o novo prazo e horário para &quot;<strong>{rescheduleTarget.title}</strong>&quot;.
+              </p>
+
+              <div className="space-y-3">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Nova Data e Horário
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">Passos de 15 min</span>
+                  </div>
+                  <input
+                    type="datetime-local"
+                    step="900"
+                    required
+                    value={rescheduleDate}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  />
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                    <span className="text-[10px] text-slate-400 font-medium">Horários:</span>
+                    {["09:00", "09:30", "10:00", "11:15", "14:00", "14:30", "15:00", "16:15"].map((time) => (
+                      <button
+                        key={time}
+                        type="button"
+                        onClick={() => {
+                          const base = rescheduleDate ? rescheduleDate.split("T")[0] : new Date().toISOString().split("T")[0];
+                          setRescheduleDate(`${base}T${time}`);
+                        }}
+                        className="text-[10px] font-mono font-medium px-1.5 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded transition"
+                      >
+                        {time}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Motivo do Adiamento / Reagendamento
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ex: Cliente pediu para ligar na quinta-feira à tarde..."
+                    value={rescheduleReason}
+                    onChange={(e) => setRescheduleReason(e.target.value)}
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRescheduleTarget(null);
+                      setRescheduleDate("");
+                      setRescheduleReason("");
+                    }}
+                    disabled={rescheduling}
+                    className="px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 rounded-lg"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRescheduleConfirm}
+                    disabled={rescheduling}
+                    className="px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    {rescheduling ? "Salvando..." : "Confirmar Reagendamento"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -1,5 +1,8 @@
 "use client";
 
+import { useCompany } from "@/lib/context/company-context";
+import { LeadSourceInput } from "@/components/crm/lead-source-input";
+import {ServiceInterestInput} from "@/components/crm/service-interest-input";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -33,6 +36,7 @@ interface PipelineOption {
 }
 
 export default function NewLeadPage() {
+  const { selectedCompany } = useCompany();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -51,51 +55,17 @@ export default function NewLeadPage() {
     state: "",
     source: "Indicação",
     notes: "",
+    acquisitionType: "NAO_INFORMADO" as "INBOUND" | "OUTBOUND" | "NAO_INFORMADO",
+    leadSource: "",
+    firstContactChannel: "",
+    serviceOfInterest: "",
+    urgencyTimeline: "",
+    estimatedBudget: "",
+    needSummary: "",
   });
 
   // Funil e Oportunidade Integrada
   const [pipelines, setPipelines] = useState<PipelineOption[]>([]);
-  const [addToPipeline, setAddToPipeline] = useState(false);
-  const [selectedPipelineId, setSelectedPipelineId] = useState("");
-  const [selectedStageId, setSelectedStageId] = useState("");
-  const [oppTitle, setOppTitle] = useState("");
-  const [oppAmount, setOppAmount] = useState("");
-
-  useEffect(() => {
-    async function fetchPipelines() {
-      try {
-        const res = await fetch("/api/crm/pipelines");
-        if (res.ok) {
-          const data = await res.json();
-          const list: PipelineOption[] = data.pipelines || [];
-          setPipelines(list);
-          const defaultPipe = list.find((p) => p.isDefault) || list[0];
-          if (defaultPipe) {
-            setSelectedPipelineId(defaultPipe.id);
-            if (defaultPipe.stages && defaultPipe.stages.length > 0) {
-              setSelectedStageId(defaultPipe.stages[0].id);
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Erro ao carregar funis:", e);
-      }
-    }
-    fetchPipelines();
-  }, []);
-
-  const handlePipelineChange = (pId: string) => {
-    setSelectedPipelineId(pId);
-    const pipe = pipelines.find((p) => p.id === pId);
-    if (pipe && pipe.stages && pipe.stages.length > 0) {
-      setSelectedStageId(pipe.stages[0].id);
-    } else {
-      setSelectedStageId("");
-    }
-  };
-
-  const currentStages = pipelines.find((p) => p.id === selectedPipelineId)?.stages || [];
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     if (name === "document") {
@@ -111,46 +81,21 @@ export default function NewLeadPage() {
     setLoading(true);
 
     try {
+      const numericBudget = form.estimatedBudget ? parseFloat(form.estimatedBudget.replace(/\./g, "").replace(",", ".")) : 0;
       const res = await fetch("/api/crm/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          ownerClientId: selectedCompany.isOtimizza ? null : selectedCompany.id,
+          source: form.leadSource || form.source,
+          estimatedBudget: isNaN(numericBudget) ? 0 : numericBudget,
+        }),
       });
 
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || "Erro ao salvar lead.");
-      }
-
-      // Se marcou para adicionar ao funil, criar oportunidade
-      if (addToPipeline && selectedPipelineId) {
-        try {
-          const numericAmount = parseFloat(oppAmount.replace(/\./g, "").replace(",", ".")) || 0;
-          const oppRes = await fetch("/api/crm/opportunities", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              title: oppTitle.trim() || `Negociação - ${form.name}`,
-              leadId: data.id,
-              pipelineId: selectedPipelineId,
-              stageId: selectedStageId || undefined,
-              amount: numericAmount,
-              billingPeriod: "MONTHLY",
-              probability: 20,
-              source: form.source || undefined,
-            }),
-          });
-          if (oppRes.ok) {
-            const oppData = await oppRes.json();
-            const oppId = oppData.id || oppData.opportunity?.id;
-            if (oppId) {
-              router.push(`/crm/opportunities/${oppId}`);
-              return;
-            }
-          }
-        } catch (oppErr) {
-          console.error("Erro ao adicionar oportunidade ao funil:", oppErr);
-        }
       }
 
       router.push(`/crm/leads/${data.id}`);
@@ -192,11 +137,10 @@ export default function NewLeadPage() {
             <label className="text-xs font-bold text-zinc-700 block mb-2">Tipo de Cadastro</label>
             <div className="flex items-center gap-3">
               <label
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-xs font-bold cursor-pointer transition ${
-                  form.personType === "PJ"
-                    ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
-                    : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50"
-                }`}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-xs font-bold cursor-pointer transition ${form.personType === "PJ"
+                  ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+                  : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50"
+                  }`}
               >
                 <input
                   type="radio"
@@ -210,11 +154,10 @@ export default function NewLeadPage() {
               </label>
 
               <label
-                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-xs font-bold cursor-pointer transition ${
-                  form.personType === "PF"
-                    ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
-                    : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50"
-                }`}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-xs font-bold cursor-pointer transition ${form.personType === "PF"
+                  ? "bg-zinc-900 text-white border-zinc-900 shadow-xs"
+                  : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50"
+                  }`}
               >
                 <input
                   type="radio"
@@ -378,102 +321,113 @@ export default function NewLeadPage() {
             </div>
           </div>
 
-          {/* Inclusão Direta em Funil Comercial */}
-          <div className="pt-4 border-t border-zinc-100 space-y-3">
-            <div className="flex items-center justify-between p-3.5 bg-zinc-50 border border-zinc-200/80 rounded-xl cursor-pointer hover:bg-zinc-100/60 transition"
-              onClick={() => setAddToPipeline(!addToPipeline)}
-            >
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="addToPipeline"
-                  checked={addToPipeline}
-                  onChange={(e) => setAddToPipeline(e.target.checked)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950 w-4 h-4 cursor-pointer"
-                />
-                <div>
-                  <label htmlFor="addToPipeline" className="text-xs font-bold text-zinc-900 cursor-pointer block flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-indigo-600" />
-                    Adicionar diretamente ao Funil de Vendas (Criar Oportunidade)
-                  </label>
-                  <p className="text-[11px] text-zinc-500">
-                    Cria simultaneamente uma negociação comercial no funil selecionado para acompanhamento imediato.
-                  </p>
-                </div>
-              </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${addToPipeline ? 'bg-indigo-100 text-indigo-700' : 'bg-zinc-200 text-zinc-600'}`}>
-                {addToPipeline ? "ATIVADO" : "OPCIONAL"}
-              </span>
+          {/* Origem & Estratégia de Aquisição */}
+          <div className="pt-4 border-t border-zinc-100 space-y-4">
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Origem & Aquisição</h2>
+              <p className="text-[11px] text-zinc-500">Diferencie a natureza de captação (Inbound vs Outbound), a origem e o canal de contato.</p>
             </div>
 
-            {addToPipeline && (
-              <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-4 animate-in fade-in duration-150">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
-                      Funil Comercial *
-                    </label>
-                    <select
-                      value={selectedPipelineId}
-                      onChange={(e) => handlePipelineChange(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                    >
-                      {pipelines.map((pipe) => (
-                        <option key={pipe.id} value={pipe.id}>
-                          {pipe.name} {pipe.isDefault ? "(Padrão)" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
-                      Etapa Inicial do Funil *
-                    </label>
-                    <select
-                      value={selectedStageId}
-                      onChange={(e) => setSelectedStageId(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                    >
-                      {currentStages.map((stage) => (
-                        <option key={stage.id} value={stage.id}>
-                          {stage.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
-                      Título da Negociação
-                    </label>
-                    <input
-                      type="text"
-                      value={oppTitle}
-                      onChange={(e) => setOppTitle(e.target.value)}
-                      placeholder={form.name ? `Negociação - ${form.name}` : "Negociação Comercial"}
-                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-700 block mb-1 flex items-center gap-1">
-                      <DollarSign className="w-3.5 h-3.5 text-zinc-500" />
-                      Valor Estimado Mensal / Projeto (R$)
-                    </label>
-                    <input
-                      type="text"
-                      value={oppAmount}
-                      onChange={(e) => setOppAmount(e.target.value)}
-                      placeholder="Ex: 2.500,00"
-                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 font-mono"
-                    />
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Tipo de Aquisição *</label>
+                <select
+                  name="acquisitionType"
+                  value={form.acquisitionType}
+                  onChange={handleChange}
+                  className="w-full px-3.5 py-2 text-xs bg-zinc-50/50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white font-medium"
+                >
+                  <option value="NAO_INFORMADO">Não informado</option><option value="INBOUND">INBOUND (Captação Receptiva - Lead Procurou)</option>
+                  <option value="OUTBOUND">OUTBOUND (Prospecção Ativa - Otimizza Procurou)</option>
+                </select>
+                <span className="text-[10px] text-zinc-400 mt-1 block">
+                  {form.acquisitionType === "INBOUND"
+                    ? "O cliente entrou em contato por iniciativa própria."
+                    : "A Otimizza identificou a empresa e realizou abordagem ativa."}
+                </span>
               </div>
-            )}
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Origem do Lead *</label>
+                <LeadSourceInput value={form.leadSource} onChange={value => setForm(prev => ({...prev, leadSource:value}))} />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Canal de Primeiro Contato *</label>
+                <select
+                  name="firstContactChannel"
+                  value={form.firstContactChannel}
+                  onChange={handleChange}
+                  className="w-full px-3.5 py-2 text-xs bg-zinc-50/50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white"
+                >
+                  <option value="">Não informado</option><option value="WhatsApp">WhatsApp</option>
+                  <option value="Telefone">Ligação Telefônica</option>
+                  <option value="Formulário do Site">Formulário no Site</option>
+                  <option value="Instagram Direct">Instagram Direct</option>
+                  <option value="Facebook Messenger">Facebook Messenger</option>
+                  <option value="E-mail">E-mail</option>
+                  <option value="Presencial">Reunião / Visita Presencial</option>
+                  <option value="Outro">Outro</option>
+                </select>
+              </div>
+            </div>
           </div>
+
+          {/* Diagnóstico Inicial & Qualificação (Opcional) */}
+          <div className="pt-4 border-t border-zinc-100 space-y-4">
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-400">Qualificação & Perfil de Interesse</h2>
+              <p className="text-[11px] text-zinc-500">Dados coletados na primeira conversa para apoiar a decisão de avanço comercial.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Serviço de Interesse Principal</label>
+                <ServiceInterestInput value={form.serviceOfInterest} onChange={value=>setForm(prev=>({...prev,serviceOfInterest:value}))}/>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Urgência / Momento de Compra</label>
+                <select
+                  name="urgencyTimeline"
+                  value={form.urgencyTimeline}
+                  onChange={handleChange}
+                  className="w-full px-3.5 py-2 text-xs bg-zinc-50/50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white"
+                >
+                  <option value="">Não informado</option><option value="Imediato (Urgente)">Imediato (Quer começar já)</option>
+                  <option value="Próximos 15 dias">Curto Prazo (Próximos 15 dias)</option>
+                  <option value="Próximo mês">Médio Prazo (Próximo mês)</option>
+                  <option value="Futuro / Pesquisando">Pesquisando / Apenas orçando</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Faixa de Investimento Estimada (R$)</label>
+                <input
+                  type="text"
+                  name="estimatedBudget"
+                  value={form.estimatedBudget}
+                  onChange={handleChange}
+                  placeholder="Ex: 1.500,00"
+                  className="w-full px-3.5 py-2 text-xs bg-zinc-50/50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white font-mono"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-700 block mb-1">Necessidade ou Problema Apresentado pelo Lead</label>
+              <input
+                type="text"
+                name="needSummary"
+                value={form.needSummary}
+                onChange={handleChange}
+                placeholder="Ex: Não tem presença digital e precisa gerar mais contatos no WhatsApp para vendas locais."
+                className="w-full px-3.5 py-2 text-xs bg-zinc-50/50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white"
+              />
+            </div>
+          </div>
+
+          <p className="text-sm p-4 bg-zinc-50 rounded-xl">Depois de cadastrar, qualifique o lead na ficha. A criação da oportunidade é uma ação separada; passar por nutrição é opcional.</p>
 
           {/* Observações */}
           <div className="pt-4 border-t border-zinc-100">

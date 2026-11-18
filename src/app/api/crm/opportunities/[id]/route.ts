@@ -32,3 +32,17 @@ export async function PUT(
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    await CrmService.deleteOpportunity(id);
+    return NextResponse.json({ success: true, message: "Oportunidade excluída com sucesso." });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro ao excluir oportunidade.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}

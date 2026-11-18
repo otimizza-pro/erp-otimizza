@@ -1,100 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { query } from "@/lib/db/pool";
-import { requireAdminUser } from "@/lib/auth/require-auth";
-
-export const dynamic = "force-dynamic";
-
-export async function POST(request: NextRequest) {
-  try {
-    await requireAdminUser();
-  } catch {
-    return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
-  }
-
-  try {
-    const body = await request.json();
-    const { clientId } = body;
-
-    if (!clientId) {
-      return NextResponse.json({ error: "clientId é obrigatório." }, { status: 400 });
-    }
-
-    const [clientRes, identityRes] = await Promise.all([
-      query(`SELECT id, name, trade_name FROM clients WHERE id = $1`, [clientId]),
-      query(`SELECT * FROM client_identities WHERE client_id = $1`, [clientId]),
-    ]);
-
-    const client = clientRes.rows[0];
-    const identity = identityRes.rows[0] || {};
-    const brandName = client?.trade_name || client?.name || "Empresa";
-    const niche = identity.market_niche || "Serviços Especializados";
-    const pains = Array.isArray(identity.pain_points) ? identity.pain_points : [];
-    const diffs = Array.isArray(identity.differentials) ? identity.differentials : [];
-
-    const openRouterApiKey = process.env.OPENROUTER_API_KEY;
-
-    let suggestedIdeas: string[] = [];
-
-    if (openRouterApiKey) {
-      try {
-        const prompt = `Você é um Redator e Estrategista Criativo Sênior da Otimizza.
-Gere exatamente 5 ideias de conteúdos magnéticas, diretas e altamente persuasivas para o cliente "${brandName}" (Nicho: ${niche}).
-Proposta de valor: ${identity.value_proposition || "Excelência e resultados comprovados"}
-Dores dos clientes: ${pains.join("; ") || "Pouco tempo, medo de errar, processos manuais"}
-Diferenciais da marca: ${diffs.join("; ") || "Atendimento próximo e metodologia validada"}
-
-Formato de saída:
-Retorne APENAS um array JSON com as 5 ideias (frases curtas de 1 a 2 linhas cada, abordando uma dor ou dúvida real do tomador de decisão).
-Exemplo:
-["O erro invisível que faz você perder 30% das vendas no WhatsApp", "Por que tentar fazer tudo sozinho está travando o crescimento da sua empresa", "Os bastidores do método que usamos para entregar antes do prazo", "3 sinais claros de que você precisa terceirizar este processo urgente", "O teste rápido de 2 minutos para avaliar a eficiência da sua operação"]`;
-
-        const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${openRouterApiKey}`,
-            "HTTP-Referer": "https://otimizza.com.br",
-            "X-Title": "Otimizza ERP",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.0-flash-001",
-            messages: [{ role: "user", content: prompt }],
-            temperature: 0.7,
-            max_tokens: 600,
-          }),
-        });
-
-        if (aiResponse.ok) {
-          const aiJson = await aiResponse.json();
-          const rawText = aiJson.choices?.[0]?.message?.content || "";
-          const cleanedText = rawText.replace(/```json/g, "").replace(/```/g, "").trim();
-          const parsed = JSON.parse(cleanedText);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            suggestedIdeas = parsed.map((s) => String(s).trim());
-          }
-        }
-      } catch (aiErr) {
-        console.warn("Falha ao chamar OpenRouter para sugerir ideias, usando heurística:", aiErr);
-      }
-    }
-
-    // Fallback heurístico caso a IA externa falhe ou não tenha chave
-    if (suggestedIdeas.length === 0) {
-      suggestedIdeas = [
-        pains[0] ? `Como solucionar o maior gargalo: ${pains[0]}` : `O erro mais comum cometido por empresários de ${niche}`,
-        diffs[0] ? `Por que ${diffs[0]} faz toda a diferença nos seus resultados` : `Como escolher o parceiro ideal em ${niche} sem cair em armadilhas`,
-        pains[1] ? `Por que você ainda sofre com ${pains[1]} e o que fazer agora` : `3 coisas que você precisa parar de fazer hoje mesmo se quiser lucrar mais`,
-        `Bastidores da nossa entrega: como garantimos padrão de qualidade sem atrasos`,
-        `Diagnóstico rápido: 4 perguntas para descobrir onde sua empresa está perdendo dinheiro`,
-      ];
-    }
-
-    return NextResponse.json({
-      success: true,
-      ideas: suggestedIdeas,
-    });
-  } catch (err: unknown) {
-    console.error("Erro ao sugerir ideias:", err);
-    return NextResponse.json({ error: "Erro ao sugerir ideias." }, { status: 500 });
-  }
+import {loadAiClientContext,assertClientContext,clientContextPrompt} from "@/lib/ai/client-context";
+import {NextRequest,NextResponse} from "next/server";
+import {z} from "zod";
+import {query} from "@/lib/db/pool";
+import {requireAdminUser} from "@/lib/auth/require-auth";
+import {generateWithOpenRouter,strategyModel,parseAiJson,aiFailure} from "@/lib/ai/openrouter";
+export const dynamic="force-dynamic";
+export async function POST(request:NextRequest){
+ try{await requireAdminUser();}catch{return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401});}
+ const body=z.object({clientId:z.string().uuid()}).safeParse(await request.json().catch(()=>null));
+ if(!body.success)return NextResponse.json({success:false,error:"Informe um cliente válido"},{status:400});
+ try{
+ const context=await loadAiClientContext(body.data.clientId);
+ assertClientContext(context);
+ const generated=await generateWithOpenRouter({model:strategyModel(),maxTokens:4000,messages:[{role:"system",content:"Você é um estrategista de conteúdo. Escreva em português do Brasil, usando somente o contexto fornecido. Não invente provas ou resultados. Retorne somente um array JSON com exatamente 5 ideias de conteúdo, todas strings não vazias."},{role:"user",content:clientContextPrompt(context)+"\nSugira cinco pautas distintas adequadas ao público e ao negócio deste cliente."}]});
+ const ideas=parseAiJson(generated.text,z.array(z.string().trim().min(1)).length(5));
+ return NextResponse.json({success:true,ideas,source:generated.source,modelUsed:generated.model,contextUsed:{companyId:context.companyId,sources:context.sources}});
+ }catch(error){const failure=aiFailure(error);return NextResponse.json(failure.body,{status:failure.status});}
 }

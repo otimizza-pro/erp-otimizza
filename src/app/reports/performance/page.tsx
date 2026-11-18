@@ -1,0 +1,2 @@
+import { AppShell } from "@/components/layout/app-shell";
+export default function PerformancePage(){return <AppShell activeSection="performance"><h1 className="text-2xl font-bold">Indicadores de Performance</h1><p className="mt-4 text-zinc-600">Integrações futuras: Instagram, Facebook, Meta Ads, Google Ads, Google Meu Negócio e Google Analytics. Ainda não há coleta automática configurada.</p></AppShell>;}

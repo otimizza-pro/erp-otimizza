@@ -1,3 +1,4 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { CrmService } from "@/modules/crm/service";
 
@@ -5,11 +6,17 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const { id } = await params;
     const lead = await CrmService.getLeadById(id);
     if (!lead) {
       return NextResponse.json({ error: "Lead não encontrado." }, { status: 404 });
+    }
+    const url = new URL(_request.url);
+    if (url.searchParams.get("includeHistory") === "true") {
+      const history = await CrmService.getLeadStatusHistory(id);
+      return NextResponse.json({ ...lead, history });
     }
     return NextResponse.json(lead);
   } catch (error: unknown) {
@@ -22,6 +29,7 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const { id } = await params;
     const body = await request.json();
@@ -37,6 +45,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const { id } = await params;
     const url = new URL(request.url);

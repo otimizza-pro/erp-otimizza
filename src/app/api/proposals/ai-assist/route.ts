@@ -1,54 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAdminUser } from "@/lib/auth/require-auth";
-
-interface AiAssistPayload {
-  clientName?: string;
-  segment?: string;
-  currentScenario?: string;
-  partnershipFocus?: string;
-  trackingMetrics?: string;
-  services?: string[];
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    await requireAdminUser();
-  } catch {
-    return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
-  }
-
-  try {
-    const body: AiAssistPayload = await req.json();
-    const name = body.clientName?.trim() || "sua empresa";
-    const segment = body.segment?.trim() ? ` no segmento de ${body.segment.trim()}` : "";
-    const rawScenario = body.currentScenario?.trim() || "";
-    const rawFocus = body.partnershipFocus?.trim() || "";
-    const rawMetrics = body.trackingMetrics?.trim() || "";
-    const servicesList = body.services && body.services.length > 0 ? body.services.join(", ") : "ações digitais integradas";
-
-    // Se houver chave Gemini ou OpenAI configurada, poderíamos chamar a API externa.
-    // Como padrão robusto, entregamos um refinamento executivo de altíssimo nível no tom oficial da Otimizza.
-    const refinedScenario = rawScenario
-      ? `A ${name} possui atuação estabelecida${segment}, com potencial imediato de expansão comercial. Identificamos que o momento atual demanda superar desafios como: ${rawScenario.replace(/\.$/, "")}, estabelecendo uma presença digital com autoridade e tração contínua de novos clientes.`
-      : `A ${name} possui atuação estabelecida${segment}, com potencial imediato de expansão comercial. O momento atual demanda canais digitais estruturados para converter o interesse do mercado em oportunidades comerciais previsíveis e consistentes.`;
-
-    const refinedFocus = rawFocus
-      ? `Construir e consolidar a presença digital da ${name}, estruturar o ecossistema com foco em ${servicesList} e conduzir estratégias que conectem a marca diretamente a tomadores de decisão e clientes com alta intenção de compra.`
-      : `Construir a presença digital da ${name}, organizar as ações de marketing através de ${servicesList} e conduzir campanhas que conectem a empresa a pessoas verdadeiramente interessadas nos seus produtos e serviços.`;
-
-    const refinedMetrics = rawMetrics
-      ? `Acompanhamento contínuo dos indicadores-chave: ${rawMetrics.replace(/\.$/, "")}. Todas as metas são alinhadas aos objetivos estratégicos, com relatórios periódicos de desempenho.`
-      : `A visibilidade da marca, o engajamento com conteúdos estratégicos e o volume de contatos comerciais gerados pelos canais trabalhados. Os indicadores e as metas serão acompanhados periodicamente conforme os primeiros dados da operação.`;
-
-    return NextResponse.json({
-      success: true,
-      currentScenario: refinedScenario,
-      partnershipFocus: refinedFocus,
-      trackingMetrics: refinedMetrics,
-    });
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : "Erro ao processar assistência por IA.";
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
-}
-
+import {loadProposalContext,clientContextPrompt} from "@/lib/ai/client-context";
+import {NextRequest,NextResponse} from "next/server";
+import {z} from "zod";
+import {requireAdminUser} from "@/lib/auth/require-auth";
+import {generateWithOpenRouter,contentModel,parseAiJson,aiFailure} from "@/lib/ai/openrouter";
+const payload=z.object({clientId:z.string().uuid().optional(),leadId:z.string().uuid().optional(),clientName:z.string().max(500).optional(),segment:z.string().max(500).optional(),currentScenario:z.string().max(20000).optional(),partnershipFocus:z.string().max(20000).optional(),trackingMetrics:z.string().max(20000).optional(),services:z.array(z.string().max(500)).max(100).optional()});
+export async function POST(request:NextRequest){try{await requireAdminUser();}catch{return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401});}const body=payload.safeParse(await request.json().catch(()=>null));if(!body.success)return NextResponse.json({success:false,error:"Dados inválidos para assistência de proposta"},{status:400});try{const context=await loadProposalContext(body.data);const generated=await generateWithOpenRouter({model:contentModel(),messages:[{role:"system",content:'Revise a redação de uma proposta comercial em português do Brasil. Preserve fatos fornecidos. Não invente resultados, serviços ou compromissos. Não use travessões. Retorne somente JSON com três strings: currentScenario, partnershipFocus, trackingMetrics.'},{role:"user",content:clientContextPrompt(context)+"\nDADOS DA PROPOSTA:\n"+JSON.stringify(body.data)}]});const result=parseAiJson(generated.text,z.object({currentScenario:z.string().trim().min(1),partnershipFocus:z.string().trim().min(1),trackingMetrics:z.string().trim().min(1)}));return NextResponse.json({success:true,...result,source:generated.source,modelUsed:generated.model,contextUsed:{companyId:context.companyId,sources:context.sources}});}catch(error){const failure=aiFailure(error);return NextResponse.json(failure.body,{status:failure.status});}}

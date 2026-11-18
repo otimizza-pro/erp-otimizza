@@ -1,5 +1,7 @@
 "use client";
 
+import { LeadSourceInput } from "@/components/crm/lead-source-input";
+import {ServiceInterestInput} from "@/components/crm/service-interest-input";
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -117,7 +119,35 @@ export default function LeadDetailPage() {
     state: "",
     source: "OUTROS",
     notes: "",
+    acquisitionType: "INBOUND" as "INBOUND" | "OUTBOUND" | "NAO_INFORMADO",
+    leadSource: "Google Ads",
+    firstContactChannel: "WhatsApp",
+    serviceOfInterest: "",
+    urgencyTimeline: "",
+    estimatedBudget: "",
+    needSummary: "",
   });
+
+  // Modais de Ciclo de Qualificação e Nutrição
+  const [showNurtureModal, setShowNurtureModal] = useState(false);
+  const [nurtureReason, setNurtureReason] = useState("Pretende contratar futuramente");
+  const [nurtureNextDate, setNurtureNextDate] = useState("");
+  const [nurtureNotes, setNurtureNotes] = useState("");
+  const [savingNurture, setSavingNurture] = useState(false);
+
+  const [showDisqualifyModal, setShowDisqualifyModal] = useState(false);
+  const [disqualifyReason, setDisqualifyReason] = useState("Fora do perfil / Sem orçamento");
+  const [disqualifyNotes, setDisqualifyNotes] = useState("");
+  const [savingDisqualify, setSavingDisqualify] = useState(false);
+
+  // Modal de Criação de Oportunidade com Verificação de Duplicidade
+  const [showCreateOppModal, setShowCreateOppModal] = useState(false);
+  const [pipelines, setPipelines] = useState<any[]>([]);
+  const [selectedPipeId, setSelectedPipeId] = useState("");
+  const [selectedStageId, setSelectedStageId] = useState("");
+  const [newOppTitle, setNewOppTitle] = useState("");
+  const [newOppAmount, setNewOppAmount] = useState("");
+  const [creatingOpp, setCreatingOpp] = useState(false);
 
   // Exclusão / Arquivamento
   const [actionLoading, setActionLoading] = useState(false);
@@ -159,6 +189,13 @@ export default function LeadDetailPage() {
         state: leadData.state || "",
         source: leadData.source || "OUTROS",
         notes: leadData.notes || "",
+        acquisitionType: leadData.acquisitionType || "",
+        leadSource: leadData.leadSource || "",
+        firstContactChannel: leadData.firstContactChannel || "",
+        serviceOfInterest: leadData.serviceOfInterest || "",
+        urgencyTimeline: leadData.urgencyTimeline || "",
+        estimatedBudget: leadData.estimatedBudget || 0,
+        needSummary: leadData.needSummary || "",
       });
 
       if (oppsRes.ok) {
@@ -222,6 +259,36 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleDeleteOpportunity = async (oppId: string, oppTitle: string) => {
+    if (!confirm(`Deseja realmente excluir a oportunidade "${oppTitle}"?`)) return;
+    try {
+      const res = await fetch(`/api/crm/opportunities/${oppId}`, { method: "DELETE" });
+      if (res.ok) {
+        loadData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao excluir oportunidade.");
+      }
+    } catch {
+      alert("Falha de comunicação.");
+    }
+  };
+
+  const handleDeleteProposal = async (propId: string, propCode: string) => {
+    if (!confirm(`Deseja realmente excluir a proposta ${propCode}?`)) return;
+    try {
+      const res = await fetch(`/api/proposals/${propId}`, { method: "DELETE" });
+      if (res.ok) {
+        loadData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao excluir proposta.");
+      }
+    } catch {
+      alert("Falha de comunicação.");
+    }
+  };
+
   const handleOpenEditModal = () => {
     if (!lead) return;
     setEditForm({
@@ -238,6 +305,13 @@ export default function LeadDetailPage() {
       state: lead.state || "",
       source: lead.source || "OUTROS",
       notes: lead.notes || "",
+      acquisitionType: lead.acquisitionType || "INBOUND",
+      leadSource: lead.leadSource || lead.source || "Google Ads",
+      firstContactChannel: lead.firstContactChannel || "WhatsApp",
+      serviceOfInterest: lead.serviceOfInterest || "",
+      urgencyTimeline: lead.urgencyTimeline || "",
+      estimatedBudget: lead.estimatedBudget ? String(lead.estimatedBudget) : "",
+      needSummary: lead.needSummary || "",
     });
     setEditError("");
     setShowEditModal(true);
@@ -258,10 +332,17 @@ export default function LeadDetailPage() {
     setEditError("");
 
     try {
+      const numericBudget = editForm.estimatedBudget
+        ? parseFloat(editForm.estimatedBudget.replace(/\./g, "").replace(",", "."))
+        : 0;
       const res = await fetch(`/api/crm/leads/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({
+          ...editForm,
+          source: editForm.leadSource || editForm.source,
+          estimatedBudget: isNaN(numericBudget) ? 0 : numericBudget,
+        }),
       });
 
       const data = await res.json();
@@ -275,6 +356,144 @@ export default function LeadDetailPage() {
       setEditError(err instanceof Error ? err.message : "Erro ao salvar lead.");
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const handleQualifyLead = async () => {
+    if (!confirm("Deseja marcar este lead como QUALIFICADO para o processo comercial?")) return;
+    try {
+      const res = await fetch(`/api/crm/leads/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "QUALIFICADO" }),
+      });
+      if (res.ok) {
+        await loadData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao qualificar lead.");
+      }
+    } catch {
+      alert("Falha de comunicação.");
+    }
+  };
+
+  const handleConfirmNurture = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingNurture(true);
+    try {
+      const res = await fetch(`/api/crm/leads/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "NUTRICAO",
+          nurtureReason,
+          nurtureNextActionDate: nurtureNextDate || null,
+          notes: nurtureNotes
+            ? `${lead?.notes ? lead.notes + "\n" : ""}[Nutrição em ${new Date().toLocaleDateString("pt-BR")}] Motivo: ${nurtureReason}. ${nurtureNotes}`
+            : lead?.notes,
+        }),
+      });
+      if (res.ok) {
+        setShowNurtureModal(false);
+        await loadData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao enviar lead para nutrição.");
+      }
+    } catch {
+      alert("Falha de comunicação.");
+    } finally {
+      setSavingNurture(false);
+    }
+  };
+
+  const handleConfirmDisqualify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingDisqualify(true);
+    try {
+      const res = await fetch(`/api/crm/leads/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "DESQUALIFICADO",
+          disqualificationReason: disqualifyReason,
+          notes: disqualifyNotes
+            ? `${lead?.notes ? lead.notes + "\n" : ""}[Desqualificado em ${new Date().toLocaleDateString("pt-BR")}] Motivo: ${disqualifyReason}. ${disqualifyNotes}`
+            : lead?.notes,
+        }),
+      });
+      if (res.ok) {
+        setShowDisqualifyModal(false);
+        await loadData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao desqualificar lead.");
+      }
+    } catch {
+      alert("Falha de comunicação.");
+    } finally {
+      setSavingDisqualify(false);
+    }
+  };
+
+  const openCreateOppModal = async () => {
+    try {
+      const res = await fetch("/api/crm/pipelines");
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.pipelines || []);
+        setPipelines(list);
+        const def = list.find((p: any) => p.isDefault) || list[0];
+        if (def) {
+          setSelectedPipeId(def.id);
+          if (def.stages && def.stages.length > 0) {
+            setSelectedStageId(def.stages[0].id);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao carregar funis:", e);
+    }
+    setNewOppTitle(lead?.name ? `Negociação - ${lead.name}` : "Nova Negociação");
+    setNewOppAmount(lead?.estimatedBudget ? String(lead.estimatedBudget) : "");
+    setShowCreateOppModal(true);
+  };
+
+  const handleCreateOppSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPipeId) {
+      alert("Selecione um funil comercial.");
+      return;
+    }
+    setCreatingOpp(true);
+    try {
+      const numericAmount = parseFloat(newOppAmount.replace(/\./g, "").replace(",", ".")) || 0;
+      const res = await fetch("/api/crm/opportunities", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newOppTitle.trim() || `Negociação - ${lead?.name}`,
+          leadId: id,
+          pipelineId: selectedPipeId,
+          stageId: selectedStageId || undefined,
+          amount: numericAmount,
+          billingPeriod: "MONTHLY",
+          probability: 20,
+          source: lead?.leadSource || lead?.source || undefined,
+        }),
+      });
+      if (res.ok) {
+        setShowCreateOppModal(false);
+        await loadData();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Erro ao criar oportunidade.");
+      }
+    } catch {
+      alert("Falha de comunicação.");
+    } finally {
+      setCreatingOpp(false);
     }
   };
 
@@ -483,36 +702,142 @@ export default function LeadDetailPage() {
               </button>
             )}
 
+            {/* Ações Estratégicas do Ciclo de Leads */}
+            {!isConverted && lead.status !== "QUALIFIED" && lead.status !== "QUALIFICADO" && lead.status !== "OPORTUNIDADE" && lead.status !== "DESQUALIFICADO" && (
+              <button
+                type="button"
+                onClick={handleQualifyLead}
+                className="px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                title="Aprova este lead na qualificação para avanço comercial"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Qualificar Lead
+              </button>
+            )}
+
+            {!isConverted && lead.status !== "NUTRICAO" && lead.status !== "DESQUALIFICADO" && (
+              <button
+                type="button"
+                onClick={() => setShowNurtureModal(true)}
+                className="px-3.5 py-2 text-xs font-semibold text-amber-900 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                title="Lead com interesse mas que precisa de acompanhamento futuro"
+              >
+                <Clock className="w-4 h-4 text-amber-600" /> Enviar para Nutrição
+              </button>
+            )}
+
+            {!isConverted && lead.status !== "DESQUALIFICADO" && lead.status !== "UNQUALIFIED" && (
+              <button
+                type="button"
+                onClick={() => setShowDisqualifyModal(true)}
+                className="px-3 py-2 text-xs font-semibold text-zinc-600 hover:text-rose-700 bg-white hover:bg-rose-50 border border-zinc-200 hover:border-rose-200 rounded-xl flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                title="Descartar este lead por perfil incompatível ou desinteresse"
+              >
+                <X className="w-4 h-4 text-zinc-400 hover:text-rose-600" /> Desqualificar
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={openCreateOppModal}
+              className="px-3.5 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+              title="Abre negociação formal no Funil Comercial (Kanban)"
+            >
+              <Plus className="w-4 h-4" /> Criar Oportunidade Comercial
+            </button>
+
             <Link
               href={`/proposals/new?leadId=${lead.id}`}
               className="px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 flex items-center gap-1.5 transition shadow-2xs"
             >
               <FileText className="w-4 h-4" /> Criar Proposta
             </Link>
-
-            <Link
-              href={`/crm/opportunities/new?leadId=${lead.id}`}
-              className="px-3.5 py-2 text-xs font-semibold text-zinc-900 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 flex items-center gap-1.5 transition shadow-2xs"
-            >
-              <Plus className="w-4 h-4" /> Criar Oportunidade
-            </Link>
           </div>
         </div>
+
+        {/* Banner de Lead em Nutrição */}
+        {lead.status === "NUTRICAO" && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-amber-950">Lead em Nutrição Estratégica</h4>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  <strong>Motivo:</strong> {lead.nurtureReason || "Acompanhamento futuro de compra"}.
+                  {lead.nurtureNextActionDate && (
+                    <span className="ml-2">
+                      <strong>Próximo Contato:</strong> {new Date(lead.nurtureNextActionDate + "T12:00:00").toLocaleDateString("pt-BR")}.
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleQualifyLead}
+                className="px-3 py-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-xl transition"
+              >
+                Reativar para Qualificação
+              </button>
+              <button
+                type="button"
+                onClick={openCreateOppModal}
+                className="px-3 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition"
+              >
+                Avançar p/ Oportunidade
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Banner de Lead Desqualificado */}
+        {(lead.status === "DESQUALIFICADO" || lead.status === "UNQUALIFIED") && (
+          <div className="bg-zinc-100 border border-zinc-300 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-zinc-200 text-zinc-700 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertCircle className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-zinc-900">Lead Desqualificado</h4>
+                <p className="text-xs text-zinc-600 mt-0.5">
+                  <strong>Motivo do Descarte:</strong> {lead.disqualificationReason || "Critérios comerciais não atendidos"}.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleStatusChange("QUALIFICANDO")}
+              className="px-3 py-1.5 text-xs font-bold bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl transition"
+            >
+              Reabrir Lead (Em Qualificação)
+            </button>
+          </div>
+        )}
 
         {/* Status Bar */}
         <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-zinc-500">Fase Comercial:</span>
+            <span className="text-xs font-semibold text-zinc-500">Status do Lead:</span>
             <select
-              value={lead.status}
+              value={
+                lead.status === "NEW" ? "NOVO" :
+                lead.status === "CONTACTED" ? "QUALIFICANDO" :
+                lead.status === "QUALIFIED" ? "QUALIFICADO" :
+                lead.status === "UNQUALIFIED" ? "DESQUALIFICADO" :
+                lead.status
+              }
               disabled={isConverted}
               onChange={(e) => handleStatusChange(e.target.value as LeadStatus)}
               className="px-3 py-1.5 text-xs font-bold bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:opacity-60"
             >
-              <option value="NEW">1. Novo Lead</option>
-              <option value="CONTACTED">2. Contatado</option>
-              <option value="QUALIFIED">3. Qualificado</option>
-              <option value="UNQUALIFIED">Desqualificado</option>
+              <option value="NOVO">1. Novo (Triagem)</option>
+              <option value="QUALIFICANDO">2. Em Qualificação</option>
+              <option value="NUTRICAO">3. Em Nutrição</option>
+              <option value="QUALIFICADO">4. Qualificado</option>
+              <option value="OPORTUNIDADE">5. Oportunidade Comercial</option>
+              <option value="DESQUALIFICADO">Desqualificado</option>
               {isConverted && <option value="CONVERTED">Convertido em Cliente</option>}
               <option value="ARCHIVED">Arquivado</option>
             </select>
@@ -773,6 +1098,65 @@ export default function LeadDetailPage() {
               </div>
             </div>
 
+            {/* Origem & Estratégia de Aquisição */}
+            <div className="pt-4 border-t border-zinc-100">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">
+                Origem & Estratégia de Aquisição
+              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-zinc-50/70 p-3.5 rounded-xl border border-zinc-100 text-xs">
+                <div>
+                  <span className="text-zinc-400 block text-[11px] mb-1">Tipo de Aquisição</span>
+                  <span
+                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      lead.acquisitionType === "OUTBOUND"
+                        ? "bg-purple-100 text-purple-800 border border-purple-200"
+                        : "bg-blue-100 text-blue-800 border border-blue-200"
+                    }`}
+                  >
+                    {lead.acquisitionType === "OUTBOUND" ? "OUTBOUND (Ativa)" : "INBOUND (Receptiva)"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 block text-[11px] mb-1">Origem do Lead</span>
+                  <span className="font-bold text-zinc-900">{lead.leadSource || lead.source || "Não informada"}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 block text-[11px] mb-1">Canal de Primeiro Contato</span>
+                  <span className="font-semibold text-zinc-800">{lead.firstContactChannel || "WhatsApp"}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Diagnóstico & Perfil de Contratação */}
+            {(lead.serviceOfInterest || lead.urgencyTimeline || lead.estimatedBudget || lead.needSummary) && (
+              <div className="pt-4 border-t border-zinc-100">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">
+                  Diagnóstico & Qualificação Comercial
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-indigo-50/30 p-3.5 rounded-xl border border-indigo-100 text-xs mb-3">
+                  <div>
+                    <span className="text-zinc-400 block text-[11px] mb-1">Serviço de Interesse</span>
+                    <span className="font-bold text-indigo-950">{lead.serviceOfInterest || "Não especificado"}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[11px] mb-1">Momento / Urgência</span>
+                    <span className="font-semibold text-zinc-800">{lead.urgencyTimeline || "Não informado"}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 block text-[11px] mb-1">Orçamento Estimado</span>
+                    <span className="font-mono font-bold text-emerald-700">
+                      {lead.estimatedBudget ? formatBRL(lead.estimatedBudget) : "A combinar"}
+                    </span>
+                  </div>
+                </div>
+                {lead.needSummary && (
+                  <div className="text-xs text-zinc-700 bg-white p-2.5 rounded-lg border border-zinc-200">
+                    <strong className="text-zinc-900">Necessidade do Lead:</strong> {lead.needSummary}
+                  </div>
+                )}
+              </div>
+            )}
+
             {lead.notes && (
               <div className="pt-3 border-t border-zinc-100">
                 <span className="text-zinc-400 text-xs block mb-1">Observações Internas</span>
@@ -971,13 +1355,23 @@ export default function LeadDetailPage() {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-center">
-                        <Link
-                          href={`/crm/opportunities/${opp.id}`}
-                          className="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 inline-block"
-                          title="Ver detalhes"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="flex items-center justify-center gap-1">
+                          <Link
+                            href={`/crm/opportunities/${opp.id}`}
+                            className="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 inline-block"
+                            title="Ver detalhes"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOpportunity(opp.id, opp.title)}
+                            className="p-1 rounded-md text-zinc-400 hover:text-rose-600 hover:bg-rose-50 inline-block transition"
+                            title="Excluir Oportunidade"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1050,13 +1444,23 @@ export default function LeadDetailPage() {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-center">
-                        <Link
-                          href={`/proposals/${prop.id}`}
-                          className="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 inline-block"
-                          title="Abrir proposta"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="flex items-center justify-center gap-1">
+                          <Link
+                            href={`/proposals/${prop.id}`}
+                            className="p-1 rounded-md text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 inline-block"
+                            title="Abrir proposta"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProposal(prop.id, prop.proposalCode)}
+                            className="p-1 rounded-md text-zinc-400 hover:text-rose-600 hover:bg-rose-50 inline-block transition"
+                            title="Excluir Proposta"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1546,43 +1950,110 @@ export default function LeadDetailPage() {
                 </div>
 
                 {/* Segmento & Origem */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Segmento de Mercado</label>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Tipo de Aquisição</label>
+                    <select
+                      name="acquisitionType"
+                      value={editForm.acquisitionType}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    >
+                      <option value="NAO_INFORMADO">Não informado</option><option value="INBOUND">INBOUND (Captação Receptiva)</option>
+                      <option value="OUTBOUND">OUTBOUND (Prospecção Ativa)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Origem do Lead</label>
+                    <LeadSourceInput value={editForm.leadSource} onChange={value => setEditForm(prev => ({...prev, leadSource:value}))} />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Canal 1º Contato</label>
+                    <select
+                      name="firstContactChannel"
+                      value={editForm.firstContactChannel}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    >
+                      <option value="WhatsApp">WhatsApp</option>
+                      <option value="Telefone">Telefone</option>
+                      <option value="Formulário do Site">Formulário Site</option>
+                      <option value="Instagram Direct">Instagram Direct</option>
+                      <option value="Facebook Messenger">Messenger</option>
+                      <option value="E-mail">E-mail</option>
+                      <option value="Presencial">Presencial</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Qualificação & Diagnóstico */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Serviço de Interesse</label>
                     <input
                       type="text"
-                      name="segment"
-                      placeholder="Ex: E-commerce de Moda, Saúde, SaaS"
-                      value={editForm.segment}
+                      name="serviceOfInterest"
+                      placeholder="Ex: Social Media, Google Ads"
+                      value={editForm.serviceOfInterest}
                       onChange={handleEditChange}
                       className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Canal de Origem</label>
-                    <select
-                      name="source"
-                      value={editForm.source}
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Urgência / Momento</label>
+                    <input
+                      type="text"
+                      name="urgencyTimeline"
+                      placeholder="Ex: Imediato, 15 dias"
+                      value={editForm.urgencyTimeline}
                       onChange={handleEditChange}
                       className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                    >
-                      <option value="Instagram">Instagram</option>
-                      <option value="Google Ads">Google Ads</option>
-                      <option value="LinkedIn">LinkedIn</option>
-                      <option value="Indicação">Indicação</option>
-                      <option value="Inbound">Inbound / Site</option>
-                      <option value="Outbound">Outbound</option>
-                      <option value="Parceiro">Parceiro</option>
-                      <option value="Evento">Evento</option>
-                      <option value="OUTROS">Outros</option>
-                    </select>
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Orçamento Estimado (R$)</label>
+                    <input
+                      type="text"
+                      name="estimatedBudget"
+                      placeholder="Ex: 2.000,00"
+                      value={editForm.estimatedBudget}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 font-mono focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
                   </div>
                 </div>
 
-                {/* Localização */}
+                <div>
+                  <label className="text-xs font-semibold text-zinc-700 block mb-1">Resumo da Necessidade do Lead</label>
+                  <input
+                    type="text"
+                    name="needSummary"
+                    placeholder="Ex: Precisa de mais pacientes no consultório..."
+                    value={editForm.needSummary}
+                    onChange={handleEditChange}
+                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+
+                {/* Segmento & Localização */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <div className="md:col-span-3">
+                  <div className="md:col-span-2">
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">Segmento de Mercado</label>
+                    <input
+                      type="text"
+                      name="segment"
+                      placeholder="Ex: E-commerce, Saúde, Advocacia"
+                      value={editForm.segment}
+                      onChange={handleEditChange}
+                      className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                  <div>
                     <label className="text-xs font-semibold text-zinc-700 block mb-1">Cidade</label>
                     <input
                       type="text"
@@ -1689,13 +2160,33 @@ export default function LeadDetailPage() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-700 block mb-1">Data Prevista</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-zinc-700">Data e Horário Previsto</label>
+                  <span className="text-[10px] text-zinc-400 font-mono">Passos de 15 min</span>
+                </div>
                 <input
                   type="datetime-local"
+                  step="900"
                   value={newActivity.dueDate}
                   onChange={(e) => setNewActivity((prev) => ({ ...prev, dueDate: e.target.value }))}
                   className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl"
                 />
+                <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                  <span className="text-[10px] text-zinc-400">Horários:</span>
+                  {["09:00", "09:15", "09:30", "10:00", "10:30", "11:15", "14:00", "14:15", "15:00", "16:30"].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => {
+                        const base = newActivity.dueDate ? newActivity.dueDate.split("T")[0] : new Date().toISOString().split("T")[0];
+                        setNewActivity((prev) => ({ ...prev, dueDate: `${base}T${t}` }));
+                      }}
+                      className="text-[10px] font-mono font-medium px-1.5 py-0.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 rounded transition"
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -1723,6 +2214,282 @@ export default function LeadDetailPage() {
                   className="px-4 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl disabled:opacity-50"
                 >
                   {savingActivity ? "Salvando..." : "Salvar Atividade"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Modal: Enviar para Nutrição */}
+        {showNurtureModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+            <form onSubmit={handleConfirmNurture} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-950">Enviar Lead para Nutrição</h3>
+                    <p className="text-[11px] text-zinc-500">Mantenha o lead em acompanhamento estratégico</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowNurtureModal(false)}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Motivo da Nutrição *</label>
+                <select
+                  value={nurtureReason}
+                  onChange={(e) => setNurtureReason(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                >
+                  <option value="Pretende contratar futuramente">Pretende contratar futuramente</option>
+                  <option value="Está pesquisando fornecedores">Está pesquisando fornecedores</option>
+                  <option value="Ainda não decidiu investir">Ainda não decidiu investir no momento</option>
+                  <option value="Precisa receber conteúdos ou informações adicionais">Precisa de mais conteúdos / cases</option>
+                  <option value="Solicitou contato em data específica">Solicitou contato em data futura</option>
+                  <option value="Outro">Outro motivo</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Data Prevista para Próximo Contato</label>
+                <input
+                  type="date"
+                  value={nurtureNextDate}
+                  onChange={(e) => setNurtureNextDate(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Observações da Nutrição</label>
+                <textarea
+                  rows={2}
+                  value={nurtureNotes}
+                  onChange={(e) => setNurtureNotes(e.target.value)}
+                  placeholder="Ex: Vai reformar o espaço da clínica em janeiro e pediu retorno no início do ano..."
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setShowNurtureModal(false)}
+                  className="px-3 py-2 text-xs font-semibold text-zinc-600 hover:text-zinc-950"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingNurture}
+                  className="px-4 py-2 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-xl shadow-xs disabled:opacity-50"
+                >
+                  {savingNurture ? "Salvando..." : "Confirmar Nutrição"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Modal: Desqualificar Lead */}
+        {showDisqualifyModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+            <form onSubmit={handleConfirmDisqualify} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-800 flex items-center justify-center font-bold">
+                    <X className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-950">Desqualificar Lead</h3>
+                    <p className="text-[11px] text-zinc-500">Registre o motivo pelo qual este contato foi descartado</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDisqualifyModal(false)}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Motivo do Descarte *</label>
+                <select
+                  value={disqualifyReason}
+                  onChange={(e) => setDisqualifyReason(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                >
+                  <option value="Fora do perfil / Porte incompatível">Fora do perfil da Otimizza</option>
+                  <option value="Sem interesse / Desistiu">Sem interesse / Desistiu dos serviços</option>
+                  <option value="Contato inválido / Não atende">Contato inválido / Não responde</option>
+                  <option value="Necessidade incompatível">Necessidade incompatível com nossos serviços</option>
+                  <option value="Sem orçamento suficiente">Sem orçamento suficiente</option>
+                  <option value="Duplicidade cadastral">Duplicidade cadastral</option>
+                  <option value="Outro">Outro motivo</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Observações do Descarte</label>
+                <textarea
+                  rows={2}
+                  value={disqualifyNotes}
+                  onChange={(e) => setDisqualifyNotes(e.target.value)}
+                  placeholder="Detalhes adicionais sobre o descarte..."
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setShowDisqualifyModal(false)}
+                  className="px-3 py-2 text-xs font-semibold text-zinc-600 hover:text-zinc-950"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingDisqualify}
+                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-xs disabled:opacity-50"
+                >
+                  {savingDisqualify ? "Salvando..." : "Confirmar Desqualificação"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Modal: Criar Oportunidade Comercial (com checagem de duplicidade) */}
+        {showCreateOppModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+            <form onSubmit={handleCreateOppSubmit} className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-zinc-950">Criar Oportunidade Comercial</h3>
+                    <p className="text-[11px] text-zinc-500">Inicie uma negociação formal no Funil de Vendas (Kanban)</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateOppModal(false)}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Alerta de Oportunidades Existentes */}
+              {opportunities.length > 0 && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs space-y-1">
+                  <div className="font-bold text-amber-900 flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    Este lead já possui {opportunities.length} negociação(ões) vinculada(s):
+                  </div>
+                  <ul className="text-amber-800 list-disc list-inside space-y-0.5 pt-1">
+                    {opportunities.map((op) => (
+                      <li key={op.id} className="truncate">
+                        <strong>{op.title}</strong> — {op.stageName || "Em andamento"} ({formatBRL(op.amount)})
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[11px] text-amber-700 pt-1">
+                    Você pode criar uma nova negociação adicional ou cancelar para continuar as existentes.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-700 block mb-1">Funil Comercial *</label>
+                  <select
+                    value={selectedPipeId}
+                    onChange={(e) => {
+                      const pId = e.target.value;
+                      setSelectedPipeId(pId);
+                      const pipe = pipelines.find((p) => p.id === pId);
+                      if (pipe && pipe.stages && pipe.stages.length > 0) {
+                        setSelectedStageId(pipe.stages[0].id);
+                      }
+                    }}
+                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  >
+                    {pipelines.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} {p.isDefault ? "(Padrão)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-zinc-700 block mb-1">Etapa Inicial *</label>
+                  <select
+                    value={selectedStageId}
+                    onChange={(e) => setSelectedStageId(e.target.value)}
+                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  >
+                    {(pipelines.find((p) => p.id === selectedPipeId)?.stages || []).map((s: any) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Título da Negociação *</label>
+                <input
+                  type="text"
+                  required
+                  value={newOppTitle}
+                  onChange={(e) => setNewOppTitle(e.target.value)}
+                  placeholder={`Negociação - ${lead.name}`}
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Valor Estimado Mensal (R$)</label>
+                <input
+                  type="text"
+                  value={newOppAmount}
+                  onChange={(e) => setNewOppAmount(e.target.value)}
+                  placeholder="Ex: 2.500,00"
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl font-mono focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateOppModal(false)}
+                  className="px-3 py-2 text-xs font-semibold text-zinc-600 hover:text-zinc-950"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingOpp}
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs disabled:opacity-50"
+                >
+                  {creatingOpp ? "Criando..." : "Criar Oportunidade"}
                 </button>
               </div>
             </form>

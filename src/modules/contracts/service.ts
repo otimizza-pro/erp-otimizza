@@ -9,6 +9,7 @@ import {
   CreateContractInput,
   CreateContractVersionInput,
   CancelContractInput,
+  UpdateContractInput,
   RecurrenceProjection,
   ContractStatus,
 } from "./types";
@@ -613,6 +614,401 @@ export async function cancelContract(input: CancelContractInput): Promise<Contra
     throw new Error("Erro ao recuperar contrato cancelado.");
   }
   return contract;
+}
+
+/**
+ * Atualiza um contrato existente (dados cadastrais, status, versão vigente e itens).
+ * Registra snapshot anterior e novos dados na trilha de auditoria (audit_logs).
+ */
+export async function updateContract(
+  contractId: string,
+  input: UpdateContractInput,
+  externalClient?: pg.PoolClient
+): Promise<ContractRecord> {
+  const existing = await getContractById(contractId);
+  if (!existing) {
+    throw new Error("Contrato não encontrado.");
+  }
+
+  const execute = async (client: pg.PoolClient) => {
+    // 1. Atualizar campos da tabela principal 'contracts'
+    if (input.contractNumber || input.clientId || input.status) {
+      if (input.contractNumber && input.contractNumber.trim() !== existing.contractNumber) {
+        const checkNum = await client.query(
+          "SELECT id FROM contracts WHERE contract_number = $1 AND id <> $2",
+          [input.contractNumber.trim(), contractId]
+        );
+        if (checkNum.rows.length > 0) {
+          throw new Error(`O número de contrato "${input.contractNumber.trim()}" já está em uso.`);
+        }
+      }
+
+      await client.query(
+        `UPDATE contracts
+         SET contract_number = COALESCE($2, contract_number),
+             client_id = COALESCE($3, client_id),
+             status = COALESCE($4, status),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $1`,
+        [
+          contractId,
+          input.contractNumber?.trim() || null,
+          input.clientId || null,
+          input.status || null,
+        ]
+      );
+    }
+
+    // 2. Atualizar versão atual se houver campos de versão ou itens
+    const hasVersionUpdates =
+      input.title !== undefined ||
+      input.description !== undefined ||
+      input.billingPeriod !== undefined ||
+      input.dueDay !== undefined ||
+      input.startDate !== undefined ||
+      input.endDate !== undefined ||
+      input.isIndefinite !== undefined ||
+      input.notes !== undefined ||
+      input.items !== undefined;
+
+    if (hasVersionUpdates) {
+      const verRes = await client.query<DbContractVersionRow>(
+        "SELECT * FROM contract_versions WHERE contract_id = $1 ORDER BY version_number DESC LIMIT 1",
+        [contractId]
+      );
+
+      if (verRes.rows.length > 0) {
+        const currentVerRow = verRes.rows[0];
+        let totalAmount = Number(currentVerRow.total_amount);
+
+        // Se houver novos itens informados
+        if (input.items && Array.isArray(input.items)) {
+          if (input.items.length === 0) {
+            throw new Error("O contrato deve possuir pelo menos 1 item contratado.");
+          }
+
+          const serviceIds = input.items.map((it) => it.serviceId);
+          const servicesRes = await client.query<{
+            id: string;
+            name: string;
+            default_supplier_id?: string | null;
+            default_cost_periodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
+          }>(
+            `SELECT id, name, default_supplier_id, default_cost_periodicity FROM services WHERE id = ANY($1::uuid[])`,
+            [serviceIds]
+          );
+          const serviceMap = new Map<string, {
+            name: string;
+            defaultSupplierId?: string | null;
+            defaultCostPeriodicity?: "ONE_TIME" | "MONTHLY" | "YEARLY" | "UNCLASSIFIED";
+          }>();
+          servicesRes.rows.forEach((s) =>
+            serviceMap.set(s.id, {
+              name: s.name,
+              defaultSupplierId: s.default_supplier_id,
+              defaultCostPeriodicity: s.default_cost_periodicity,
+            })
+          );
+
+          const supplierIds = input.items
+            .map((it) => it.supplierId || serviceMap.get(it.serviceId)?.defaultSupplierId)
+            .filter((id): id is string => Boolean(id));
+          const supplierNameMap = new Map<string, string>();
+          if (supplierIds.length > 0) {
+            const supRes = await client.query<{ id: string; name: string }>(
+              `SELECT id, name FROM suppliers WHERE id = ANY($1::uuid[])`,
+              [supplierIds]
+            );
+            supRes.rows.forEach((sp) => supplierNameMap.set(sp.id, sp.name));
+          }
+
+          let calculatedTotal = 0;
+          const computedItems = input.items.map((item) => {
+            const qty = item.quantity > 0 ? item.quantity : 1;
+            const uPrice = Number(item.unitPrice) >= 0 ? Number(item.unitPrice) : 0;
+            const uCost = Number(item.unitCost) >= 0 ? Number(item.unitCost) : 0;
+            const itemTotal = item.totalPrice ?? Number((qty * uPrice).toFixed(2));
+            calculatedTotal = Number((calculatedTotal + itemTotal).toFixed(2));
+
+            const sInfo = serviceMap.get(item.serviceId);
+            const serviceName = item.serviceName || sInfo?.name || "Serviço";
+            const supplierId = item.supplierId || sInfo?.defaultSupplierId || null;
+            const supplierNameSnapshot =
+              item.supplierNameSnapshot || (supplierId ? supplierNameMap.get(supplierId) : null) || null;
+            const costPeriodicity = item.costPeriodicity || sInfo?.defaultCostPeriodicity || "MONTHLY";
+
+            return {
+              ...item,
+              quantity: qty,
+              unitPrice: uPrice,
+              unitCost: uCost,
+              totalPrice: itemTotal,
+              serviceName,
+              supplierId,
+              supplierNameSnapshot,
+              costPeriodicity,
+            };
+          });
+
+          totalAmount = calculatedTotal;
+
+          await client.query(
+            `DELETE FROM contract_item_schedules WHERE contract_item_id IN (
+               SELECT id FROM contract_items WHERE contract_version_id = $1
+             )`,
+            [currentVerRow.id]
+          );
+          await client.query(
+            `DELETE FROM contract_items WHERE contract_version_id = $1`,
+            [currentVerRow.id]
+          );
+
+          const effectiveBillingPeriod =
+            input.billingPeriod || currentVerRow.billing_period;
+
+          for (const item of computedItems) {
+            await client.query(
+              `INSERT INTO contract_items (
+                 contract_version_id, service_id, service_name, combo_id, combo_name,
+                 quantity, unit_price, unit_cost, total_price,
+                 supplier_id, supplier_name_snapshot, cost_periodicity, is_legacy_cost, periodicity
+               ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, false, $13)`,
+              [
+                currentVerRow.id,
+                item.serviceId,
+                item.serviceName,
+                item.comboId || null,
+                item.comboName || null,
+                item.quantity,
+                item.unitPrice,
+                item.unitCost,
+                item.totalPrice,
+                item.supplierId,
+                item.supplierNameSnapshot,
+                item.costPeriodicity,
+                item.periodicity || (effectiveBillingPeriod === "MIXED" ? "MONTHLY" : effectiveBillingPeriod),
+              ]
+            );
+          }
+        }
+
+        const isIndefinite =
+          input.isIndefinite !== undefined
+            ? Boolean(input.isIndefinite)
+            : currentVerRow.is_indefinite;
+        const endDate = isIndefinite
+          ? null
+          : input.endDate !== undefined
+          ? input.endDate
+          : currentVerRow.end_date;
+
+        await client.query(
+          `UPDATE contract_versions
+           SET title = COALESCE($2, title),
+               description = CASE WHEN $3::text IS NOT NULL THEN $3 ELSE description END,
+               billing_period = COALESCE($4, billing_period),
+               due_day = COALESCE($5, due_day),
+               start_date = COALESCE($6, start_date),
+               end_date = $7,
+               is_indefinite = $8,
+               total_amount = $9,
+               notes = CASE WHEN $10::text IS NOT NULL THEN $10 ELSE notes END
+           WHERE id = $1`,
+          [
+            currentVerRow.id,
+            input.title?.trim() || null,
+            input.description !== undefined ? input.description?.trim() || null : null,
+            input.billingPeriod || null,
+            input.dueDay || null,
+            input.startDate || null,
+            endDate,
+            isIndefinite,
+            totalAmount,
+            input.notes !== undefined ? input.notes?.trim() || null : null,
+          ]
+        );
+      }
+    }
+
+    // 3. Registrar auditoria detalhada com estado anterior e novo
+    await client.query(
+      `INSERT INTO audit_logs (entity_name, entity_id, action, old_data, new_data)
+       VALUES ('contracts', $1, 'UPDATE', $2, $3)`,
+      [
+        contractId,
+        JSON.stringify({
+          contractNumber: existing.contractNumber,
+          clientId: existing.clientId,
+          status: existing.status,
+          currentVersion: existing.currentVersion,
+        }),
+        JSON.stringify({
+          event: "CONTRACT_EDITED",
+          updates: input,
+          updatedAt: new Date().toISOString(),
+        }),
+      ]
+    );
+
+    if (existing.clientId) {
+      await client.query(
+        `INSERT INTO client_activity_history (client_id, category, action, title, href, old_data, new_data)
+         VALUES ($1, 'Contratos', 'UPDATE', $2, $3, $4, $5)`,
+        [
+          existing.clientId,
+          `Contrato ${existing.contractNumber} atualizado`,
+          `/contracts/${contractId}`,
+          JSON.stringify({ contractNumber: existing.contractNumber, status: existing.status }),
+          JSON.stringify(input),
+        ]
+      ).catch(() => {});
+    }
+  };
+
+  if (externalClient) {
+    await execute(externalClient);
+  } else {
+    await withTransaction(execute);
+  }
+
+  const updated = await getContractById(contractId);
+  if (!updated) throw new Error("Erro ao carregar contrato atualizado.");
+  return updated;
+}
+
+/**
+ * Exclui um contrato e seus registros dependentes em cascata com auditoria imutável.
+ * Bloqueia a exclusão se houver recebimentos financeiros confirmados no caixa para proteger o compliance.
+ */
+export async function deleteContract(
+  contractId: string,
+  reason?: string,
+  externalClient?: pg.PoolClient
+): Promise<{ success: boolean; contractNumber: string; message: string }> {
+  const existing = await getContractById(contractId);
+  if (!existing) {
+    throw new Error("Contrato não encontrado.");
+  }
+
+  // Verificar se há recebimentos financeiros confirmados
+  const paidSettlementsCheck = await query<{ count: string }>(
+    `SELECT COUNT(s.id) as count
+     FROM financial_settlements s
+     JOIN receivables r ON r.id = s.receivable_id
+     WHERE r.contract_id = $1 AND s.settlement_type = 'RECEIPT' AND s.is_reversed = false`,
+    [contractId]
+  );
+  const hasPaid = Number(paidSettlementsCheck.rows[0]?.count || 0) > 0;
+  if (hasPaid) {
+    throw new Error(
+      `Não é possível excluir permanentemente o contrato ${existing.contractNumber} pois existem recebimentos financeiros confirmados no caixa. Para encerrar o vínculo sem corromper a auditoria fiscal, altere o status para "Cancelado".`
+    );
+  }
+
+  const execute = async (client: pg.PoolClient) => {
+    // 1. Capturar snapshot completo para a trilha de auditoria
+    const oldSnapshot = {
+      id: existing.id,
+      contractNumber: existing.contractNumber,
+      clientId: existing.clientId,
+      clientName: existing.clientName,
+      status: existing.status,
+      currentVersion: existing.currentVersion,
+      versions: existing.versions,
+      deletedAt: new Date().toISOString(),
+      reason: reason || "Exclusão manual de contrato",
+    };
+
+    // 2. Desvincular de projetos, propostas, oportunidades CRM e despesas a pagar
+    await client.query("UPDATE projects SET contract_id = NULL WHERE contract_id = $1", [contractId]);
+    await client.query("UPDATE proposals SET contract_id = NULL WHERE contract_id = $1", [contractId]);
+    await client.query("UPDATE crm_opportunities SET contract_id = NULL WHERE contract_id = $1", [contractId]);
+    await client.query("UPDATE payables SET contract_id = NULL WHERE contract_id = $1", [contractId]);
+
+    // 3. Remover conversões de proposta, recorrência de projetos e histórico
+    await client.query("DELETE FROM proposal_contract_conversions WHERE contract_id = $1", [contractId]).catch(() => {});
+    await client.query("DELETE FROM contract_project_recurring_settings WHERE contract_id = $1", [contractId]).catch(() => {});
+    await client.query("DELETE FROM project_generation_history WHERE contract_id = $1", [contractId]).catch(() => {});
+
+    // 4. Remover apropriações e rateios
+    await client.query("DELETE FROM cost_accruals WHERE contract_id = $1", [contractId]).catch(() => {});
+    await client.query("DELETE FROM payable_allocations WHERE contract_id = $1", [contractId]).catch(() => {});
+    await client.query("DELETE FROM revenue_accruals WHERE contract_id = $1", [contractId]).catch(() => {});
+    await client.query("DELETE FROM contract_billing_plans WHERE contract_id = $1", [contractId]).catch(() => {});
+
+    // 5. Remover cobranças / receivables não liquidadas vinculadas a este contrato
+    await client.query(
+      `DELETE FROM financial_settlements WHERE receivable_id IN (SELECT id FROM receivables WHERE contract_id = $1)`,
+      [contractId]
+    ).catch(() => {});
+    await client.query(
+      `DELETE FROM receivable_items WHERE receivable_id IN (SELECT id FROM receivables WHERE contract_id = $1)`,
+      [contractId]
+    ).catch(() => {});
+    await client.query(`DELETE FROM receivables WHERE contract_id = $1`, [contractId]);
+
+    // 6. Remover itens do contrato e agendamentos
+    await client.query(
+      `DELETE FROM contract_item_schedules WHERE contract_item_id IN (
+         SELECT ci.id FROM contract_items ci
+         JOIN contract_versions cv ON cv.id = ci.contract_version_id
+         WHERE cv.contract_id = $1
+       )`,
+      [contractId]
+    ).catch(() => {});
+    await client.query(
+      `DELETE FROM contract_items WHERE contract_version_id IN (
+         SELECT id FROM contract_versions WHERE contract_id = $1
+       )`,
+      [contractId]
+    );
+
+    // 7. Remover versões e o contrato
+    await client.query("DELETE FROM contract_versions WHERE contract_id = $1", [contractId]);
+    await client.query("DELETE FROM contracts WHERE id = $1", [contractId]);
+
+    // 8. Gravar registro permanente na trilha de auditoria
+    await client.query(
+      `INSERT INTO audit_logs (entity_name, entity_id, action, old_data, new_data)
+       VALUES ('contracts', $1, 'DELETE', $2, $3)`,
+      [
+        contractId,
+        JSON.stringify(oldSnapshot),
+        JSON.stringify({
+          event: "CONTRACT_DELETED",
+          contractNumber: existing.contractNumber,
+          reason: reason || "Exclusão manual",
+          deletedAt: new Date().toISOString(),
+        }),
+      ]
+    );
+
+    // 9. Registrar no histórico do cliente
+    if (existing.clientId) {
+      await client.query(
+        `INSERT INTO client_activity_history (client_id, category, action, title, href, old_data, new_data)
+         VALUES ($1, 'Contratos', 'DELETE', $2, '/contracts', $3, $4)`,
+        [
+          existing.clientId,
+          `Contrato ${existing.contractNumber} excluído`,
+          JSON.stringify(oldSnapshot),
+          JSON.stringify({ reason: reason || "Exclusão manual" }),
+        ]
+      ).catch(() => {});
+    }
+  };
+
+  if (externalClient) {
+    await execute(externalClient);
+  } else {
+    await withTransaction(execute);
+  }
+
+  return {
+    success: true,
+    contractNumber: existing.contractNumber,
+    message: `Contrato ${existing.contractNumber} excluído com sucesso. Todos os registros históricos foram salvos no log de auditoria.`,
+  };
 }
 
 /**

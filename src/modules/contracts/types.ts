@@ -111,6 +111,21 @@ export interface CancelContractInput {
   canceledAt?: string; // Default now
 }
 
+export interface UpdateContractInput {
+  contractNumber?: string;
+  clientId?: string;
+  status?: ContractStatus;
+  title?: string;
+  description?: string | null;
+  billingPeriod?: ContractBillingPeriod;
+  dueDay?: number;
+  startDate?: string;
+  endDate?: string | null;
+  isIndefinite?: boolean;
+  notes?: string | null;
+  items?: ContractItemInput[];
+}
+
 export interface RecurrenceProjection {
   competency: string; // YYYY-MM ou YYYY
   effectiveDueDate: string; // YYYY-MM-DD

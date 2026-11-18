@@ -15,6 +15,8 @@ import {
   DollarSign,
   AlertCircle,
   Clock,
+  Edit2,
+  Trash2,
 } from "lucide-react";
 import { ContractRecord, ContractStatus } from "@/modules/contracts/types";
 
@@ -27,6 +29,42 @@ function ContractsListPageContent() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [expiringFilter, setExpiringFilter] = useState<boolean>(false);
   const [isPending, startTransition] = useTransition();
+
+  // Modal Exclusão de Contrato
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [contractToDelete, setContractToDelete] = useState<ContractRecord | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const handleConfirmDelete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contractToDelete) return;
+    setDeleteError("");
+    setDeleting(true);
+
+    try {
+      const res = await fetch(`/api/contracts/${contractToDelete.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: deleteReason.trim() || "Exclusão manual de contrato",
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Erro ao excluir contrato.");
+      }
+
+      setDeleteModalOpen(false);
+      setContractToDelete(null);
+      loadContracts();
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : "Falha ao excluir contrato.");
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     const filterParam = searchParams.get("filter");
@@ -363,13 +401,39 @@ function ContractsListPageContent() {
                       </td>
                       <td className="px-6 py-4">{getStatusBadge(c.status)}</td>
                       <td className="px-6 py-4 text-right">
-                        <Link
-                          href={`/contracts/${c.id}`}
-                          className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-950 px-2 py-1 rounded hover:bg-zinc-100 transition-colors"
-                        >
-                          Detalhes
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </Link>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/contracts/${c.id}`}
+                            className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-700 hover:text-zinc-950 px-2.5 py-1 rounded-lg hover:bg-zinc-100 transition-colors"
+                            title="Ver detalhes do contrato"
+                          >
+                            Detalhes
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </Link>
+
+                          <Link
+                            href={`/contracts/${c.id}?edit=true`}
+                            className="p-1.5 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition"
+                            title="Editar dados e itens do contrato"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </Link>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setContractToDelete(c);
+                              setDeleteReason("");
+                              setDeleteError("");
+                              setDeleteModalOpen(true);
+                            }}
+                            className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            title="Excluir contrato com registro em log"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -379,6 +443,77 @@ function ContractsListPageContent() {
           )}
         </div>
       </div>
+
+      {/* Modal de Exclusão de Contrato */}
+      {deleteModalOpen && contractToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-zinc-100 flex items-center justify-between bg-rose-50/50">
+              <div className="flex items-center gap-2 text-rose-700">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+                <h3 className="font-bold text-base">Excluir Contrato</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                className="text-zinc-400 hover:text-zinc-600 p-1 rounded-lg hover:bg-zinc-100 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmDelete} className="p-6 space-y-4 text-xs">
+              {deleteError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
+              <p className="text-zinc-600 leading-relaxed">
+                Tem certeza que deseja excluir permanentemente o contrato{" "}
+                <strong className="text-zinc-900 font-mono">{contractToDelete.contractNumber}</strong> do cliente{" "}
+                <strong className="text-zinc-900">{contractToDelete.clientName}</strong>?
+              </p>
+
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] leading-relaxed">
+                <strong>Atenção contábil:</strong> Contratos com faturas já recebidas/pagas no caixa não podem ser excluídos permanentemente. Todos os dados deletados serão arquivados de forma imutável nos logs de auditoria.
+              </div>
+
+              <div>
+                <label className="block font-semibold text-zinc-700 mb-1">
+                  Motivo da Exclusão *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Erro de preenchimento, duplicidade, etc."
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleting}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors disabled:opacity-50 shadow-xs"
+                >
+                  {deleting ? "Excluindo..." : "Confirmar Exclusão"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

@@ -21,12 +21,17 @@ import {
   FileText,
   Briefcase,
   AlertCircle,
+  Edit2,
+  ShieldAlert,
+  Check,
 } from "lucide-react";
 import {
   ContractRecord,
   ContractVersionRecord,
   RecurrenceProjection,
   ContractItemInput,
+  ContractBillingPeriod,
+  ContractStatus,
 } from "@/modules/contracts/types";
 import { ProjectRecord, ProjectTemplateRecord } from "@/modules/projects/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
@@ -39,8 +44,33 @@ export default function ContractDetailsPage() {
 
   const [contract, setContract] = useState<ContractRecord | null>(null);
   const [projections, setProjections] = useState<RecurrenceProjection[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"details" | "history" | "projections" | "projects">("details");
+
+  // Modal Edição Completa de Contrato
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editContractNumber, setEditContractNumber] = useState("");
+  const [editStatus, setEditStatus] = useState<ContractStatus>("ACTIVE");
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editBillingPeriod, setEditBillingPeriod] = useState<ContractBillingPeriod>("MONTHLY");
+  const [editDueDay, setEditDueDay] = useState<number>(10);
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editIsIndefinite, setEditIsIndefinite] = useState(true);
+  const [editNotes, setEditNotes] = useState("");
+  const [editItems, setEditItems] = useState<ContractItemInput[]>([]);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [catalogServices, setCatalogServices] = useState<Array<{ id: string; name: string; default_price?: number; default_cost?: number }>>([]);
+  const [selectedServiceIdToAdd, setSelectedServiceIdToAdd] = useState("");
+
+  // Modal Exclusão de Contrato
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // Projetos e Recorrência
   const [contractProjects, setContractProjects] = useState<ProjectRecord[]>([]);
@@ -77,6 +107,7 @@ export default function ContractDetailsPage() {
         const data = await res.json();
         setContract(data.contract);
         setProjections(data.projections || []);
+        setAuditLogs(data.auditLogs || []);
       }
     } catch (err) {
       console.error("Erro ao carregar detalhes do contrato:", err);
@@ -267,6 +298,154 @@ export default function ContractDetailsPage() {
     }
   };
 
+  const handleOpenEditModal = async () => {
+    if (!contract) return;
+    const cur = contract.currentVersion;
+    setEditContractNumber(contract.contractNumber || "");
+    setEditStatus(contract.status || "ACTIVE");
+    setEditTitle(cur?.title || "Contratação");
+    setEditDescription(cur?.description || "");
+    setEditBillingPeriod(cur?.billingPeriod || "MONTHLY");
+    setEditDueDay(cur?.dueDay || 10);
+    setEditStartDate(cur?.startDate || "");
+    setEditEndDate(cur?.endDate || "");
+    setEditIsIndefinite(cur?.isIndefinite ?? true);
+    setEditNotes(cur?.notes || "");
+
+    const items: ContractItemInput[] = (cur?.items || []).map((it) => ({
+      serviceId: it.serviceId,
+      serviceName: it.serviceName,
+      comboId: it.comboId,
+      comboName: it.comboName,
+      supplierId: it.supplierId,
+      supplierNameSnapshot: it.supplierNameSnapshot,
+      costPeriodicity: it.costPeriodicity,
+      quantity: it.quantity || 1,
+      unitPrice: it.unitPrice || 0,
+      unitCost: it.unitCost || 0,
+      periodicity: it.periodicity,
+    }));
+    setEditItems(items);
+    setEditError("");
+    setEditModalOpen(true);
+
+    if (catalogServices.length === 0) {
+      try {
+        const sRes = await fetch("/api/services?status=ACTIVE");
+        const sData = await sRes.json();
+        if (Array.isArray(sData)) {
+          setCatalogServices(sData);
+        } else if (sData.services && Array.isArray(sData.services)) {
+          setCatalogServices(sData.services);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar catálogo de serviços:", err);
+      }
+    }
+  };
+
+  const handleAddServiceToEdit = () => {
+    if (!selectedServiceIdToAdd) return;
+    const found = catalogServices.find((s) => s.id === selectedServiceIdToAdd);
+    if (!found) return;
+
+    setEditItems((prev) => [
+      ...prev,
+      {
+        serviceId: found.id,
+        serviceName: found.name,
+        quantity: 1,
+        unitPrice: Number(found.default_price || 0),
+        unitCost: Number(found.default_cost || 0),
+        periodicity: editBillingPeriod === "MIXED" ? "MONTHLY" : editBillingPeriod,
+      },
+    ]);
+    setSelectedServiceIdToAdd("");
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditError("");
+
+    if (!editContractNumber.trim()) {
+      setEditError("O número do contrato é obrigatório.");
+      return;
+    }
+    if (editItems.length === 0) {
+      setEditError("O contrato deve possuir pelo menos 1 item contratado.");
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/contracts/${contractId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contractNumber: editContractNumber.trim(),
+          status: editStatus,
+          title: editTitle.trim() || undefined,
+          description: editDescription.trim() || null,
+          billingPeriod: editBillingPeriod,
+          dueDay: Number(editDueDay),
+          startDate: editStartDate,
+          endDate: editIsIndefinite ? null : editEndDate || null,
+          isIndefinite: editIsIndefinite,
+          notes: editNotes.trim() || null,
+          items: editItems,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Erro ao salvar alterações no contrato.");
+      }
+
+      setEditModalOpen(false);
+      await loadContract();
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : "Erro inesperado.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleConfirmDelete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleteError("");
+    setDeleting(true);
+
+    try {
+      const res = await fetch(`/api/contracts/${contractId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reason: deleteReason.trim() || "Exclusão manual de contrato",
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || "Erro ao excluir contrato.");
+      }
+
+      router.push("/contracts");
+    } catch (err: unknown) {
+      setDeleteError(err instanceof Error ? err.message : "Falha ao excluir contrato.");
+      setDeleting(false);
+    }
+  };
+
+  // Abrir modal de edição se vier com ?edit=true na URL
+  useEffect(() => {
+    if (contract && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("edit") === "true") {
+        handleOpenEditModal();
+      }
+    }
+  }, [contract?.id]);
+
   if (loading) {
     return (
       <AppShell activeSection="contracts">
@@ -309,36 +488,63 @@ export default function ContractDetailsPage() {
             Voltar para Assinaturas
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <Link
               href={`/financial/receivables?contractId=${contract.id}`}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-xs font-semibold border border-emerald-200 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-xs font-semibold border border-emerald-200 transition-colors"
             >
               <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-              Ver Faturas / Títulos a Receber
+              Faturas / Títulos
             </Link>
+
+            <button
+              type="button"
+              onClick={handleOpenEditModal}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 text-zinc-900 hover:bg-zinc-200 text-xs font-semibold border border-zinc-300 transition-colors"
+              title="Editar dados cadastrais, itens e regras do contrato"
+            >
+              <Edit2 className="w-3.5 h-3.5 text-zinc-700" />
+              Editar Contrato
+            </button>
+
             {contract.status === "ACTIVE" && (
               <>
                 <button
+                  type="button"
                   onClick={handleOpenNewVersionModal}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800 transition-colors shadow-xs"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800 transition-colors shadow-xs"
                 >
                   <History className="w-3.5 h-3.5" />
                   Nova Versão / Reajuste
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setCancelReason("");
                     setCancelError("");
                     setCancelModalOpen(true);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-medium border border-rose-200 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-medium border border-amber-200 transition-colors"
                 >
                   <XCircle className="w-3.5 h-3.5" />
                   Cancelar Assinatura
                 </button>
               </>
             )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteReason("");
+                setDeleteError("");
+                setDeleteModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-semibold border border-rose-200 transition-colors"
+              title="Excluir contrato permanentemente com registro em log"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Excluir
+            </button>
           </div>
         </div>
 
@@ -634,6 +840,82 @@ export default function ContractDetailsPage() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Trilha de Auditoria Audit Logs */}
+            <div className="pt-6 border-t border-zinc-200">
+              <div className="flex items-center gap-2 mb-2">
+                <ShieldAlert className="w-4 h-4 text-zinc-700" />
+                <h3 className="text-sm font-bold text-zinc-900">
+                  Trilha de Auditoria & Modificações do Contrato (audit_logs)
+                </h3>
+              </div>
+              <p className="text-xs text-zinc-500 mb-4">
+                Registro imutável com rastreabilidade de todas as criações, edições de dados/itens e cancelamentos efetuados.
+              </p>
+
+              {auditLogs.length === 0 ? (
+                <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-500 text-center">
+                  Nenhum registro adicional de auditoria além da criação do contrato.
+                </div>
+              ) : (
+                <div className="space-y-2.5">
+                  {auditLogs.map((log: any) => {
+                    const actionLabel =
+                      log.action === "INSERT"
+                        ? "Criação"
+                        : log.action === "UPDATE"
+                        ? "Atualização / Edição"
+                        : log.action === "DELETE"
+                        ? "Exclusão"
+                        : log.action;
+
+                    const actionColor =
+                      log.action === "INSERT"
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                        : log.action === "UPDATE"
+                        ? "bg-blue-100 text-blue-800 border-blue-200"
+                        : "bg-rose-100 text-rose-800 border-rose-200";
+
+                    let details = "";
+                    if (log.new_data) {
+                      const nd = typeof log.new_data === "string" ? JSON.parse(log.new_data) : log.new_data;
+                      if (nd.event) details = `Evento: ${nd.event}`;
+                      if (nd.reason) details += ` • Motivo: ${nd.reason}`;
+                      if (nd.actionDetail) details += ` • Ação: ${nd.actionDetail}`;
+                    }
+
+                    return (
+                      <div
+                        key={log.id}
+                        className="p-3 rounded-xl border border-zinc-200 bg-zinc-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${actionColor}`}>
+                              {actionLabel}
+                            </span>
+                            <span className="font-semibold text-zinc-800">
+                              {details || "Registro gravado na auditoria"}
+                            </span>
+                          </div>
+                          {log.new_data && (
+                            <p className="text-[11px] font-mono text-zinc-500 truncate max-w-xl">
+                              {typeof log.new_data === "string" ? log.new_data : JSON.stringify(log.new_data)}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-[11px] text-zinc-500 font-mono block">
+                            {new Date(log.created_at).toLocaleString("pt-BR")}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1071,6 +1353,393 @@ export default function ContractDetailsPage() {
                   className="px-4 py-2 text-xs font-medium text-white bg-zinc-950 hover:bg-zinc-800 rounded-lg transition-colors disabled:opacity-50"
                 >
                   {savingVersion ? "Salvando Nova Versão..." : "Gravar Nova Versão"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição Completa de Contrato */}
+      {editModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+              <div className="flex items-center gap-2">
+                <Edit2 className="w-5 h-5 text-zinc-900" />
+                <h3 className="font-bold text-zinc-950 text-base">
+                  Editar Contrato & Itens (com Log de Auditoria)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditModalOpen(false)}
+                className="text-zinc-400 hover:text-zinc-600 p-1 rounded-lg hover:bg-zinc-100 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} className="flex-1 overflow-y-auto p-6 space-y-5 text-xs">
+              {editError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              {/* Informações Principais */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">
+                    Número do Contrato *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editContractNumber}
+                    onChange={(e) => setEditContractNumber(e.target.value)}
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:ring-2 focus:ring-zinc-900 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">
+                    Status do Contrato
+                  </label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value as ContractStatus)}
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:ring-2 focus:ring-zinc-900 bg-white"
+                  >
+                    <option value="DRAFT">Rascunho (DRAFT)</option>
+                    <option value="ACTIVE">Ativo (ACTIVE)</option>
+                    <option value="ENDED">Encerrado (ENDED)</option>
+                    <option value="CANCELED">Cancelado (CANCELED)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">
+                    Periodicidade Base
+                  </label>
+                  <select
+                    value={editBillingPeriod}
+                    onChange={(e) => setEditBillingPeriod(e.target.value as ContractBillingPeriod)}
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:ring-2 focus:ring-zinc-900 bg-white"
+                  >
+                    <option value="MONTHLY">Mensal Recorrente</option>
+                    <option value="YEARLY">Anual Recorrente</option>
+                    <option value="ONE_TIME">Pagamento Único / Avulso</option>
+                    <option value="MIXED">Misto (Itens com Periodicidades Diferentes)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Título e Dia de Vencimento */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">
+                    Título / Escopo Principal
+                  </label>
+                  <input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Ex: Gestão Mensal de Redes & Anúncios"
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">
+                    Dia de Vencimento (1 a 31)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={editDueDay}
+                    onChange={(e) => setEditDueDay(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+              </div>
+
+              {/* Datas de Vigência */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">
+                    Data de Início
+                  </label>
+                  <input
+                    type="date"
+                    value={editStartDate}
+                    onChange={(e) => setEditStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-zinc-700 mb-1">
+                    Data de Término
+                  </label>
+                  <input
+                    type="date"
+                    disabled={editIsIndefinite}
+                    value={editEndDate}
+                    onChange={(e) => setEditEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:ring-2 focus:ring-zinc-900 disabled:bg-zinc-100 disabled:text-zinc-400"
+                  />
+                </div>
+
+                <div className="pt-4">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-zinc-800">
+                    <input
+                      type="checkbox"
+                      checked={editIsIndefinite}
+                      onChange={(e) => setEditIsIndefinite(e.target.checked)}
+                      className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 w-4 h-4"
+                    />
+                    Vigência Indeterminada
+                  </label>
+                </div>
+              </div>
+
+              {/* Itens Contratados */}
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-zinc-900 text-sm">Itens & Serviços Contratados</h4>
+                    <p className="text-[11px] text-zinc-500">
+                      Adicione ou edite valores, quantidades e custos operacionais.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Seletor para adicionar novo serviço */}
+                <div className="flex gap-2">
+                  <select
+                    value={selectedServiceIdToAdd}
+                    onChange={(e) => setSelectedServiceIdToAdd(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-zinc-300 rounded-xl bg-white text-xs"
+                  >
+                    <option value="">Selecione um serviço do catálogo para adicionar...</option>
+                    {catalogServices.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.default_price ? `(R$ ${Number(s.default_price).toFixed(2)})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleAddServiceToEdit}
+                    disabled={!selectedServiceIdToAdd}
+                    className="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-white rounded-xl text-xs font-semibold disabled:opacity-50 flex items-center gap-1 shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Adicionar Item
+                  </button>
+                </div>
+
+                {/* Tabela de Itens em Edição */}
+                <div className="border border-zinc-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-zinc-50 border-b border-zinc-200 text-zinc-600 font-semibold">
+                      <tr>
+                        <th className="p-2.5">Serviço</th>
+                        <th className="p-2.5 w-20">Qtd</th>
+                        <th className="p-2.5 w-28">Preço Unit.</th>
+                        <th className="p-2.5 w-28">Custo Unit.</th>
+                        <th className="p-2.5 w-28">Periodicidade</th>
+                        <th className="p-2.5 w-12 text-center">Ação</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {editItems.map((it, idx) => (
+                        <tr key={idx} className="hover:bg-zinc-50/50">
+                          <td className="p-2.5 font-medium text-zinc-900">
+                            {it.serviceName || "Serviço"}
+                          </td>
+                          <td className="p-2.5">
+                            <input
+                              type="number"
+                              min={1}
+                              value={it.quantity}
+                              onChange={(e) => {
+                                const copy = [...editItems];
+                                copy[idx].quantity = Number(e.target.value);
+                                setEditItems(copy);
+                              }}
+                              className="w-16 px-2 py-1 bg-white border border-zinc-200 rounded text-xs"
+                            />
+                          </td>
+                          <td className="p-2.5">
+                            <CurrencyInput
+                              value={it.unitPrice}
+                              onChangeValue={(val) => {
+                                const copy = [...editItems];
+                                copy[idx].unitPrice = val;
+                                setEditItems(copy);
+                              }}
+                              className="w-24 py-1 bg-white border border-zinc-200 rounded text-xs font-semibold focus:bg-white"
+                            />
+                          </td>
+                          <td className="p-2.5">
+                            <CurrencyInput
+                              value={it.unitCost}
+                              onChangeValue={(val) => {
+                                const copy = [...editItems];
+                                copy[idx].unitCost = val;
+                                setEditItems(copy);
+                              }}
+                              className="w-24 py-1 bg-white border border-zinc-200 rounded text-xs text-zinc-600 focus:bg-white"
+                            />
+                          </td>
+                          <td className="p-2.5">
+                            <select
+                              value={it.periodicity || "MONTHLY"}
+                              onChange={(e) => {
+                                const copy = [...editItems];
+                                copy[idx].periodicity = e.target.value as any;
+                                setEditItems(copy);
+                              }}
+                              className="w-24 px-1.5 py-1 bg-white border border-zinc-200 rounded text-[11px]"
+                            >
+                              <option value="MONTHLY">Mensal</option>
+                              <option value="YEARLY">Anual</option>
+                              <option value="ONE_TIME">Avulso</option>
+                            </select>
+                          </td>
+                          <td className="p-2.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditItems(editItems.filter((_, i) => i !== idx));
+                              }}
+                              className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded"
+                              title="Remover item"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Total Recalculado */}
+                <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200 flex justify-between items-center">
+                  <span className="text-zinc-600 font-medium">Novo Valor Total dos Itens:</span>
+                  <span className="font-bold text-zinc-950 text-sm">
+                    R${" "}
+                    {editItems
+                      .reduce((acc, it) => acc + (it.quantity || 1) * (it.unitPrice || 0), 0)
+                      .toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Observações */}
+              <div>
+                <label className="block font-semibold text-zinc-700 mb-1">
+                  Observações e Cláusulas Especiais
+                </label>
+                <textarea
+                  rows={2}
+                  value={editNotes}
+                  onChange={(e) => setEditNotes(e.target.value)}
+                  placeholder="Informações adicionais, alinhamentos ou condições acordadas..."
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+
+              {/* Ações do Rodapé */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => setEditModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="px-5 py-2 text-xs font-semibold text-white bg-zinc-950 hover:bg-zinc-800 rounded-xl transition-colors disabled:opacity-50 shadow-xs"
+                >
+                  {savingEdit ? "Salvando Alterações..." : "Salvar Alterações no Contrato"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Exclusão de Contrato */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-5 border-b border-zinc-100 flex items-center justify-between bg-rose-50/50">
+              <div className="flex items-center gap-2 text-rose-700">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+                <h3 className="font-bold text-base">Excluir Contrato</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteModalOpen(false)}
+                className="text-zinc-400 hover:text-zinc-600 p-1 rounded-lg hover:bg-zinc-100 transition"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmDelete} className="p-6 space-y-4 text-xs">
+              {deleteError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
+
+              <p className="text-zinc-600 leading-relaxed">
+                Tem certeza que deseja excluir permanentemente o contrato{" "}
+                <strong className="text-zinc-900 font-mono">{contract.contractNumber}</strong>?
+              </p>
+
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-[11px] leading-relaxed">
+                <strong>Importante:</strong> Se houver faturas pagas confirmadas no caixa, a exclusão será bloqueada para preservar o compliance contábil. Todos os dados excluídos serão registrados de forma imutável nos logs de auditoria (audit_logs).
+              </div>
+
+              <div>
+                <label className="block font-semibold text-zinc-700 mb-1">
+                  Motivo da Exclusão *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ex: Contrato duplicado, cancelado antes do início, etc."
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-zinc-300 rounded-xl focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeleteModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-zinc-600 hover:text-zinc-900 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50"
+                >
+                  Voltar
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleting}
+                  className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-700 rounded-xl transition-colors disabled:opacity-50 shadow-xs"
+                >
+                  {deleting ? "Excluindo..." : "Confirmar Exclusão"}
                 </button>
               </div>
             </form>

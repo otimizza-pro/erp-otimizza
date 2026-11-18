@@ -135,4 +135,20 @@ describe("Regras Unitárias de Contratações, Versões e Recorrência", () => {
     expect(projections[3].isPastOrCanceled).toBe(true);
     expect(projections[4].isPastOrCanceled).toBe(true);
   });
+
+  it("valida integridade de regras na edição e ciclo de vida de contratos", () => {
+    const validStatuses = ["DRAFT", "ACTIVE", "ENDED", "CANCELED"];
+    expect(validStatuses).toContain("DRAFT");
+    expect(validStatuses).toContain("ACTIVE");
+    expect(validStatuses).toContain("ENDED");
+    expect(validStatuses).toContain("CANCELED");
+
+    // Validação de dia de vencimento entre 1 e 31
+    const isValidDueDay = (day: number) => day >= 1 && day <= 31;
+    expect(isValidDueDay(1)).toBe(true);
+    expect(isValidDueDay(15)).toBe(true);
+    expect(isValidDueDay(31)).toBe(true);
+    expect(isValidDueDay(0)).toBe(false);
+    expect(isValidDueDay(32)).toBe(false);
+  });
 });

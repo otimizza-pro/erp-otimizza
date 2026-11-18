@@ -1,10 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import {
   getContractById,
   createContractVersion,
   cancelContract,
   getContractProjections,
+  updateContract,
+  deleteContract,
 } from "@/modules/contracts/service";
+import { query } from "@/lib/db/pool";
+import { requireAdminUser } from "@/lib/auth/require-auth";
 
 export async function GET(
   request: Request,
@@ -30,7 +34,16 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ contract, projections });
+    // Buscar logs de auditoria da contratação
+    const logsRes = await query(
+      `SELECT id, user_id, action, old_data, new_data, created_at
+       FROM audit_logs
+       WHERE entity_name = 'contracts' AND entity_id = $1
+       ORDER BY created_at DESC`,
+      [id]
+    ).catch(() => ({ rows: [] }));
+
+    return NextResponse.json({ contract, projections, auditLogs: logsRes.rows });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro interno ao buscar contratação.";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -69,6 +82,49 @@ export async function POST(
     return NextResponse.json(newVersion, { status: 201 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao atualizar contratação.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAdminUser();
+    const { id } = await props.params;
+    const body = await request.json();
+
+    const updated = await updateContract(id, body);
+    return NextResponse.json({ success: true, contract: updated });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro ao editar contrato.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAdminUser();
+    const { id } = await props.params;
+    let reason = "Exclusão manual de contrato";
+
+    try {
+      const body = await request.json();
+      if (body?.reason) reason = body.reason;
+    } catch {
+      const { searchParams } = new URL(request.url);
+      const qReason = searchParams.get("reason");
+      if (qReason) reason = qReason;
+    }
+
+    const result = await deleteContract(id, reason);
+    return NextResponse.json(result);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Erro ao excluir contrato.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

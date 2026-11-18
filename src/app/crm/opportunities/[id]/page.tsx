@@ -340,6 +340,26 @@ export default function OpportunityDetailPage() {
               Criar Proposta
             </Link>
 
+            {opp.status === "WON" && opp.leadId && !opp.clientId && (
+              <Link
+                href={`/crm/leads/${opp.leadId}?autoConvert=true`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-colors"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Converter Lead em Cliente
+              </Link>
+            )}
+
+            {opp.status === "WON" && opp.clientId && (
+              <Link
+                href={`/contracts/new?clientId=${opp.clientId}`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-zinc-950 hover:bg-zinc-800 rounded-lg shadow-sm transition-colors"
+              >
+                <FileCheck className="h-3.5 w-3.5" />
+                Gerar Contrato / Assinatura
+              </Link>
+            )}
+
             {opp.status === "OPEN" ? (
               <>
                 <button
@@ -382,6 +402,42 @@ export default function OpportunityDetailPage() {
             </button>
           </div>
         </div>
+
+        {/* Banner de Celebração de Fechamento / Próximo Passo */}
+        {opp.status === "WON" && (
+          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg text-emerald-700 mt-0.5">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-emerald-950">
+                  🎉 Negociação Fechada com Sucesso!
+                </h3>
+                <p className="text-xs text-emerald-800 mt-0.5">
+                  {opp.leadId && !opp.clientId
+                    ? `O contato "${opp.contactName}" ainda está cadastrado como Lead. Converta-o em Cliente Oficial para emitir o contrato e faturar.`
+                    : `Cliente associado: ${opp.contactName || "Cliente"}. Clique para formalizar a contratação recorrente.`}
+                </p>
+              </div>
+            </div>
+            {opp.leadId && !opp.clientId ? (
+              <Link
+                href={`/crm/leads/${opp.leadId}?autoConvert=true`}
+                className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
+              >
+                Converter Lead em Cliente &rarr;
+              </Link>
+            ) : opp.clientId ? (
+              <Link
+                href={`/contracts/new?clientId=${opp.clientId}`}
+                className="px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-lg text-xs font-bold transition shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
+              >
+                Gerar Contrato / Assinatura &rarr;
+              </Link>
+            ) : null}
+          </div>
+        )}
 
         {/* Stepper de Etapas do Funil */}
         {currentStages.length > 0 && (
@@ -579,10 +635,10 @@ export default function OpportunityDetailPage() {
                     )}
                     {opp.clientId && (
                       <Link
-                        href={`/clients`}
+                        href={`/clients/${opp.clientId}`}
                         className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:underline"
                       >
-                        Ver no módulo de Clientes
+                        Ver cadastro do Cliente
                         <ExternalLink className="h-3 w-3" />
                       </Link>
                     )}

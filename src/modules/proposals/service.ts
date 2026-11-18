@@ -1102,6 +1102,7 @@ export class ProposalService {
           email: string | null;
           phone: string | null;
           whatsapp: string | null;
+          primary_contact: string | null;
           city: string | null;
           state: string | null;
           converted_client_id: string | null;
@@ -1145,6 +1146,23 @@ export class ProposalService {
               ]
             );
             effectiveClientId = newClientRes.rows[0].id;
+
+            // Inserir contato responsável em client_contacts se disponível
+            const contactName = lead.primary_contact?.trim() || (lead.person_type === "PF" ? lead.name : null);
+            if (contactName) {
+              await client.query(
+                `INSERT INTO client_contacts (client_id, name, role, email, phone, whatsapp, is_primary)
+                 VALUES ($1, $2, $3, $4, $5, $6, true)`,
+                [
+                  effectiveClientId,
+                  contactName,
+                  "Contato Principal",
+                  lead.email || null,
+                  lead.phone || null,
+                  lead.whatsapp || null,
+                ]
+              );
+            }
           }
 
           // Marcar lead como CONVERTED

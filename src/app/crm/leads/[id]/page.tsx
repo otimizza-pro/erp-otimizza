@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
 import {
@@ -29,6 +29,8 @@ import {
   Save,
   X,
   Sparkles,
+  Briefcase,
+  TrendingUp,
 } from "lucide-react";
 import { LeadRecord, OpportunityRecord, ActivityRecord, LeadStatus, ActivityType } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
@@ -181,9 +183,19 @@ export default function LeadDetailPage() {
     }
   }
 
+  const searchParams = useSearchParams();
+
   useEffect(() => {
     loadData();
   }, [id]);
+
+  useEffect(() => {
+    if (searchParams && (searchParams.get("convert") === "true" || searchParams.get("autoConvert") === "true")) {
+      if (lead && lead.status !== "CONVERTED" && !lead.convertedClientId) {
+        openConvertModal();
+      }
+    }
+  }, [searchParams, lead]);
 
   // Carrega clientes para vínculo se necessário
   useEffect(() => {
@@ -397,6 +409,8 @@ export default function LeadDetailPage() {
   }
 
   const isConverted = lead.status === "CONVERTED" || Boolean(lead.convertedClientId);
+  const hasWonOpp = opportunities.some((o) => o.status === "WON");
+  const hasApprovedProp = proposals.some((p) => p.status === "APPROVED");
 
   return (
     <AppShell activeSection="crm_leads">
@@ -511,6 +525,182 @@ export default function LeadDetailPage() {
                 Convertido em: {new Date(lead.convertedAt).toLocaleDateString("pt-BR")}
               </span>
             )}
+          </div>
+        </div>
+
+        {/* Trilha Visual de Evolução: Lead -> Oportunidade -> Proposta -> Cliente -> Contrato */}
+        <div className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+            <div>
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                Esteira de Evolução & Aquisição
+              </span>
+              <h3 className="text-sm font-bold text-zinc-950 mt-1">
+                Jornada do Cliente: Do Primeiro Contato à Assinatura
+              </h3>
+            </div>
+            <div>
+              {isConverted ? (
+                <span className="inline-flex items-center gap-1.5 text-emerald-700 font-bold bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  Lead Transformado em Cliente Oficial
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-amber-800 font-semibold bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 text-xs">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  Etapa de Qualificação & Negociação
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+            {/* 1. Lead */}
+            <div className="p-3.5 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider">1. Prospecção</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              </div>
+              <div className="text-xs font-bold text-zinc-900 truncate">Lead Cadastrado</div>
+              <p className="text-[11px] text-zinc-500">Origem: {lead.source || "Direta"}</p>
+            </div>
+
+            {/* 2. Funil Comercial */}
+            <div className={`p-3.5 rounded-xl border space-y-1 ${
+              hasWonOpp
+                ? "border-emerald-200 bg-emerald-50/40"
+                : opportunities.length > 0
+                ? "border-indigo-200 bg-indigo-50/30"
+                : "border-zinc-200 bg-zinc-50/50"
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">2. Negociação</span>
+                {hasWonOpp ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                ) : opportunities.length > 0 ? (
+                  <TrendingUp className="w-4 h-4 text-indigo-600" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-zinc-300" />
+                )}
+              </div>
+              <div className="text-xs font-bold text-zinc-900">
+                {hasWonOpp
+                  ? "Negociação Ganha!"
+                  : opportunities.length > 0
+                  ? `${opportunities.length} Oportunidade(s)`
+                  : "Sem Negociação"}
+              </div>
+              {opportunities.length > 0 ? (
+                <p className="text-[11px] text-zinc-500 truncate">
+                  {opportunities[0].stageName || "Em andamento"}
+                </p>
+              ) : (
+                <Link
+                  href={`/crm/opportunities/new?leadId=${lead.id}`}
+                  className="inline-block text-[11px] font-bold text-indigo-600 hover:underline"
+                >
+                  + Abrir no Funil
+                </Link>
+              )}
+            </div>
+
+            {/* 3. Proposta Comercial */}
+            <div className={`p-3.5 rounded-xl border space-y-1 ${
+              hasApprovedProp
+                ? "border-emerald-200 bg-emerald-50/40"
+                : proposals.length > 0
+                ? "border-indigo-200 bg-indigo-50/30"
+                : "border-zinc-200 bg-zinc-50/50"
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">3. Proposta</span>
+                {hasApprovedProp ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                ) : proposals.length > 0 ? (
+                  <FileText className="w-4 h-4 text-indigo-600" />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-zinc-300" />
+                )}
+              </div>
+              <div className="text-xs font-bold text-zinc-900">
+                {hasApprovedProp
+                  ? "Proposta Aprovada"
+                  : proposals.length > 0
+                  ? `${proposals.length} Proposta(s)`
+                  : "Sem Proposta"}
+              </div>
+              {proposals.length > 0 ? (
+                <Link
+                  href={`/proposals/${proposals[0].id}`}
+                  className="inline-block text-[11px] font-bold text-indigo-600 hover:underline truncate"
+                >
+                  Ver {proposals[0].proposalCode || "Proposta"}
+                </Link>
+              ) : (
+                <Link
+                  href={`/proposals/new?leadId=${lead.id}`}
+                  className="inline-block text-[11px] font-bold text-indigo-600 hover:underline"
+                >
+                  + Criar Proposta
+                </Link>
+              )}
+            </div>
+
+            {/* 4. Cliente Oficial */}
+            <div className={`p-3.5 rounded-xl border space-y-1 ${
+              isConverted
+                ? "border-emerald-200 bg-emerald-50/40"
+                : "border-amber-200 bg-amber-50/30"
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">4. Cliente Oficial</span>
+                {isConverted ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                ) : (
+                  <Clock className="w-4 h-4 text-amber-600" />
+                )}
+              </div>
+              <div className="text-xs font-bold text-zinc-900">
+                {isConverted ? "Cliente Registrado" : "Pendente"}
+              </div>
+              {isConverted ? (
+                <Link
+                  href={`/clients/${lead.convertedClientId}`}
+                  className="inline-block text-[11px] font-bold text-emerald-700 hover:underline"
+                >
+                  Abrir Ficha &rarr;
+                </Link>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openConvertModal}
+                  className="text-[11px] font-bold text-amber-800 hover:underline cursor-pointer"
+                >
+                  Converter Agora &rarr;
+                </button>
+              )}
+            </div>
+
+            {/* 5. Contrato & Operação */}
+            <div className={`p-3.5 rounded-xl border space-y-1 ${
+              isConverted ? "border-zinc-200 bg-white" : "border-zinc-200 bg-zinc-50/50 opacity-60"
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-600">5. Contrato</span>
+                <Briefcase className="w-4 h-4 text-zinc-400" />
+              </div>
+              <div className="text-xs font-bold text-zinc-900">Assinatura & Projeto</div>
+              {isConverted ? (
+                <Link
+                  href={`/contracts/new?clientId=${lead.convertedClientId}`}
+                  className="inline-block text-[11px] font-bold text-zinc-900 hover:underline"
+                >
+                  + Nova Assinatura
+                </Link>
+              ) : (
+                <p className="text-[11px] text-zinc-400">Ativa após virar cliente</p>
+              )}
+            </div>
           </div>
         </div>
 

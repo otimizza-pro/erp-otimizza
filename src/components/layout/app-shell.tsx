@@ -279,7 +279,26 @@ export function AppShell({ children, activeSection }: AppShellProps) {
     const currentTab = currentParams.get("tab");
     const currentCategory = currentParams.get("category");
 
-    // 1. PRIORIDADE MÁXIMA: Correspondência exata por rota + query parameter
+    // 0. PRIORIDADE ABSOLUTA: activeSection explícito declarado no AppShell da página
+    if (activeSection) {
+      const directMatch = allItems.find((it) => it.id === activeSection);
+      if (directMatch) return directMatch.id;
+      if (activeSection === "clients_new") return "clients_new";
+      if (activeSection === "contracts_new") return "contracts_new";
+      if (activeSection === "suppliers_new") return "suppliers_new";
+      if (activeSection === "projects_new") return "projects_new";
+      if (activeSection === "projects_templates") return "projects_templates";
+      if (activeSection === "projects_onboarding") return "projects_onboarding";
+      if (activeSection === "clients") return "clients_list";
+      if (activeSection === "contracts") return "contracts_list";
+      if (activeSection === "projects") return "projects_list";
+      if (activeSection === "crm") return "crm_overview";
+      if (activeSection === "catalog") return "services";
+      if (activeSection === "suppliers") return "suppliers_list";
+      if (activeSection === "reports") return "reports_comm";
+    }
+
+    // 1. Correspondência exata por rota + query parameter
     // Ex: /projects/templates?category=onboarding casa com projects_onboarding
     // Ex: /reports?tab=commercial casa com reports_comm
     // Ex: /strategy?tab=diagnosis casa com strategy_diagnosis
@@ -324,25 +343,6 @@ export function AppShell({ children, activeSection }: AppShellProps) {
 
     if (bestMatch) {
       return bestMatch.id;
-    }
-
-    // 4. CORRESPONDÊNCIA POR ACTIVE SECTION EXPLÍCITO (apenas como fallback quando a rota não casou diretamente)
-    if (activeSection) {
-      const directMatch = allItems.find((it) => it.id === activeSection);
-      if (directMatch) return directMatch.id;
-      if (activeSection === "clients_new") return "clients_new";
-      if (activeSection === "contracts_new") return "contracts_new";
-      if (activeSection === "suppliers_new") return "suppliers_new";
-      if (activeSection === "projects_new") return "projects_new";
-      if (activeSection === "projects_templates") return "projects_templates";
-      if (activeSection === "projects_onboarding") return "projects_onboarding";
-      if (activeSection === "clients") return "clients_list";
-      if (activeSection === "contracts") return "contracts_list";
-      if (activeSection === "projects") return "projects_list";
-      if (activeSection === "crm") return "crm_overview";
-      if (activeSection === "catalog") return "services";
-      if (activeSection === "suppliers") return "suppliers_list";
-      if (activeSection === "reports") return "reports_comm";
     }
 
     // 5. Fallback por rota base sem query (ex: /reports sem parâmetros ativa o primeiro relatório)

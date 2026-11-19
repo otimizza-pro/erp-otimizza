@@ -5,6 +5,7 @@ import Link from "next/link";
 import {EditRecordAction} from "@/components/ui/edit-record-action";
 
 import {ArchiveRecordAction} from "@/components/ui/archive-record-action";
+import {DeleteRecordAction} from "@/components/ui/delete-record-action";
 
 import {
   TrendingUp,
@@ -718,7 +719,7 @@ export default function OpportunitiesListPage() {
                                         title="Ver detalhes da oportunidade"
                                       >
                                         <ExternalLink className="w-3.5 h-3.5" />
-                                      </Link><EditRecordAction url={"/api/crm/opportunities/"+opp.id} label="oportunidade" data={{title:opp.title,amount:opp.amount,expectedCloseDate:opp.expectedCloseDate}} fields={[{key:"title",label:"Título",required:true},{key:"amount",label:"Valor negociado (R$)",type:"number",required:true},{key:"expectedCloseDate",label:"Previsão de fechamento",type:"date"}]} onSaved={loadData}/><ArchiveRecordAction url={"/api/crm/opportunities/"+opp.id} archived={showArchived} onChanged={loadData}/>
+                                      </Link><EditRecordAction url={"/api/crm/opportunities/"+opp.id} label="oportunidade" data={{title:opp.title,amount:opp.amount,expectedCloseDate:opp.expectedCloseDate}} fields={[{key:"title",label:"Título",required:true},{key:"amount",label:"Valor negociado (R$)",type:"number",required:true},{key:"expectedCloseDate",label:"Previsão de fechamento",type:"date"}]} onSaved={loadData}/><ArchiveRecordAction url={"/api/crm/opportunities/"+opp.id} archived={showArchived} onChanged={loadData}/><DeleteRecordAction url={"/api/crm/opportunities/"+opp.id} label={`a oportunidade "${opp.title}" e suas atividades e histórico`} onDeleted={loadData}/>
                                     </div>
                                   </div>
                                 </div>
@@ -943,7 +944,7 @@ export default function OpportunitiesListPage() {
                                 title="Ver detalhes"
                               >
                                 <ArrowRight className="w-4 h-4" />
-                              </Link><EditRecordAction url={"/api/crm/opportunities/"+opp.id} label="oportunidade" data={{title:opp.title,amount:opp.amount,expectedCloseDate:opp.expectedCloseDate}} fields={[{key:"title",label:"Título",required:true},{key:"amount",label:"Valor negociado (R$)",type:"number",required:true},{key:"expectedCloseDate",label:"Previsão de fechamento",type:"date"}]} onSaved={loadData}/><ArchiveRecordAction url={"/api/crm/opportunities/"+opp.id} archived={showArchived} onChanged={loadData}/>
+                              </Link><EditRecordAction url={"/api/crm/opportunities/"+opp.id} label="oportunidade" data={{title:opp.title,amount:opp.amount,expectedCloseDate:opp.expectedCloseDate}} fields={[{key:"title",label:"Título",required:true},{key:"amount",label:"Valor negociado (R$)",type:"number",required:true},{key:"expectedCloseDate",label:"Previsão de fechamento",type:"date"}]} onSaved={loadData}/><ArchiveRecordAction url={"/api/crm/opportunities/"+opp.id} archived={showArchived} onChanged={loadData}/><DeleteRecordAction url={"/api/crm/opportunities/"+opp.id} label={`a oportunidade "${opp.title}" e suas atividades e histórico`} onDeleted={loadData}/>
                             </div>
                           </td>
                         </tr>

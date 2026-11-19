@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
@@ -67,6 +67,13 @@ interface AppShellProps {
   activeSection?: string;
 }
 
+function NavigationSearchSync({onChange}:{onChange:(value:string)=>void}) {
+  const params=useSearchParams();
+  const value=params.toString();
+  useEffect(()=>onChange(value?"?"+value:""),[value,onChange]);
+  return null;
+}
+
 export function AppShell({ children, activeSection }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -100,19 +107,25 @@ export function AppShell({ children, activeSection }: AppShellProps) {
   const [commercialPipelines, setCommercialPipelines] = useState<{id:string;name:string;status:string}[]>([]);
   useEffect(() => {
     const controller = new AbortController();
-    const load = async () => {
+    let pending=false,updatedAt=0;
+    const load = async (force=false) => {
+      if(pending||(!force&&Date.now()-updatedAt<60000))return;
+      pending=true;
       try {
         const response = await fetch("/api/crm/pipelines", {signal:controller.signal});
         if (!response.ok) throw new Error("Não foi possível atualizar os funis do menu");
         const data = await response.json();
-        if (Array.isArray(data)) setCommercialPipelines(data.filter(p => p.status === "ACTIVE"));
+        if (Array.isArray(data)) {setCommercialPipelines(data.filter(p => p.status === "ACTIVE"));updatedAt=Date.now();}
       } catch (error) {if (!controller.signal.aborted) console.error("Falha ao carregar menu comercial", error);}
+      finally{pending=false;}
     };
+    const onChange=()=>{void load(true);};
+    const onFocus=()=>{void load();};
     void load();
-    window.addEventListener("crm-pipelines-changed", load);
-    window.addEventListener("focus", load);
-    return () => {controller.abort();window.removeEventListener("crm-pipelines-changed", load);window.removeEventListener("focus", load);};
-  }, [pathname]);
+    window.addEventListener("crm-pipelines-changed", onChange);
+    window.addEventListener("focus", onFocus);
+    return () => {controller.abort();window.removeEventListener("crm-pipelines-changed", onChange);window.removeEventListener("focus", onFocus);};
+  }, []);
 
   const navigationGroups: NavGroup[] = [
     { id: "marketing_growth", title: "Marketing & Growth", icon: Target, section: "MARKETING & GROWTH", items: [
@@ -190,21 +203,6 @@ export function AppShell({ children, activeSection }: AppShellProps) {
   // Estado da busca de URL (para sincronização perfeita de ?tab= e ?category=)
   const [currentSearch, setCurrentSearch] = useState("");
 
-  useEffect(() => {
-    const handleLocationChange = () => {
-      if (typeof window !== "undefined") {
-        setCurrentSearch(window.location.search || "");
-      }
-    };
-    handleLocationChange();
-    window.addEventListener("popstate", handleLocationChange);
-    // Sincronização periódica em transições do Next.js
-    const interval = setInterval(handleLocationChange, 250);
-    return () => {
-      window.removeEventListener("popstate", handleLocationChange);
-      clearInterval(interval);
-    };
-  }, [pathname]);
 
   // Determina de forma estrita e unívoca exatamente um único item ativo no menu
   const activeItemId = React.useMemo<string>(() => {
@@ -307,6 +305,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
 
   // Determinar grupo ativo atual pelo item ativo
   const activeGroupId = React.useMemo(() => {
+    if(pathname?.startsWith("/crm/pipelines/"))return "commercial";
     if (activeItemId === "inicio") return "inicio";
     for (const group of navigationGroups) {
       if (group.items.some((it) => it.id === activeItemId)) {
@@ -314,11 +313,12 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       }
     }
     return "";
-  }, [activeItemId, navigationGroups]);
+  }, [activeItemId, navigationGroups,pathname]);
 
   // Inicializar estado dos grupos: ler localStorage ou abrir apenas o grupo da página ativa
   useEffect(() => {
-    const saved = localStorage.getItem("otimizza_sidebar_groups");
+    let saved:string|null=null;
+    try{saved=localStorage.getItem("otimizza_sidebar_groups");}catch{/* Storage can be unavailable. */}
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -332,14 +332,14 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       }
     }
     if (activeGroupId) {
-      setExpandedGroups({ [activeGroupId]: true });
+      setExpandedGroups(prev=>({...prev,[activeGroupId]:true}));
     }
   }, [activeGroupId]);
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups((prev) => {
       const next = { ...prev, [groupId]: !prev[groupId] };
-      localStorage.setItem("otimizza_sidebar_groups", JSON.stringify(next));
+      try{localStorage.setItem("otimizza_sidebar_groups", JSON.stringify(next));}catch{/* The menu still works without storage. */}
       return next;
     });
   };
@@ -463,6 +463,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-zinc-900 flex flex-col md:flex-row antialiased font-sans">
+      <React.Suspense fallback={null}><NavigationSearchSync onChange={setCurrentSearch}/></React.Suspense>
       {/* Mobile Drawer Backdrop */}
       {sidebarOpen && (
         <div
@@ -559,7 +560,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
               const prevGroup = groupIdx > 0 ? navigationGroups[groupIdx - 1] : null;
               const isNewSection = !prevGroup || prevGroup.section !== group.section;
               const isGroupActive = activeGroupId === group.id;
-              const isExpanded = !!expandedGroups[group.id];
+              const isExpanded = expandedGroups[group.id] ?? isGroupActive;
               const GroupIcon = group.icon;
 
               // No modo colapsado, exibe ícones com flyout no hover e controle via teclado
@@ -894,7 +895,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
         </header>
 
         {/* Viewport de Conteúdo da Página */}
-        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full space-y-6">
+        <main className="erp-content flex-1 min-w-0 p-4 sm:p-6 md:p-8 max-w-7xl mx-auto w-full space-y-6">
           {children}
         </main>
       </div>

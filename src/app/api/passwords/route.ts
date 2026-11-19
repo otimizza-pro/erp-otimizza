@@ -22,10 +22,15 @@ async function handle(request: NextRequest) {
   if (request.method !== "GET" && request.headers.get("origin") !== request.nextUrl.origin) return json({ error: "Origem não autorizada." }, 403);
   try {
     if (request.method === "GET") {
-      const result = await query(`SELECT ${metadata} FROM password_vault_entries WHERE owner_id=$1 ORDER BY title`, [user.id]);
+      const result = await query(`SELECT ${metadata} FROM password_vault_entries WHERE owner_id=$1 AND archived_at IS ${request.nextUrl.searchParams.get("archived")==="true"?"NOT ":""}NULL ORDER BY title`, [user.id]);
       return json({ entries: result.rows });
     }
     const body = await request.json();
+    if(request.method==="PATCH"){
+      const archived=z.boolean().parse(body.archived);const id=uuid.parse(body.id);
+      const changed=await query("UPDATE password_vault_entries SET archived_at=CASE WHEN $3 THEN NOW() ELSE NULL END,updated_at=NOW() WHERE id=$1 AND owner_id=$2 RETURNING id",[id,user.id,archived]);
+      return changed.rowCount?json({ok:true}):json({error:"Registro não encontrado."},404);
+    }
     if (request.method === "POST" && body.action === "reveal") {
       const id = uuid.parse(body.id);
       const result = await query<{ encrypted_password: string }>("SELECT encrypted_password FROM password_vault_entries WHERE id=$1 AND owner_id=$2", [id, user.id]);
@@ -53,3 +58,4 @@ export const GET = handle;
 export const POST = handle;
 export const PUT = handle;
 export const DELETE = handle;
+export const PATCH = handle;

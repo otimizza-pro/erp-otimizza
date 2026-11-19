@@ -1,4 +1,11 @@
 import { requireAdminUser } from "@/lib/auth/require-auth";
+import {updateCombo} from "@/modules/catalog/service";
+
+export async function PUT(request:Request,{params}:{params:Promise<{id:string}>}){
+ try{await requireAdminUser();}catch{return NextResponse.json({error:"Acesso não autorizado."},{status:401});}
+ try{const {id}=await params;await updateCombo(id,await request.json());return NextResponse.json({success:true});}
+ catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Não foi possível atualizar o combo."},{status:400});}
+}
 import { NextResponse } from "next/server";
 import { getComboById, archiveCombo, reactivateCombo, deleteCombo } from "@/modules/catalog/service";
 

@@ -1,5 +1,6 @@
 import { ServicePresentationSchema, type ServicePresentation } from "./presentation";
 import { query, withTransaction } from "@/lib/db/pool";
+import {z} from "zod";
 import {
   ServiceCategory,
   ServiceItem,
@@ -679,11 +680,7 @@ export async function deleteCombo(id: string): Promise<{ action: "deleted" | "ar
   );
   const contractCount = parseInt(contractCheck.rows[0]?.count || "0", 10);
   if (contractCount > 0) {
-    await archiveCombo(id);
-    return {
-      action: "archived",
-      message: `Combo arquivado com sucesso! Como já foi vinculado a ${contractCount} contrato(s), ele foi desativado para preservar os contratos.`,
-    };
+    throw new Error(`Este combo está vinculado a ${contractCount} contrato(s) e não pode ser excluído. Use Arquivar para retirá-lo das novas contratações.`);
   }
 
   return await withTransaction(async (client) => {
@@ -699,5 +696,19 @@ export async function deleteCombo(id: string): Promise<{ action: "deleted" | "ar
       message: "Combo excluído permanentemente com sucesso!",
     };
   });
+}
+
+export async function updateCombo(id:string,raw:unknown):Promise<void>{
+ const data=z.object({name:z.string().trim().min(1).max(200),description:z.string().max(6000).nullish(),items:z.array(z.object({serviceId:z.string().uuid(),componentPrice:z.number().finite().min(0)})).min(2).max(100)}).parse(raw);
+ const cents=data.items.reduce((sum,item)=>sum+Math.round(item.componentPrice*100),0);
+ await withTransaction(async client=>{
+  const existing=await client.query("SELECT * FROM combos WHERE id=$1 FOR UPDATE",[id]);if(!existing.rows.length)throw new Error("Combo não encontrado.");
+  const serviceIds=[...new Set(data.items.map(item=>item.serviceId))];
+  const services=await client.query("SELECT id FROM services WHERE id=ANY($1::uuid[])",[serviceIds]);if(services.rows.length!==serviceIds.length)throw new Error("Um dos serviços do combo não existe mais.");
+  await client.query("UPDATE combos SET name=$2,description=$3,total_price=$4,updated_at=NOW() WHERE id=$1",[id,data.name,data.description||null,cents/100]);
+  await client.query("DELETE FROM combo_items WHERE combo_id=$1",[id]);
+  for(const item of data.items)await client.query("INSERT INTO combo_items(combo_id,service_id,component_price) VALUES($1,$2,$3)",[id,item.serviceId,Math.round(item.componentPrice*100)/100]);
+  await client.query("INSERT INTO audit_logs(entity_name,entity_id,action,old_data,new_data) VALUES('combos',$1,'UPDATE',$2,$3)",[id,JSON.stringify(existing.rows[0]),JSON.stringify(data)]);
+ });
 }
 

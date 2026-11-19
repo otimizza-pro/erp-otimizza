@@ -4,7 +4,7 @@ import {useCompany} from "@/lib/context/company-context";
 import {INTERNAL_COMPANY_ID} from "@/modules/clients/internal-company";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { AppShell } from "@/components/layout/app-shell";
+
 import { Client } from "@/modules/clients/types";
 import {
   Users,
@@ -192,7 +192,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
   };
 
   return (
-    <AppShell activeSection={former ? "former_clients" : "clients"}>{former && <p className="p-4 mb-4 bg-amber-50 rounded-xl text-sm">Clientes com contrato cancelado e sem contrato ativo. Gerencie os contratos na ficha do cliente. O histórico financeiro é preservado.</p>}
+    <>{former && <p className="p-4 mb-4 bg-amber-50 rounded-xl text-sm">Clientes com contrato cancelado e sem contrato ativo. Gerencie os contratos na ficha do cliente. O histórico financeiro é preservado.</p>}
       <div className="space-y-6 pb-24">
         {/* Header com Ações */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -587,6 +587,6 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

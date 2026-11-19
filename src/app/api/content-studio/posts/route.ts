@@ -38,7 +38,7 @@ export async function GET(request: Request) {
         cci.updated_at as "updatedAt"
       FROM content_calendar_items cci
       JOIN clients c ON c.id = cci.client_id
-      WHERE 1=1
+      WHERE cci.archived_at IS ${searchParams.get("archived")==="true"?"NOT ":""}NULL
     `;
 
     const params: unknown[] = [];

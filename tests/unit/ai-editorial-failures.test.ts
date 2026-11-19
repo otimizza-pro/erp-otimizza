@@ -11,7 +11,7 @@ describe("Geração editorial não persiste substitutos em caso de falha", () =>
     vi.stubEnv("OPENROUTER_API_KEY", "unit-test-key");
     vi.stubGlobal("fetch", vi.fn());
     auth.mockResolvedValue({ id: "admin" });
-    query.mockImplementation((sql: string) => Promise.resolve({rows: sql.includes("FROM client_identities") ? [{brand_context:"Empresa teste",target_audiences:["Consumidores"]}] : sql.includes("FROM clients ") ? [{name:"Cliente"}] : []}));
+    query.mockImplementation((sql: string) => Promise.resolve({rows: sql.includes("FROM client_identities") ? [{brand_context:"Empresa teste",target_audiences:["Consumidores"]}] : sql.includes("FROM client_audiences") ? [{name:"Consumidores"}] : sql.includes("FROM clients ") ? [{name:"Cliente"}] : []}));
   });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
   const request = () => new NextRequest("http://localhost/api/content-studio/editorial-lines/generate", { method: "POST", body: JSON.stringify({ clientId: "11111111-1111-4111-8111-111111111111" }) });

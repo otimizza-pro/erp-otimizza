@@ -3,7 +3,8 @@
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
 import {Sparkles,Save,Copy,Download,History,FileText,Code2,Eye,RefreshCw,ArrowUpRight} from "lucide-react";
-import {AppShell} from "@/components/layout/app-shell";
+
+import {readJsonResponse} from "@/lib/http/read-json-response";
 import {useCompany} from "@/lib/context/company-context";
 import {contentCompanyId} from "@/modules/clients/internal-company";
 import {creationAreas} from "@/modules/digital-presence/catalog";
@@ -11,7 +12,13 @@ import type {CreationInput,CreationMaterial} from "@/modules/digital-presence/sc
 
 interface SavedMaterial {
   id:string;title:string;output_label:string;inputs:Record<string,string>;audience:string;
-  guidance:string;material:CreationMaterial;model_used:string|null;created_at:string;
+  guidance:string;material:CreationMaterial;model_used:string|null;created_at:string;archived_at?:string|null;
+}
+interface PresenceResponse {
+  success: boolean; error?: string; source?: string; model: string;
+  context: {audiences:string[];missing:string[];sources:string[];summary:string};
+  materials: SavedMaterial[]; historyError?: string;
+  material: CreationMaterial; document: SavedMaterial;
 }
 const control="mt-1.5 block w-full min-w-0 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-500 focus:bg-white focus:ring-2 focus:ring-zinc-100 disabled:opacity-50";
 const secondary="inline-flex items-center justify-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3.5 py-2 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-50";
@@ -19,7 +26,7 @@ const secondary="inline-flex items-center justify-center gap-1.5 rounded-full bo
 export function DigitalPresenceWorkspace({area}:{area:string}){
   const {selectedCompany}=useCompany();
   const clientId=contentCompanyId(selectedCompany);
-  return <AppShell activeSection={area}><CreationEditor key={clientId+area} clientId={clientId} companyName={selectedCompany.name} area={area}/></AppShell>;
+  return <><CreationEditor key={clientId+area} clientId={clientId} companyName={selectedCompany.name} area={area}/></>;
 }
 
 function CreationEditor({clientId,companyName,area}:{clientId:string;companyName:string;area:string}){
@@ -35,19 +42,20 @@ function CreationEditor({clientId,companyName,area}:{clientId:string;companyName
   const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[saving,setSaving]=useState(false);
   const [error,setError]=useState(""),[historyError,setHistoryError]=useState(""),[message,setMessage]=useState("");
   const [resultTab,setResultTab]=useState<"text"|"preview"|"html">("text");
+  const [archived,setArchived]=useState(false);
   const [revision,setRevision]=useState(0);
   const pendingRequest=useRef<AbortController|null>(null);
   const live=useRef(true);
   useEffect(()=>{live.current=true;return()=>{live.current=false;pendingRequest.current?.abort();};},[]);
   useEffect(()=>{
-    const controller=new AbortController();setLoading(true);setHistoryError("");
-    fetch("/api/digital-presence?"+new URLSearchParams({clientId,area}),{signal:controller.signal}).then(async response=>{
-      const data=await response.json();if(!response.ok||!data.success)throw new Error(data.error||"Não foi possível carregar esta área.");
+    const controller=new AbortController();setLoading(true);setHistoryError("");setError("");
+    fetch("/api/digital-presence?"+new URLSearchParams({clientId,area,archived:String(archived)}),{signal:controller.signal}).then(async response=>{
+      const data=await readJsonResponse<PresenceResponse>(response);if(!response.ok||!data.success)throw new Error(data.error||"Não foi possível carregar esta área.");
       setContext(data.context);setMaterials(data.materials);setHistoryError(data.historyError||"");
       if(data.context.audiences.length===1)setAudience(current=>current||data.context.audiences[0]);
     }).catch(error=>{if(error.name!=="AbortError")setError(error.message);}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});
     return()=>controller.abort();
-  },[clientId,area,revision]);
+  },[clientId,area,revision,archived]);
 
   async function generate(){
     const snapshot={clientId,area,outputIndex,audience,guidance,inputs};
@@ -55,7 +63,7 @@ function CreationEditor({clientId,companyName,area}:{clientId:string;companyName
     setBusy(true);setError("");setMessage("");
     try{
       const response=await fetch("/api/digital-presence",{method:"POST",signal:controller.signal,headers:{"Content-Type":"application/json"},body:JSON.stringify({...snapshot,action:"GENERATE"})});
-      const data=await response.json();if(!live.current)return;
+      const data=await readJsonResponse<PresenceResponse>(response);if(!live.current)return;
       if(!response.ok||!data.success||data.source!=="OPENROUTER")throw new Error(data.error||"A IA não confirmou a geração. Nenhum material novo foi aceito.");
       setMaterial(data.material);setModel(data.model);setRequestSnapshot(snapshot);setResultTab(data.material.html?"preview":"text");
       setMessage("Material gerado. Revise os textos e as pendências antes de salvar uma versão.");
@@ -67,11 +75,15 @@ function CreationEditor({clientId,companyName,area}:{clientId:string;companyName
     setSaving(true);setError("");setMessage("");
     try{
       const response=await fetch("/api/digital-presence",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({...requestSnapshot,action:"SAVE",material,model})});
-      const data=await response.json();if(!live.current)return;
+      const data=await readJsonResponse<PresenceResponse>(response);if(!live.current)return;
       if(!response.ok||!data.success)throw new Error(data.error||"Não foi possível salvar. O texto continua disponível para copiar.");
       setMaterial(data.document.material);setMaterials(current=>[data.document,...current]);setMessage("Nova versão salva para "+companyName+". Versões anteriores foram preservadas.");
     }catch(error){if(live.current)setError(error instanceof Error?error.message:"Erro ao salvar.");}
     finally{if(live.current)setSaving(false);}
+  }
+  async function changeSaved(document:SavedMaterial,action:"ARCHIVE"|"RESTORE"|"DELETE"){
+    if(action==="DELETE"&&!window.confirm("Excluir permanentemente esta versão de "+document.title+"?"))return;
+    setSaving(true);setError("");setMessage("");try{const response=await fetch("/api/digital-presence",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId,area,id:document.id,action})});const data=await readJsonResponse<{success:boolean;error?:string}>(response);if(!response.ok||!data.success)throw new Error(data.error||"A alteração não foi confirmada.");setMaterials(current=>current.filter(m=>m.id!==document.id));setMessage(action==="DELETE"?"Versão excluída.":action==="ARCHIVE"?"Versão arquivada.":"Versão restaurada.");}catch(error){setError(error instanceof Error?error.message:"Falha na alteração.");}finally{setSaving(false);}
   }
   function open(document:SavedMaterial){
     const index=definition.outputs.indexOf(document.output_label);
@@ -106,7 +118,7 @@ function CreationEditor({clientId,companyName,area}:{clientId:string;companyName
           {!ready&&!loading&&<p className="text-xs leading-relaxed text-zinc-500">Falta preencher: {[...(!audience?["público"]:[]),...missing.map(field=>field.label),...(context?.missing||[])].join(", ")||"carregar contexto"}.</p>}
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4"><p className="max-w-lg text-[11px] leading-relaxed text-zinc-500">Gera um material para revisão. Publicação e configuração nas plataformas são etapas posteriores.</p><button type="button" disabled={!ready||busy||saving} onClick={generate} className="inline-flex items-center gap-2 rounded-full bg-zinc-950 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-zinc-800 disabled:opacity-50">{busy?<RefreshCw className="h-3.5 w-3.5 animate-spin"/>:<Sparkles className="h-3.5 w-3.5"/>}{busy?"Criando com IA...":"Criar com IA"}</button></div>
         </section>
-        {error&&<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700">{error}</p>}
+        {error&&<div role="alert" className="space-y-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs text-rose-700"><p>{error}</p><button type="button" disabled={busy||saving||loading} className={secondary} onClick={()=>setRevision(value=>value+1)}>Recarregar contexto e materiais</button></div>}
         {message&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-700">{message}</p>}
         {material&&<section className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-hourline space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-sm font-semibold text-zinc-950">Material para revisão</h2><div className="flex flex-wrap gap-2"><button className={secondary} type="button" onClick={copy}><Copy className="h-3 w-3"/>Copiar texto</button><button className={secondary} type="button" onClick={()=>download(false)}><Download className="h-3 w-3"/>Baixar texto</button>{material.html&&<button className={secondary} type="button" onClick={()=>download(true)}><Download className="h-3 w-3"/>Baixar HTML</button>}</div></div>
@@ -117,7 +129,7 @@ function CreationEditor({clientId,companyName,area}:{clientId:string;companyName
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4"><span className="text-[10px] text-zinc-400">Modelo de origem: {model||"Não informado"}. As alterações de revisão são manuais.</span><button type="button" disabled={saving||busy} onClick={save} className="inline-flex items-center gap-2 rounded-full bg-zinc-950 px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50"><Save className="h-3.5 w-3.5"/>{saving?"Salvando...":"Salvar nova versão"}</button></div>
         </section>}
       </div>
-      <aside className="min-w-0"><section className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-hourline space-y-4"><div className="flex items-center gap-2"><History className="h-4 w-4 text-zinc-500"/><h2 className="text-sm font-semibold text-zinc-950">Materiais salvos</h2></div><p className="text-xs text-zinc-500">{companyName} · {definition.title}</p>{historyError?<div role="alert" className="space-y-2 text-xs text-rose-700"><p>{historyError}</p><button type="button" className={secondary} onClick={()=>setRevision(value=>value+1)}>Tentar novamente</button></div>:!materials.length?<p className="rounded-xl border border-dashed border-zinc-200 p-4 text-xs text-zinc-400">{loading?"Carregando versões...":"Nenhuma versão salva nesta área."}</p>:<div className="space-y-2">{materials.map(document=><button type="button" disabled={busy||saving} key={document.id} onClick={()=>open(document)} className="block w-full rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-left hover:border-zinc-300 disabled:opacity-50"><span className="block break-words text-xs font-semibold text-zinc-800">{document.title}</span><span className="mt-1 block text-[10px] text-zinc-400">{document.output_label} · {new Date(document.created_at).toLocaleString("pt-BR")}</span></button>)}</div>}</section></aside>
+      <aside className="min-w-0"><section className="rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-hourline space-y-4"><div className="flex items-center gap-2"><History className="h-4 w-4 text-zinc-500"/><h2 className="text-sm font-semibold text-zinc-950">Materiais salvos</h2></div><p className="text-xs text-zinc-500">{companyName} · {definition.title}</p><label className="flex items-center gap-2 text-xs text-zinc-600"><input type="checkbox" checked={archived} onChange={event=>setArchived(event.target.checked)}/>Ver arquivados</label>{historyError?<div role="alert" className="space-y-2 text-xs text-rose-700"><p>{historyError}</p><button type="button" className={secondary} onClick={()=>setRevision(value=>value+1)}>Tentar novamente</button></div>:!materials.length?<p className="rounded-xl border border-dashed border-zinc-200 p-4 text-xs text-zinc-400">{loading?"Carregando versões...":"Nenhuma versão salva nesta área."}</p>:<div className="space-y-2">{materials.map(document=><article key={document.id} className="space-y-2 rounded-xl border border-zinc-200 p-2"><button type="button" disabled={busy||saving} key={document.id} onClick={()=>open(document)} className="block w-full rounded-xl border border-zinc-100 bg-zinc-50 p-3 text-left hover:border-zinc-300 disabled:opacity-50"><span className="block break-words text-xs font-semibold text-zinc-800">{document.title}</span><span className="mt-1 block text-[10px] text-zinc-400">{document.output_label} · {new Date(document.created_at).toLocaleString("pt-BR")}</span></button><div className="flex flex-wrap gap-2 px-1 text-[10px]"><button disabled={busy||saving} type="button" className="font-semibold text-zinc-700" onClick={()=>open(document)}>Editar / criar versão</button><button disabled={busy||saving} type="button" className="font-semibold text-zinc-600" onClick={()=>changeSaved(document,archived?"RESTORE":"ARCHIVE")}>{archived?"Restaurar":"Arquivar"}</button><button disabled={busy||saving} type="button" className="font-semibold text-rose-600" onClick={()=>changeSaved(document,"DELETE")}>Excluir</button></div></article>)}</div>}</section></aside>
     </div>
   </div>;
 }

@@ -527,7 +527,7 @@ export function TaskExecutionModal({
                         type="button"
                         onClick={handleSavePreFill}
                         disabled={loadingBriefing}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-semibold transition"
                       >
                         {loadingBriefing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                         Salvar Informações Prévias
@@ -759,7 +759,7 @@ export function TaskExecutionModal({
                     type="button"
                     onClick={handleRunAudit}
                     disabled={auditing}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-semibold transition"
                   >
                     {auditing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                     {auditing ? "Auditando Concorrentes..." : "Gerar Diagnóstico Competitivo com IA"}
@@ -816,7 +816,7 @@ export function TaskExecutionModal({
                   <div className="pt-2 flex flex-wrap items-center gap-2">
                     <Link
                       href="/prompt-creator"
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold rounded-xl transition"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       Abrir no Estúdio de Conteúdo
@@ -846,7 +846,7 @@ export function TaskExecutionModal({
                   <div className="flex flex-wrap items-center gap-2.5">
                     <Link
                       href="/prompt-creator"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition shadow-xs"
+                      className="inline-flex items-center gap-2 px-4 py-2.5 bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl transition shadow-xs"
                     >
                       <Sparkles className="w-4 h-4" />
                       Criar Prompts & Roteiros
@@ -937,7 +937,7 @@ export function TaskExecutionModal({
                 <button
                   type="button"
                   onClick={handleAddChecklist}
-                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition"
+                  className="px-3.5 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-semibold transition"
                 >
                   Adicionar
                 </button>

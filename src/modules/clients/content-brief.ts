@@ -15,6 +15,6 @@ export function resolveContentBrief(context:AiClientContext,raw:unknown){
  if(value.pain!=="NOT_APPLICABLE"&&!pains.includes(value.pain))throw new AiGenerationError("AI_PAIN_INVALID","Escolha uma dor cadastrada ou não se aplica.",422);
  const validJourneys={TOP:["DISCOVERY","PROBLEM"],MIDDLE:["PROBLEM","CONSIDERATION"],BOTTOM:["DECISION"],AFTER_SALE:["RETENTION"]};
  if(!validJourneys[value.funnel].includes(value.journey))throw new AiGenerationError("AI_JOURNEY_INVALID","A etapa da jornada precisa corresponder ao funil de conteúdo selecionado.",422);
- return {...value,pillar:String(theme.pillar_name),theme:String(theme.theme),themeObjective:theme.objective||"",audienceDetails:context.audiences.find(a=>a.name===value.audience)||null};
+ return {...value,pillar:String(theme.pillar_name),theme:String(theme.theme),themeObjective:theme.objective||"",themeCustomFields:theme.custom_fields||[],audienceDetails:context.audiences.find(a=>a.name===value.audience)||null};
 }
 export function contentBriefPrompt(brief:ReturnType<typeof resolveContentBrief>){return "BRIEF DA PEÇA (seguir estas escolhas, sem misturar todos os públicos):\n"+JSON.stringify(brief)+"\nSe pain=NOT_APPLICABLE, use objetivo e tema sem forçar uma dor. Adapte a profundidade, o CTA e o ângulo à etapa do funil e da jornada. Não transforme uma pauta de descoberta em venda agressiva.";}

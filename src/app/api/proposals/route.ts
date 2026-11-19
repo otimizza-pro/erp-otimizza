@@ -18,6 +18,7 @@ export async function GET(request: Request) {
 
     const result = await ProposalService.listProposals({
       search,
+      archived:searchParams.get("archived")==="true",
       clientId,
       leadId,
       opportunityId,

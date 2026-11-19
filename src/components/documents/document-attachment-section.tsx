@@ -129,7 +129,7 @@ export function DocumentAttachmentSection({
               setErrorMsg(null);
               setUploadModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-zinc-950 rounded-lg hover:bg-zinc-800 transition-colors shadow-sm"
           >
             <Upload className="w-3.5 h-3.5" />
             Anexar Arquivo
@@ -272,7 +272,7 @@ export function DocumentAttachmentSection({
                 <button
                   type="submit"
                   disabled={isPending || !selectedFile}
-                  className="px-4 py-2 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
+                  className="px-4 py-2 text-xs font-medium text-white bg-zinc-950 rounded-lg hover:bg-zinc-800 disabled:opacity-50 transition-colors shadow-sm"
                 >
                   {isPending ? "Enviando..." : "Salvar Anexo"}
                 </button>

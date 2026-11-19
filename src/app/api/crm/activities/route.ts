@@ -21,6 +21,7 @@ export async function GET(request: Request) {
       CrmService.listActivities({
         leadId,
         clientId,
+      archived:searchParams.get("archived")==="true",
         opportunityId,
         status,
         overdueOnly,

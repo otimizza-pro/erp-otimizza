@@ -1,6 +1,24 @@
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
+import {saveProjectTemplate,templateLifecycle} from "@/modules/projects/templates";
+import {z} from "zod";
+
+export async function PUT(request:Request,{params}:{params:Promise<{id:string}>}){
+ try{await requireAdminUser();}catch{return NextResponse.json({error:"Acesso não autorizado."},{status:401});}
+ try{const {id}=await params;return NextResponse.json({success:true,...await saveProjectTemplate(await request.json(),id)});}
+ catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Não foi possível editar o modelo."},{status:400});}
+}
+export async function PATCH(request:Request,{params}:{params:Promise<{id:string}>}){
+ try{await requireAdminUser();}catch{return NextResponse.json({error:"Acesso não autorizado."},{status:401});}
+ try{const {id}=await params;const {action}=z.object({action:z.enum(["ARCHIVE","RESTORE"])}).parse(await request.json());await templateLifecycle(id,action);return NextResponse.json({success:true});}
+ catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Não foi possível arquivar o modelo."},{status:400});}
+}
+export async function DELETE(_request:Request,{params}:{params:Promise<{id:string}>}){
+ try{await requireAdminUser();}catch{return NextResponse.json({error:"Acesso não autorizado."},{status:401});}
+ try{const {id}=await params;await templateLifecycle(id,"DELETE");return NextResponse.json({success:true});}
+ catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Não foi possível excluir o modelo."},{status:409});}
+}
 
 export async function GET(
   _request: Request,

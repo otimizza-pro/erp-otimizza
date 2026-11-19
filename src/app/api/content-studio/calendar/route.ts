@@ -2,8 +2,19 @@ import {contentBriefSchema} from "@/modules/clients/content-brief";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
+import {z} from "zod";
 
 export const dynamic = "force-dynamic";
+
+export async function PATCH(request:NextRequest){
+  try{await requireAdminUser();}catch{return NextResponse.json({error:"Acesso não autorizado."},{status:401});}
+  try{
+    const body=z.object({id:z.string().uuid(),clientId:z.string().uuid(),archived:z.boolean()}).parse(await request.json());
+    const result=await query("UPDATE content_calendar_items SET archived_at=CASE WHEN $3 THEN NOW() ELSE NULL END WHERE id=$1 AND client_id=$2 RETURNING id",[body.id,body.clientId,body.archived]);
+    if(!result.rows.length)return NextResponse.json({error:"Conteúdo não encontrado nesta empresa."},{status:404});
+    return NextResponse.json({success:true});
+  }catch{return NextResponse.json({error:"Não foi possível alterar o arquivamento."},{status:400});}
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +28,7 @@ export async function GET(request: NextRequest) {
   const month = searchParams.get("month"); // YYYY-MM
 
   try {
-    const conditions: string[] = [];
+    const conditions: string[] = [searchParams.get("archived")==="true"?"c.archived_at IS NOT NULL":"c.archived_at IS NULL"];
     const params: unknown[] = [];
     let pIdx = 1;
 
@@ -241,7 +252,10 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    await query(`DELETE FROM content_calendar_items WHERE id = $1`, [id]);
+    const clientId=searchParams.get("clientId");
+    if(!clientId)return NextResponse.json({error:"Selecione uma empresa."},{status:400});
+    const removed=await query(`DELETE FROM content_calendar_items WHERE id = $1 AND client_id=$2 RETURNING id`, [id,clientId]);
+    if(!removed.rows.length)return NextResponse.json({error:"Conteúdo não encontrado nesta empresa."},{status:404});
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao excluir item do calendário.";

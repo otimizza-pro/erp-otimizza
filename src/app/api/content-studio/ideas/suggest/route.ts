@@ -1,3 +1,4 @@
+export const maxDuration=120;
 import {resolveContentBrief,contentBriefPrompt} from "@/modules/clients/content-brief";
 import {loadAiClientContext,assertClientContext,clientContextPrompt} from "@/lib/ai/client-context";
 import {NextRequest,NextResponse} from "next/server";

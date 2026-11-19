@@ -1,3 +1,4 @@
+export const maxDuration=120;
 import {loadProposalContext,clientContextPrompt} from "@/lib/ai/client-context";
 import {NextRequest,NextResponse} from "next/server";
 import {z} from "zod";

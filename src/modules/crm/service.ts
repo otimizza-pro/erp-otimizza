@@ -124,7 +124,7 @@ export class CrmService {
     let idx = 1;
 
     if (params?.ownerClientId) {
-      conditions.push(params.ownerClientId === "otimizza" ? "l.owner_client_id IS NULL" : `l.owner_client_id = ${idx++}`);
+      conditions.push(params.ownerClientId === "otimizza" ? "l.owner_client_id IS NULL" : `l.owner_client_id = $${idx++}`);
       if (params.ownerClientId !== "otimizza") values.push(params.ownerClientId);
     }
     if (params?.status && params.status !== "ALL") {
@@ -150,7 +150,7 @@ export class CrmService {
     }
 
     if (params?.acquisitionType && params.acquisitionType !== "ALL") {
-      conditions.push(`(CASE WHEN l.acquisition_verified THEN l.acquisition_type ELSE 'NAO_INFORMADO' END) = ${idx++}`);
+      conditions.push(`(CASE WHEN l.acquisition_verified THEN l.acquisition_type ELSE 'NAO_INFORMADO' END) = $${idx++}`);
       values.push(params.acquisitionType);
     }
 
@@ -247,7 +247,7 @@ export class CrmService {
         l.created_at,
         l.updated_at,
         (SELECT COUNT(o_c.id) FROM crm_opportunities o_c WHERE o_c.lead_id = l.id) as opportunities_count,
-        COALESCE((SELECT SUM(o_s.amount) FROM crm_opportunities o_s WHERE o_s.lead_id = l.id AND o_s.status = 'OPEN'), 0) as open_opps_amount,
+        COALESCE((SELECT SUM(o_s.amount) FROM crm_opportunities o_s WHERE o_s.lead_id = l.id AND o_s.status = 'OPEN' AND o_s.archived_at IS NULL), 0) as open_opps_amount,
         COALESCE((
           SELECT json_agg(json_build_object(
             'id', o_agg.id,
@@ -383,7 +383,7 @@ export class CrmService {
         l.created_at,
         l.updated_at,
         COUNT(o.id) as opportunities_count,
-        COALESCE(SUM(CASE WHEN o.status = 'OPEN' THEN o.amount ELSE 0 END), 0) as open_opps_amount
+        COALESCE(SUM(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN o.amount ELSE 0 END), 0) as open_opps_amount
       FROM crm_leads l
       LEFT JOIN crm_opportunities o ON o.lead_id = l.id
       WHERE l.id = $1
@@ -1091,9 +1091,9 @@ export class CrmService {
         p.archived_at,
         p.created_at,
         p.updated_at,
-        COUNT(CASE WHEN o.status = 'OPEN' THEN 1 END) as open_opps_count,
-        COALESCE(SUM(CASE WHEN o.status = 'OPEN' THEN o.amount ELSE 0 END), 0) as total_pipeline_amount,
-        COALESCE(SUM(CASE WHEN o.status = 'OPEN' THEN (o.amount * o.probability / 100.0) ELSE 0 END), 0) as weighted_pipeline_amount
+        COUNT(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN 1 END) as open_opps_count,
+        COALESCE(SUM(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN o.amount ELSE 0 END), 0) as total_pipeline_amount,
+        COALESCE(SUM(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN (o.amount * o.probability / 100.0) ELSE 0 END), 0) as weighted_pipeline_amount
       FROM crm_pipelines p
       LEFT JOIN crm_opportunities o ON o.pipeline_id = p.id
       ${statusClause}
@@ -1140,9 +1140,9 @@ export class CrmService {
         s.status,
         s.created_at,
         s.updated_at,
-        COUNT(CASE WHEN o.status = 'OPEN' THEN 1 END) as opps_count,
-        COALESCE(SUM(CASE WHEN o.status = 'OPEN' THEN o.amount ELSE 0 END), 0) as total_amount,
-        COALESCE(SUM(CASE WHEN o.status = 'OPEN' THEN (o.amount * o.probability / 100.0) ELSE 0 END), 0) as weighted_amount
+        COUNT(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN 1 END) as opps_count,
+        COALESCE(SUM(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN o.amount ELSE 0 END), 0) as total_amount,
+        COALESCE(SUM(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN (o.amount * o.probability / 100.0) ELSE 0 END), 0) as weighted_amount
       FROM crm_pipeline_stages s
       LEFT JOIN crm_opportunities o ON o.stage_id = s.id
       WHERE s.pipeline_id = $1 AND s.status = 'ACTIVE'
@@ -1450,11 +1450,12 @@ export class CrmService {
     leadId?: string;
     clientId?: string;
     search?: string;
+    archived?: boolean;
     limit?: number;
     offset?: number;
   }): Promise<{ opportunities: OpportunityRecord[]; total: number }> {
     const pool = getDbPool();
-    const conditions: string[] = [];
+    const conditions: string[] = [params?.archived?'o.archived_at IS NOT NULL':'o.archived_at IS NULL'];
     const values: unknown[] = [];
     let idx = 1;
 
@@ -1479,7 +1480,7 @@ export class CrmService {
     }
 
     if (params?.clientId) {
-      conditions.push(`(o.client_id = ${idx} OR o.lead_id IN (SELECT id FROM crm_leads WHERE converted_client_id = ${idx}))`);
+      conditions.push(`(o.client_id = $${idx} OR o.lead_id IN (SELECT id FROM crm_leads WHERE converted_client_id = $${idx}))`);
       values.push(params.clientId);
       idx++;
     }
@@ -2089,10 +2090,11 @@ export class CrmService {
     opportunityId?: string;
     status?: ActivityStatus;
     overdueOnly?: boolean;
+    archived?: boolean;
     limit?: number;
   }): Promise<ActivityRecord[]> {
     const pool = getDbPool();
-    const conditions: string[] = [];
+    const conditions: string[] = [params?.archived?'a.archived_at IS NOT NULL':'a.archived_at IS NULL'];
     const values: unknown[] = [];
     let idx = 1;
 
@@ -2101,7 +2103,7 @@ export class CrmService {
       values.push(params.leadId);
     }
     if (params?.clientId) {
-      conditions.push(`(a.client_id = ${idx} OR a.lead_id IN (SELECT id FROM crm_leads WHERE converted_client_id = ${idx}))`);
+      conditions.push(`(a.client_id = $${idx} OR a.lead_id IN (SELECT id FROM crm_leads WHERE converted_client_id = $${idx}))`);
       values.push(params.clientId);
       idx++;
     }
@@ -2418,10 +2420,10 @@ export class CrmService {
       potential_mrr: string;
     }>(
       `SELECT 
-        COUNT(CASE WHEN o.status = 'OPEN' THEN 1 END) as open_count,
-        COALESCE(SUM(CASE WHEN o.status = 'OPEN' THEN o.amount ELSE 0 END), 0) as total_amount,
-        COALESCE(SUM(CASE WHEN o.status = 'OPEN' THEN (o.amount * o.probability / 100.0) ELSE 0 END), 0) as weighted_amount,
-        COALESCE(SUM(CASE WHEN o.status = 'OPEN' THEN o.normalized_monthly_value ELSE 0 END), 0) as potential_mrr
+        COUNT(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN 1 END) as open_count,
+        COALESCE(SUM(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN o.amount ELSE 0 END), 0) as total_amount,
+        COALESCE(SUM(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN (o.amount * o.probability / 100.0) ELSE 0 END), 0) as weighted_amount,
+        COALESCE(SUM(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN o.normalized_monthly_value ELSE 0 END), 0) as potential_mrr
       FROM crm_opportunities o
       WHERE 1=1 ${pipeCondition}`
     );
@@ -2489,7 +2491,7 @@ export class CrmService {
         COALESCE(SUM(o.amount), 0) as total_amount
       FROM crm_pipeline_stages st
       JOIN crm_pipelines p ON p.id = st.pipeline_id AND p.status = 'ACTIVE'
-      LEFT JOIN crm_opportunities o ON o.stage_id = st.id AND o.status = 'OPEN'
+      LEFT JOIN crm_opportunities o ON o.stage_id = st.id AND o.status = 'OPEN' AND o.archived_at IS NULL
       WHERE st.status = 'ACTIVE' ${pipelineId ? `AND st.pipeline_id = '${pipelineId}'` : ""}
       GROUP BY st.id, st.name, st.color, st.display_order, p.id, p.name, p.is_default
       ORDER BY p.is_default DESC, p.name ASC, st.display_order ASC`

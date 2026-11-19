@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import {ArchiveRecordAction} from "@/components/ui/archive-record-action";
 import {
   FolderKanban,
   PlayCircle,
@@ -103,6 +104,7 @@ const day = (s: string) => (s ? s.slice(0, 10) : "");
 const stamp = (s: string) => (s ? Date.parse(day(s) + "T12:00:00Z") : 0);
 
 export function ProjectViews({ clientId }: { clientId?: string }) {
+  const [showArchived,setShowArchived]=useState(false);
   const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [view, setView] = useState<"Kanban" | "Lista" | "Gantt" | "Calendário">("Kanban");
   const [loading, setLoading] = useState(true);
@@ -137,7 +139,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
     if (params.get("view") === "Lista") setView("Lista");
     if (params.get("view") === "Gantt") setView("Gantt");
     if (params.get("view") === "Calendário") setView("Calendário");
-  }, [clientId]);
+  }, [clientId,showArchived]);
 
   // Carregamento de Projetos
   const loadProjects = async () => {
@@ -145,7 +147,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
     setError("");
     setProjects([]);
     try {
-      const res = await fetch(`/api/projects${clientId ? `?clientId=${clientId}` : ""}`);
+      const res = await fetch("/api/projects?"+new URLSearchParams({archived:String(showArchived),...(clientId?{clientId}:{})}));
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Erro ao carregar projetos.");
@@ -296,7 +298,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
   const span = Math.max(86400000, last - first);
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-6"><label className="flex items-center gap-2 text-xs text-zinc-600"><input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)}/>Ver arquivados</label>
       {/* Notificação Flutuante / Toast */}
       {notification && (
         <div
@@ -827,7 +829,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
                           className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 font-bold transition text-[11px]"
                         >
                           Detalhes <ArrowRight className="w-3 h-3" />
-                        </Link>
+                        </Link><ArchiveRecordAction url={"/api/projects/"+p.id} archived={showArchived} onChanged={loadProjects}/>
                       </td>
                     </tr>
                   );

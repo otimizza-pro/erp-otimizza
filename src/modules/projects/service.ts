@@ -102,6 +102,7 @@ export async function getProjectTemplateById(id: string): Promise<ProjectTemplat
 // ----------------------------------------------------------------------
 
 interface ListProjectsFilter {
+  archived?: boolean;
   clientId?: string;
   contractId?: string;
   status?: string;
@@ -111,7 +112,7 @@ interface ListProjectsFilter {
 }
 
 export async function listProjects(filters: ListProjectsFilter = {}): Promise<ProjectRecord[]> {
-  const conditions: string[] = ["p.archived_at IS NULL"];
+  const conditions: string[] = [filters.archived?"p.archived_at IS NOT NULL":"p.archived_at IS NULL"];
   const params: unknown[] = [];
 
   if (filters.filter === "critical") {
@@ -179,7 +180,7 @@ export async function listProjects(filters: ListProjectsFilter = {}): Promise<Pr
   return result.rows;
 }
 
-export async function getProjectById(id: string): Promise<ProjectRecord | null> {
+export async function getProjectById(id: string,includeArchived=false): Promise<ProjectRecord | null> {
   const prjSql = `
     SELECT 
       p.id,
@@ -213,7 +214,7 @@ export async function getProjectById(id: string): Promise<ProjectRecord | null> 
     LEFT JOIN clients c ON c.id = p.client_id
     LEFT JOIN contracts co ON co.id = p.contract_id
     LEFT JOIN project_templates tmpl ON tmpl.id = p.template_id
-    WHERE p.id = $1 AND p.archived_at IS NULL
+    WHERE p.id = $1 ${includeArchived?"":"AND p.archived_at IS NULL"}
   `;
   const prjRes = await query<ProjectRecord>(prjSql, [id]);
   if (prjRes.rows.length === 0) return null;
@@ -446,7 +447,7 @@ export async function updateProject(
   const res = await query(sql, params);
   if (res.rows.length === 0) throw new Error("Projeto não encontrado.");
 
-  const updated = await getProjectById(id);
+  const updated = await getProjectById(id,true);
   if (!updated) throw new Error("Erro ao obter projeto atualizado.");
   return updated;
 }

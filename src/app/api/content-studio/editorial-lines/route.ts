@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
       `SELECT el.*, ca.name as audience_name
        FROM client_editorial_lines el
        LEFT JOIN client_audiences ca ON ca.id = el.target_audience_id
-       WHERE el.client_id = $1 AND el.is_active = true
+       LEFT JOIN client_editorial_pillars p ON p.id = el.pillar_id
+       WHERE el.client_id = $1 AND el.is_active = true AND el.archived_at IS NULL AND p.archived_at IS NULL
        ORDER BY el.pillar_name ASC, el.theme ASC`,
       [clientId]
     );

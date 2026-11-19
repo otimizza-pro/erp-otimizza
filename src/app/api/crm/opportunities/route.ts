@@ -22,6 +22,7 @@ export async function GET(request: Request) {
       status,
       leadId,
       clientId,
+      archived:searchParams.get("archived")==="true",
       search,
       limit,
       offset,

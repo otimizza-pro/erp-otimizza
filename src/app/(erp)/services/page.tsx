@@ -1,0 +1,426 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+
+import { ServiceItem, ServiceCategory } from "@/modules/catalog/types";
+import {
+  Package,
+  Search,
+  Plus,
+  RefreshCw,
+  FolderTree,
+  Edit2,
+  Archive,
+  Layers,
+  ChevronRight,
+  Trash2,
+  AlertCircle,
+  CheckCircle2,
+  X,
+} from "lucide-react";
+import { formatBRL } from "@/shared/money";
+
+export default function ServicesPage() {
+  const [services, setServices] = useState<ServiceItem[]>([]);
+  const [categories, setCategories] = useState<ServiceCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "ARCHIVED">("ACTIVE");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; msg: string } | null>(null);
+
+  // Seleção múltipla para exclusão em massa
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [batchDeleting, setBatchDeleting] = useState(false);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [servicesRes, categoriesRes] = await Promise.all([
+        fetch(
+          `/api/services?status=${statusFilter}${search ? `&search=${search}` : ""}${
+            selectedCategory ? `&categoryId=${selectedCategory}` : ""
+          }`
+        ),
+        fetch(`/api/services?type=categories`),
+      ]);
+
+      const [servicesData, categoriesData] = await Promise.all([
+        servicesRes.json(),
+        categoriesRes.json(),
+      ]);
+
+      setServices(servicesData || []);
+      setCategories(categoriesData || []);
+      setSelectedServiceIds([]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedServiceIds.length === services.length && services.length > 0) {
+      setSelectedServiceIds([]);
+    } else {
+      setSelectedServiceIds(services.map((s) => s.id));
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedServiceIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedServiceIds.length === 0) return;
+    if (
+      !window.confirm(
+        `Tem certeza que deseja excluir os ${selectedServiceIds.length} serviços selecionados? Serviços sem histórico contábil serão excluídos permanentemente; aqueles com histórico de contratos ou combos serão arquivados com segurança.`
+      )
+    ) {
+      return;
+    }
+
+    setBatchDeleting(true);
+    setFeedback(null);
+    try {
+      const res = await fetch("/api/services", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: selectedServiceIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao excluir serviços selecionados");
+
+      setFeedback({
+        type: data.failedCount > 0 ? "error" : "success",
+        msg: [data.message || `${data.deletedCount} serviço(s) excluído(s) e ${data.archivedCount} arquivado(s).`, ...(data.results || []).filter((result: {action:string})=>result.action === "failed").map((result: {message:string})=>result.message)].join(" "),
+      });
+      setSelectedServiceIds((data.results || []).filter((result: {action:string})=>result.action === "failed").map((result:{id:string})=>result.id));
+      loadData();
+    } catch (err: unknown) {
+      setFeedback({
+        type: "error",
+        msg: err instanceof Error ? err.message : "Erro ao processar exclusão em lote.",
+      });
+    } finally {
+      setBatchDeleting(false);
+    }
+  };
+
+  const handleDeleteService = async (service: ServiceItem) => {
+    if (
+      !window.confirm(
+        `Tem certeza que deseja excluir o serviço "${service.name}"? Se ele possuir vínculos históricos, será arquivado para preservar os registros contábeis.`
+      )
+    ) {
+      return;
+    }
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/services/${service.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao excluir serviço");
+      setFeedback({ type: "success", msg: data.message || "Serviço excluído com sucesso!" });
+      loadData();
+    } catch (err: unknown) {
+      setFeedback({ type: "error", msg: err instanceof Error ? err.message : "Erro ao excluir serviço" });
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [statusFilter, selectedCategory]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    loadData();
+  };
+
+  return (
+    <>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                Catálogo Corporativo
+              </span>
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
+              Serviços
+            </h1>
+            <p className="text-xs text-zinc-500">
+              Serviços especializados, custos, precificação de referência e vinculação categórica
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/combos" className="px-4 py-2 border rounded-full text-xs">Combos</Link><Link href="/services/categories"
+              className="px-4 py-2 rounded-full bg-white border border-zinc-200 text-zinc-700 text-xs font-semibold hover:bg-zinc-50 transition shadow-2xs flex items-center gap-1.5"
+            >
+              <FolderTree className="w-3.5 h-3.5 text-zinc-500" />
+              Categorias
+            </Link>
+            <Link
+              href="/services/new"
+              className="px-4 py-2 rounded-full bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition shadow-xs flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Novo Serviço
+            </Link>
+          </div>
+        </div>
+
+        {/* Notificações de Feedback */}
+        {feedback && (
+          <div
+            className={`p-4 rounded-xl border text-xs flex items-center justify-between ${
+              feedback.type === "success"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                : "bg-rose-50 border-rose-200 text-rose-700"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {feedback.type === "success" ? (
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 shrink-0" />
+              )}
+              <span>{feedback.msg}</span>
+            </div>
+            <button onClick={() => setFeedback(null)} className="hover:opacity-70 cursor-pointer">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Filtros e Busca */}
+        <div className="p-4 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline flex flex-col md:flex-row items-center justify-between gap-4">
+          <form onSubmit={handleSearchSubmit} className="relative w-full md:w-96">
+            <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Buscar serviços por nome ou descrição..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 rounded-full bg-zinc-50 border border-zinc-200 text-xs text-zinc-900 placeholder-zinc-400 focus:bg-white focus:outline-none focus:border-zinc-900 transition"
+            />
+          </form>
+
+          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+            <div className="flex items-center rounded-full bg-zinc-100 p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setStatusFilter("ACTIVE")}
+                className={`px-3 py-1 rounded-full font-medium transition ${
+                  statusFilter === "ACTIVE"
+                    ? "bg-white text-zinc-950 shadow-2xs font-semibold"
+                    : "text-zinc-600 hover:text-zinc-950"
+                }`}
+              >
+                Ativos
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("ARCHIVED")}
+                className={`px-3 py-1 rounded-full font-medium transition ${
+                  statusFilter === "ARCHIVED"
+                    ? "bg-white text-zinc-950 shadow-2xs font-semibold"
+                    : "text-zinc-600 hover:text-zinc-950"
+                }`}
+              >
+                Arquivados
+              </button>
+            </div>
+
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="px-3 py-1.5 rounded-full bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 focus:outline-none focus:border-zinc-900 font-medium"
+            >
+              <option value="">Todas as categorias</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={loadData}
+              title="Atualizar lista"
+              className="p-2 rounded-full bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* Lista / Grid de Serviços */}
+        <div className="p-6 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline space-y-4">
+          <div className="flex items-center justify-between text-xs text-zinc-500">
+            <span>
+              Total cadastrado: <strong className="text-zinc-900">{services.length}</strong> serviço(s)
+            </span>
+          </div>
+
+          {/* Barra de Ações em Massa */}
+          {selectedServiceIds.length > 0 && (
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between animate-in fade-in">
+              <span className="text-xs font-bold text-purple-900">
+                {selectedServiceIds.length} serviço(s) selecionado(s)
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedServiceIds([])}
+                  className="px-3 py-1.5 text-xs text-zinc-600 hover:bg-white rounded-lg transition cursor-pointer"
+                >
+                  Limpar seleção
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteSelected}
+                  disabled={batchDeleting}
+                  className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs disabled:opacity-50 transition cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  {batchDeleting ? "Excluindo..." : `Excluir Selecionados (${selectedServiceIds.length})`}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-zinc-600">
+              <thead className="text-[10px] uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
+                <tr>
+                  <th className="py-3 px-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={selectedServiceIds.length === services.length && services.length > 0}
+                      onChange={handleToggleSelectAll}
+                      className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                      title="Selecionar todos os serviços visíveis"
+                    />
+                  </th>
+                  <th className="py-3 px-3">Serviço</th>
+                  <th className="py-3 px-3">Categoria</th>
+                  <th className="py-3 px-3">Unidade</th>
+                  <th className="py-3 px-3">Preço Padrão</th>
+                  <th className="py-3 px-3">Custo Padrão</th>
+                  <th className="py-3 px-3">Status</th>
+                  <th className="py-3 px-3 text-right">Ação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-zinc-400">
+                      Carregando catálogo de serviços...
+                    </td>
+                  </tr>
+                ) : services.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-zinc-400 space-y-2">
+                      <Package className="w-8 h-8 text-zinc-300 mx-auto" />
+                      <p>Nenhum serviço cadastrado.</p>
+                      <Link
+                        href="/services/new"
+                        className="inline-block text-xs font-semibold text-zinc-900 underline underline-offset-4"
+                      >
+                        Cadastrar primeiro serviço
+                      </Link>
+                    </td>
+                  </tr>
+                ) : (
+                  services.map((s) => (
+                    <tr
+                      key={s.id}
+                      className={`hover:bg-zinc-50/70 transition ${
+                        selectedServiceIds.includes(s.id) ? "bg-purple-50/30" : ""
+                      }`}
+                    >
+                      <td className="py-3.5 px-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedServiceIds.includes(s.id)}
+                          onChange={() => handleToggleSelect(s.id)}
+                          className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                        />
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <div className="font-semibold text-zinc-900">{s.name}</div>
+                        {s.description && (
+                          <div className="text-[11px] text-zinc-400 line-clamp-1">
+                            {s.description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        {s.categoryName ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] bg-zinc-100 text-zinc-700 font-medium">
+                            {s.categoryName}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400">-</span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-3 font-mono text-[11px] text-zinc-600">
+                        {s.billingUnit}
+                      </td>
+                      <td className="py-3.5 px-3 font-mono font-semibold text-zinc-950">
+                        {formatBRL(Math.round(s.defaultPrice * 100))}
+                      </td>
+                      <td className="py-3.5 px-3 font-mono text-zinc-500">
+                        {formatBRL(Math.round(s.defaultCost * 100))}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <span
+                          className={`px-3 py-1 rounded-full text-[10px] font-semibold border ${
+                            s.status === "ACTIVE"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-zinc-100 text-zinc-500 border-zinc-200"
+                          }`}
+                        >
+                          {s.status === "ACTIVE" ? "ATIVO" : "ARQUIVADO"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/services/${s.id}/edit`}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-medium border border-zinc-200 transition"
+                          >
+                            Editar
+                            <ChevronRight className="w-3 h-3 text-zinc-400" />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteService(s)}
+                            title="Excluir ou Arquivar Serviço"
+                            className="p-1.5 rounded-full border border-rose-200 text-rose-600 hover:text-rose-800 hover:bg-rose-50 transition cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}

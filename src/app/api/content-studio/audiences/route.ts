@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const res = await query(
-      `SELECT * FROM client_audiences WHERE client_id = $1 ORDER BY is_default DESC, name ASC`,
+      `SELECT * FROM client_audiences WHERE client_id = $1 AND archived_at IS NULL ORDER BY is_default DESC, name ASC`,
       [clientId]
     );
     return NextResponse.json({ audiences: res.rows });

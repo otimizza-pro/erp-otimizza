@@ -217,8 +217,9 @@ export class ProposalService {
     endDate?: string;
     limit?: number;
     offset?: number;
+    archived?: boolean;
   }): Promise<{ proposals: ProposalRecord[]; total: number }> {
-    const conditions: string[] = ["p.archived_at IS NULL"];
+    const conditions: string[] = [filters.archived?"p.archived_at IS NOT NULL":"p.archived_at IS NULL"];
     const params: unknown[] = [];
     let pIdx = 1;
 
@@ -310,7 +311,7 @@ export class ProposalService {
   /**
    * Buscar proposta completa por ID (incluindo versões, itens e timeline)
    */
-  static async getProposalById(id: string, client?: { query: typeof query }): Promise<ProposalRecord | null> {
+  static async getProposalById(id: string, client?: { query: typeof query },includeArchived=false): Promise<ProposalRecord | null> {
     const db = client || { query };
     const propSql = `
       SELECT 
@@ -323,7 +324,7 @@ export class ProposalService {
       LEFT JOIN clients c ON c.id = p.client_id
       LEFT JOIN crm_leads l ON l.id = p.lead_id
       LEFT JOIN crm_opportunities opp ON opp.id = p.opportunity_id
-      WHERE p.id = $1 AND p.archived_at IS NULL
+      WHERE p.id = $1 ${includeArchived?"":"AND p.archived_at IS NULL"}
     `;
     const propRes = await db.query<DbProposalRow>(propSql, [id]);
     if (!propRes.rows[0]) return null;

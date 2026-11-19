@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
 
     const projects = await listProjects({
       clientId,
+      archived:searchParams.get("archived")==="true",
       contractId,
       status,
       projectType,

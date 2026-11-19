@@ -48,7 +48,7 @@ export function ClientFiles({ clientId }: { clientId: string }) {
       <h2 className="font-semibold">Documentos e pastas do cliente</h2>
       <div className="flex flex-wrap gap-2">
         {["Propostas", "Contratos", "Financeiro", "Documentos", ...folders.map(f => f.name)].map(f => (
-          <button className={`rounded px-3 py-2 ${folder === f ? "bg-indigo-600 text-white" : "bg-slate-100"}`} key={f} onClick={() => setFolder(f)}>
+          <button className={`rounded px-3 py-2 ${folder === f ? "bg-zinc-950 text-white" : "bg-slate-100"}`} key={f} onClick={() => setFolder(f)}>
             📁 {f}
           </button>
         ))}
@@ -107,7 +107,7 @@ export function ClientFiles({ clientId }: { clientId: string }) {
                 <button type="button" onClick={() => setShowWriteModal(false)} className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800">
                   Cancelar
                 </button>
-                <button type="submit" disabled={busy} className="px-3 py-1.5 text-xs text-white bg-indigo-600 rounded hover:bg-indigo-700 disabled:opacity-50">
+                <button type="submit" disabled={busy} className="px-3 py-1.5 text-xs text-white bg-zinc-950 rounded hover:bg-zinc-800 disabled:opacity-50">
                   {busy ? "Salvando…" : "Salvar Documento"}
                 </button>
               </div>

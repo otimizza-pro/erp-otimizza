@@ -16,7 +16,8 @@ export function CommercialDnaPanel({ leadId, clientId, onReady, onSaved, showBus
   const [message, setMessage] = useState("");
   const [reload, setReload] = useState(0);
   const [proposalTexts, setProposalTexts] = useState<Record<string,string> | null>(null);
-  const callbacks = useRef({ onReady, onSaved }); callbacks.current = { onReady, onSaved };
+  const callbacks = useRef({ onReady, onSaved });
+  useEffect(() => { callbacks.current = { onReady, onSaved }; }, [onReady,onSaved]);
   const url = leadId ? `/api/crm/leads/${leadId}/dna` : `/api/clients/${clientId}/commercial-dna`;
   useEffect(() => {
     const controller = new AbortController();

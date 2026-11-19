@@ -14,12 +14,12 @@ export async function loadAiClientContext(companyId:string):Promise<AiClientCont
  query("SELECT id,name,trade_name,city,state FROM clients WHERE id=$1",[companyId]),
  query("SELECT communication_profile,value_proposition,market_niche,archetype,tone_of_voice,brand_context,target_audiences,pain_points,differentials,forbidden_words,mandatory_terms,default_ctas,instagram_handle,website_url,whatsapp_cta,notes,commercial_profile FROM client_identities WHERE client_id=$1",[companyId]),
  query("SELECT id,name,description,demographics,pain_points,desires,objections,is_default FROM client_audiences WHERE client_id=$1 AND archived_at IS NULL ORDER BY is_default DESC,name",[companyId]),
- query("SELECT brand_context,default_tones,default_ctas,custom_guidelines,forbidden_words FROM client_brand_voice_presets WHERE client_id=$1",[companyId]),
+ query("SELECT custom_guidelines FROM client_brand_voice_presets WHERE client_id=$1",[companyId]),
  query("SELECT el.id,el.pillar_name,el.theme,el.objective,el.preferred_formats,el.frequency_per_month,el.notes,el.custom_fields FROM client_editorial_lines el LEFT JOIN client_editorial_pillars p ON p.id=el.pillar_id WHERE el.client_id=$1 AND el.is_active=true AND el.archived_at IS NULL AND p.archived_at IS NULL ORDER BY el.pillar_name LIMIT 30",[companyId])]);
  if(!clients.rows[0])throw new AiGenerationError("AI_CLIENT_NOT_FOUND","A empresa selecionada não foi encontrada. Nenhum conteúdo foi gerado.",404);
  const identity=pick(identities.rows[0],["value_proposition","market_niche","archetype","tone_of_voice","brand_context","target_audiences","pain_points","differentials","forbidden_words","mandatory_terms","default_ctas","instagram_handle","website_url","whatsapp_cta","notes","commercial_profile"]);
  if(identities.rows.length||audiences.rows.length)identity.target_audiences=audiences.rows.map(row=>String(row.name));
- const brandVoice=pick(presets.rows[0],["brand_context","default_tones","default_ctas","custom_guidelines","forbidden_words"]);
+ const brandVoice=pick(presets.rows[0],["custom_guidelines"]);
  const communicationProfile=CommunicationProfileSchema.parse(identities.rows[0]?.communication_profile||{});
  const missing=[];
  if(!identity.brand_context&&!identity.value_proposition&&!identity.market_niche&&!brandVoice.brand_context)missing.push("Descrição do negócio, nicho ou proposta de valor");

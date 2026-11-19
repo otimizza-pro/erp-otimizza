@@ -112,7 +112,7 @@ function NewProposalWizard() {
   const lastSavedTexts = useRef("");
   const textSaveQueue = useRef<Promise<void>>(Promise.resolve());
   const latestTextDraft = useRef("");
-  latestTextDraft.current = JSON.stringify([textDraftRecipient,currentScenario,partnershipFocus,trackingMetrics]);
+  useEffect(() => { latestTextDraft.current = JSON.stringify([textDraftRecipient,currentScenario,partnershipFocus,trackingMetrics]); }, [textDraftRecipient,currentScenario,partnershipFocus,trackingMetrics]);
   const [dnaReady, setDnaReady] = useState(false);
   const [dnaRevision, setDnaRevision] = useState(0);
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
@@ -120,7 +120,7 @@ function NewProposalWizard() {
   const [strategyTrigger, setStrategyTrigger] = useState("");
   const strategyEdits = useRef({ focus: 0, metrics: 0 });
   const latestAiContext = useRef("");
-  latestAiContext.current = JSON.stringify([recipientType, selectedLeadId, selectedClientId, currentScenario, dnaReady, dnaRevision]);
+  useEffect(() => { latestAiContext.current = JSON.stringify([recipientType, selectedLeadId, selectedClientId, currentScenario, dnaReady, dnaRevision]); }, [recipientType,selectedLeadId,selectedClientId,currentScenario,dnaReady,dnaRevision]);
   const aiGeneration = useRef(0);
   const lastStrategyAttempt = useRef("");
   const aiBusy = useRef(false);

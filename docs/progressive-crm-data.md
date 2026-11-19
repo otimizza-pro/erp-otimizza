@@ -7,6 +7,7 @@
 | Nome e contatos do lead convertido | Cliente vinculado, com sincronização bidirecional pela migração 035 |
 | Necessidade e problema do lead | `crm_leads.need_summary`; diagnóstico da proposta lê e atualiza esse mesmo campo enquanto o lead não foi convertido |
 | Descrição do negócio | `client_identities.brand_context`, compartilhado pelo DNA inicial e pelo DNA completo |
+| Contexto da marca, tons, CTAs e palavras proibidas | Mesmos campos de `client_identities` no DNA e nas configurações do Estúdio; presets guardam apenas diretrizes adicionais |
 | Cliente ideal prioritário, objetivo comercial, escopo solicitado, objetivo da comunicação e porta-voz | `client_identities.commercial_profile`, sem exigir oportunidade |
 | Perfis detalhados de público | `client_audiences`; briefing e chamadas antigas enriquecem esse catálogo, sem escrever uma segunda lista no DNA |
 | Textos de trabalho da próxima proposta | `commercial_profile.proposalTextDraft`; salvamento automático de cenário, foco e indicadores, inclusive resultados da IA |
@@ -34,5 +35,6 @@ O formulário informa o salvamento automático dos textos e oferece nova tentati
 - 038: identidade comercial desde o lead, transferência na conversão.
 - 039: correção pontual dos saldos iniciais das duas contas, com auditoria e sem alterar saldo atual ou extrato.
 - 040: recuperação de públicos antigos que não estavam no catálogo principal.
+- 041: recuperação dos dados de voz antigos para a identidade canônica, sem apagar histórico.
 
 Os dados legados de públicos são conservados para histórico. A migração 040 recupera os que ainda não existem no catálogo, sem reativar públicos arquivados.

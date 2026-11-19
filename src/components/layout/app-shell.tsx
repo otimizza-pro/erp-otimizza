@@ -481,15 +481,15 @@ export function AppShell({ children, activeSection }: AppShellProps) {
         <div className="flex flex-col h-full overflow-hidden">
           {/* Cabeçalho do Menu & Logotipo */}
           <div
-            className={`border-b border-zinc-100 flex items-center h-16 transition-all ${
-              sidebarCollapsed ? "justify-between px-2.5" : "justify-between px-4"
+            className={`border-b border-zinc-100 flex shrink-0 items-center transition-all ${
+              sidebarCollapsed ? "h-16 justify-between px-2.5" : "h-24 justify-between px-3"
             }`}
           >
             <Link
               href="/"
               onClick={() => setSidebarOpen(false)}
               className={`flex items-center overflow-hidden transition-opacity hover:opacity-90 ${
-                sidebarCollapsed ? "justify-center shrink-0" : "flex-1 min-w-0 mr-2"
+                sidebarCollapsed ? "justify-center shrink-0" : "h-full flex-1 min-w-0 mr-2 py-2"
               }`}
               title="Otimizza ERP"
             >
@@ -506,10 +506,10 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                 <Image
                   src="/brand/logo-principal.svg"
                   alt="Otimizza ERP"
-                  width={200}
-                  height={50}
+                  width={224}
+                  height={78}
                   priority
-                  className="h-10 w-auto max-w-[190px] object-contain object-left"
+                  className="h-full w-full object-contain object-left"
                 />
               )}
             </Link>

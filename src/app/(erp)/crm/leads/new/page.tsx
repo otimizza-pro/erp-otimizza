@@ -416,13 +416,13 @@ export default function NewLeadPage() {
 
             <div>
               <label className="text-xs font-semibold text-zinc-700 block mb-1">Necessidade ou Problema Apresentado pelo Lead</label>
-              <input
-                type="text"
+              <textarea
+                rows={5}
                 name="needSummary"
                 value={form.needSummary}
                 onChange={handleChange}
                 placeholder="Ex: Não tem presença digital e precisa gerar mais contatos no WhatsApp para vendas locais."
-                className="w-full px-3.5 py-2 text-xs bg-zinc-50/50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white"
+                className="w-full min-h-32 resize-y px-3.5 py-2 text-xs bg-zinc-50/50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:bg-white"
               />
             </div>
           </div>

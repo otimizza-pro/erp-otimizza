@@ -635,18 +635,19 @@ export default function LeadDetailPage() {
     <>
       <div className="max-w-6xl mx-auto space-y-6 pb-16">
         {/* Header Breadcrumb & Actions */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-xs">
+          <div className="flex min-w-0 items-start gap-3 p-4 sm:p-5">
             <Link
               href="/crm/leads"
-              className="p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 transition shadow-xs"
+              className="shrink-0 p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 transition shadow-xs"
+              aria-label="Voltar para leads"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1 space-y-2">
+              <h1 className="break-words text-xl font-bold tracking-tight text-zinc-950 sm:text-2xl">{lead.name}</h1>
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="font-mono text-xs font-bold text-zinc-400">{lead.leadCode}</span>
-                <h1 className="text-xl font-bold tracking-tight text-zinc-950">{lead.name}</h1>
                 {lead.personType === "PJ" ? (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                     PJ
@@ -657,13 +658,13 @@ export default function LeadDetailPage() {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-zinc-500">
+              <p className="break-words text-xs text-zinc-500">
                 {lead.tradeName ? `${lead.tradeName} • ` : ""}Origem: {lead.source}
               </p>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Ações do lead" className="flex flex-wrap items-center gap-2 border-t border-zinc-100 bg-zinc-50/60 p-4 sm:px-5 [&>button]:max-w-full [&>a]:max-w-full [&_svg]:shrink-0">
             {lead.whatsapp && (
               <WhatsAppLink number={lead.whatsapp} name={lead.name} label="WhatsApp" />
             )}
@@ -1150,7 +1151,7 @@ export default function LeadDetailPage() {
                   </div>
                 </div>
                 {lead.needSummary && (
-                  <div className="text-xs text-zinc-700 bg-white p-2.5 rounded-lg border border-zinc-200">
+                  <div className="whitespace-pre-wrap break-words text-xs text-zinc-700 bg-white p-2.5 rounded-lg border border-zinc-200">
                     <strong className="text-zinc-900">Necessidade do Lead:</strong> {lead.needSummary}
                   </div>
                 )}
@@ -2030,13 +2031,13 @@ export default function LeadDetailPage() {
 
                 <div>
                   <label className="text-xs font-semibold text-zinc-700 block mb-1">Resumo da Necessidade do Lead</label>
-                  <input
-                    type="text"
+                  <textarea
+                    rows={5}
                     name="needSummary"
                     placeholder="Ex: Precisa de mais pacientes no consultório..."
                     value={editForm.needSummary}
                     onChange={handleEditChange}
-                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    className="w-full min-h-32 resize-y px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   />
                 </div>
 

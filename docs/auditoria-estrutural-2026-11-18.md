@@ -169,3 +169,11 @@ Foram preparados ajustes de compatibilidade para Zod 4: chaves explícitas em re
 Alvos de atualização controlada: Zod 4.6.7, Vitest 5.1.1 e SheetJS 0.20.3 pelo tarball oficial. A distribuição npm antiga do SheetJS não oferece a correção. Repetir testes, build e npm audit após a instalação; não usar `audit fix --force`.
 
 Referências: [Zod GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5), [Tinypool GHSA-85c8-ppgw-ccpr](https://github.com/advisories/GHSA-85c8-ppgw-ccpr), [instalação oficial SheetJS](https://docs.sheetjs.com/docs/getting-started/installation/nodejs/).
+
+### Correção do deploy de 19/11/2026, commit 096d6bc
+
+O deploy compilou os bundles e falhou na verificação de tipos do serviço de propostas. Em Zod 4, `z.input` de números coercíveis é `unknown`; o serviço usava esse tipo bruto em cálculos financeiros. A criação e o versionamento agora validam a entrada com seus schemas antes de abrir a transação; o cálculo recebe `ParsedProposalItem`, derivado da saída validada. Não foram usadas coerções de tipo para esconder os erros nem foi desativada a verificação de TypeScript.
+
+A atualização também revelou defaults de criação sendo aplicados a patches parciais. Removidos esses defaults somente nos schemas de edição de leads, funis, etapas, projetos e tarefas. Defaults de criação preservados. Fixtures UUID antigas dos testes foram atualizadas para UUIDs válidos, mantendo a validação da aplicação.
+
+Validação com Zod 4.6.7 e Vitest 5.1.1 instalados: TypeScript aprovado e 282 testes aprovados em 42 arquivos. Incluídos testes de validação de propostas antes do acesso ao banco e de preservação dos campos omitidos em edições parciais. A tentativa de build com Turbopack neste ambiente foi interrompida sem concluir; o build completo precisa ser confirmado no próximo deploy. A correção não exige nova migração ou variável de ambiente.

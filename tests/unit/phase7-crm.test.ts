@@ -54,7 +54,7 @@ describe("Fase 7 - Testes Unitários de Regras de Domínio CRM", () => {
 
     it("valida schema de conversão atômica de Lead para Cliente", () => {
       const convNew = ConvertLeadSchema.parse({
-        leadId: "00000000-0000-0000-0000-000000000001",
+        leadId: "00000000-0000-4000-8000-000000000001",
         mode: "NEW_CLIENT",
         clientDataOverride: {
           name: "Cliente Oficial LTDA",
@@ -65,12 +65,12 @@ describe("Fase 7 - Testes Unitários de Regras de Domínio CRM", () => {
       expect(convNew.clientDataOverride?.name).toBe("Cliente Oficial LTDA");
 
       const convExisting = ConvertLeadSchema.parse({
-        leadId: "00000000-0000-0000-0000-000000000001",
+        leadId: "00000000-0000-4000-8000-000000000001",
         mode: "LINK_EXISTING",
-        existingClientId: "00000000-0000-0000-0000-000000000002",
+        existingClientId: "00000000-0000-4000-8000-000000000002",
       });
       expect(convExisting.mode).toBe("LINK_EXISTING");
-      expect(convExisting.existingClientId).toBe("00000000-0000-0000-0000-000000000002");
+      expect(convExisting.existingClientId).toBe("00000000-0000-4000-8000-000000000002");
     });
   });
 
@@ -87,7 +87,7 @@ describe("Fase 7 - Testes Unitários de Regras de Domínio CRM", () => {
 
     it("valida criação de etapa com probabilidade entre 0 e 100", () => {
       const parsed = CreateStageSchema.parse({
-        pipelineId: "00000000-0000-0000-0000-000000000001",
+        pipelineId: "00000000-0000-4000-8000-000000000001",
         name: "Proposta Enviada",
         winProbability: 60,
         color: "#6366f1",
@@ -99,7 +99,7 @@ describe("Fase 7 - Testes Unitários de Regras de Domínio CRM", () => {
     it("rejeita etapa com probabilidade fora do intervalo [0, 100]", () => {
       expect(() => {
         CreateStageSchema.parse({
-          pipelineId: "00000000-0000-0000-0000-000000000001",
+          pipelineId: "00000000-0000-4000-8000-000000000001",
           name: "Etapa Inválida",
           winProbability: 120,
         });
@@ -107,7 +107,7 @@ describe("Fase 7 - Testes Unitários de Regras de Domínio CRM", () => {
 
       expect(() => {
         CreateStageSchema.parse({
-          pipelineId: "00000000-0000-0000-0000-000000000001",
+          pipelineId: "00000000-0000-4000-8000-000000000001",
           name: "Etapa Inválida Negativa",
           winProbability: -10,
         });
@@ -144,7 +144,7 @@ describe("Fase 7 - Testes Unitários de Regras de Domínio CRM", () => {
 
     it("exige motivo de perda (lostReason) ao encerrar oportunidade como LOST", () => {
       const validLost = CloseOpportunitySchema.parse({
-        opportunityId: "00000000-0000-0000-0000-000000000001",
+        opportunityId: "00000000-0000-4000-8000-000000000001",
         status: "LOST",
         lostReason: "Preço muito acima do orçamento do prospect",
       });
@@ -154,7 +154,7 @@ describe("Fase 7 - Testes Unitários de Regras de Domínio CRM", () => {
 
     it("valida encerramento como WON sem exigir lostReason", () => {
       const validWon = CloseOpportunitySchema.parse({
-        opportunityId: "00000000-0000-0000-0000-000000000001",
+        opportunityId: "00000000-0000-4000-8000-000000000001",
         status: "WON",
         notes: "Negociação finalizada com êxito pelo gestor",
       });
@@ -166,7 +166,7 @@ describe("Fase 7 - Testes Unitários de Regras de Domínio CRM", () => {
   describe("Validação de Atividades e Follow-ups", () => {
     it("valida criação de atividade de ligação com prazo futuro e lead vinculado", () => {
       const act = CreateActivitySchema.parse({
-        leadId: "00000000-0000-0000-0000-000000000001",
+        leadId: "00000000-0000-4000-8000-000000000001",
         activityType: "CALL",
         title: "Follow-up de proposta enviada",
         dueDate: "2026-11-15T14:00:00Z",
@@ -178,7 +178,7 @@ describe("Fase 7 - Testes Unitários de Regras de Domínio CRM", () => {
     it("rejeita atividade com tipo inválido", () => {
       expect(() => {
         CreateActivitySchema.parse({
-          leadId: "00000000-0000-0000-0000-000000000001",
+          leadId: "00000000-0000-4000-8000-000000000001",
           activityType: "FAX" as never,
           title: "Enviar fax",
         });

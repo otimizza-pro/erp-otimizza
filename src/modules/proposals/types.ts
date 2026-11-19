@@ -181,6 +181,7 @@ export const ProposalItemInputSchema = z.object({
 });
 
 export type ProposalItemInput = z.input<typeof ProposalItemInputSchema>;
+export type ParsedProposalItem = z.output<typeof ProposalItemInputSchema>;
 
 export const CreateProposalInputSchema = z
   .object({

@@ -53,6 +53,9 @@ export const CreateLeadSchema = z.object({
 });
 
 export const UpdateLeadSchema = CreateLeadSchema.partial().extend({
+  source: CreateLeadSchema.shape.source.removeDefault().optional(),
+  acquisitionType: CreateLeadSchema.shape.acquisitionType.removeDefault().optional(),
+  estimatedBudget: CreateLeadSchema.shape.estimatedBudget.removeDefault().optional(),
   status: z
     .enum([
       "NEW",
@@ -109,6 +112,7 @@ export const CreatePipelineSchema = z.object({
 });
 
 export const UpdatePipelineSchema = CreatePipelineSchema.partial().extend({
+  isDefault: CreatePipelineSchema.shape.isDefault.removeDefault().optional(),
   status: z.enum(["ACTIVE", "ARCHIVED"]).optional(),
 });
 
@@ -126,6 +130,9 @@ export const CreateStageSchema = z.object({
 });
 
 export const UpdateStageSchema = CreateStageSchema.partial().extend({
+  color: CreateStageSchema.shape.color.removeDefault().optional(),
+  displayOrder: CreateStageSchema.shape.displayOrder.removeDefault().optional(),
+  stageType: CreateStageSchema.shape.stageType.removeDefault().optional(),
   status: z.enum(["ACTIVE", "ARCHIVED"]).optional(),
   relocateOpportunitiesToStageId: z.string().uuid().optional().nullable(),
 });

@@ -158,7 +158,14 @@ export const CreateProjectSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
 });
 
-export const UpdateProjectSchema = CreateProjectSchema.partial();
+export const UpdateProjectSchema = CreateProjectSchema.partial().extend({
+  useServiceOnboarding: CreateProjectSchema.shape.useServiceOnboarding.removeDefault().optional(),
+  projectType: CreateProjectSchema.shape.projectType.removeDefault().optional(),
+  status: CreateProjectSchema.shape.status.removeDefault().optional(),
+  priority: CreateProjectSchema.shape.priority.removeDefault().optional(),
+  estimatedBudget: CreateProjectSchema.shape.estimatedBudget.removeDefault().optional(),
+  estimatedHours: CreateProjectSchema.shape.estimatedHours.removeDefault().optional(),
+});
 
 export const CreateTaskSchema = z.object({
   projectId: z.string().uuid(),
@@ -172,7 +179,12 @@ export const CreateTaskSchema = z.object({
   orderIndex: z.number().int().min(1).default(1),
 });
 
-export const UpdateTaskSchema = CreateTaskSchema.partial();
+export const UpdateTaskSchema = CreateTaskSchema.partial().extend({
+  status: CreateTaskSchema.shape.status.removeDefault().optional(),
+  priority: CreateTaskSchema.shape.priority.removeDefault().optional(),
+  estimatedHours: CreateTaskSchema.shape.estimatedHours.removeDefault().optional(),
+  orderIndex: CreateTaskSchema.shape.orderIndex.removeDefault().optional(),
+});
 
 export const CreateChecklistSchema = z.object({
   taskId: z.string().uuid(),

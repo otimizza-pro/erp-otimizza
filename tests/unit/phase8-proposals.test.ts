@@ -17,7 +17,7 @@ describe("Fase 8 - Testes Unitários de Propostas Comerciais", () => {
     it("valida criação de proposta para Lead com dados completos", () => {
       const valid = {
         title: "Campanha Black Friday 2026",
-        leadId: "11111111-1111-1111-1111-111111111111",
+        leadId: "11111111-1111-4111-8111-111111111111",
         validUntil: "2026-11-30",
         paymentTerms: "Faturamento mensal via boleto",
         startLeadTimeDays: 5,
@@ -25,7 +25,7 @@ describe("Fase 8 - Testes Unitários de Propostas Comerciais", () => {
         items: [
           {
             sourceType: "SERVICE" as const,
-            serviceId: "22222222-2222-2222-2222-222222222222",
+            serviceId: "22222222-2222-4222-8222-222222222222",
             descriptionSnapshot: "Gestão de Tráfego Pago",
             periodicity: "MONTHLY" as const,
             quantity: 1,
@@ -38,19 +38,19 @@ describe("Fase 8 - Testes Unitários de Propostas Comerciais", () => {
 
       const parsed = CreateProposalInputSchema.parse(valid);
       expect(parsed.title).toBe("Campanha Black Friday 2026");
-      expect(parsed.leadId).toBe("11111111-1111-1111-1111-111111111111");
+      expect(parsed.leadId).toBe("11111111-1111-4111-8111-111111111111");
       expect(parsed.items).toHaveLength(1);
     });
 
     it("valida criação de proposta para Cliente cadastrado", () => {
       const validClient = {
         title: "Consultoria Trimestral",
-        clientId: "33333333-3333-3333-3333-333333333333",
+        clientId: "33333333-3333-4333-8333-333333333333",
         validUntil: "2026-12-15",
         items: [
           {
             sourceType: "SERVICE" as const,
-            serviceId: "44444444-4444-4444-4444-444444444444",
+            serviceId: "44444444-4444-4444-8444-444444444444",
             descriptionSnapshot: "SEO & Conteúdo",
             periodicity: "MONTHLY" as const,
             quantity: 1,
@@ -62,7 +62,7 @@ describe("Fase 8 - Testes Unitários de Propostas Comerciais", () => {
       };
 
       const parsed = CreateProposalInputSchema.parse(validClient);
-      expect(parsed.clientId).toBe("33333333-3333-3333-3333-333333333333");
+      expect(parsed.clientId).toBe("33333333-3333-4333-8333-333333333333");
     });
 
     it("rejeita proposta sem destinatário (sem leadId e sem clientId)", () => {
@@ -73,7 +73,7 @@ describe("Fase 8 - Testes Unitários de Propostas Comerciais", () => {
           items: [
             {
               sourceType: "SERVICE",
-              serviceId: "44444444-4444-4444-4444-444444444444",
+              serviceId: "44444444-4444-4444-8444-444444444444",
               descriptionSnapshot: "Serviço",
               periodicity: "MONTHLY",
               quantity: 1,
@@ -90,7 +90,7 @@ describe("Fase 8 - Testes Unitários de Propostas Comerciais", () => {
       expect(() => {
         CreateProposalInputSchema.parse({
           title: "Proposta Vazia",
-          leadId: "11111111-1111-1111-1111-111111111111",
+          leadId: "11111111-1111-4111-8111-111111111111",
           validUntil: "2026-11-30",
           items: [],
         });

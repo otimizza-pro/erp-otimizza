@@ -9,6 +9,9 @@ import {
   ProposalConversionRecord,
   CreateProposalInput,
   CreateProposalVersionInput,
+  CreateProposalInputSchema,
+  CreateProposalVersionInputSchema,
+  ParsedProposalItem,
   ApproveProposalInput,
   RejectProposalInput,
   CancelProposalInput,
@@ -426,7 +429,8 @@ export class ProposalService {
   /**
    * Criar nova proposta comercial (com versão 1 inicial)
    */
-  static async createProposal(input: CreateProposalInput): Promise<ProposalRecord> {
+  static async createProposal(rawInput: CreateProposalInput): Promise<ProposalRecord> {
+    const input = CreateProposalInputSchema.parse(rawInput);
     return withTransaction(async (client) => {
       // 1. Snapshot do Destinatário
       let recipientSnapshot: ProposalVersionRecord["recipientSnapshot"];
@@ -620,7 +624,8 @@ export class ProposalService {
   /**
    * Criar nova versão de uma proposta existente (comversionamento imutável)
    */
-  static async createProposalVersion(input: CreateProposalVersionInput): Promise<ProposalRecord> {
+  static async createProposalVersion(rawInput: CreateProposalVersionInput): Promise<ProposalRecord> {
+    const input = CreateProposalVersionInputSchema.parse(rawInput);
     return withTransaction(async (client) => {
       const propRes = await client.query<DbProposalRow>(
         `SELECT * FROM proposals WHERE id = $1 AND archived_at IS NULL FOR UPDATE`,
@@ -1454,7 +1459,7 @@ export class ProposalService {
    */
   private static async computeVersionTotalsAndItems(
     client: { query: typeof query },
-    itemsInput: CreateProposalInput["items"],
+    itemsInput: ParsedProposalItem[],
     globalDiscount = 0
   ) {
     if (!itemsInput.length) {

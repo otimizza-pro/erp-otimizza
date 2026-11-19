@@ -27,15 +27,15 @@ describe("Fase 10 - DRE Gerencial e Centros de Custo (Testes Unitários)", () =>
 
   it("deve validar schema de rateio de centros de custo", () => {
     const valid = PayableAllocationsInputSchema.parse({
-      payableId: "11111111-1111-1111-1111-111111111111",
+      payableId: "11111111-1111-4111-8111-111111111111",
       allocations: [
         {
-          costCenterId: "22222222-2222-2222-2222-222222222222",
+          costCenterId: "22222222-2222-4222-8222-222222222222",
           percentage: 30,
           amount: 300.0,
         },
         {
-          costCenterId: "33333333-3333-3333-3333-333333333333",
+          costCenterId: "33333333-3333-4333-8333-333333333333",
           percentage: 70,
           amount: 700.0,
         },
@@ -50,10 +50,10 @@ describe("Fase 10 - DRE Gerencial e Centros de Custo (Testes Unitários)", () =>
   it("deve rejeitar rateio com percentual maior que 100% ou valor negativo", () => {
     expect(() =>
       PayableAllocationsInputSchema.parse({
-        payableId: "11111111-1111-1111-1111-111111111111",
+        payableId: "11111111-1111-4111-8111-111111111111",
         allocations: [
           {
-            costCenterId: "22222222-2222-2222-2222-222222222222",
+            costCenterId: "22222222-2222-4222-8222-222222222222",
             percentage: 150, // inválido
             amount: 500,
           },
@@ -63,10 +63,10 @@ describe("Fase 10 - DRE Gerencial e Centros de Custo (Testes Unitários)", () =>
 
     expect(() =>
       PayableAllocationsInputSchema.parse({
-        payableId: "11111111-1111-1111-1111-111111111111",
+        payableId: "11111111-1111-4111-8111-111111111111",
         allocations: [
           {
-            costCenterId: "22222222-2222-2222-2222-222222222222",
+            costCenterId: "22222222-2222-4222-8222-222222222222",
             percentage: 50,
             amount: -100, // inválido
           },

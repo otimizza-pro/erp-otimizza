@@ -79,7 +79,7 @@ describe("Fase 9 - Testes Unitários de Gestão Documental", () => {
         links: [
           {
             entityType: "CLIENT" as const,
-            entityId: "11111111-1111-1111-1111-111111111111",
+            entityId: "11111111-1111-4111-8111-111111111111",
             linkType: "CONTRACT_ATTACHMENT",
           },
         ],
@@ -103,7 +103,7 @@ describe("Fase 9 - Testes Unitários de Gestão Documental", () => {
 
     it("valida schema de nova versão exigindo justificativa", () => {
       const valid = {
-        documentId: "22222222-2222-2222-2222-222222222222",
+        documentId: "22222222-2222-4222-8222-222222222222",
         originalFilename: "aditivo_v2.pdf",
         mimeType: "application/pdf",
         reasonForChange: "Adicionado aditivo com reajuste de escopo",
@@ -115,7 +115,7 @@ describe("Fase 9 - Testes Unitários de Gestão Documental", () => {
 
     it("rejeita nova versão com justificativa em branco", () => {
       const invalid = {
-        documentId: "22222222-2222-2222-2222-222222222222",
+        documentId: "22222222-2222-4222-8222-222222222222",
         originalFilename: "aditivo_v2.pdf",
         mimeType: "application/pdf",
         reasonForChange: "  ",
@@ -127,9 +127,9 @@ describe("Fase 9 - Testes Unitários de Gestão Documental", () => {
 
     it("valida schema de vínculo com entidade suportada", () => {
       const valid = {
-        documentId: "33333333-3333-3333-3333-333333333333",
+        documentId: "33333333-3333-4333-8333-333333333333",
         entityType: "PROPOSAL" as const,
-        entityId: "44444444-4444-4444-4444-444444444444",
+        entityId: "44444444-4444-4444-8444-444444444444",
         linkType: "OFFICIAL_PROPOSAL_PDF",
       };
 

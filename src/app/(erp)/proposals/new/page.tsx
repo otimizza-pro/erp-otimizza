@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState, useTransition, Suspense } from "react";
+import React, { useEffect, useRef, useState, useTransition, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { CommercialDnaPanel } from "@/components/crm/commercial-dna";
 
 import {
   FileText,
@@ -97,10 +98,33 @@ function NewProposalWizard() {
   // Step 1: Diagnóstico e Cenários
   const [title, setTitle] = useState("");
   const [selectedScenarioId, setSelectedScenarioId] = useState<string>("sem_presenca");
-  const [currentScenario, setCurrentScenario] = useState<string>(PREDEFINED_SCENARIOS[0].description);
-  const [partnershipFocus, setPartnershipFocus] = useState<string>(PREDEFINED_SCENARIOS[0].focus);
-  const [trackingMetrics, setTrackingMetrics] = useState<string>(PREDEFINED_SCENARIOS[0].metrics);
+  const [currentScenario, setCurrentScenario] = useState<string>("");
+  const scenarioEdited = useRef(false);
+  const [leadNeedSummary, setLeadNeedSummary] = useState("");
+  const [diagnosticSourceError, setDiagnosticSourceError] = useState("");
+  const [partnershipFocus, setPartnershipFocus] = useState<string>("");
+  const [trackingMetrics, setTrackingMetrics] = useState<string>("");
+  const textDraftRecipient = recipientType === "LEAD" ? (selectedLeadId ? `leadId=${selectedLeadId}` : "") : (selectedClientId ? `clientId=${selectedClientId}` : "");
+  const [textDraftLoadedKey, setTextDraftLoadedKey] = useState("");
+  const [textDraftStatus, setTextDraftStatus] = useState("");
+  const [textDraftRetry, setTextDraftRetry] = useState(0);
+  const [textDraftLoadRetry, setTextDraftLoadRetry] = useState(0);
+  const lastSavedTexts = useRef("");
+  const textSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const latestTextDraft = useRef("");
+  latestTextDraft.current = JSON.stringify([textDraftRecipient,currentScenario,partnershipFocus,trackingMetrics]);
+  const [dnaReady, setDnaReady] = useState(false);
+  const [dnaRevision, setDnaRevision] = useState(0);
   const [isAiLoading, setIsAiLoading] = useState<boolean>(false);
+  const [aiAction, setAiAction] = useState<"GENERATE_STRATEGY" | "POLISH_SCENARIO" | null>(null);
+  const [strategyTrigger, setStrategyTrigger] = useState("");
+  const strategyEdits = useRef({ focus: 0, metrics: 0 });
+  const latestAiContext = useRef("");
+  latestAiContext.current = JSON.stringify([recipientType, selectedLeadId, selectedClientId, currentScenario, dnaReady, dnaRevision]);
+  const aiGeneration = useRef(0);
+  const lastStrategyAttempt = useRef("");
+  const aiBusy = useRef(false);
+  const [aiIdleRevision, setAiIdleRevision] = useState(0);
   const [aiSuccessMessage, setAiSuccessMessage] = useState<string>("");
 
   // Step 2: Serviços e Entregáveis
@@ -289,47 +313,138 @@ function NewProposalWizard() {
     loadOpps();
   }, [recipientType, selectedLeadId, selectedClientId]);
 
+  // Restore the working document for this recipient, including reviewed AI text.
+  useEffect(() => {
+    const controller = new AbortController();
+    setTextDraftLoadedKey(""); setTextDraftStatus("");
+    setLeadNeedSummary(""); setDiagnosticSourceError("");
+    setCurrentScenario(""); setPartnershipFocus(""); setTrackingMetrics("");
+    setStrategyTrigger(""); scenarioEdited.current = false;
+    strategyEdits.current = { focus: 0, metrics: 0 };
+    if (!textDraftRecipient) return () => controller.abort();
+    async function loadDiagnostic() {
+      try {
+        const response = await fetch(`/api/proposals/text-draft?${textDraftRecipient}`, { signal: controller.signal });
+        if (!response.ok) throw new Error("Não foi possível carregar os textos salvos. Recarregue antes de editar para não sobrescrevê-los.");
+        const { draft } = await response.json();
+        let need = ""; let convertedLead = false;
+        if (recipientType === "LEAD") {
+          const leadResponse = await fetch(`/api/crm/leads/${selectedLeadId}`, { signal: controller.signal });
+          if (!leadResponse.ok) throw new Error("Não foi possível carregar a necessidade do lead.");
+          const lead = await leadResponse.json();
+          need = typeof lead.needSummary === "string" ? lead.needSummary.trim() : "";
+          convertedLead = Boolean(lead.convertedClientId);
+        }
+        if (controller.signal.aborted) return;
+        setLeadNeedSummary(need);
+        const texts = draft ? { ...draft, currentScenario: recipientType === "LEAD" && !convertedLead ? need : draft.currentScenario } : { currentScenario: need, partnershipFocus: "", trackingMetrics: "" };
+        setCurrentScenario(texts.currentScenario); setPartnershipFocus(texts.partnershipFocus); setTrackingMetrics(texts.trackingMetrics);
+        setSelectedScenarioId(draft ? "custom" : "lead");
+        strategyEdits.current = { focus: texts.partnershipFocus ? 1 : 0, metrics: texts.trackingMetrics ? 1 : 0 };
+        lastSavedTexts.current = JSON.stringify(draft || texts);
+        setTextDraftLoadedKey(textDraftRecipient);
+        setTextDraftStatus(draft ? "Textos restaurados do cadastro." : "Os textos serão salvos automaticamente neste cadastro.");
+        if (!draft && need) setStrategyTrigger(need);
+      } catch (error) {
+        if (!controller.signal.aborted) setDiagnosticSourceError(error instanceof Error ? error.message : "Não foi possível carregar o diagnóstico do lead.");
+      }
+    }
+    loadDiagnostic();
+    return () => controller.abort();
+  }, [textDraftRecipient, recipientType, selectedLeadId,textDraftLoadRetry]);
+
+  useEffect(() => {
+    if (!textDraftRecipient || textDraftLoadedKey !== textDraftRecipient) return;
+    const texts = { currentScenario, partnershipFocus, trackingMetrics };
+    const serialized = JSON.stringify(texts);
+    if (serialized === lastSavedTexts.current) return;
+    const fingerprint = latestTextDraft.current;
+    const timer = setTimeout(() => {
+      setTextDraftStatus("Salvando textos...");
+      textSaveQueue.current = textSaveQueue.current.catch(() => {}).then(async () => {
+        try {
+          const response = await fetch(`/api/proposals/text-draft?${textDraftRecipient}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: serialized });
+          if (!response.ok) throw new Error("Falha ao salvar textos. Tente novamente antes de sair.");
+          if (fingerprint === latestTextDraft.current) { lastSavedTexts.current = serialized; setTextDraftStatus("Textos salvos no cadastro. Propostas já emitidas mantêm sua versão original."); }
+        } catch (error) {
+          if (fingerprint === latestTextDraft.current) setTextDraftStatus(error instanceof Error ? error.message : "Falha ao salvar textos.");
+        }
+      });
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [textDraftRecipient,textDraftLoadedKey,currentScenario,partnershipFocus,trackingMetrics,textDraftRetry]);
+
   // Handler for Predefined Scenario Pill Click
   const handleSelectScenario = (sc: PredefinedScenario) => {
+    scenarioEdited.current = true;
     setSelectedScenarioId(sc.id);
     setCurrentScenario(sc.description);
-    setPartnershipFocus(sc.focus);
-    setTrackingMetrics(sc.metrics);
+    setPartnershipFocus("");
+    setTrackingMetrics("");
+    strategyEdits.current = { focus: 0, metrics: 0 };
+    setStrategyTrigger(sc.description);
   };
 
-  // AI Assist Refinement
-  const handleAiRefinement = async () => {
-    setIsAiLoading(true);
-    setAiSuccessMessage("");
-    setErrorMessage(null);
+  // Keep editorial correction separate from strategy generation.
+  async function runProposalAi(action: "GENERATE_STRATEGY" | "POLISH_SCENARIO", automatic = false, signal?: AbortSignal) {
+    if (textDraftLoadedKey !== textDraftRecipient) return;
+    if (action === "GENERATE_STRATEGY" && !dnaReady) {
+      if (!automatic) setErrorMessage("Preencha e salve cliente ideal, objetivo comercial e escopo no DNA antes de gerar.");
+      return;
+    }
+    if (automatic && aiBusy.current) return;
+    if (!currentScenario.trim()) { if (!automatic) setErrorMessage("Preencha o cenário atual antes de usar a IA."); return; }
+    const fingerprint = latestAiContext.current;
+    if (action === "GENERATE_STRATEGY") lastStrategyAttempt.current = fingerprint;
+    const revisions = { ...strategyEdits.current };
+    const generation = ++aiGeneration.current;
+    aiBusy.current = true;
+    setIsAiLoading(true); setAiAction(action); setAiSuccessMessage(""); setErrorMessage(null);
     try {
-      const res = await fetch("/api/proposals/ai-assist", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const response = await fetch("/api/proposals/ai-assist", {
+        method: "POST", signal, headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action,
           clientId: recipientType === "CLIENT" ? selectedClientId || undefined : undefined,
-            leadId: recipientType === "LEAD" ? selectedLeadId || undefined : undefined,
-            clientName: currentClientName,
-          currentScenario,
-          partnershipFocus,
-          trackingMetrics,
-          services: items.map((i) => i.name),
+          leadId: recipientType === "LEAD" ? selectedLeadId || undefined : undefined,
+          clientName: currentClientName, currentScenario,
+          services: items.map(item => item.name),
         }),
       });
-
-      if (!res.ok) throw new Error("Não foi possível refinar os textos com IA.");
-      const data = await res.json();
-      if (data.currentScenario) setCurrentScenario(data.currentScenario);
-      if (data.partnershipFocus) setPartnershipFocus(data.partnershipFocus);
-      if (data.trackingMetrics) setTrackingMetrics(data.trackingMetrics);
-      setAiSuccessMessage("✨ Textos refinados com tom executivo e persuasivo da Otimizza!");
-      setTimeout(() => setAiSuccessMessage(""), 5000);
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Erro ao ajustar com IA.");
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || "Não foi possível gerar os textos com IA.");
+      if (signal?.aborted || fingerprint !== latestAiContext.current || generation !== aiGeneration.current) return;
+      if (action === "POLISH_SCENARIO") {
+        scenarioEdited.current = true;
+        setCurrentScenario(data.currentScenario);
+        setStrategyTrigger(data.currentScenario);
+        setAiSuccessMessage("Redação do cenário melhorada. Confira o texto antes de emitir a proposta.");
+      } else {
+        if (strategyEdits.current.focus === revisions.focus && (!automatic || revisions.focus === 0)) setPartnershipFocus(data.partnershipFocus);
+        if (strategyEdits.current.metrics === revisions.metrics && (!automatic || revisions.metrics === 0)) setTrackingMetrics(data.trackingMetrics);
+        setAiSuccessMessage("Foco da parceria e indicadores gerados a partir do cenário. Revise os textos antes de emitir.");
+      }
+    } catch (error) {
+      if (!signal?.aborted && generation === aiGeneration.current && fingerprint === latestAiContext.current) setErrorMessage(error instanceof Error ? error.message : "Erro na geração com IA.");
     } finally {
-      setIsAiLoading(false);
+      if (generation === aiGeneration.current) {
+        if (signal?.aborted && lastStrategyAttempt.current === fingerprint) lastStrategyAttempt.current = "";
+        aiBusy.current = false; setIsAiLoading(false); setAiAction(null);
+        setAiIdleRevision(value => value + 1);
+      }
     }
-  };
+  }
+
+  useEffect(() => {
+    if (!strategyTrigger || strategyTrigger !== currentScenario.trim()) return;
+    if (!dnaReady) return;
+    if (isAiLoading) return;
+    if (!(recipientType === "LEAD" ? selectedLeadId : selectedClientId)) return;
+    if (strategyEdits.current.focus > 0 && strategyEdits.current.metrics > 0) return;
+    if (lastStrategyAttempt.current === latestAiContext.current) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => runProposalAi("GENERATE_STRATEGY", true, controller.signal), 400);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [strategyTrigger, recipientType, selectedLeadId, selectedClientId, currentScenario, aiIdleRevision, dnaReady, dnaRevision]);
 
   // Initialize deliverables for a service
   const initDeliverablesForService = (serviceId: string, serviceName: string) => {
@@ -774,8 +889,9 @@ function NewProposalWizard() {
               </div>
             </div>
 
+            {(recipientType === "LEAD" ? selectedLeadId : selectedClientId) && <CommercialDnaPanel showProposalTexts={false} key={`${recipientType}:${selectedLeadId}:${selectedClientId}`} leadId={recipientType === "LEAD" ? selectedLeadId : undefined} clientId={recipientType === "CLIENT" ? selectedClientId : undefined} onReady={setDnaReady} onSaved={() => { setDnaRevision(value => value + 1); setStrategyTrigger(currentScenario.trim()); }} />}
             {/* Cenário Atual Pré-definido + Botão IA */}
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-5">
+            <fieldset disabled={!textDraftRecipient || textDraftLoadedKey !== textDraftRecipient} className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-5 disabled:opacity-60">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
@@ -789,8 +905,8 @@ function NewProposalWizard() {
 
                 <button
                   type="button"
-                  onClick={handleAiRefinement}
-                  disabled={isAiLoading}
+                  onClick={() => runProposalAi("GENERATE_STRATEGY")}
+                  disabled={isAiLoading || !currentScenario.trim() || !dnaReady}
                   className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold hover:brightness-105 shadow-sm transition disabled:opacity-50 shrink-0"
                 >
                   <Sparkles className="w-3.5 h-3.5 animate-pulse" />
@@ -824,7 +940,8 @@ function NewProposalWizard() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedScenarioId("custom");
+                        scenarioEdited.current = true;
+                        setSelectedScenarioId("custom");
                       setCurrentScenario("");
                     }}
                     className={`px-3 py-1.5 rounded-full text-xs font-semibold transition border ${
@@ -840,16 +957,21 @@ function NewProposalWizard() {
 
               {/* Texto do Cenário Atual */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Texto do Slide: Cenário Atual & Desafios Mapeados
-                </label>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <label htmlFor="proposal-scenario" className="text-xs font-semibold text-slate-700">Texto do Slide: Cenário Atual & Desafios Mapeados</label>
+                  <button type="button" aria-label="Melhorar a redação do cenário com IA" title="Melhorar a redação sem alterar o sentido" disabled={isAiLoading || !currentScenario.trim()} onClick={() => runProposalAi("POLISH_SCENARIO")} className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-40"><Sparkles className={`h-4 w-4 ${aiAction === "POLISH_SCENARIO" ? "animate-pulse" : ""}`} /></button>
+                </div>
                 <textarea
                   rows={3}
+                  id="proposal-scenario"
                   value={currentScenario}
-                  onChange={(e) => setCurrentScenario(e.target.value)}
+                  onChange={(e) => { scenarioEdited.current = true; setCurrentScenario(e.target.value); }}
+                  onBlur={() => setStrategyTrigger(currentScenario.trim())}
                   placeholder="Descreva o momento atual da empresa, desafios e o porquê de buscarem a parceria..."
                   className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 leading-relaxed"
                 />
+                {leadNeedSummary && <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-700"><span>{selectedScenarioId === "lead" ? "Preenchido com a necessidade cadastrada no lead. Você pode adaptar o texto para esta proposta." : "A necessidade cadastrada no lead está disponível para preencher este diagnóstico."}</span><button type="button" onClick={() => { scenarioEdited.current = false; setCurrentScenario(leadNeedSummary); setSelectedScenarioId("lead"); setStrategyTrigger(leadNeedSummary); }} className="font-semibold underline">Usar necessidade do lead</button></div>}
+                {diagnosticSourceError && <p role="status" className="mt-2 text-xs text-amber-700">{diagnosticSourceError}</p>}
               </div>
 
               {/* Foco da Parceria & Métricas */}
@@ -861,7 +983,7 @@ function NewProposalWizard() {
                   <textarea
                     rows={3}
                     value={partnershipFocus}
-                    onChange={(e) => setPartnershipFocus(e.target.value)}
+                    onChange={(e) => { strategyEdits.current.focus++; setPartnershipFocus(e.target.value); }}
                     placeholder="Objetivo central acordado para a parceria..."
                     className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 leading-relaxed"
                   />
@@ -873,13 +995,17 @@ function NewProposalWizard() {
                   <textarea
                     rows={3}
                     value={trackingMetrics}
-                    onChange={(e) => setTrackingMetrics(e.target.value)}
+                    onChange={(e) => { strategyEdits.current.metrics++; setTrackingMetrics(e.target.value); }}
                     placeholder="Métricas como visitas, CPL, contatos gerados via WhatsApp..."
                     className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 leading-relaxed"
                   />
                 </div>
               </div>
-            </div>
+            </fieldset>
+
+            {diagnosticSourceError && <div role="alert" className="text-xs text-rose-700">{diagnosticSourceError} <button type="button" onClick={() => setTextDraftLoadRetry(value => value + 1)} className="font-semibold underline">Recarregar textos</button></div>}
+            <p role="status" className="text-xs text-slate-600">{textDraftStatus}</p>
+            {textDraftStatus.startsWith("Falha") && <button type="button" onClick={() => setTextDraftRetry(value => value + 1)} className="text-xs font-semibold underline">Tentar salvar textos novamente</button>}
 
             {/* Navigation Button */}
             <div className="flex justify-end pt-2">

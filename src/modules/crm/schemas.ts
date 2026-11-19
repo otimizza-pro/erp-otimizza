@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { normalizeDocument, validateDocument } from "@/shared/cpf-cnpj";
+import { commercialDnaSchema, commercialDnaPatchSchema } from "./commercial-dna-schema";
 
 // =========================================================================
 // LEADS SCHEMAS
@@ -32,6 +33,7 @@ export const CreateLeadSchema = z.object({
   state: z.string().trim().max(2, "UF deve ter 2 caracteres.").optional().nullable(),
   source: z.string().trim().default("OUTROS"),
   notes: z.string().trim().optional().nullable(),
+  commercialDna: commercialDnaSchema.optional(),
   ownerClientId: z.string().uuid().optional().nullable(),
   acquisitionVerified: z.boolean().optional(),
   acquisitionType: z.enum(["INBOUND", "OUTBOUND", "NAO_INFORMADO"]).optional().default("NAO_INFORMADO"),
@@ -53,6 +55,7 @@ export const CreateLeadSchema = z.object({
 });
 
 export const UpdateLeadSchema = CreateLeadSchema.partial().extend({
+  commercialDna: commercialDnaPatchSchema.optional(),
   source: CreateLeadSchema.shape.source.removeDefault().optional(),
   acquisitionType: CreateLeadSchema.shape.acquisitionType.removeDefault().optional(),
   estimatedBudget: CreateLeadSchema.shape.estimatedBudget.removeDefault().optional(),
@@ -212,6 +215,7 @@ export const CloseOpportunitySchema = z
 // =========================================================================
 export const CreateActivitySchema = z
   .object({
+    recordKind: z.enum(["COMMERCIAL", "TASK"]).default("COMMERCIAL"),
     activityType: z.enum(["CALL", "WHATSAPP", "EMAIL", "MEETING", "FOLLOW_UP", "NOTE", "OTHER"]),
     title: z.string().trim().min(2, "Título da atividade é obrigatório."),
     description: z.string().trim().optional().nullable(),
@@ -220,8 +224,8 @@ export const CreateActivitySchema = z
     clientId: z.string().uuid().optional().nullable(),
     opportunityId: z.string().uuid().optional().nullable(),
   })
-  .refine((data) => data.leadId || data.clientId || data.opportunityId, {
-    message: "A atividade deve estar vinculada a um Lead, Cliente ou Oportunidade.",
+  .refine((data) => data.recordKind === "TASK" ? !data.leadId && !data.clientId && !data.opportunityId : Boolean(data.leadId || data.clientId || data.opportunityId), {
+    message: "Atividades comerciais exigem um vínculo; tarefas avulsas devem ser criadas sem vínculo.",
     path: ["leadId"],
   });
 

@@ -3,6 +3,8 @@
 import { useCompany } from "@/lib/context/company-context";
 import { LeadSourceInput } from "@/components/crm/lead-source-input";
 import {ServiceInterestInput} from "@/components/crm/service-interest-input";
+import { CommercialDnaFields } from "@/components/crm/commercial-dna";
+import { emptyCommercialDna } from "@/modules/crm/commercial-dna-schema";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -40,6 +42,7 @@ export default function NewLeadPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [commercialDna, setCommercialDna] = useState(emptyCommercialDna);
 
   const [form, setForm] = useState({
     personType: "PJ" as "PF" | "PJ",
@@ -87,6 +90,7 @@ export default function NewLeadPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          commercialDna,
           ownerClientId: selectedCompany.isOtimizza ? null : selectedCompany.id,
           source: form.leadSource || form.source,
           estimatedBudget: isNaN(numericBudget) ? 0 : numericBudget,
@@ -429,6 +433,7 @@ export default function NewLeadPage() {
 
           <p className="text-sm p-4 bg-zinc-50 rounded-xl">Depois de cadastrar, qualifique o lead na ficha. A criação da oportunidade é uma ação separada; passar por nutrição é opcional.</p>
 
+          <section className="space-y-4 border-t border-zinc-100 pt-5"><h2 className="text-sm font-bold text-zinc-900">DNA comercial inicial</h2><p className="text-xs text-zinc-500">Pode preencher agora ou completar na ficha. Cliente ideal, objetivo e escopo serão usados nas propostas e preservados na conversão em cliente.</p><CommercialDnaFields value={commercialDna} onChange={setCommercialDna} /></section>
           {/* Observações */}
           <div className="pt-4 border-t border-zinc-100">
             <label className="text-xs font-semibold text-zinc-700 block mb-1">Observações e Histórico Inicial</label>

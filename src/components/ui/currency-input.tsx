@@ -34,7 +34,7 @@ export function CurrencyInput({
   const [text, setText] = useState<string>(() => {
     if (value === undefined || value === null || value === "") return "";
     const num = typeof value === "number" ? value : parseMoney(value);
-    return num === 0 ? "" : formatDisplay(num);
+    return formatDisplay(num);
   });
   const [isFocused, setIsFocused] = useState(false);
 
@@ -45,7 +45,7 @@ export function CurrencyInput({
         setText("");
       } else {
         const num = typeof value === "number" ? value : parseMoney(value);
-        setText(num === 0 ? "" : formatDisplay(num));
+        setText(formatDisplay(num));
       }
     }
   }, [value, isFocused]);
@@ -71,7 +71,7 @@ export function CurrencyInput({
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(false);
     const numeric = parseMoney(text);
-    if (text.trim() === "" || numeric === 0) {
+    if (text.trim() === "") {
       setText("");
       if (onChangeValue) onChangeValue(0);
     } else {

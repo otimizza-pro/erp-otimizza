@@ -12,12 +12,12 @@ export async function loadAiClientContext(companyId:string):Promise<AiClientCont
  try{
  const [clients,identities,audiences,presets,editorial]=await Promise.all([
  query("SELECT id,name,trade_name,city,state FROM clients WHERE id=$1",[companyId]),
- query("SELECT communication_profile,value_proposition,market_niche,archetype,tone_of_voice,brand_context,target_audiences,pain_points,differentials,forbidden_words,mandatory_terms,default_ctas,instagram_handle,website_url,whatsapp_cta,notes FROM client_identities WHERE client_id=$1",[companyId]),
+ query("SELECT communication_profile,value_proposition,market_niche,archetype,tone_of_voice,brand_context,target_audiences,pain_points,differentials,forbidden_words,mandatory_terms,default_ctas,instagram_handle,website_url,whatsapp_cta,notes,commercial_profile FROM client_identities WHERE client_id=$1",[companyId]),
  query("SELECT id,name,description,demographics,pain_points,desires,objections,is_default FROM client_audiences WHERE client_id=$1 AND archived_at IS NULL ORDER BY is_default DESC,name",[companyId]),
  query("SELECT brand_context,default_tones,default_ctas,custom_guidelines,forbidden_words FROM client_brand_voice_presets WHERE client_id=$1",[companyId]),
  query("SELECT el.id,el.pillar_name,el.theme,el.objective,el.preferred_formats,el.frequency_per_month,el.notes,el.custom_fields FROM client_editorial_lines el LEFT JOIN client_editorial_pillars p ON p.id=el.pillar_id WHERE el.client_id=$1 AND el.is_active=true AND el.archived_at IS NULL AND p.archived_at IS NULL ORDER BY el.pillar_name LIMIT 30",[companyId])]);
  if(!clients.rows[0])throw new AiGenerationError("AI_CLIENT_NOT_FOUND","A empresa selecionada não foi encontrada. Nenhum conteúdo foi gerado.",404);
- const identity=pick(identities.rows[0],["value_proposition","market_niche","archetype","tone_of_voice","brand_context","target_audiences","pain_points","differentials","forbidden_words","mandatory_terms","default_ctas","instagram_handle","website_url","whatsapp_cta","notes"]);
+ const identity=pick(identities.rows[0],["value_proposition","market_niche","archetype","tone_of_voice","brand_context","target_audiences","pain_points","differentials","forbidden_words","mandatory_terms","default_ctas","instagram_handle","website_url","whatsapp_cta","notes","commercial_profile"]);
  if(identities.rows.length||audiences.rows.length)identity.target_audiences=audiences.rows.map(row=>String(row.name));
  const brandVoice=pick(presets.rows[0],["brand_context","default_tones","default_ctas","custom_guidelines","forbidden_words"]);
  const communicationProfile=CommunicationProfileSchema.parse(identities.rows[0]?.communication_profile||{});
@@ -33,7 +33,20 @@ export function clientContextPrompt(context:AiClientContext){return "CONTEXTO DA
 export async function loadProposalContext(input:{clientId?:string;leadId?:string}):Promise<AiClientContext>{
  if(input.clientId)return loadAiClientContext(input.clientId);
  if(!input.leadId||!uuid.safeParse(input.leadId).success)throw new AiGenerationError("AI_CLIENT_REQUIRED","Selecione o cliente ou lead destinatário da proposta.",400);
- try{const result=await query("SELECT name,trade_name,segment,city,state,need_summary,service_of_interest,qualification_notes,converted_client_id FROM crm_leads WHERE id=$1",[input.leadId]);const lead=result.rows[0];if(!lead)throw new AiGenerationError("AI_CLIENT_NOT_FOUND","Lead não encontrado",404);if(lead.converted_client_id)return loadAiClientContext(String(lead.converted_client_id));return {companyId:input.leadId,company:pick(lead,["name","trade_name","segment","city","state"]),identity:pick(lead,["need_summary","service_of_interest","qualification_notes"]),audiences:[],brandVoice:{},editorialLines:[],sources:["Cadastro e qualificação do lead"],missing:[]};}catch(error){if(error instanceof AiGenerationError)throw error;throw new AiGenerationError("AI_CONTEXT_UNAVAILABLE","Não foi possível carregar os dados do destinatário da proposta.",503);}
+ try {
+  const result = await query("SELECT name,trade_name,segment,city,state,need_summary,service_of_interest,qualification_notes,converted_client_id FROM crm_leads WHERE id=$1",[input.leadId]);
+  const lead = result.rows[0];
+  if (!lead) throw new AiGenerationError("AI_CLIENT_NOT_FOUND","Lead não encontrado",404);
+  if (lead.converted_client_id) return loadAiClientContext(String(lead.converted_client_id));
+  const identityResult = await query("SELECT brand_context,commercial_profile FROM client_identities WHERE lead_id=$1", [input.leadId]);
+  const dna = identityResult.rows[0];
+  return { companyId: input.leadId, company: pick(lead,["name","trade_name","segment","city","state"]),
+   identity: { ...pick(lead,["need_summary","service_of_interest","qualification_notes"]), ...pick(dna,["brand_context","commercial_profile"]) },
+   audiences: [], brandVoice: {}, editorialLines: [], sources: ["Cadastro e qualificação do lead", ...(dna ? ["DNA comercial inicial"] : [])], missing: [] };
+ } catch (error) {
+  if (error instanceof AiGenerationError) throw error;
+  throw new AiGenerationError("AI_CONTEXT_UNAVAILABLE","Não foi possível carregar os dados do destinatário da proposta.",503);
+ }
 }
 
 export function chooseContentCommunication(context:AiClientContext,raw:unknown){

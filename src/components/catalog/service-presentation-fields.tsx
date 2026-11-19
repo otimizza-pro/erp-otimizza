@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
-import { Target, Megaphone, ChartNoAxesCombined, Globe, Palette, Code, Upload, X } from "lucide-react";
+import { Target, Megaphone, ChartNoAxesCombined, Globe, Palette, Code, Video, Upload, X } from "lucide-react";
 import { type ServicePresentation, serviceIcons } from "@/modules/catalog/presentation";
-const icons = { target: Target, megaphone: Megaphone, chart: ChartNoAxesCombined, globe: Globe, palette: Palette, code: Code };
+const icons = { target: Target, megaphone: Megaphone, chart: ChartNoAxesCombined, globe: Globe, palette: Palette, code: Code, video: Video };
 const fields = [
   ["headline", "Chamada do serviço", "Uma frase que apresenta o valor do serviço"],
   ["overview", "Apresentação do serviço", "O que oferecemos e como ajudamos o cliente"],

@@ -2,6 +2,7 @@
 
 import { LeadSourceInput } from "@/components/crm/lead-source-input";
 import {ServiceInterestInput} from "@/components/crm/service-interest-input";
+import { CommercialDnaPanel } from "@/components/crm/commercial-dna";
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -834,6 +835,7 @@ export default function LeadDetailPage() {
           </div>
         )}
 
+        <CommercialDnaPanel leadId={id} />
         {/* Status Bar */}
         <div className="bg-white border border-zinc-200/80 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">

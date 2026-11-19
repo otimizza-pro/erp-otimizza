@@ -91,6 +91,7 @@ export interface LeadRecord {
 }
 
 export interface CreateLeadInput {
+  commercialDna?: import("./commercial-dna-schema").CommercialDna;
   personType: PersonType;
   name: string;
   tradeName?: string;
@@ -321,6 +322,7 @@ export interface RescheduleHistoryItem {
 
 export interface ActivityRecord {
   id: string;
+  recordKind?: "COMMERCIAL" | "TASK";
   activityType: ActivityType;
   title: string;
   description?: string | null;
@@ -344,6 +346,7 @@ export interface ActivityRecord {
 }
 
 export interface CreateActivityInput {
+  recordKind?: "COMMERCIAL" | "TASK";
   activityType: ActivityType;
   title: string;
   description?: string;

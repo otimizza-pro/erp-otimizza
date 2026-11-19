@@ -1,7 +1,8 @@
 import {CommunicationProfileSchema,emptyCommunicationProfile} from "@/modules/clients/communication-profile";
 import {requireAdminUser} from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
-import { query } from "@/lib/db/pool";
+import { query, withTransaction } from "@/lib/db/pool";
+import { addIdentityAudiences } from "@/modules/clients/identity-audiences";
 
 export async function GET(
   _request: Request,
@@ -97,7 +98,7 @@ export async function PUT(
         archetype = CASE WHEN $18::jsonb ? 'archetype' THEN EXCLUDED.archetype ELSE client_identities.archetype END,
         tone_of_voice = CASE WHEN $18::jsonb ? 'toneOfVoice' THEN EXCLUDED.tone_of_voice ELSE client_identities.tone_of_voice END,
         brand_context = CASE WHEN $18::jsonb ? 'brandContext' THEN EXCLUDED.brand_context ELSE client_identities.brand_context END,
-        target_audiences = CASE WHEN $18::jsonb ? 'targetAudiences' THEN EXCLUDED.target_audiences ELSE client_identities.target_audiences END,
+        target_audiences = client_identities.target_audiences,
         pain_points = CASE WHEN $18::jsonb ? 'painPoints' THEN EXCLUDED.pain_points ELSE client_identities.pain_points END,
         differentials = CASE WHEN $18::jsonb ? 'differentials' THEN EXCLUDED.differentials ELSE client_identities.differentials END,
         forbidden_words = CASE WHEN $18::jsonb ? 'forbiddenWords' THEN EXCLUDED.forbidden_words ELSE client_identities.forbidden_words END,
@@ -112,14 +113,16 @@ export async function PUT(
       RETURNING *
     `;
 
-    const res = await query(sql, [
+    const res = await withTransaction(async db => {
+      await addIdentityAudiences(db,id,body.targetAudiences);
+      return db.query(sql, [
       id,
       body.valueProposition || null,
       body.marketNiche || null,
       body.archetype || null,
       body.toneOfVoice || [],
       body.brandContext || null,
-      body.targetAudiences || [],
+      [],
       body.painPoints || [],
       body.differentials || [],
       body.forbiddenWords || [],
@@ -131,7 +134,8 @@ export async function PUT(
       body.notes || null,
       body.communicationProfile !== undefined && profile.success ? JSON.stringify(profile.data) : null,
       JSON.stringify(Object.keys(body)),
-    ]);
+      ]);
+    });
 
     return NextResponse.json({ success: true, data: res.rows[0] });
   } catch (error: unknown) {

@@ -1,6 +1,6 @@
 import {describe,it,expect,vi,beforeEach} from "vitest";
 const {query,auth}=vi.hoisted(()=>({query:vi.fn(),auth:vi.fn()}));
-vi.mock("@/lib/db/pool",()=>({query}));vi.mock("@/lib/auth/require-auth",()=>({requireAdminUser:auth}));
+vi.mock("@/lib/db/pool",()=>({query,withTransaction:(callback:(db:unknown)=>unknown)=>callback({query})}));vi.mock("@/lib/auth/require-auth",()=>({requireAdminUser:auth}));
 import {GET,PUT} from "@/app/api/clients/[id]/identity/route";
 const id="11111111-1111-4111-8111-111111111111",scope={params:Promise.resolve({id})};
 beforeEach(()=>{vi.resetAllMocks();auth.mockResolvedValue({id:"admin"});});

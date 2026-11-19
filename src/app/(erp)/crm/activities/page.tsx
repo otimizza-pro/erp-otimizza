@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react";
+import React, { useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import {EditRecordAction} from "@/components/ui/edit-record-action";
 
@@ -39,6 +39,14 @@ function CommercialActivitiesPageContent() {
   const [activities, setActivities] = useState<ActivityRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [recordFilter, setRecordFilter] = useState("ALL");
+  const [targetFilter, setTargetFilter] = useState("ALL");
+  const [dueFrom, setDueFrom] = useState("");
+  const [dueTo, setDueTo] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [hasMore, setHasMore] = useState(false);
+  const loadGeneration = useRef(0);
+
   // Filtros
   const [statusFilter, setStatusFilter] = useState<string>("PENDING");
   const [typeFilter, setTypeFilter] = useState<string>("ALL");
@@ -72,6 +80,7 @@ function CommercialActivitiesPageContent() {
 
   // Modal nova atividade
   const [showModal, setShowModal] = useState(false);
+  const [creatingTask, setCreatingTask] = useState(false);
   const [actType, setActType] = useState<ActivityType>("CALL");
   const [actTitle, setActTitle] = useState("");
   const [actDueDate, setActDueDate] = useState("");
@@ -114,47 +123,50 @@ function CommercialActivitiesPageContent() {
     }
   }
 
-  function handleOpenModal() {
+  function handleOpenModal(task = false) {
+    setCreatingTask(task);
+    setActType(task ? "OTHER" : "CALL");
+    setActTitle(""); setActDescription(""); setActDueDate(""); setSelectedTargetId("");
     setShowModal(true);
     setFormError("");
-    if (clientsList.length === 0 && leadsList.length === 0) {
+    if (!task && clientsList.length === 0 && leadsList.length === 0) {
       loadTargets();
     }
   }
 
-  async function loadActivities() {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      params.set("archived",String(showArchived));
-      params.set("includeMetrics", "true");
-      if (statusFilter && statusFilter !== "ALL" && statusFilter !== "OVERDUE") {
-        params.set("status", statusFilter);
-      }
-      if (typeFilter !== "ALL") {
-        params.set("activityType", typeFilter);
-      }
+  async function loadActivities() { await fetchActivities(false); }
 
-      const res = await fetch(`/api/crm/activities?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.metrics) {
-          setMetrics(data.metrics);
-          setActivities(data.activities || []);
-        } else {
-          setActivities(Array.isArray(data) ? data : data.activities || []);
-        }
-      }
-    } catch (e) {
-      console.error("Erro ao carregar atividades:", e);
+  async function fetchActivities(append: boolean) {
+    const generation = ++loadGeneration.current;
+    setLoading(true); setLoadError("");
+    try {
+      if (dueFrom && dueTo && dueFrom > dueTo) throw new Error("O prazo inicial deve ser anterior ao final.");
+      const params = new URLSearchParams({ archived: String(showArchived), includeMetrics: "true", recordKind: recordFilter, targetType: targetFilter, limit: "100", offset: String(append ? activities.length : 0) });
+      if (statusFilter !== "ALL" && statusFilter !== "OVERDUE") params.set("status", statusFilter);
+      if (statusFilter === "OVERDUE") params.set("overdueOnly", "true");
+      if (typeFilter !== "ALL") params.set("activityType", typeFilter);
+      if (searchTerm.trim()) params.set("search", searchTerm.trim());
+      if (dueFrom) params.set("dueFrom", dueFrom);
+      if (dueTo) params.set("dueTo", dueTo);
+      const res = await fetch(`/api/crm/activities?${params}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não foi possível carregar a agenda.");
+      if (generation !== loadGeneration.current) return;
+      const rows = data.activities || [];
+      setMetrics(data.metrics);
+      setActivities(previous => append ? [...previous, ...rows] : rows);
+      setHasMore(rows.length === 100);
+    } catch (error) {
+      if (generation === loadGeneration.current) setLoadError(error instanceof Error ? error.message : "Não foi possível carregar a agenda.");
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadActivities();
-  }, [statusFilter, typeFilter,showArchived]);
+    const timer = setTimeout(loadActivities, 250);
+    return () => { clearTimeout(timer); loadGeneration.current++; };
+  }, [statusFilter, typeFilter, showArchived, recordFilter, targetFilter, dueFrom, dueTo, searchTerm]);
 
   async function handleComplete(id: string) {
     try {
@@ -226,8 +238,8 @@ function CommercialActivitiesPageContent() {
     }
   }
 
-  async function handleDeleteActivity(id: string) {
-    if (!confirm("Deseja realmente excluir esta atividade comercial?")) return;
+  async function handleDeleteActivity(id: string, isTask = false) {
+    if (!confirm(isTask ? "Deseja realmente excluir esta tarefa?" : "Deseja realmente excluir esta atividade comercial?")) return;
     try {
       const res = await fetch(`/api/crm/activities/${id}`, { method: "DELETE" });
       if (res.ok) {
@@ -248,7 +260,7 @@ function CommercialActivitiesPageContent() {
       setFormError("Informe o assunto da atividade.");
       return;
     }
-    if (!selectedTargetId) {
+    if (!creatingTask && !selectedTargetId) {
       const targetLabel = targetType === "CLIENT" ? "Cliente" : targetType === "LEAD" ? "Lead" : "Oportunidade";
       setFormError(`Selecione o ${targetLabel} ao qual esta atividade pertence.`);
       return;
@@ -260,13 +272,14 @@ function CommercialActivitiesPageContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          recordKind: creatingTask ? "TASK" : "COMMERCIAL",
           activityType: actType,
           title: actTitle.trim(),
           description: actDescription.trim() || undefined,
           dueDate: actDueDate || undefined,
-          clientId: targetType === "CLIENT" ? selectedTargetId : undefined,
-          leadId: targetType === "LEAD" ? selectedTargetId : undefined,
-          opportunityId: targetType === "OPPORTUNITY" ? selectedTargetId : undefined,
+          clientId: !creatingTask && targetType === "CLIENT" ? selectedTargetId : undefined,
+          leadId: !creatingTask && targetType === "LEAD" ? selectedTargetId : undefined,
+          opportunityId: !creatingTask && targetType === "OPPORTUNITY" ? selectedTargetId : undefined,
         }),
       });
 
@@ -277,6 +290,10 @@ function CommercialActivitiesPageContent() {
         setActDueDate("");
         setSelectedTargetId("");
         setFormError("");
+        setRecordFilter(creatingTask ? "TASK" : "COMMERCIAL");
+        setTargetFilter("ALL"); setStatusFilter("PENDING"); setTypeFilter("ALL");
+        setSearchTerm(""); setDueFrom(""); setDueTo("");
+        setShowArchived(false);
         loadActivities();
       } else {
         const err = await res.json();
@@ -300,25 +317,14 @@ function CommercialActivitiesPageContent() {
     OTHER: { label: "Outro", icon: Clock, color: "text-slate-600", bg: "bg-slate-50 border-slate-200" },
   };
 
-  // Filtragem em memória por search e por atrasadas
-  const filteredActivities = activities.filter((act) => {
-    if (statusFilter === "OVERDUE") {
-      if (!act.isOverdue || act.status !== "PENDING") return false;
-    }
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      const matchTitle = act.title.toLowerCase().includes(term);
-      const matchDesc = act.description?.toLowerCase().includes(term);
-      const matchTarget = act.targetName?.toLowerCase().includes(term);
-      if (!matchTitle && !matchDesc && !matchTarget) return false;
-    }
-    return true;
-  });
-
-  // Métricas rápidas
-  const totalPending = activities.filter((a) => a.status === "PENDING").length;
-  const totalOverdue = activities.filter((a) => a.status === "PENDING" && a.isOverdue).length;
-  const totalCompleted = activities.filter((a) => a.status === "COMPLETED").length;
+  const filteredActivities = activities;
+  const metricCards = [
+    { status: "PENDING", label: "Pendentes", value: metrics.pending, icon: Clock, color: "text-slate-700" },
+    { status: "OVERDUE", label: "Atrasadas", value: metrics.overdue, icon: AlertTriangle, color: "text-rose-600" },
+    { status: "COMPLETED", label: "Concluídas", value: metrics.completed, icon: CheckCircle2, color: "text-emerald-700" },
+    { status: "NO_SHOW", label: "No-Show (Faltas)", value: metrics.noShow, icon: UserX, color: "text-amber-700" },
+    { status: "RESCHEDULED", label: "Reagendadas", value: metrics.rescheduled, icon: CalendarClock, color: "text-purple-700" },
+  ];
 
   return (
     <>
@@ -334,12 +340,13 @@ function CommercialActivitiesPageContent() {
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Agenda Comercial & Tarefas</h1>
             </div>
             <p className="text-sm text-slate-500 mt-1">
-              Acompanhe follow-ups de leads, reuniões, envio de propostas e prazos de negociações.
+              Organize tarefas internas, follow-ups, reuniões e prazos comerciais.
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button type="button" onClick={() => handleOpenModal(true)} className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-700"><ListTodo className="h-4 w-4" />Criar tarefa</button>
             <button
-              onClick={handleOpenModal}
+              onClick={() => handleOpenModal(false)}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
             >
               <Plus className="h-4 w-4" />
@@ -348,61 +355,31 @@ function CommercialActivitiesPageContent() {
           </div>
         </div>
 
-        {/* Métricas rápidas */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                Pendentes
-              </span>
-              <div className="mt-1 text-2xl font-bold text-slate-900">{metrics.pending}</div>
-            </div>
-            <Clock className="h-7 w-7 text-blue-500/20" />
-          </div>
-
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-rose-600 uppercase tracking-wider">
-                Atrasadas
-              </span>
-              <div className="mt-1 text-2xl font-bold text-rose-600">{metrics.overdue}</div>
-            </div>
-            <AlertTriangle className="h-7 w-7 text-rose-500/20" />
-          </div>
-
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">
-                Concluídas
-              </span>
-              <div className="mt-1 text-2xl font-bold text-emerald-700">{metrics.completed}</div>
-            </div>
-            <CheckCircle2 className="h-7 w-7 text-emerald-500/20" />
-          </div>
-
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider">
-                No-Show (Faltas)
-              </span>
-              <div className="mt-1 text-2xl font-bold text-amber-700">{metrics.noShow}</div>
-            </div>
-            <UserX className="h-7 w-7 text-amber-500/20" />
-          </div>
-
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-semibold text-purple-600 uppercase tracking-wider">
-                Reagendadas
-              </span>
-              <div className="mt-1 text-2xl font-bold text-purple-700">{metrics.rescheduled}</div>
-            </div>
-            <CalendarClock className="h-7 w-7 text-purple-500/20" />
-          </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5" role="group" aria-label="Filtrar por situação">
+          {metricCards.map(card => { const Icon = card.icon; return (
+            <button key={card.status} type="button" aria-pressed={statusFilter === card.status} onClick={() => setStatusFilter(previous => previous === card.status ? "ALL" : card.status)} className={`flex items-center justify-between rounded-xl border bg-white p-4 text-left shadow-xs transition hover:shadow-sm focus-visible:outline-2 focus-visible:outline-emerald-600 ${statusFilter === card.status ? "border-emerald-500 ring-2 ring-emerald-100" : "border-slate-200"}`}>
+              <span><span className={`block text-[11px] font-semibold uppercase tracking-wider ${card.color}`}>{card.label}</span><span className={`mt-1 block text-2xl font-bold ${card.color}`}>{card.value}</span></span><Icon className={`h-7 w-7 opacity-30 ${card.color}`} />
+            </button>
+          ); })}
         </div>
 
         {/* Barra de Filtros */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+          <div className="flex flex-wrap items-end gap-3 border-b border-slate-100 pb-3">
+            <label className="text-xs font-medium text-slate-500">Exibir
+              <select value={recordFilter} onChange={e => { setRecordFilter(e.target.value); if (e.target.value === "TASK") setTargetFilter("ALL"); }} className="mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700">
+                <option value="ALL">Agenda e tarefas</option><option value="COMMERCIAL">Somente agenda comercial</option><option value="TASK">Somente tarefas avulsas</option>
+              </select>
+            </label>
+            <label className="text-xs font-medium text-slate-500">Vínculo
+              <select aria-label="Filtrar por vínculo" value={targetFilter} disabled={recordFilter === "TASK"} onChange={e => setTargetFilter(e.target.value)} className="mt-1 block rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 disabled:opacity-50">
+                <option value="ALL">Todos os vínculos</option><option value="LEAD">Lead</option><option value="CLIENT">Cliente</option><option value="OPPORTUNITY">Oportunidade</option>
+              </select>
+            </label>
+            <label className="text-xs font-medium text-slate-500">Prazo inicial<input type="date" value={dueFrom} onChange={e => setDueFrom(e.target.value)} className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700" /></label>
+            <label className="text-xs font-medium text-slate-500">Prazo final<input type="date" value={dueTo} onChange={e => setDueTo(e.target.value)} className="mt-1 block rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700" /></label>
+            <button type="button" onClick={() => { setRecordFilter("ALL"); setTargetFilter("ALL"); setDueFrom(""); setDueTo(""); setSearchTerm(""); setTypeFilter("ALL"); setStatusFilter("ALL"); }} className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100">Limpar filtros</button>
+          </div>
           <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -464,13 +441,14 @@ function CommercialActivitiesPageContent() {
         </div>
 
         {/* Lista de Atividades */}
+        {loadError && <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{loadError}<button type="button" onClick={loadActivities} className="ml-3 font-semibold underline">Tentar novamente</button></div>}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           {loading ? (
             <div className="p-12 text-center text-slate-500 flex flex-col items-center justify-center gap-3">
               <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
               <p className="text-sm">Carregando atividades...</p>
             </div>
-          ) : filteredActivities.length === 0 ? (
+          ) : loadError ? null : filteredActivities.length === 0 ? (
             <div className="p-12 text-center text-slate-500 flex flex-col items-center justify-center gap-2">
               <CheckCircle2 className="h-10 w-10 text-slate-300" />
               <p className="text-base font-semibold text-slate-700">Tudo em dia!</p>
@@ -480,18 +458,19 @@ function CommercialActivitiesPageContent() {
             <div className="divide-y divide-slate-100">
               {filteredActivities.map((act) => {
                 const conf = activityTypeConfig[act.activityType] || activityTypeConfig.OTHER;
-                const Icon = conf.icon;
-                const isOverdue = act.isOverdue && act.status === "PENDING";
+                const isTask = act.recordKind === "TASK";
+                const Icon = isTask ? ListTodo : conf.icon;
+                const isOverdue = act.isOverdue && (act.status === "PENDING" || act.status === "RESCHEDULED");
 
                 return (
                   <div
                     key={act.id}
-                    className={`p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-slate-50/80 transition-colors ${
+                    className={`p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-slate-50/80 transition-colors ${isTask ? "border-l-4 border-l-violet-400 bg-violet-50/30" : ""} ${
                       act.status === "COMPLETED" ? "opacity-60 bg-slate-50/40" : ""
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`p-2.5 rounded-lg border ${conf.bg} ${conf.color} shrink-0 mt-0.5`}>
+                      <div className={`p-2.5 rounded-lg border ${isTask ? "border-violet-200 bg-violet-50 text-violet-600" : `${conf.bg} ${conf.color}`} shrink-0 mt-0.5`}>
                         <Icon className="h-5 w-5" />
                       </div>
 
@@ -509,7 +488,7 @@ function CommercialActivitiesPageContent() {
                           <span
                             className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${conf.bg} ${conf.color}`}
                           >
-                            {conf.label}
+                            {isTask ? "Tarefa avulsa" : conf.label}
                           </span>
                           {isOverdue && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 flex items-center gap-1">
@@ -548,8 +527,11 @@ function CommercialActivitiesPageContent() {
                           <p className="text-xs text-slate-500 max-w-2xl">{act.description}</p>
                         )}
 
+                        {isTask && <p className="text-[11px] font-medium text-violet-600">Tarefa interna sem vínculo comercial</p>}
                         {/* Vínculo (Lead, Cliente, Oportunidade) */}
                         <div className="flex items-center gap-3 text-xs text-slate-500 pt-1 flex-wrap">
+                          {act.leadId && <Link href={`/crm/leads/${act.leadId}`} className="text-blue-600 hover:underline">Lead</Link>}
+                          {act.clientId && <Link href={`/clients/${act.clientId}`} className="text-emerald-600 hover:underline">Cliente</Link>}
                           {act.targetName && (
                             <span className="flex items-center gap-1 text-slate-700 font-medium">
                               <User className="h-3 w-3 text-slate-400" />
@@ -599,7 +581,7 @@ function CommercialActivitiesPageContent() {
                       )}
 
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        {act.status === "PENDING" && (
+                        {(act.status === "PENDING" || act.status === "RESCHEDULED") && (
                           <>
                             <button
                               onClick={() => handleComplete(act.id)}
@@ -610,6 +592,7 @@ function CommercialActivitiesPageContent() {
                               Concluir
                             </button>
 
+                            {!isTask && (
                             <button
                               onClick={() => setNoShowTarget(act)}
                               className="px-2.5 py-1 text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg transition flex items-center gap-1"
@@ -618,6 +601,7 @@ function CommercialActivitiesPageContent() {
                               <UserX className="h-3.5 w-3.5 text-amber-600" />
                               No-Show
                             </button>
+                            )}
 
                             <button
                               onClick={() => {
@@ -633,9 +617,9 @@ function CommercialActivitiesPageContent() {
                           </>
                         )}
 
-                        <EditRecordAction url={"/api/crm/activities/"+act.id} label="atividade" data={{title:act.title,description:act.description,dueDate:act.dueDate}} fields={[{key:"title",label:"Título",required:true},{key:"description",label:"Descrição",type:"textarea"},{key:"dueDate",label:"Data e horário",type:"datetime-local"}]} onSaved={loadActivities}/><ArchiveRecordAction url={"/api/crm/activities/"+act.id} archived={showArchived} onChanged={loadActivities}/>
+                        <EditRecordAction url={"/api/crm/activities/"+act.id} label={isTask ? "tarefa" : "atividade"} data={{title:act.title,description:act.description,dueDate:act.dueDate}} fields={[{key:"title",label:"Título",required:true},{key:"description",label:"Descrição",type:"textarea"},{key:"dueDate",label:"Data e horário",type:"datetime-local"}]} onSaved={loadActivities}/><ArchiveRecordAction url={"/api/crm/activities/"+act.id} archived={showArchived} onChanged={loadActivities}/>
                         <button
-                          onClick={() => handleDeleteActivity(act.id)}
+                          onClick={() => handleDeleteActivity(act.id, isTask)}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
                           title="Excluir atividade"
                         >
@@ -650,13 +634,14 @@ function CommercialActivitiesPageContent() {
           )}
         </div>
 
+        {!loadError && hasMore && !loading && <button type="button" onClick={() => fetchActivities(true)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Carregar mais itens</button>}
         {/* Modal de Criação de Atividade */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
             <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
-              <h2 className="text-lg font-bold text-slate-900">Nova Atividade Comercial</h2>
+              <h2 className="text-lg font-bold text-slate-900">{creatingTask ? "Criar tarefa" : "Nova Atividade Comercial"}</h2>
               <p className="text-xs text-slate-500 mt-1">
-                Agende lembretes, telefonemas, follow-ups ou reuniões vinculadas a um cliente, lead ou negociação.
+                {creatingTask ? "Crie uma tarefa interna, sem precisar vincular a um lead, cliente ou oportunidade." : "Agende lembretes, telefonemas, follow-ups ou reuniões vinculadas a um cliente, lead ou negociação."}
               </p>
 
               {formError && (
@@ -668,7 +653,7 @@ function CommercialActivitiesPageContent() {
 
               <form onSubmit={handleCreateActivity} className="mt-4 space-y-3.5">
                 {/* Vínculo Obrigatório */}
-                <div>
+                {!creatingTask && <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Vincular a <span className="text-rose-500">*</span>
                   </label>
@@ -776,8 +761,9 @@ function CommercialActivitiesPageContent() {
                       ))}
                     </select>
                   )}
-                </div>
+                </div>}
 
+                {!creatingTask && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Tipo de Atividade
@@ -796,6 +782,7 @@ function CommercialActivitiesPageContent() {
                     <option value="OTHER">Outro</option>
                   </select>
                 </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -804,7 +791,7 @@ function CommercialActivitiesPageContent() {
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Ligar para verificar recebimento da proposta comercial"
+                    placeholder={creatingTask ? "Ex: Organizar documentos da empresa" : "Ex: Ligar para verificar recebimento da proposta comercial"}
                     value={actTitle}
                     onChange={(e) => {
                       setActTitle(e.target.value);
@@ -876,7 +863,7 @@ function CommercialActivitiesPageContent() {
                     disabled={submitting}
                     className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors disabled:opacity-50"
                   >
-                    {submitting ? "Salvando..." : "Salvar Atividade"}
+                  {submitting ? "Salvando..." : creatingTask ? "Criar tarefa" : "Salvar Atividade"}
                   </button>
                 </div>
               </form>

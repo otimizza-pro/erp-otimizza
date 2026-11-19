@@ -1,7 +1,8 @@
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { CrmService } from "@/modules/crm/service";
-import { ActivityStatus } from "@/modules/crm/types";
+import { activityFiltersSchema } from "@/modules/crm/activity-filters";
+import { z } from "zod";
 
 export async function GET(request: Request) {
   try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
@@ -11,23 +12,26 @@ export async function GET(request: Request) {
     const leadId = searchParams.get("leadId") || undefined;
     const clientId = searchParams.get("clientId") || undefined;
     const opportunityId = searchParams.get("opportunityId") || undefined;
-    const status = (searchParams.get("status") as ActivityStatus) || undefined;
+    const status = z.enum(["PENDING", "COMPLETED", "CANCELED", "NO_SHOW", "RESCHEDULED"]).optional().parse(searchParams.get("status") || undefined);
     const overdueOnly = searchParams.get("overdueOnly") === "true";
-    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!, 10) : undefined;
+    const { limit, offset } = z.object({ limit: z.coerce.number().int().min(1).max(500).default(100), offset: z.coerce.number().int().min(0).default(0) }).parse(Object.fromEntries(searchParams));
 
     const includeMetrics = searchParams.get("includeMetrics") === "true";
+    const filters = {
+      ...activityFiltersSchema.parse(Object.fromEntries(searchParams)),
+      leadId, clientId, opportunityId,
+      archived: searchParams.get("archived") === "true",
+    };
 
     const [activities, metrics] = await Promise.all([
       CrmService.listActivities({
-        leadId,
-        clientId,
-      archived:searchParams.get("archived")==="true",
-        opportunityId,
+        ...filters,
         status,
         overdueOnly,
         limit,
+        offset,
       }),
-      includeMetrics ? CrmService.getActivityMetrics() : Promise.resolve(undefined),
+      includeMetrics ? CrmService.getActivityMetrics(filters) : Promise.resolve(undefined),
     ]);
 
     if (metrics) {
@@ -36,11 +40,9 @@ export async function GET(request: Request) {
     return NextResponse.json(activities);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao listar atividades.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: error instanceof z.ZodError ? 400 : 500 });
   }
 }
-
-import { z } from "zod";
 
 function formatErrorMessage(error: unknown): string {
   if (error instanceof z.ZodError) {

@@ -5,6 +5,7 @@ import {INTERNAL_COMPANY_ID} from "@/modules/clients/internal-company";
 import {IdentityAiButton} from "@/components/clients/identity-ai-button";
 import type {IdentityAiField} from "@/modules/clients/identity-ai";
 import {CommunicationProfileFields} from "@/components/clients/communication-profile";
+import { CommercialDnaPanel } from "@/components/crm/commercial-dna";
 import {CommunicationProfileSchema,emptyCommunicationProfile} from "@/modules/clients/communication-profile";
 
 import React, { useState, useEffect } from "react";
@@ -265,6 +266,7 @@ export default function ClientIdentityPage() {
           </div>
         )}
 
+        <CommercialDnaPanel clientId={id} showBusinessDescription={false} />
         <form onSubmit={handleSave} className="space-y-6">
           <CommunicationProfileFields value={communicationProfile} onChange={setCommunicationProfile} detailsAction={aiButton("communicationDetails")}/>
           {/* 1. Proposta de Valor e Nicho */}

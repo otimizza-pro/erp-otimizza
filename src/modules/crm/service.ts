@@ -1,3 +1,5 @@
+import { saveCommercialDnaInTransaction } from "./commercial-dna";
+import { buildActivityWhere, type ActivityFilters } from "./activity-filters";
 import { getDbPool, withTransaction } from "@/lib/db/pool";
 import { DocumentService } from "@/modules/documents/service";
 import { normalizeDocument } from "@/shared/cpf-cnpj";
@@ -581,8 +583,13 @@ export class CrmService {
       Boolean(input.acquisitionType && input.acquisitionType !== "NAO_INFORMADO"),
     ];
 
-    const res = await pool.query(sql, values);
-    const newLead = await this.getLeadById(res.rows[0].id);
+    const leadId = await withTransaction(async client => {
+      const res = await client.query(sql, values);
+      const id = String(res.rows[0].id);
+      if (input.commercialDna && Object.values(input.commercialDna).some(value => value.trim())) await saveCommercialDnaInTransaction(client, { leadId: id }, input.commercialDna);
+      return id;
+    });
+    const newLead = await this.getLeadById(leadId);
 
     return newLead as LeadRecord;
   }
@@ -713,6 +720,7 @@ export class CrmService {
     await withTransaction(async client => {
       await client.query("SELECT set_config('app.actor', $1, true)", [auditUser || "Sistema ERP"]);
       await client.query(sql, values);
+      if (input.commercialDna) await saveCommercialDnaInTransaction(client, { leadId: id }, input.commercialDna);
     });
 
     return this.getLeadById(id) as Promise<LeadRecord>;
@@ -2094,48 +2102,18 @@ export class CrmService {
   // 4. ATIVIDADES E FOLLOW-UPS
   // =========================================================================
 
-  static async listActivities(params?: {
-    leadId?: string;
-    clientId?: string;
-    opportunityId?: string;
-    status?: ActivityStatus;
-    overdueOnly?: boolean;
-    archived?: boolean;
-    limit?: number;
-  }): Promise<ActivityRecord[]> {
+  static async listActivities(params?: ActivityFilters): Promise<ActivityRecord[]> {
     const pool = getDbPool();
-    const conditions: string[] = [params?.archived?'a.archived_at IS NOT NULL':'a.archived_at IS NULL'];
-    const values: unknown[] = [];
-    let idx = 1;
-
-    if (params?.leadId) {
-      conditions.push(`a.lead_id = $${idx++}`);
-      values.push(params.leadId);
-    }
-    if (params?.clientId) {
-      conditions.push(`(a.client_id = $${idx} OR a.lead_id IN (SELECT id FROM crm_leads WHERE converted_client_id = $${idx}))`);
-      values.push(params.clientId);
-      idx++;
-    }
-    if (params?.opportunityId) {
-      conditions.push(`a.opportunity_id = $${idx++}`);
-      values.push(params.opportunityId);
-    }
-    if (params?.status) {
-      conditions.push(`a.status = $${idx++}`);
-      values.push(params.status);
-    }
-    if (params?.overdueOnly) {
-      conditions.push(`a.due_date < NOW() AND a.status = 'PENDING'`);
-    }
-
-    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-    const limit = params?.limit || 100;
+    const { where: whereClause, values } = buildActivityWhere(params);
+    const limit = Math.max(1, Math.min(500, params?.limit || 100));
+    const offset = Math.max(0, params?.offset || 0);
+    const idx = values.length + 1;
 
     const sql = `
       SELECT 
         a.id,
         a.activity_type,
+        a.record_kind,
         a.title,
         a.description,
         a.due_date,
@@ -2145,10 +2123,11 @@ export class CrmService {
         a.client_id,
         a.opportunity_id,
         a.created_by,
+        a.outcome_reason, a.reschedule_count, a.reschedule_history, a.previous_due_date,
         a.created_at,
         a.updated_at,
-        (a.due_date < NOW() AND a.status = 'PENDING') as is_overdue,
-        COALESCE(l.name, c.name) as target_name,
+        (a.due_date < NOW() AND a.status IN ('PENDING','RESCHEDULED')) as is_overdue,
+        COALESCE(c.name, l.name) as target_name,
         o.title as opportunity_title
       FROM crm_activities a
       LEFT JOIN crm_leads l ON l.id = a.lead_id
@@ -2159,13 +2138,18 @@ export class CrmService {
         CASE WHEN a.status = 'PENDING' THEN 0 ELSE 1 END,
         a.due_date ASC NULLS LAST,
         a.created_at DESC
-      LIMIT $${idx}
+      LIMIT $${idx} OFFSET $${idx + 1}
     `;
 
-    const res = await pool.query(sql, [...values, limit]);
+    const res = await pool.query(sql, [...values, limit, offset]);
     return res.rows.map((r) => ({
       id: r.id,
       activityType: r.activity_type,
+      recordKind: r.record_kind,
+      outcomeReason: r.outcome_reason,
+      rescheduleCount: r.reschedule_count,
+      rescheduleHistory: r.reschedule_history,
+      previousDueDate: r.previous_due_date?.toISOString?.() || r.previous_due_date,
       title: r.title,
       description: r.description,
       dueDate: r.due_date?.toISOString?.() || r.due_date,
@@ -2191,8 +2175,8 @@ export class CrmService {
 
     const sql = `
       INSERT INTO crm_activities (
-        activity_type, title, description, due_date, lead_id, client_id, opportunity_id, created_by, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PENDING')
+        activity_type, title, description, due_date, lead_id, client_id, opportunity_id, created_by, status, record_kind
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PENDING', $9)
       RETURNING *
     `;
 
@@ -2205,12 +2189,14 @@ export class CrmService {
       input.clientId || null,
       input.opportunityId || null,
       auditUser,
+      input.recordKind,
     ]);
 
     const r = res.rows[0];
     return {
       id: r.id,
       activityType: r.activity_type,
+      recordKind: r.record_kind,
       title: r.title,
       description: r.description,
       dueDate: r.due_date?.toISOString?.() || r.due_date,
@@ -2332,7 +2318,7 @@ export class CrmService {
     };
   }
 
-  static async getActivityMetrics(): Promise<{
+  static async getActivityMetrics(params?: ActivityFilters): Promise<{
     pending: number;
     overdue: number;
     completed: number;
@@ -2341,6 +2327,7 @@ export class CrmService {
     total: number;
   }> {
     const pool = getDbPool();
+    const { where, values } = buildActivityWhere({ ...params, status: undefined, overdueOnly: false });
     const res = await pool.query<{
       pending: string;
       overdue: string;
@@ -2350,14 +2337,18 @@ export class CrmService {
       total: string;
     }>(`
       SELECT 
-        COUNT(*) FILTER (WHERE status = 'PENDING') as pending,
-        COUNT(*) FILTER (WHERE status = 'PENDING' AND due_date < NOW()) as overdue,
-        COUNT(*) FILTER (WHERE status = 'COMPLETED') as completed,
-        COUNT(*) FILTER (WHERE status = 'NO_SHOW') as no_show,
-        COUNT(*) FILTER (WHERE status = 'RESCHEDULED') as rescheduled,
+        COUNT(*) FILTER (WHERE a.status = 'PENDING') as pending,
+        COUNT(*) FILTER (WHERE a.status IN ('PENDING', 'RESCHEDULED') AND a.due_date < NOW()) as overdue,
+        COUNT(*) FILTER (WHERE a.status = 'COMPLETED') as completed,
+        COUNT(*) FILTER (WHERE a.status = 'NO_SHOW') as no_show,
+        COUNT(*) FILTER (WHERE a.status = 'RESCHEDULED') as rescheduled,
         COUNT(*) as total
-      FROM crm_activities
-    `);
+      FROM crm_activities a
+      LEFT JOIN crm_leads l ON l.id=a.lead_id
+      LEFT JOIN clients c ON c.id=a.client_id
+      LEFT JOIN crm_opportunities o ON o.id=a.opportunity_id
+      ${where}
+    `, values);
     const r = res.rows[0];
     return {
       pending: parseInt(r?.pending || "0", 10),

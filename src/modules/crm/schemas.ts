@@ -70,6 +70,7 @@ export const UpdateLeadSchema = CreateLeadSchema.partial().extend({
       "QUALIFICADO",
       "OPORTUNIDADE",
       "DESQUALIFICADO",
+      "STAND_BY",
     ])
     .optional(),
 });

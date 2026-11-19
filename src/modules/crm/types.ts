@@ -11,7 +11,8 @@ export type LeadStatus =
   | "NUTRICAO"
   | "QUALIFICADO"
   | "OPORTUNIDADE"
-  | "DESQUALIFICADO";
+  | "DESQUALIFICADO"
+  | "STAND_BY";
 
 export type AcquisitionType = "INBOUND" | "OUTBOUND" | "NAO_INFORMADO";
 

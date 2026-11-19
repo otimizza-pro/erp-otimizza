@@ -1,7 +1,7 @@
 "use client";
 
 import {useCompany} from "@/lib/context/company-context";
-import React, { useEffect, useState, Suspense } from "react";
+import React, { useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -37,10 +37,15 @@ import {
 import { LeadRecord, LeadStatus, PipelineRecord, PipelineStageRecord } from "@/modules/crm/types";
 import { formatBRL } from "@/components/analytics/report-charts";
 import { WhatsAppLink } from "@/components/ui/whatsapp";
+import { LeadKanban } from "@/components/crm/lead-kanban";
+import { Kanban, List } from "lucide-react";
 
 function LeadsListContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [viewMode, setViewMode] = useState<"LIST" | "KANBAN">(searchParams.get("view") === "kanban" ? "KANBAN" : "LIST");
+  const [loadError, setLoadError] = useState("");
+  const loadGeneration = useRef(0);
 
   // Estados dos filtros extraídos da URL
   const initialSearch = searchParams.get("search") || "";
@@ -125,7 +130,9 @@ function LeadsListContent() {
 
   // 4. Carrega os leads com os filtros aplicados e sincroniza a URL
   async function loadLeads() {
+    const generation = ++loadGeneration.current;
     setLoading(true);
+    setLoadError("");
     try {
       const params = new URLSearchParams({ownerClientId:searchParams.get("ownerClientId")||selectedCompany.id});
       if(acquisitionFilter!=="ALL")params.set("acquisitionType",acquisitionFilter);
@@ -135,6 +142,7 @@ function LeadsListContent() {
       if (sourceFilter !== "ALL") params.set("source", sourceFilter);
       if (pipelineFilter !== "ALL") params.set("pipelineId", pipelineFilter);
       if (stageFilter !== "ALL") params.set("stageId", stageFilter);
+      if (viewMode === "KANBAN") params.set("view", "kanban");
 
       const newQuery = params.toString();
       const currentQuery = searchParams.toString();
@@ -142,17 +150,35 @@ function LeadsListContent() {
         router.replace(`/crm/leads${newQuery ? `?${newQuery}` : ""}`, { scroll: false });
       }
 
-      const res = await fetch(`/api/crm/leads?${params.toString()}`);
-      if (res.ok) {
-        const data = await res.json();
-        setLeads(data.leads || []);
+      const apiParams = new URLSearchParams(params);
+      apiParams.delete("view");
+      if (viewMode === "KANBAN") apiParams.set("limit", "200");
+      const res = await fetch(`/api/crm/leads?${apiParams.toString()}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não foi possível carregar os leads.");
+      {
+        const loadedLeads: LeadRecord[] = data.leads || [];
+        // The board must include every matching lead, not only the first page.
+        if (viewMode === "KANBAN") {
+          while (loadedLeads.length < data.total) {
+            apiParams.set("offset", String(loadedLeads.length));
+            const pageResponse = await fetch(`/api/crm/leads?${apiParams.toString()}`);
+            const page = await pageResponse.json();
+            if (!pageResponse.ok) throw new Error(page.error || "Não foi possível completar o quadro.");
+            if (!page.leads?.length) throw new Error("A lista mudou durante o carregamento. Atualize o quadro para tentar novamente.");
+            loadedLeads.push(...page.leads);
+          }
+        }
+        if (generation !== loadGeneration.current) return;
+        setLeads(loadedLeads);
         setSelectedLeadIds([]);
         setTotalLeads(data.total || 0);
       }
     } catch (e) {
       console.error("Erro ao carregar leads:", e);
+      if (generation === loadGeneration.current) setLoadError(e instanceof Error ? e.message : "Não foi possível carregar os leads.");
     } finally {
-      setLoading(false);
+      if (generation === loadGeneration.current) setLoading(false);
     }
   }
 
@@ -161,7 +187,7 @@ function LeadsListContent() {
       loadLeads();
     }, 250);
     return () => clearTimeout(delay);
-  }, [searchTerm, statusFilter, sourceFilter, pipelineFilter, stageFilter, acquisitionFilter, contactFilter, selectedCompany.id]);
+  }, [searchTerm, statusFilter, sourceFilter, pipelineFilter, stageFilter, acquisitionFilter, contactFilter, selectedCompany.id, viewMode]);
 
   function handleClearFilters() {
     setSearchTerm("");
@@ -186,6 +212,7 @@ NUTRICAO: {label:"Em nutrição", color:"bg-zinc-50 text-zinc-700 border-zinc-20
 QUALIFICADO: {label:"Qualificado", color:"bg-zinc-50 text-zinc-700 border-zinc-200"},
 OPORTUNIDADE: {label:"Convertido em oportunidade", color:"bg-zinc-50 text-zinc-700 border-zinc-200"},
 DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-zinc-200"},
+STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"},
     NEW: { label: "Novo Lead", color: "bg-blue-50 text-blue-700 border-blue-200" },
     CONTACTED: { label: "Contatado", color: "bg-purple-50 text-purple-700 border-purple-200" },
     QUALIFIED: { label: "Qualificado", color: "bg-amber-50 text-amber-700 border-amber-200" },
@@ -436,7 +463,11 @@ DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div role="group" aria-label="Visualização dos leads" className="inline-flex rounded-xl border border-zinc-200 bg-zinc-100 p-1">
+              <button type="button" aria-pressed={viewMode === "LIST"} onClick={() => { setSelectedLeadIds([]); setViewMode("LIST"); }} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${viewMode === "LIST" ? "bg-white text-zinc-950 shadow-xs" : "text-zinc-500"}`}><List className="h-4 w-4" />Lista</button>
+              <button type="button" aria-pressed={viewMode === "KANBAN"} onClick={() => { setSelectedLeadIds([]); setViewMode("KANBAN"); }} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold ${viewMode === "KANBAN" ? "bg-white text-zinc-950 shadow-xs" : "text-zinc-500"}`}><Kanban className="h-4 w-4" />Kanban</button>
+            </div>
             <Link
               href="/crm/opportunities"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 transition shadow-2xs"
@@ -491,6 +522,7 @@ DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-
                 <option value="ALL">Leads não convertidos</option>
                 <option value="NEW">Novo Lead</option>
                 <option value="CONTACTED">Contatado</option>
+                <option value="STAND_BY">Stand-by</option>
                 <option value="QUALIFIED">Qualificado</option>
                 <option value="CONVERTED">Convertidos em clientes</option>
                 <option value="UNQUALIFIED">Desqualificado</option>
@@ -561,6 +593,9 @@ DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-
         </div>
 
         {/* Tabela de Leads */}
+        {loadError ? (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">{loadError}<button type="button" onClick={loadLeads} className="ml-3 font-semibold underline">Tentar novamente</button></div>
+        ) : viewMode === "KANBAN" ? <LeadKanban leads={leads} loading={loading} /> : (
         <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-xs overflow-hidden">
           {loading ? (
             <div className="p-12 text-center text-zinc-400 text-xs">Carregando leads...</div>
@@ -804,6 +839,7 @@ DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-
             </div>
           )}
         </div>
+        )}
 
         {/* =========================================================================
             BARRA DE AÇÕES EM MASSA FLUTUANTE (BULK ACTION BAR)
@@ -892,6 +928,7 @@ DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-
                     <option value="">-- Não alterar status --</option>
                     <option value="NEW">Novo Lead</option>
                     <option value="CONTACTED">Contatado</option>
+                    <option value="STAND_BY">Stand-by</option>
                     <option value="QUALIFIED">Qualificado</option>
                     <option value="UNQUALIFIED">Desqualificado</option>
                     <option value="ARCHIVED">Arquivado</option>

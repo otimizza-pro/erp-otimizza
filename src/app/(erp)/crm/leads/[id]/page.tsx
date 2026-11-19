@@ -253,9 +253,13 @@ export default function LeadDetailPage() {
       });
       if (res.ok) {
         loadData();
+      } else {
+        const error = await res.json();
+        alert(error.error || "Não foi possível alterar o status do lead.");
       }
     } catch (e) {
       console.error(e);
+      alert("Não foi possível conectar para alterar o status do lead.");
     }
   };
 
@@ -636,56 +640,79 @@ export default function LeadDetailPage() {
       <div className="max-w-6xl mx-auto space-y-6 pb-16">
         {/* Header Breadcrumb & Actions */}
         <div className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-xs">
-          <div className="flex min-w-0 items-start gap-3 p-4 sm:p-5">
-            <Link
-              href="/crm/leads"
-              className="shrink-0 p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 transition shadow-xs"
-              aria-label="Voltar para leads"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div className="min-w-0 flex-1 space-y-2">
-              <h1 className="break-words text-xl font-bold tracking-tight text-zinc-950 sm:text-2xl">{lead.name}</h1>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs font-bold text-zinc-400">{lead.leadCode}</span>
-                {lead.personType === "PJ" ? (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                    PJ
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    PF
-                  </span>
-                )}
+          <div className="grid min-w-0 grid-cols-1 items-start gap-5 p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_23rem]">
+            <div className="flex min-w-0 items-start gap-3">
+              <Link
+                href="/crm/leads"
+                className="shrink-0 p-2 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 transition shadow-xs"
+                aria-label="Voltar para leads"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </Link>
+              <div className="min-w-0 flex-1 space-y-2">
+                <h1 className="break-words text-xl font-bold tracking-tight text-zinc-950 sm:text-2xl">{lead.name}</h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-mono text-xs font-bold text-zinc-400">{lead.leadCode}</span>
+                  {lead.personType === "PJ" ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      PJ
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      PF
+                    </span>
+                  )}
+                </div>
+                <p className="break-words text-xs text-zinc-500">
+                  {lead.tradeName ? `${lead.tradeName} • ` : ""}Origem: {lead.source}
+                </p>
               </div>
-              <p className="break-words text-xs text-zinc-500">
-                {lead.tradeName ? `${lead.tradeName} • ` : ""}Origem: {lead.source}
-              </p>
+            </div>
+
+            <div role="group" aria-label="Ações do cadastro e comerciais" className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+              <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-zinc-500">Ações</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 [&>button]:justify-center [&>a]:justify-center [&_svg]:shrink-0">
+                <button
+                  type="button"
+                  onClick={openCreateOppModal}
+                  className="px-3.5 py-2 text-xs font-bold text-white bg-zinc-950 hover:bg-zinc-800 rounded-xl flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                  title="Abre negociação formal no Funil Comercial (Kanban)"
+                >
+                  <Plus className="w-4 h-4" /> Criar Oportunidade
+                </button>
+
+                <Link
+                  href={`/proposals/new?leadId=${lead.id}`}
+                  className="px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 flex items-center gap-1.5 transition shadow-2xs"
+                >
+                  <FileText className="w-4 h-4" /> Criar Proposta
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(true)}
+                  className="px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                >
+                  <Edit2 className="w-4 h-4 text-zinc-500" /> Editar Lead
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDeleteLead}
+                  disabled={actionLoading}
+                  className="px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 flex items-center gap-1.5 transition shadow-2xs cursor-pointer disabled:opacity-50"
+                  title="Excluir ou arquivar este lead"
+                >
+                  <Trash2 className="w-4 h-4 text-rose-600" /> Excluir
+                </button>
+
+              </div>
+              {lead.whatsapp && (
+                <div className="mt-2 flex justify-end"><WhatsAppLink number={lead.whatsapp} name={lead.name} label="WhatsApp" /></div>
+              )}
             </div>
           </div>
 
-          <div role="group" aria-label="Ações do lead" className="flex flex-wrap items-center gap-2 border-t border-zinc-100 bg-zinc-50/60 p-4 sm:px-5 [&>button]:max-w-full [&>a]:max-w-full [&_svg]:shrink-0">
-            {lead.whatsapp && (
-              <WhatsAppLink number={lead.whatsapp} name={lead.name} label="WhatsApp" />
-            )}
-            <button
-              type="button"
-              onClick={() => setShowEditModal(true)}
-              className="px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
-            >
-              <Edit2 className="w-4 h-4 text-zinc-500" /> Editar Lead
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDeleteLead}
-              disabled={actionLoading}
-              className="px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl hover:bg-rose-100 flex items-center gap-1.5 transition shadow-2xs cursor-pointer disabled:opacity-50"
-              title="Excluir ou arquivar este lead"
-            >
-              <Trash2 className="w-4 h-4 text-rose-600" /> Excluir
-            </button>
-
+          <div role="group" aria-label="Ações de status do lead" className="flex flex-wrap items-center gap-2 border-t border-zinc-100 bg-zinc-50/60 p-4 sm:px-5 [&>button]:max-w-full [&>a]:max-w-full [&_svg]:shrink-0">
             {isConverted ? (
               <Link
                 href={`/clients/${lead.convertedClientId}`}
@@ -704,6 +731,11 @@ export default function LeadDetailPage() {
             )}
 
             {/* Ações Estratégicas do Ciclo de Leads */}
+            {!isConverted && lead.status !== "STAND_BY" && (
+              <button type="button" onClick={() => handleStatusChange("STAND_BY")} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-100">
+                <Clock className="h-4 w-4" /> Colocar em Stand-by
+              </button>
+            )}
             {!isConverted && lead.status !== "QUALIFIED" && lead.status !== "QUALIFICADO" && lead.status !== "OPORTUNIDADE" && lead.status !== "DESQUALIFICADO" && (
               <button
                 type="button"
@@ -737,21 +769,6 @@ export default function LeadDetailPage() {
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={openCreateOppModal}
-              className="px-3.5 py-2 text-xs font-bold text-white bg-zinc-950 hover:bg-zinc-800 rounded-xl flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
-              title="Abre negociação formal no Funil Comercial (Kanban)"
-            >
-              <Plus className="w-4 h-4" /> Criar Oportunidade Comercial
-            </button>
-
-            <Link
-              href={`/proposals/new?leadId=${lead.id}`}
-              className="px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 flex items-center gap-1.5 transition shadow-2xs"
-            >
-              <FileText className="w-4 h-4" /> Criar Proposta
-            </Link>
           </div>
         </div>
 
@@ -836,6 +853,7 @@ export default function LeadDetailPage() {
               <option value="NOVO">1. Novo (Triagem)</option>
               <option value="QUALIFICANDO">2. Em Qualificação</option>
               <option value="NUTRICAO">3. Em Nutrição</option>
+              <option value="STAND_BY">Stand-by (Aguardando avanço)</option>
               <option value="QUALIFICADO">4. Qualificado</option>
               <option value="OPORTUNIDADE">5. Oportunidade Comercial</option>
               <option value="DESQUALIFICADO">Desqualificado</option>

@@ -103,6 +103,10 @@ export async function PATCH(request: Request) {
     const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
     const updates = body.updates || {};
 
+    if (updates.status === "CONVERTED") {
+      return NextResponse.json({ error: "Utilize a conversão para criar ou vincular o cadastro do cliente." }, { status: 400 });
+    }
+
     if (ids.length === 0) {
       return NextResponse.json({ error: "Nenhum lead selecionado para atualização." }, { status: 400 });
     }
@@ -127,7 +131,7 @@ export async function PATCH(request: Request) {
       setClauses.push(`updated_at = CURRENT_TIMESTAMP`);
       values.push(ids);
       await pool.query(
-        `UPDATE crm_leads SET ${setClauses.join(", ")} WHERE id = ANY($${paramIdx}::uuid[])`,
+        `UPDATE crm_leads SET ${setClauses.join(", ")} WHERE id = ANY($${paramIdx}::uuid[]) AND converted_client_id IS NULL AND status <> 'CONVERTED'`,
         values
       );
     }

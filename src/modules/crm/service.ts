@@ -127,7 +127,10 @@ export class CrmService {
       conditions.push(params.ownerClientId === "otimizza" ? "l.owner_client_id IS NULL" : `l.owner_client_id = $${idx++}`);
       if (params.ownerClientId !== "otimizza") values.push(params.ownerClientId);
     }
-    if (params?.status && params.status !== "ALL") {
+    if (params?.status === "CONVERTED") {
+      conditions.push(`(l.status = 'CONVERTED' OR l.converted_client_id IS NOT NULL)`);
+    } else if (params?.status && params.status !== "ALL") {
+      conditions.push(`l.converted_client_id IS NULL`);
       // Compatibilidade com novos e antigos status
       if (params.status === "NEW" || params.status === "NOVO") {
         conditions.push(`l.status IN ('NEW', 'NOVO')`);
@@ -139,8 +142,8 @@ export class CrmService {
         conditions.push(`l.status = $${idx++}`);
         values.push(params.status);
       }
-    } else if (!params?.status) {
-      conditions.push(`l.status <> 'ARCHIVED'`);
+    } else {
+      conditions.push(`l.status NOT IN ('ARCHIVED', 'CONVERTED') AND l.converted_client_id IS NULL AND l.archived_at IS NULL`);
     }
 
     if (params?.source && params.source !== "ALL") {
@@ -588,6 +591,13 @@ export class CrmService {
     const input = UpdateLeadSchema.parse(rawInput);
     const existing = await this.getLeadById(id);
     if (!existing) throw new Error("Lead não encontrado.");
+
+    if (input.status === "CONVERTED" && !existing.convertedClientId) {
+      throw new Error("Utilize a conversão para criar ou vincular o cadastro do cliente.");
+    }
+    if (existing.convertedClientId && input.status && input.status !== "CONVERTED") {
+      throw new Error("Este lead já foi convertido em cliente. Consulte a visão de convertidos.");
+    }
 
     const cleanDoc = input.document !== undefined
       ? (input.document ? normalizeDocument(input.document) : null)

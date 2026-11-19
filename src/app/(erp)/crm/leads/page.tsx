@@ -146,6 +146,7 @@ function LeadsListContent() {
       if (res.ok) {
         const data = await res.json();
         setLeads(data.leads || []);
+        setSelectedLeadIds([]);
         setTotalLeads(data.total || 0);
       }
     } catch (e) {
@@ -404,6 +405,14 @@ DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-
     <>
       <div className="flex flex-wrap gap-3 mb-4"><label className="text-xs">Aquisição<select className="mt-1.5 block w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs text-zinc-900 outline-none focus:border-zinc-500 focus:bg-white" value={acquisitionFilter} onChange={e=>setAcquisitionFilter(e.target.value)}><option value="ALL">Todas</option><option value="INBOUND">Inbound</option><option value="OUTBOUND">Outbound</option><option value="NAO_INFORMADO">Não informado</option></select></label><label className="text-xs">Primeiro contato<input className="mt-1.5 block w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs text-zinc-900 outline-none focus:border-zinc-500 focus:bg-white" value={contactFilter} placeholder="Todos" onChange={e=>setContactFilter(e.target.value)}/></label></div>
       <div className="space-y-6 pb-24">
+        <nav aria-label="Visões de leads" className="flex flex-wrap gap-2">
+          <button type="button" aria-pressed={statusFilter !== "CONVERTED"} onClick={() => setStatusFilter("ALL")} className={`rounded-xl border px-4 py-2 text-sm font-semibold ${statusFilter !== "CONVERTED" ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-200 bg-white text-zinc-700"}`}>Leads</button>
+          <button type="button" aria-pressed={statusFilter === "CONVERTED"} onClick={() => setStatusFilter("CONVERTED")} className={`rounded-xl border px-4 py-2 text-sm font-semibold ${statusFilter === "CONVERTED" ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-zinc-200 bg-white text-zinc-700"}`}>Convertidos em clientes</button>
+          <Link href="/clients" className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700">Ver clientes</Link>
+        </nav>
+        {statusFilter === "CONVERTED" && (
+          <p className="text-sm text-zinc-600">Estes contatos já são clientes. O histórico do lead é preservado e os dados cadastrais são compartilhados com o cliente vinculado.</p>
+        )}
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-xs">
           <div>
@@ -479,11 +488,11 @@ DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-
                 onChange={(e) => setStatusFilter(e.target.value as LeadStatus | "ALL")}
                 className="border border-zinc-200 rounded-xl text-xs px-3 py-2 bg-zinc-50/50 text-zinc-700 font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900"
               >
-                <option value="ALL">Todos os Status</option>
+                <option value="ALL">Leads não convertidos</option>
                 <option value="NEW">Novo Lead</option>
                 <option value="CONTACTED">Contatado</option>
                 <option value="QUALIFIED">Qualificado</option>
-                <option value="CONVERTED">Convertido</option>
+                <option value="CONVERTED">Convertidos em clientes</option>
                 <option value="UNQUALIFIED">Desqualificado</option>
                 <option value="ARCHIVED">Arquivado</option>
               </select>
@@ -758,6 +767,9 @@ DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-
                         {/* Ações */}
                         <td className="py-3 px-4 text-center">
                           <div className="flex items-center justify-center gap-1.5">
+                            {lead.convertedClientId && (
+                              <Link href={`/clients/${lead.convertedClientId}`} className="rounded-lg border border-emerald-200 px-2.5 py-1 text-[11px] font-bold text-emerald-700">Ver cliente</Link>
+                            )}
                             <button
                               onClick={() => handleOpenAddToFunnel(lead)}
                               className="px-2.5 py-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 hover:bg-purple-50 rounded-lg border border-purple-200 transition flex items-center gap-1"
@@ -881,7 +893,6 @@ DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-
                     <option value="NEW">Novo Lead</option>
                     <option value="CONTACTED">Contatado</option>
                     <option value="QUALIFIED">Qualificado</option>
-                    <option value="CONVERTED">Convertido</option>
                     <option value="UNQUALIFIED">Desqualificado</option>
                     <option value="ARCHIVED">Arquivado</option>
                   </select>

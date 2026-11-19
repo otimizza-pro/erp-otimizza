@@ -216,7 +216,7 @@ export default function UnifiedStrategyPage() {
   };
 
   return (
-    <AppShell activeSection="MARKETING & GROWTH">
+    <AppShell activeSection="marketing_strategy">
       <div className="space-y-6 max-w-7xl mx-auto pb-16">
         {/* Top Header Card */}
         <div className="bg-white border border-zinc-200/90 rounded-2xl p-6 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">

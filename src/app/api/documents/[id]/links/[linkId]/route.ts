@@ -1,3 +1,4 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { DocumentService } from "@/modules/documents/service";
 
@@ -5,6 +6,8 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string; linkId: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id, linkId } = await context.params;
     await DocumentService.unlinkDocument(id, linkId);

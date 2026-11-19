@@ -774,12 +774,19 @@ export class CrmService {
   static async purgeLead(leadId: string): Promise<{ success: boolean; purgedDocumentsCount: number }> {
     return withTransaction(async (client) => {
       const leadCheck = await client.query<{ id: string; name: string }>(
-        `SELECT id, name FROM crm_leads WHERE id = $1`,
+        `SELECT id, name FROM crm_leads WHERE id = $1 FOR UPDATE`,
         [leadId]
       );
       if (leadCheck.rows.length === 0) {
         throw new Error("Lead não encontrado.");
       }
+
+      const consolidated = await client.query(
+        `SELECT 1 FROM crm_leads WHERE id=$1 AND converted_client_id IS NOT NULL
+         UNION ALL SELECT 1 FROM crm_opportunities WHERE lead_id=$1 AND (status='WON' OR contract_id IS NOT NULL OR client_id IS NOT NULL)
+         UNION ALL SELECT 1 FROM proposals WHERE lead_id=$1 AND contract_id IS NOT NULL LIMIT 1`, [leadId]
+      );
+      if (consolidated.rows.length) throw new Error("Este lead possui vínculos comerciais consolidados. Arquive o registro para preservar a jornada e os contratos.");
 
       const oppsRes = await client.query<{ id: string }>(
         `SELECT id FROM crm_opportunities WHERE lead_id = $1`,
@@ -826,23 +833,23 @@ export class CrmService {
       const purgedDocumentsCount = await DocumentService.purgeDocumentsByIds(docIdsToPurge, client);
 
       // Deletar briefing sessions vinculadas ao lead
-      await client.query(`DELETE FROM client_briefing_sessions WHERE lead_id = $1`, [leadId]).catch(() => {});
+      await client.query(`DELETE FROM client_briefing_sessions WHERE lead_id = $1`, [leadId]);
 
       // Deletar itens das versões e versões de propostas
       if (propIds.length > 0) {
-        await client.query(`DELETE FROM proposal_contract_conversions WHERE proposal_id = ANY($1::uuid[])`, [propIds]).catch(() => {});
-        await client.query(`DELETE FROM proposal_events WHERE proposal_id = ANY($1::uuid[])`, [propIds]).catch(() => {});
+        await client.query(`DELETE FROM proposal_contract_conversions WHERE proposal_id = ANY($1::uuid[])`, [propIds]);
+        await client.query(`DELETE FROM proposal_events WHERE proposal_id = ANY($1::uuid[])`, [propIds]);
         await client.query(
           `DELETE FROM proposal_items WHERE proposal_version_id IN (SELECT id FROM proposal_versions WHERE proposal_id = ANY($1::uuid[]))`,
           [propIds]
-        ).catch(() => {});
+        );
         await client.query(`DELETE FROM proposal_versions WHERE proposal_id = ANY($1::uuid[])`, [propIds]);
         await client.query(`DELETE FROM proposals WHERE id = ANY($1::uuid[])`, [propIds]);
       }
 
       // Deletar histórico de etapas de oportunidades e atividades
       if (oppIds.length > 0) {
-        await client.query(`DELETE FROM crm_opportunity_stages_history WHERE opportunity_id = ANY($1::uuid[])`, [oppIds]);
+        await client.query(`DELETE FROM crm_opportunity_history WHERE opportunity_id = ANY($1::uuid[])`, [oppIds]);
         await client.query(`DELETE FROM crm_activities WHERE opportunity_id = ANY($1::uuid[])`, [oppIds]);
         await client.query(`DELETE FROM crm_opportunities WHERE id = ANY($1::uuid[])`, [oppIds]);
       }

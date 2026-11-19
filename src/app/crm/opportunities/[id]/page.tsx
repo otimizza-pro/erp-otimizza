@@ -274,7 +274,7 @@ export default function OpportunityDetailPage() {
 
   if (loading) {
     return (
-      <AppShell>
+      <AppShell activeSection="crm_opportunities">
         <div className="p-16 flex flex-col items-center justify-center gap-3 text-slate-500">
           <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
           <p className="text-sm">Carregando detalhes da oportunidade...</p>
@@ -285,7 +285,7 @@ export default function OpportunityDetailPage() {
 
   if (!opp) {
     return (
-      <AppShell>
+      <AppShell activeSection="crm_opportunities">
         <div className="p-12 text-center text-slate-500">
           <AlertCircle className="h-10 w-10 text-rose-500 mx-auto mb-2" />
           <p className="text-lg font-semibold text-slate-800">Oportunidade não encontrada</p>
@@ -320,7 +320,7 @@ export default function OpportunityDetailPage() {
   const currentStages = pipeline?.stages || [];
 
   return (
-    <AppShell>
+    <AppShell activeSection="crm_opportunities">
       <div className="space-y-6 max-w-6xl mx-auto">
         {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-200 pb-5">

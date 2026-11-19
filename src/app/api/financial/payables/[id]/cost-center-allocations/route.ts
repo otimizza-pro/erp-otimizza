@@ -1,3 +1,4 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { getPayableAllocations, allocatePayableCostCenters } from "@/modules/financial/dre/service";
 
@@ -5,6 +6,8 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id } = await params;
     const allocations = await getPayableAllocations(id);
@@ -22,6 +25,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id } = await params;
     const body = await req.json();

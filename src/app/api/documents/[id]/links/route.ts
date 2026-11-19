@@ -1,3 +1,4 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { DocumentService } from "@/modules/documents/service";
 import { LinkDocumentInputSchema } from "@/modules/documents/types";
@@ -6,6 +7,8 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id } = await context.params;
     const body = await request.json();

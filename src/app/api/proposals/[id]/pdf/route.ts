@@ -1,3 +1,4 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { ProposalService } from "@/modules/proposals/service";
 import { generateProposalPdf } from "@/modules/proposals/pdf";
@@ -7,6 +8,8 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id } = await context.params;
     const { searchParams } = new URL(request.url);

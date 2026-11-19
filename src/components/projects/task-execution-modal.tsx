@@ -69,7 +69,7 @@ export function TaskExecutionModal({
   const [briefingFeedback, setBriefingFeedback] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
-  // Form fields for Valdemar pre-fill
+  // Form fields for team pre-fill
   const [companyName, setCompanyName] = useState<string>("");
   const [contactName, setContactName] = useState<string>("");
   const [websiteUrl, setWebsiteUrl] = useState<string>("");

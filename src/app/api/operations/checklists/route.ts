@@ -4,7 +4,7 @@ import { query } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { operationAreas, operationStatuses } from "@/modules/operations/catalog";
 const scope = z.union([z.literal("otimizza"), z.string().uuid()]);
-const schema = z.object({scope: scope, area: z.string().refine(v => Object.hasOwn(operationAreas, v)), tasks: z.record(z.object({status: z.enum(operationStatuses), notes: z.string().max(4000)}))});
+const schema = z.object({scope: scope, area: z.string().refine(v => Object.hasOwn(operationAreas, v)), tasks: z.record(z.string(),z.object({status: z.enum(operationStatuses), notes: z.string().max(4000)}))});
 export async function GET(request: Request) {
  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"}, {status:401}); }
  try {

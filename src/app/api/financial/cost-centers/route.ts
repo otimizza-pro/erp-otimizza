@@ -1,7 +1,10 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { getCostCenters, createCostCenter } from "@/modules/financial/dre/service";
 
 export async function GET(req: NextRequest) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { searchParams } = new URL(req.url);
     const includeArchived = searchParams.get("includeArchived") === "true";
@@ -17,6 +20,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await req.json();
     const created = await createCostCenter(body);

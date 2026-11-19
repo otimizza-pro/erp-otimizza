@@ -82,7 +82,8 @@ function ContractsListPageContent() {
     try {
       const params = new URLSearchParams();
       if (search) params.set("search", search);
-      if (expiringFilter) {
+      if (statusFilter === "ARCHIVED") { params.set("filter", "archived");
+      } else if (expiringFilter) {
         params.set("filter", "expiring");
       } else if (statusFilter !== "ALL") {
         params.set("status", statusFilter);
@@ -293,6 +294,7 @@ function ContractsListPageContent() {
           <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-lg text-xs font-medium self-start md:self-auto overflow-x-auto">
             {[
               { id: "ALL", label: "Todas" },
+              { id: "ARCHIVED", label: "Arquivadas" },
               { id: "ACTIVE", label: "Ativas" },
               { id: "DRAFT", label: "Rascunhos" },
               { id: "CANCELED", label: "Canceladas" },

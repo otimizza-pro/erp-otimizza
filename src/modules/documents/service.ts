@@ -1,4 +1,5 @@
-import { query, withTransaction } from "@/lib/db/pool";
+import { afterCommit, query, withTransaction } from "@/lib/db/pool";
+import { processStorageCleanup } from "./cleanup";
 import type { PoolClient } from "pg";
 import {
   DocumentRecord,
@@ -681,6 +682,12 @@ export class DocumentService {
 
     const execute = async (client: PoolClient) => {
       // 1. Obter todos os arquivos físicos nas versões dos documentos
+      const shared = await client.query(
+        "SELECT document_id FROM document_links WHERE document_id=ANY($1::uuid[]) GROUP BY document_id HAVING count(*)>1 LIMIT 1", [uniqueIds]
+      );
+      if (shared.rows.length) {
+        throw new Error("Há documentos compartilhados com outros registros. Revise os vínculos antes da exclusão permanente.");
+      }
       const verRes = await client.query<{ id: string; storage_path: string; storage_provider: string }>(
         `SELECT id, storage_path, storage_provider FROM document_versions WHERE document_id = ANY($1::uuid[])`,
         [uniqueIds]
@@ -689,8 +696,12 @@ export class DocumentService {
       // 2. Apagar arquivos do Supabase Storage
       for (const ver of verRes.rows) {
         if (ver.storage_provider === "SUPABASE_STORAGE" && ver.storage_path) {
-          await DocumentStorage.deleteFile(ver.storage_path).catch(() => {});
+          await client.query("INSERT INTO storage_cleanup_queue(storage_path) VALUES($1) ON CONFLICT DO NOTHING", [ver.storage_path]);
         }
+      }
+
+      if (verRes.rows.some(ver => ver.storage_provider === "SUPABASE_STORAGE")) {
+        afterCommit(client, async () => { await processStorageCleanup(); });
       }
 
       const versionIds = verRes.rows.map((v) => v.id);

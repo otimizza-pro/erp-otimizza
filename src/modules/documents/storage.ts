@@ -129,13 +129,12 @@ export class DocumentStorage {
   static async deleteFile(storagePath: string): Promise<void> {
     if (!storagePath) return;
     const env = getEnv();
-    if (env.NEXT_PUBLIC_SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY && env.NODE_ENV !== "test") {
-      try {
-        const supabase = createSupabaseClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
-        await supabase.storage.from("documents").remove([storagePath]);
-      } catch (err) {
-        console.warn("Aviso ao remover arquivo do Supabase Storage:", err);
-      }
+    if (env.NODE_ENV === "test" || process.env.VITEST === "true") return;
+    if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error("Storage não configurado. A limpeza permanece pendente.");
     }
+    const supabase = createSupabaseClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    const { error } = await supabase.storage.from("documents").remove([storagePath]);
+    if (error) throw new Error("Falha ao excluir arquivo do Storage: " + error.message);
   }
 }

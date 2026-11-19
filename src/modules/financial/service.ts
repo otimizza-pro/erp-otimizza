@@ -185,10 +185,14 @@ export async function deleteFinancialAccount(
   if (!existing) throw new Error("Conta financeira não encontrada.");
 
   // Verificar se há liquidações ou extrato nesta conta
+  return withTransaction(async client => {
+  const query = client.query.bind(client);
+  const locked = await query("SELECT id FROM financial_accounts WHERE id=$1 FOR UPDATE", [id]);
+  if (!locked.rows.length) throw new Error("Conta financeira não encontrada.");
   const settlements = await query(`SELECT COUNT(*) FROM financial_settlements WHERE financial_account_id = $1`, [id]);
   const hasSettlements = parseInt(settlements.rows[0].count, 10) > 0;
 
-  const statements = await query(`SELECT COUNT(*) FROM bank_statements WHERE account_id = $1`, [id]);
+  const statements = await query(`SELECT COUNT(*) FROM financial_statements WHERE account_id = $1`, [id]);
   const hasStatements = parseInt(statements.rows[0].count, 10) > 0;
 
   if (hasSettlements || hasStatements) {
@@ -216,6 +220,7 @@ export async function deleteFinancialAccount(
     action: "DELETED",
     message: "Conta financeira excluída definitivamente.",
   };
+  });
 }
 
 export async function transferBetweenAccounts(data: {

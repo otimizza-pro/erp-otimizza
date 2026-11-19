@@ -67,6 +67,7 @@ export interface ContractRecord {
   proposalId?: string | null;
   proposalCode?: string | null;
   status: ContractStatus;
+  archivedAt?: string | null;
   cancellationReason?: string | null;
   canceledAt?: string | null;
   createdAt: string;

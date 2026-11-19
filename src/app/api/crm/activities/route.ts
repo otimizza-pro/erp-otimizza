@@ -1,8 +1,11 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { CrmService } from "@/modules/crm/service";
 import { ActivityStatus } from "@/modules/crm/types";
 
 export async function GET(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { searchParams } = new URL(request.url);
     const leadId = searchParams.get("leadId") || undefined;
@@ -40,7 +43,7 @@ import { z } from "zod";
 
 function formatErrorMessage(error: unknown): string {
   if (error instanceof z.ZodError) {
-    return error.errors.map((e) => e.message).join(" ");
+    return error.issues.map((e) => e.message).join(" ");
   }
   if (error instanceof Error) {
     try {
@@ -57,6 +60,8 @@ function formatErrorMessage(error: unknown): string {
 }
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     const activity = await CrmService.createActivity(body);

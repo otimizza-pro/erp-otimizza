@@ -866,9 +866,9 @@ export async function generateRecurringProjectForContract(input: {
   const [yStr, mStr] = competency.split("-");
   const year = parseInt(yStr, 10);
   const month = parseInt(mStr, 10);
-  const startDay = settings?.startDay || 1;
-  const startDateStr = `${competency}-${String(startDay).padStart(2, "0")}`;
   const lastDayOfMonth = new Date(year, month, 0).getDate();
+  const startDay = Math.min(settings?.startDay || 1, lastDayOfMonth);
+  const startDateStr = `${competency}-${String(startDay).padStart(2, "0")}`;
   const dueDateStr = `${competency}-${String(lastDayOfMonth).padStart(2, "0")}`;
 
   const template = templateId ? await getProjectTemplateById(templateId) : null;
@@ -887,7 +887,7 @@ export async function generateRecurringProjectForContract(input: {
     priority: "MEDIUM",
     startDate: startDateStr,
     dueDate: dueDateStr,
-    estimatedHours: template?.estimatedHours || 20,
+    estimatedHours: template?.estimatedHours ?? 0,
     estimatedBudget: 0,
     notes: `Gerado automaticamente pelo motor de recorrência operacional do ERP.`,
   });
@@ -922,11 +922,14 @@ export async function processAllRecurringProjects(targetCompetency?: string) {
   }>(
     `SELECT c.id as contract_id, c.contract_number
      FROM contracts c
-     JOIN contract_project_recurrence_settings r ON r.contract_id = c.id
+     JOIN contract_project_recurring_settings r ON r.contract_id = c.id
      WHERE c.status = 'ACTIVE'
        AND r.is_enabled = true
        AND r.is_suspended = false
+       AND r.start_date <= ($1 || '-01')::date + interval '1 month' - interval '1 day'
+       AND (r.end_date IS NULL OR r.end_date >= ($1 || '-01')::date)
      ORDER BY c.contract_number ASC`
+    , [competency]
   );
 
   let createdCount = 0;

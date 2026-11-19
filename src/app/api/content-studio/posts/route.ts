@@ -1,7 +1,10 @@
+import {requireAdminUser} from "@/lib/auth/require-auth";
+import {contentBriefSchema} from "@/modules/clients/content-brief";
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 
 export async function GET(request: Request) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401}); }
   try {
     const { searchParams } = new URL(request.url);
     const clientId = searchParams.get("clientId");
@@ -69,17 +72,19 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401}); }
   try {
     const body = await request.json();
+    const editorialBrief=body.editorialBrief?contentBriefSchema.parse(body.editorialBrief):null;
 
     const sql = `
       INSERT INTO content_calendar_items (
         client_id, title, central_idea, format, status,
         content_type, ad_status, image_url, post_tag,
         selected_headline, selected_caption, selected_reels, selected_carousel,
-        prompt_used, tone_of_voice, call_to_action, scheduled_date
+        prompt_used, tone_of_voice, call_to_action, scheduled_date, editorial_brief, editorial_line_id
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
       )
       RETURNING *
     `;
@@ -102,6 +107,8 @@ export async function POST(request: Request) {
       body.toneOfVoice || null,
       body.callToAction || null,
       body.scheduledDate || new Date().toISOString().substring(0, 10),
+      editorialBrief?JSON.stringify(editorialBrief):null,
+      editorialBrief?.themeId||null,
     ]);
 
     return NextResponse.json({ success: true, data: res.rows[0] });

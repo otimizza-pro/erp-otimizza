@@ -97,10 +97,10 @@ export default function ServicesPage() {
       if (!res.ok) throw new Error(data.error || "Erro ao excluir serviços selecionados");
 
       setFeedback({
-        type: "success",
-        msg: data.message || `${data.deletedCount} serviço(s) excluído(s) e ${data.archivedCount} arquivado(s).`,
+        type: data.failedCount > 0 ? "error" : "success",
+        msg: [data.message || `${data.deletedCount} serviço(s) excluído(s) e ${data.archivedCount} arquivado(s).`, ...(data.results || []).filter((result: {action:string})=>result.action === "failed").map((result: {message:string})=>result.message)].join(" "),
       });
-      setSelectedServiceIds([]);
+      setSelectedServiceIds((data.results || []).filter((result: {action:string})=>result.action === "failed").map((result:{id:string})=>result.id));
       loadData();
     } catch (err: unknown) {
       setFeedback({

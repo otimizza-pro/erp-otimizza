@@ -1,7 +1,10 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { DocumentService } from "@/modules/documents/service";
 
 export async function GET() {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const categories = await DocumentService.getCategories();
     return NextResponse.json(categories);

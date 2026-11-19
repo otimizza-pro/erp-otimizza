@@ -1,5 +1,7 @@
 "use client";
 
+import {useCompany} from "@/lib/context/company-context";
+import {INTERNAL_COMPANY_ID} from "@/modules/clients/internal-company";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
@@ -27,6 +29,7 @@ import { formatDocument } from "@/shared/cpf-cnpj";
 import { WhatsAppLink } from "@/components/ui/whatsapp";
 
 export default function ClientsPage({ former = false }: { former?: boolean }) {
+  const {selectOtimizza}=useCompany();
   const [clients, setClients] = useState<Client[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -226,6 +229,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
           </div>
         )}
 
+        {!former&&<section className="flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-hourline sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><Building2 className="h-5 w-5"/></span><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-bold text-zinc-950">Otimizza Growth</h2><span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Empresa interna · Fixa</span></div><p className="mt-1 text-xs text-zinc-500">Planejamento e conteúdo da própria marca. Não entra na contagem de clientes.</p></div></div><div className="flex flex-wrap gap-2"><Link onClick={selectOtimizza} href="/marketing/strategy" className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50">Estratégia</Link><Link onClick={selectOtimizza} href={"/clients/"+INTERNAL_COMPANY_ID+"/identity"} className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50">Identidade e manuais</Link><Link onClick={selectOtimizza} href="/prompt-creator" className="rounded-full bg-zinc-950 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">Criar conteúdo</Link></div></section>}
         {/* Barra de Pesquisa e Filtros */}
         <div className="p-4 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline flex flex-col md:flex-row items-center justify-between gap-4">
           <form onSubmit={handleSearchSubmit} className="relative w-full md:w-96">

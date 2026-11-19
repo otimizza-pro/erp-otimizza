@@ -1,7 +1,10 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { CrmService } from "@/modules/crm/service";
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     const stage = await CrmService.createStage(body);

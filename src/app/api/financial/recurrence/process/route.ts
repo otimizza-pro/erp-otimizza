@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { processContractRecurrence, processPayableRecurrence } from "@/modules/financial/service";
 import { requireAdminUser } from "@/lib/auth/require-auth";
 
+export async function GET(request: Request) {
+  if (!process.env.CRON_SECRET || request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({error:"Acesso não autorizado."},{status:401});
+  }
+  return POST(request);
+}
+
 export async function POST(request: Request) {
   try {
     // 1. Verificação de segurança: autorização por Bearer Token de Cron ou usuário autenticado
@@ -22,6 +29,9 @@ export async function POST(request: Request) {
     const competencyParam = searchParams.get("competency");
     const currentMonthStr = String(now.getMonth() + 1).padStart(2, "0");
     const competency = competencyParam || `${now.getFullYear()}-${currentMonthStr}`;
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(competency)) {
+      return NextResponse.json({error:"Competência inválida. Use AAAA-MM."},{status:400});
+    }
 
     const [recResult, payResult] = await Promise.all([
       processContractRecurrence(competency),

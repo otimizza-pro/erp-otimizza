@@ -167,49 +167,30 @@ export async function updateServiceCategory(
   };
 }
 
-export async function deleteServiceCategory(id: string): Promise<{ action: "deleted" | "archived"; message: string }> {
-  // Check child categories
-  const childCheck = await query<{ count: string }>(
-    "SELECT COUNT(*) as count FROM service_categories WHERE parent_id = $1",
-    [id]
-  );
-  const childCount = parseInt(childCheck.rows[0]?.count || "0", 10);
-  if (childCount > 0) {
-    throw new Error(`Não é possível excluir esta categoria pois ela possui ${childCount} subcategoria(s) vinculada(s). Remova ou reatribua as subcategorias primeiro.`);
-  }
+export async function deleteServiceCategories(ids: string[]) {
+  const uniqueIds = [...new Set(ids)];
+  if (!uniqueIds.length) throw new Error("Selecione pelo menos uma categoria.");
+  return withTransaction(async (client) => {
+    const selected = await client.query<{id:string;name:string}>("SELECT id, name FROM service_categories WHERE id = ANY($1::uuid[]) ORDER BY id FOR UPDATE", [uniqueIds]);
+    if (selected.rows.length !== uniqueIds.length) throw new Error("Uma das categorias não existe mais. Atualize a lista.");
+    const linked = await client.query<{name:string}>("SELECT DISTINCT c.name FROM service_categories c JOIN services s ON s.category_id=c.id WHERE c.id=ANY($1::uuid[])", [uniqueIds]);
+    if (linked.rows.length) throw new Error("Exclusão bloqueada: desvincule os serviços das categorias: " + linked.rows.map(c=>c.name).join(", ") + ". Nenhuma categoria foi excluída.");
+    const children = await client.query("SELECT id FROM service_categories WHERE parent_id=ANY($1::uuid[]) AND NOT(id=ANY($1::uuid[]))", [uniqueIds]);
+    if (children.rows.length) throw new Error("Selecione também as subcategorias ou altere sua categoria pai. Nenhuma categoria foi excluída.");
+    // Remove leaves first because the existing self-reference uses ON DELETE RESTRICT.
+    let remaining = uniqueIds;
+    while (remaining.length) {
+      const removed = await client.query<{id:string}>("DELETE FROM service_categories c WHERE c.id=ANY($1::uuid[]) AND NOT EXISTS(SELECT 1 FROM service_categories child WHERE child.parent_id=c.id) RETURNING id", [remaining]);
+      if (!removed.rows.length) throw new Error("Hierarquia de categorias inválida. Nenhuma categoria foi excluída.");
+      const deleted = new Set(removed.rows.map(c=>c.id)); remaining=remaining.filter(id=>!deleted.has(id));
+    }
+    for (const category of selected.rows) await client.query("INSERT INTO audit_logs(entity_name,entity_id,action,old_data) VALUES('service_categories',$1,'DELETE',$2)", [category.id,JSON.stringify(category)]);
+    return {action:"deleted" as const, count:uniqueIds.length, message: uniqueIds.length + " categoria(s) excluída(s) permanentemente."};
+  });
+}
 
-  // Check referenced services
-  const svcCheck = await query<{ count: string }>(
-    "SELECT COUNT(*) as count FROM services WHERE category_id = $1",
-    [id]
-  );
-  const svcCount = parseInt(svcCheck.rows[0]?.count || "0", 10);
-
-  if (svcCount > 0) {
-    // Soft delete / archive to avoid breaking FK
-    await query("UPDATE service_categories SET status = 'ARCHIVED', updated_at = CURRENT_TIMESTAMP WHERE id = $1", [id]);
-    await query(
-      `INSERT INTO audit_logs (entity_name, entity_id, action, new_data)
-       VALUES ($1, $2, $3, $4)`,
-      ["service_categories", id, "UPDATE", JSON.stringify({ action: "ARCHIVED", reason: "Has linked services" })]
-    );
-    return {
-      action: "archived",
-      message: `Categoria arquivada com sucesso! Ela foi desativada pois possui ${svcCount} serviço(s) vinculado(s).`,
-    };
-  }
-
-  await query("DELETE FROM service_categories WHERE id = $1", [id]);
-  await query(
-    `INSERT INTO audit_logs (entity_name, entity_id, action, old_data)
-     VALUES ($1, $2, $3, $4)`,
-    ["service_categories", id, "DELETE", JSON.stringify({ id })]
-  );
-
-  return {
-    action: "deleted",
-    message: "Categoria excluída permanentemente com sucesso!",
-  };
+export async function deleteServiceCategory(id: string) {
+  return deleteServiceCategories([id]);
 }
 
 // -----------------------------------------------------------------------------
@@ -427,6 +408,10 @@ export async function reactivateService(id: string): Promise<void> {
 }
 
 export async function deleteService(id: string): Promise<{ action: "deleted" | "archived"; message: string }> {
+  return withTransaction(async client => {
+  const query = client.query.bind(client);
+  const existing = await query("SELECT id FROM services WHERE id=$1 FOR UPDATE", [id]);
+  if (!existing.rows.length) throw new Error("Serviço não encontrado.");
   // Check usage in contracts
   const contractCheck = await query<{ count: string }>(
     "SELECT COUNT(*) as count FROM contract_items WHERE service_id = $1",
@@ -446,7 +431,7 @@ export async function deleteService(id: string): Promise<{ action: "deleted" | "
   const allocCheck = await query<{ count: string }>(
     "SELECT COUNT(*) as count FROM payable_allocations WHERE service_id = $1",
     [id]
-  ).catch(() => ({ rows: [{ count: "0" }] }));
+  );
 
   const contractCount = parseInt(contractCheck.rows[0]?.count || "0", 10);
   const comboCount = parseInt(comboCheck.rows[0]?.count || "0", 10);
@@ -454,7 +439,8 @@ export async function deleteService(id: string): Promise<{ action: "deleted" | "
   const allocCount = parseInt(allocCheck.rows[0]?.count || "0", 10);
 
   if (contractCount > 0 || comboCount > 0 || proposalCount > 0 || allocCount > 0) {
-    await archiveService(id);
+    await query("UPDATE services SET status='ARCHIVED',archived_at=NOW(),updated_at=NOW() WHERE id=$1", [id]);
+    await query("INSERT INTO audit_logs(entity_name,entity_id,action,new_data) VALUES('services',$1,'UPDATE',$2)", [id,JSON.stringify({action:"ARCHIVE",reason:"HISTORICAL_USAGE"})]);
     return {
       action: "archived",
       message: `Serviço arquivado com sucesso! Como possui movimentações históricas (${contractCount} contratos, ${comboCount} combos, ${proposalCount} propostas), ele foi mantido como inativo para preservar a rastreabilidade contábil.`,
@@ -462,7 +448,7 @@ export async function deleteService(id: string): Promise<{ action: "deleted" | "
   }
 
   // If clean, clean any presentation bindings and delete service
-  await query("DELETE FROM service_presentations WHERE service_id = $1", [id]).catch(() => {});
+  // Presentations are stored in services.presentation, not in a separate table.
   await query("DELETE FROM services WHERE id = $1", [id]);
   await query(
     `INSERT INTO audit_logs (entity_name, entity_id, action, old_data)
@@ -474,16 +460,19 @@ export async function deleteService(id: string): Promise<{ action: "deleted" | "
     action: "deleted",
     message: "Serviço excluído permanentemente com sucesso!",
   };
+  });
 }
 
 export async function batchDeleteServices(ids: string[]): Promise<{
   deletedCount: number;
   archivedCount: number;
-  results: Array<{ id: string; action: "deleted" | "archived"; message: string }>;
+  failedCount: number;
+  results: Array<{ id: string; action: "deleted" | "archived" | "failed"; message: string }>;
 }> {
   let deletedCount = 0;
   let archivedCount = 0;
-  const results: Array<{ id: string; action: "deleted" | "archived"; message: string }> = [];
+  let failedCount = 0;
+  const results: Array<{ id: string; action: "deleted" | "archived" | "failed"; message: string }> = [];
 
   for (const id of ids) {
     try {
@@ -492,15 +481,16 @@ export async function batchDeleteServices(ids: string[]): Promise<{
       if (res.action === "archived") archivedCount++;
       results.push({ id, action: res.action, message: res.message });
     } catch (err: unknown) {
+      failedCount++;
       results.push({
         id,
-        action: "archived",
+        action: "failed",
         message: err instanceof Error ? err.message : "Erro ao processar serviço.",
       });
     }
   }
 
-  return { deletedCount, archivedCount, results };
+  return { deletedCount, archivedCount, failedCount, results };
 }
 
 // -----------------------------------------------------------------------------

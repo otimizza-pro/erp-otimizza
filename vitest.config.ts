@@ -3,6 +3,7 @@ import path from "node:path";
 
 export default defineConfig({
   test: {
+    env: { NODE_ENV: "test" },
     environment: "node",
     globals: true,
     testTimeout: 120000,

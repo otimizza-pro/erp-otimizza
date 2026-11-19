@@ -11,7 +11,8 @@ describe("Contexto da empresa nas chamadas de IA", () => {
       sql.includes("FROM clients ") ? [{ name: values[0] === clientId ? "Marcenaria" : "Distribuidora", city: "Cidade", password: "não enviar" }] :
       sql.includes("FROM client_identities") ? [{ brand_context: "Móveis planejados", target_audiences: ["Famílias"], differentials: ["Projeto personalizado"], forbidden_words: ["milagre"], api_key: "não enviar" }] :
       sql.includes("FROM client_audiences") ? [{ name: "Famílias", description: "Pessoas planejando uma reforma", objections: ["Prazo de entrega"] }] :
-      sql.includes("FROM client_brand_voice_presets") ? [{ custom_guidelines: "Explicar materiais sem jargões" }] : []
+      sql.includes("FROM client_brand_voice_presets") ? [{ custom_guidelines: "Explicar materiais sem jargões" }] :
+      sql.includes("FROM client_editorial_lines") ? [{id:"33333333-3333-4333-8333-333333333333",pillar_name:"Ambientes",theme:"Cozinhas"}] : []
     }));
   });
   it("inclui características, público, objeções e restrições da marca", async () => {
@@ -30,6 +31,10 @@ describe("Contexto da empresa nas chamadas de IA", () => {
     for (const [, values] of query.mock.calls) expect(values).toEqual([clientId]);
     const other = await loadAiClientContext("22222222-2222-4222-8222-222222222222");
     expect(other.company.name).toBe("Distribuidora");
+  });
+  it("preserva o ID do tema para validar o vínculo no fluxo de criação",async()=>{
+    const context=await loadAiClientContext(clientId);
+    expect(context.editorialLines[0]).toMatchObject({id:"33333333-3333-4333-8333-333333333333",theme:"Cozinhas"});
   });
   it("não preenche uma identidade ausente com o perfil da Otimizza", async () => {
     query.mockImplementation((sql: string) => Promise.resolve({ rows: sql.includes("FROM clients ") ? [{ name: "Cliente sem identidade" }] : [] }));

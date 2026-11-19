@@ -2,21 +2,12 @@ const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-// 1. Ler credenciais do banco
-const envContent = fs.readFileSync('.env.local', 'utf8');
-const env = {};
-envContent.split('\n').forEach(line => {
-  const match = line.match(/^([^=]+)=(.*)$/);
-  if (match) {
-    env[match[1].trim()] = match[2].trim().replace(/^["']|["']$/g, '');
-  }
-});
-
-const connStr = env.DATABASE_URL || env.DIRECT_URL;
-if (!connStr) {
-  console.error("❌ DATABASE_URL não encontrada no .env.local!");
-  process.exit(1);
-}
+// Load configuration consistently with the application.
+require("dotenv").config({path:path.resolve(".env.local")});
+require("dotenv").config({path:path.resolve(".env")});
+const connStr = process.env.DIRECT_URL || process.env.DATABASE_URL;
+if (!connStr) throw new Error("DATABASE_URL não configurada.");
+if (process.env.CONFIRM_KNOWLEDGE_IMPORT !== "true") throw new Error("Defina CONFIRM_KNOWLEDGE_IMPORT=true para importar e sobrescrever os documentos.");
 
 // 2. Parser Word XML -> HTML e Texto
 function parseDocxXml(xml) {
@@ -556,7 +547,7 @@ async function main() {
   console.log(`🎉 SINCRONIZAÇÃO CONCLUÍDA COM SUCESSO!`);
   console.log(`- Páginas atualizadas: ${updatedCount}`);
   console.log(`- Páginas novas criadas: ${insertedCount}`);
-  console.log(`- Total de 20 manuais estratégicos da Otimizza 100% atualizados e publicados no Supabase!`);
+  console.log(`- Revise os documentos importados antes de considerar a base completa.`);
   console.log("========================================================\n");
 
   await client.end();

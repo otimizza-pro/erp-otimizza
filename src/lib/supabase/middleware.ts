@@ -10,7 +10,7 @@ export async function updateSession(request: NextRequest) {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
   if (!supabaseUrl || !supabaseKey) {
-    return supabaseResponse;
+    return NextResponse.json({ error: "Autenticação indisponível. Verifique a configuração do servidor." }, { status: 503 });
   }
 
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
@@ -38,6 +38,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isCronRoute =
+    request.nextUrl.pathname === "/api/documents/cleanup" ||
     request.nextUrl.pathname === "/api/financial/recurrence/process" ||
     request.nextUrl.pathname === "/api/projects/recurrence/process";
 
@@ -50,8 +51,7 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/api/briefing/");
 
   const isPublicRoute =
-    request.nextUrl.pathname.startsWith("/login") ||
-    request.nextUrl.pathname.startsWith("/api/health") ||
+    request.nextUrl.pathname === "/login" ||
     isCronRoute ||
     isPublicKnowledgeRoute ||
     isPublicBriefingRoute;
@@ -61,12 +61,15 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (!user && !isPublicRoute) {
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
+    }
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && request.nextUrl.pathname.startsWith("/login")) {
+  if (user && request.nextUrl.pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

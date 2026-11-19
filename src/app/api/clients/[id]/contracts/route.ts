@@ -1,3 +1,4 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { listContracts } from "@/modules/contracts/service";
 import { ContractStatus } from "@/modules/contracts/types";
@@ -6,6 +7,8 @@ export async function GET(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id: clientId } = await props.params;
     const { searchParams } = new URL(request.url);

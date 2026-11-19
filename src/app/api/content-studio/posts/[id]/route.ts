@@ -1,3 +1,5 @@
+import {requireAdminUser} from "@/lib/auth/require-auth";
+import {contentBriefSchema} from "@/modules/clients/content-brief";
 import { NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 
@@ -5,6 +7,7 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401}); }
   try {
     const { id } = await params;
     const res = await query(
@@ -27,9 +30,11 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401}); }
   try {
     const { id } = await params;
     const body = await request.json();
+    const editorialBrief=body.editorialBrief?contentBriefSchema.parse(body.editorialBrief):null;
 
     const sql = `
       UPDATE content_calendar_items SET
@@ -46,6 +51,7 @@ export async function PUT(
         format = COALESCE($11, format),
         status = COALESCE($12, status),
         scheduled_date = COALESCE($13, scheduled_date),
+        editorial_brief = COALESCE($15::jsonb, editorial_brief),
         updated_at = NOW()
       WHERE id = $14
       RETURNING *
@@ -66,6 +72,7 @@ export async function PUT(
       body.status,
       body.scheduledDate,
       id,
+      editorialBrief?JSON.stringify(editorialBrief):null,
     ]);
 
     if (res.rows.length === 0) {
@@ -86,6 +93,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401}); }
   try {
     const { id } = await params;
     await query(`DELETE FROM content_calendar_items WHERE id = $1`, [id]);

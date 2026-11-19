@@ -1,3 +1,4 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import {
   listServices,
@@ -8,6 +9,8 @@ import {
 } from "@/modules/catalog/service";
 
 export async function GET(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type"); // "services" ou "categories"
@@ -32,6 +35,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     if (body.type === "CATEGORY") {
@@ -62,6 +67,8 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
@@ -71,9 +78,9 @@ export async function DELETE(request: Request) {
 
     const result = await batchDeleteServices(ids);
     return NextResponse.json({
-      success: true,
+      success: result.failedCount === 0,
       ...result,
-      message: `${result.deletedCount} serviço(s) excluído(s) e ${result.archivedCount} arquivado(s).`,
+      message: `${result.deletedCount} serviço(s) excluído(s), ${result.archivedCount} arquivado(s) e ${result.failedCount} falha(s).`,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao excluir serviços em lote.";

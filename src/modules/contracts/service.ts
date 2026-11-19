@@ -23,6 +23,7 @@ interface DbContractRow {
   status: ContractStatus;
   cancellation_reason: string | null;
   canceled_at: Date | null;
+  archived_at?: Date | null;
   created_at: Date;
   updated_at: Date;
   client_name?: string;
@@ -134,6 +135,7 @@ function mapContractRow(
     clientDocument: row.client_document,
     contractNumber: row.contract_number,
     status: row.status,
+    archivedAt: row.archived_at?.toISOString() || null,
     cancellationReason: row.cancellation_reason,
     canceledAt: row.canceled_at ? row.canceled_at.toISOString() : null,
     createdAt: row.created_at.toISOString(),
@@ -861,7 +863,7 @@ export async function updateContract(
           JSON.stringify({ contractNumber: existing.contractNumber, status: existing.status }),
           JSON.stringify(input),
         ]
-      ).catch(() => {});
+      );
     }
   };
 
@@ -890,22 +892,11 @@ export async function deleteContract(
     throw new Error("Contrato não encontrado.");
   }
 
-  // Verificar se há recebimentos financeiros confirmados
-  const paidSettlementsCheck = await query<{ count: string }>(
-    `SELECT COUNT(s.id) as count
-     FROM financial_settlements s
-     JOIN receivables r ON r.id = s.receivable_id
-     WHERE r.contract_id = $1 AND s.settlement_type = 'RECEIPT' AND s.is_reversed = false`,
-    [contractId]
-  );
-  const hasPaid = Number(paidSettlementsCheck.rows[0]?.count || 0) > 0;
-  if (hasPaid) {
-    throw new Error(
-      `Não é possível excluir permanentemente o contrato ${existing.contractNumber} pois existem recebimentos financeiros confirmados no caixa. Para encerrar o vínculo sem corromper a auditoria fiscal, altere o status para "Cancelado".`
-    );
-  }
-
   const execute = async (client: pg.PoolClient) => {
+    const locked = await client.query("SELECT id FROM contracts WHERE id=$1 FOR UPDATE", [contractId]);
+    if (!locked.rows.length) throw new Error("Contrato não encontrado.");
+    const settlements = await client.query("SELECT s.id FROM financial_settlements s JOIN receivables r ON r.id=s.receivable_id WHERE r.contract_id=$1 LIMIT 1", [contractId]);
+    if (settlements.rows.length) throw new Error("Este contrato possui recebimentos ou estornos registrados. Cancele e arquive o contrato para preservar o histórico financeiro.");
     // 1. Capturar snapshot completo para a trilha de auditoria
     const oldSnapshot = {
       id: existing.id,
@@ -920,31 +911,30 @@ export async function deleteContract(
     };
 
     // 2. Desvincular de projetos, propostas, oportunidades CRM e despesas a pagar
-    await client.query("UPDATE projects SET contract_id = NULL WHERE contract_id = $1", [contractId]);
+    await client.query("UPDATE projects SET contract_id = NULL, contract_version_id = NULL WHERE contract_id = $1 OR contract_version_id IN (SELECT id FROM contract_versions WHERE contract_id=$1)", [contractId]);
     await client.query("UPDATE proposals SET contract_id = NULL WHERE contract_id = $1", [contractId]);
     await client.query("UPDATE crm_opportunities SET contract_id = NULL WHERE contract_id = $1", [contractId]);
     await client.query("UPDATE payables SET contract_id = NULL WHERE contract_id = $1", [contractId]);
 
     // 3. Remover conversões de proposta, recorrência de projetos e histórico
-    await client.query("DELETE FROM proposal_contract_conversions WHERE contract_id = $1", [contractId]).catch(() => {});
-    await client.query("DELETE FROM contract_project_recurring_settings WHERE contract_id = $1", [contractId]).catch(() => {});
-    await client.query("DELETE FROM project_generation_history WHERE contract_id = $1", [contractId]).catch(() => {});
+    await client.query("DELETE FROM proposal_contract_conversions WHERE contract_id = $1", [contractId]);
+    await client.query("DELETE FROM contract_project_recurring_settings WHERE contract_id = $1", [contractId]);
+    await client.query("DELETE FROM project_generation_history WHERE contract_id = $1", [contractId]);
 
     // 4. Remover apropriações e rateios
-    await client.query("DELETE FROM cost_accruals WHERE contract_id = $1", [contractId]).catch(() => {});
-    await client.query("DELETE FROM payable_allocations WHERE contract_id = $1", [contractId]).catch(() => {});
-    await client.query("DELETE FROM revenue_accruals WHERE contract_id = $1", [contractId]).catch(() => {});
-    await client.query("DELETE FROM contract_billing_plans WHERE contract_id = $1", [contractId]).catch(() => {});
+    await client.query("DELETE FROM cost_accruals WHERE contract_id = $1 OR allocation_id IN (SELECT id FROM payable_allocations WHERE contract_id=$1 OR contract_item_id IN (SELECT ci.id FROM contract_items ci JOIN contract_versions cv ON cv.id=ci.contract_version_id WHERE cv.contract_id=$1))", [contractId]);
+    await client.query("DELETE FROM payable_allocations WHERE contract_id = $1 OR contract_item_id IN (SELECT ci.id FROM contract_items ci JOIN contract_versions cv ON cv.id=ci.contract_version_id WHERE cv.contract_id=$1)", [contractId]);
+    await client.query("DELETE FROM revenue_accruals WHERE contract_id = $1 OR receivable_id IN (SELECT id FROM receivables WHERE contract_id=$1)", [contractId]);
 
     // 5. Remover cobranças / receivables não liquidadas vinculadas a este contrato
     await client.query(
       `DELETE FROM financial_settlements WHERE receivable_id IN (SELECT id FROM receivables WHERE contract_id = $1)`,
       [contractId]
-    ).catch(() => {});
+    );
     await client.query(
       `DELETE FROM receivable_items WHERE receivable_id IN (SELECT id FROM receivables WHERE contract_id = $1)`,
       [contractId]
-    ).catch(() => {});
+    );
     await client.query(`DELETE FROM receivables WHERE contract_id = $1`, [contractId]);
 
     // 6. Remover itens do contrato e agendamentos
@@ -955,7 +945,7 @@ export async function deleteContract(
          WHERE cv.contract_id = $1
        )`,
       [contractId]
-    ).catch(() => {});
+    );
     await client.query(
       `DELETE FROM contract_items WHERE contract_version_id IN (
          SELECT id FROM contract_versions WHERE contract_id = $1
@@ -994,7 +984,7 @@ export async function deleteContract(
           JSON.stringify(oldSnapshot),
           JSON.stringify({ reason: reason || "Exclusão manual" }),
         ]
-      ).catch(() => {});
+      );
     }
   };
 
@@ -1075,7 +1065,7 @@ export async function listContracts(params: {
 }): Promise<{ contracts: ContractRecord[]; total: number }> {
   const limit = params.limit ?? 20;
   const offset = params.offset ?? 0;
-  const conditions: string[] = [];
+  const conditions: string[] = [params.filter === "archived" ? "c.archived_at IS NOT NULL" : "c.archived_at IS NULL"];
   const queryParams: unknown[] = [];
   let paramIdx = 1;
 
@@ -1315,4 +1305,21 @@ export function getContractProjections(
   }
 
   return projections;
+}
+
+export async function setContractVisibility(contractId:string, action:"archive"|"restore"|"reject", reason:string) {
+ if(!reason.trim()) throw new Error("Informe o motivo.");
+ await withTransaction(async client=>{
+  const result=await client.query<{status:string;archived_at:Date|null}>("SELECT status,archived_at FROM contracts WHERE id=$1 FOR UPDATE",[contractId]);
+  const contract=result.rows[0];if(!contract)throw new Error("Contrato não encontrado.");
+  if(action==="reject" && contract.status!=="DRAFT")throw new Error("Somente rascunhos podem ser rejeitados.");
+  if(action==="archive" && contract.status==="ACTIVE")throw new Error("Cancele ou encerre o contrato antes de arquivar. Arquivar não interrompe cobranças.");
+  if(action==="reject") {
+   const titles=await client.query("SELECT id FROM receivables WHERE contract_id=$1 LIMIT 1",[contractId]);
+   if(titles.rows.length)throw new Error("O contrato já possui cobranças. Use o cancelamento.");
+   await client.query("UPDATE contracts SET status='CANCELED',cancellation_reason=$2,canceled_at=NOW(),updated_at=NOW() WHERE id=$1",[contractId,"Rascunho rejeitado: "+reason]);
+  } else await client.query("UPDATE contracts SET archived_at="+(action==="archive"?"NOW()":"NULL")+",updated_at=NOW() WHERE id=$1",[contractId]);
+  await client.query("INSERT INTO audit_logs(entity_name,entity_id,action,old_data,new_data) VALUES('contracts',$1,'UPDATE',$2,$3)",[contractId,JSON.stringify(contract),JSON.stringify({actionDetail:action,reason})]);
+ });
+ return getContractById(contractId);
 }

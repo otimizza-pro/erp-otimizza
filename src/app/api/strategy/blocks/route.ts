@@ -1,7 +1,10 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { StrategyService } from "@/modules/strategy/service";
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     if (!body.sectionId || !body.blockType || !body.title) {
@@ -9,12 +12,14 @@ export async function POST(request: Request) {
     }
     const block = await StrategyService.createBlock(body);
     return NextResponse.json(block, { status: 201 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Erro ao criar bloco." }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: (error instanceof Error ? error.message : null) || "Erro ao criar bloco." }, { status: 500 });
   }
 }
 
 export async function PATCH(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     if (!body.id) {
@@ -22,8 +27,8 @@ export async function PATCH(request: Request) {
     }
     const updated = await StrategyService.updateBlock(body.id, body);
     return NextResponse.json(updated);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Erro ao atualizar bloco." }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: (error instanceof Error ? error.message : null) || "Erro ao atualizar bloco." }, { status: 500 });
   }
 }
 

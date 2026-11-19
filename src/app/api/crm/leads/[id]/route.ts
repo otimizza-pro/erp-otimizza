@@ -59,7 +59,7 @@ export async function DELETE(
     const result = await CrmService.purgeLead(id);
     return NextResponse.json({
       success: true,
-      message: `Lead e todos os seus documentos foram excluídos permanentemente (${result.purgedDocumentsCount} arquivos liberados).`,
+      message: `Lead e ${result.purgedDocumentsCount} documento(s) removidos do cadastro. A limpeza dos arquivos externos é processada separadamente e pode permanecer pendente.`,
       purgedDocumentsCount: result.purgedDocumentsCount,
     });
   } catch (error: unknown) {

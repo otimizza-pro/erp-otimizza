@@ -54,6 +54,7 @@ export async function checkMigrationStatus(): Promise<void> {
       console.log("ℹ️ Tabela de migrações (_migrations) ainda não existe. Nenhuma migração foi aplicada.");
     } else {
       console.error("❌ Erro ao consultar status das migrações:", errorObj?.message ?? err);
+      throw err;
     }
   } finally {
     await pool.end();

@@ -316,7 +316,7 @@ function CommercialActivitiesPageContent() {
   const totalCompleted = activities.filter((a) => a.status === "COMPLETED").length;
 
   return (
-    <AppShell>
+    <AppShell activeSection="crm_activities">
       <div className="space-y-6">
         {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

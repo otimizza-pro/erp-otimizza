@@ -1,3 +1,4 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { DocumentService } from "@/modules/documents/service";
 
@@ -5,6 +6,8 @@ export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id } = await context.params;
     const document = await DocumentService.getDocumentById(id);
@@ -22,6 +25,8 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id } = await context.params;
     const { searchParams } = new URL(request.url);

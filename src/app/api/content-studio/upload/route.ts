@@ -1,3 +1,4 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { DocumentStorage } from "@/modules/documents/storage";
 import { getEnv } from "@/lib/env";
@@ -5,6 +6,8 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;

@@ -1,8 +1,11 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { listPayables, createPayable } from "@/modules/financial/service";
 import { FinancialStatus } from "@/modules/financial/types";
 
 export async function GET(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { searchParams } = new URL(request.url);
     const supplierName = searchParams.get("supplierName") || undefined;
@@ -23,6 +26,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     if (!body.supplierName || !body.description || !body.competency || !body.dueDate || !body.originalAmount) {

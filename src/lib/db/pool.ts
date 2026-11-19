@@ -2,6 +2,18 @@ import pg from "pg";
 import { getEnv } from "@/lib/env";
 
 const { Pool } = pg;
+const commitCallbacks = new WeakMap<pg.PoolClient, Array<() => Promise<void>>>();
+
+/** External effects must run only after the database has committed. */
+export function afterCommit(client: pg.PoolClient, callback: () => Promise<void>): void {
+  const callbacks = commitCallbacks.get(client);
+  if (!callbacks) throw new Error("A operação exige uma transação gerenciada.");
+  callbacks.push(callback);
+}
+
+function isTestRuntime(): boolean {
+  return process.env.NODE_ENV === "test" || process.env.VITEST === "true";
+}
 
 declare global {
   var __dbPool: pg.Pool | undefined;
@@ -25,9 +37,9 @@ export function createPoolConfig(connectionString: string) {
   // garantindo compatibilidade com certificados auto-assinados de proxies intermediários
   let cleanedConnectionString = connectionString;
   if (useSsl) {
-    cleanedConnectionString = connectionString
-      .replace(/[?&]sslmode=[^&]+/g, "")
-      .replace(/\?$/, "");
+    const parsed = new URL(connectionString);
+    parsed.searchParams.delete("sslmode");
+    cleanedConnectionString = parsed.toString();
   }
 
   return {
@@ -152,7 +164,7 @@ export function getDbPool(): pg.Pool {
   }
 
   // Em ambiente de teste: forçar DATABASE_URL_TEST e validação estrita fail-closed
-  if (process.env.NODE_ENV === "test") {
+  if (isTestRuntime()) {
     assertSafeTestDatabase(env.DATABASE_URL_TEST, env.DATABASE_URL, env.SUPABASE_PROJECT_REF);
     if (!global.__dbPool) {
       global.__dbPool = new Pool(createPoolConfig(env.DATABASE_URL_TEST));
@@ -188,14 +200,21 @@ export function getMigrationDbPool(): pg.Pool {
   const env = getEnv();
   // Em ambiente de teste, aplicar migrations estritamente no banco de teste isolado
   const connString =
-    process.env.NODE_ENV === "test"
+    isTestRuntime()
       ? env.DATABASE_URL_TEST
       : env.DIRECT_URL || env.DATABASE_URL;
+
+  if (isTestRuntime()) {
+    assertSafeTestDatabase(connString, env.DATABASE_URL, env.SUPABASE_PROJECT_REF);
+  }
 
   assertSafeEnvironmentDatabase(connString);
   return new Pool({
     ...createPoolConfig(connString),
     max: 1, // Migrations são executadas estritamente de forma serial
+    // CLI connections may need longer to complete the pooler/TLS handshake.
+    // Keep the application's request timeout unchanged.
+    connectionTimeoutMillis: 30000,
   });
 }
 
@@ -218,16 +237,32 @@ export async function withTransaction<T>(
 ): Promise<T> {
   const pool = getDbPool();
   const client = await pool.connect();
+  const callbacks: Array<() => Promise<void>> = [];
+  commitCallbacks.set(client, callbacks);
   try {
     await client.query("BEGIN");
     const result = await callback(client);
-    await client.query("COMMIT");
+    const committed = await client.query("COMMIT");
+    if (committed.command === "ROLLBACK") {
+      throw new Error("A transação foi abortada. Nenhuma alteração foi salva.");
+    }
+    // Release the connection before callbacks obtain another one from the pool.
+    commitCallbacks.delete(client);
+    client.release();
+    for (const callback of callbacks) {
+      try { await callback(); }
+      catch (error) { console.error("Falha em efeito posterior ao commit; consulte a fila de limpeza.", error); }
+    }
     return result;
   } catch (error) {
-    await client.query("ROLLBACK");
+    try { await client.query("ROLLBACK"); }
+    catch (rollbackError) { console.error("Falha ao reverter transação", rollbackError); }
     throw error;
   } finally {
-    client.release();
+    if (commitCallbacks.has(client)) {
+      commitCallbacks.delete(client);
+      client.release();
+    }
   }
 }
 

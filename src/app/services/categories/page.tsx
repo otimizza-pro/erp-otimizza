@@ -27,6 +27,9 @@ export default function ServiceCategoriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
+
   // Edit modal state
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<ServiceCategory | null>(null);
@@ -44,9 +47,11 @@ export default function ServiceCategoriesPage() {
     try {
       const res = await fetch("/api/services?type=categories");
       const data = await res.json();
-      setCategories(data || []);
+      if (!res.ok || !Array.isArray(data)) throw new Error(data.error || "Erro ao consultar categorias");
+      setCategories(data);
+      setSelectedIds(current => current.filter(id => data.some((c: ServiceCategory) => c.id === id)));
     } catch (e) {
-      console.error(e);
+      setError(e instanceof Error ? e.message : "Erro ao consultar categorias");
     } finally {
       setLoading(false);
     }
@@ -128,31 +133,24 @@ export default function ServiceCategoriesPage() {
     }
   };
 
-  const handleDeleteCategory = async (cat: ServiceCategory) => {
-    if (!window.confirm(`Tem certeza que deseja excluir ou desativar a categoria "${cat.name}"?`)) {
-      return;
-    }
-
-    setError(null);
-    setSuccess(null);
-
+  const handleDeleteCategories = async (ids: string[]) => {
+    if (deleting || !ids.length) return;
+    const names = categories.filter(c => ids.includes(c.id)).map(c => c.name);
+    if (!window.confirm("Excluir permanentemente " + ids.length + " categoria(s)?\n\n" + names.join("\n") + "\n\nEsta ação não pode ser desfeita. Categorias vinculadas a serviços bloqueiam a exclusão do lote inteiro.")) return;
+    setDeleting(true); setError(null); setSuccess(null);
     try {
-      const res = await fetch(`/api/services/categories/${cat.id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch("/api/services/categories", {method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids})});
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Erro ao excluir categoria");
-
-      setSuccess(data.message || "Operação realizada com sucesso!");
-      loadCategories();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Erro ao excluir categoria");
-    }
+      if (!res.ok || data.action !== "deleted") throw new Error(data.error || "Não foi possível excluir as categorias");
+      setCategories(current => current.filter(category => !ids.includes(category.id)));
+      setSuccess(data.message); setSelectedIds(current => current.filter(id => !ids.includes(id)));
+    } catch (err) {setError(err instanceof Error ? err.message : "Erro ao excluir categorias");}
+    finally {setDeleting(false);}
   };
 
   const filteredCategories = categories.filter((c) => {
     if (statusFilter === "ALL") return true;
-    return c.status === statusFilter;
+    return statusFilter === "ARCHIVED" ? c.status !== "ACTIVE" : c.status === statusFilter;
   });
 
   return (
@@ -264,7 +262,7 @@ export default function ServiceCategoriesPage() {
             <div className="flex items-center gap-1 p-1 bg-zinc-100 rounded-xl">
               <button
                 type="button"
-                onClick={() => setStatusFilter("ALL")}
+                onClick={() => { setSelectedIds([]); setStatusFilter("ALL"); }}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
                   statusFilter === "ALL" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-950"
                 }`}
@@ -273,7 +271,7 @@ export default function ServiceCategoriesPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setStatusFilter("ACTIVE")}
+                onClick={() => { setSelectedIds([]); setStatusFilter("ACTIVE"); }}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
                   statusFilter === "ACTIVE" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-950"
                 }`}
@@ -282,7 +280,7 @@ export default function ServiceCategoriesPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setStatusFilter("ARCHIVED")}
+                onClick={() => { setSelectedIds([]); setStatusFilter("ARCHIVED"); }}
                 className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
                   statusFilter === "ARCHIVED" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-500 hover:text-zinc-950"
                 }`}
@@ -292,10 +290,16 @@ export default function ServiceCategoriesPage() {
             </div>
           </div>
 
+          <div className="flex flex-wrap items-center gap-3 text-xs">
+            <span>{selectedIds.length} categoria(s) selecionada(s)</span>
+            <button type="button" disabled={!selectedIds.length || deleting || loading} onClick={() => handleDeleteCategories(selectedIds)} className="px-4 py-2 rounded-lg bg-rose-600 text-white disabled:opacity-50">{deleting ? "Excluindo..." : "Excluir selecionadas"}</button>
+            {selectedIds.length > 0 && <button type="button" disabled={deleting} onClick={() => setSelectedIds([])}>Limpar seleção</button>}
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-zinc-600">
               <thead className="text-[10px] uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
                 <tr>
+                  <th className="py-3 px-3"><input type="checkbox" aria-label="Selecionar todas as categorias do filtro" disabled={loading || deleting || !filteredCategories.length} checked={filteredCategories.length > 0 && filteredCategories.every(c => selectedIds.includes(c.id))} ref={element => {if(element) element.indeterminate = filteredCategories.some(c => selectedIds.includes(c.id)) && !filteredCategories.every(c => selectedIds.includes(c.id));}} onChange={event => setSelectedIds(event.target.checked ? filteredCategories.map(c => c.id) : [])} /></th>
                   <th className="py-3 px-3">Categoria</th>
                   <th className="py-3 px-3">Hierarquia (Categoria Pai)</th>
                   <th className="py-3 px-3">Status</th>
@@ -306,19 +310,20 @@ export default function ServiceCategoriesPage() {
               <tbody className="divide-y divide-zinc-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-zinc-400">
+                    <td colSpan={6} className="py-8 text-center text-zinc-400">
                       Carregando categorias...
                     </td>
                   </tr>
                 ) : filteredCategories.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-zinc-400">
+                    <td colSpan={6} className="py-8 text-center text-zinc-400">
                       Nenhuma categoria encontrada no filtro selecionado.
                     </td>
                   </tr>
                 ) : (
                   filteredCategories.map((c) => (
                     <tr key={c.id} className="hover:bg-zinc-50/70 transition">
+                      <td className="py-3.5 px-3"><input type="checkbox" aria-label={`Selecionar ${c.name}`} disabled={deleting} checked={selectedIds.includes(c.id)} onChange={event => setSelectedIds(current => event.target.checked ? [...current,c.id] : current.filter(id => id !== c.id))} /></td>
                       <td className="py-3.5 px-3">
                         <div className="font-semibold text-zinc-900">{c.name}</div>
                         {c.description && (
@@ -360,8 +365,9 @@ export default function ServiceCategoriesPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeleteCategory(c)}
-                            title="Excluir ou Arquivar Categoria"
+                            disabled={deleting}
+                            onClick={() => handleDeleteCategories([c.id])}
+                            title="Excluir permanentemente a categoria"
                             className="p-1.5 rounded-lg border border-rose-200 text-rose-600 hover:text-rose-800 hover:bg-rose-50 transition cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

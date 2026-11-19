@@ -1,8 +1,11 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { StrategyService } from "@/modules/strategy/service";
 import { generateStrategyPdf } from "@/modules/strategy/pdf";
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     if (!body.code) {
@@ -30,8 +33,8 @@ export async function POST(request: Request) {
         "Content-Disposition": `attachment; filename="${doc.code}_planejamento_otimizza.pdf"`,
       },
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Erro ao gerar PDF." }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: (error instanceof Error ? error.message : null) || "Erro ao gerar PDF." }, { status: 500 });
   }
 }
 

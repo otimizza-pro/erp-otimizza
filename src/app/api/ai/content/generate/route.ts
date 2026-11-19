@@ -1,13 +1,28 @@
-import {loadAiClientContext,assertClientContext,clientContextPrompt,chooseContentCommunication} from "@/lib/ai/client-context";
+import {resolveContentBrief,contentBriefPrompt} from "@/modules/clients/content-brief";
+import {loadAiClientContext,assertClientContext,clientContextPrompt} from "@/lib/ai/client-context";
 import { generateWithOpenRouter, contentModel, aiFailure } from "@/lib/ai/openrouter";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
+import { z } from "zod";
 
 export const dynamic = "force-dynamic";
 
+const payloadSchema = z.object({
+  clientId:z.union([z.string().uuid(),z.literal("otimizza")]),
+  editorialBrief:z.unknown(),
+  format:z.enum(["HEADLINES","CAPTION","REELS","CAROUSEL","LANDING_PAGE","SIMILAR_HEADLINES"]),
+  prompt:z.string().max(20000).default(""),
+  centralIdea:z.string().max(5000).default(""),
+  selectedHeadline:z.string().max(2000).optional(),
+  favoriteHeadlines:z.array(z.string().max(2000)).max(30).optional(),
+  customApiKey:z.string().max(512).optional(),
+  formatConfig:z.record(z.string(),z.unknown()).optional(),
+});
+
 interface GeneratePayload {
   clientId: string;
+  editorialBrief?:unknown;
   communicationChoice?:{speaker?:string;audience?:string;voice?:string};
   format: "HEADLINES" | "CAPTION" | "REELS" | "CAROUSEL" | "LANDING_PAGE" | "SIMILAR_HEADLINES";
   prompt: string;
@@ -30,17 +45,16 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body: GeneratePayload = await request.json();
+    const parsed=payloadSchema.safeParse(await request.json());
+    if(!parsed.success) return NextResponse.json({error:"Dados de geração inválidos.",details:parsed.error.flatten()},{status:400});
+    if(JSON.stringify(parsed.data).length>50000) return NextResponse.json({error:"O pedido excede o limite de tamanho."},{status:413});
+    const body: GeneratePayload = parsed.data;
     const {
       format,
       prompt,
-      clientName,
       centralIdea,
       selectedHeadline,
       favoriteHeadlines,
-      audience,
-      tone,
-      cta,
       customApiKey
     } = body;
 
@@ -50,7 +64,10 @@ export async function POST(request: NextRequest) {
 
     const clientContext = await loadAiClientContext(body.clientId);
     assertClientContext(clientContext);
-    chooseContentCommunication(clientContext,body.communicationChoice);
+    const pieceBrief=resolveContentBrief(clientContext,body.editorialBrief);
+    const clientName=String(clientContext.company.trade_name||clientContext.company.name);
+    const audience=pieceBrief.audience,tone=pieceBrief.tone,cta=pieceBrief.cta;
+    clientContext.currentContent={speaker:pieceBrief.speaker,audience:pieceBrief.audience,voice:pieceBrief.voice};
 
     // 1. Buscar contexto relevante da Base de Conhecimento Estratégica da Otimizza
     let strategicContext = "";
@@ -82,8 +99,8 @@ export async function POST(request: NextRequest) {
 Você cria conteúdos para a empresa identificada no contexto, usando seu público real, sua oferta e sua identidade. A Otimizza é a assessoria responsável, não necessariamente a marca anunciada.
 
 DIRETRIZES INEGOCIÁVEIS DA OTIMIZZA:
-1. Tom maduro, direto, didático e seguro. Nunca use jargões vazios ("revolucionário", "mergulhe", "no mundo dinâmico de hoje", "transforme de uma vez por todas").
-2. Sempre parta de um problema real, objeção ou desejo do público da empresa atendida.
+1. Respeite o tom cadastrado e o público da peça. Use clareza e precisão, sem impor linguagem corporativa a pacientes, consumidores ou outros públicos. Nunca use jargões vazios ("revolucionário", "mergulhe", "no mundo dinâmico de hoje", "transforme de uma vez por todas").
+2. Parta do tema, objetivo e etapa da jornada. Quando uma dor for selecionada, trabalhe essa dor; quando não se aplicar, não force problemas artificiais.
 3. Não use travessões longos excessivos nem clichês de autoajuda corporativa.
 4. Linguagem em português do Brasil impecável e natural.`;
 
@@ -91,7 +108,7 @@ DIRETRIZES INEGOCIÁVEIS DA OTIMIZZA:
       systemInstructions += `\n\nBASE DE CONHECIMENTO DA OTIMIZZA (Use como guia de estilo e critérios):\n${strategicContext}`;
     }
 
-    systemInstructions += "\n\n" + clientContextPrompt(clientContext);
+    systemInstructions += "\n\n" + clientContextPrompt(clientContext)+"\n"+contentBriefPrompt(pieceBrief);
     let userPrompt = prompt;
 
     if (format === "SIMILAR_HEADLINES" && favoriteHeadlines && favoriteHeadlines.length > 0) {
@@ -101,7 +118,7 @@ HEADLINES FAVORITAS SELECIONADAS:
 ${favoriteHeadlines.map((h, i) => `${i + 1}. ${h}`).join("\n")}
 
 CLIENTE / MARCA: ${clientName || "Otimizza"}
-PÚBLICO-ALVO: ${audience || "Empresários e gestores"}
+PÚBLICO-ALVO: ${audience}
 TOM: ${tone || "Direto e didático"}
 IDEIA BASE: ${centralIdea}
 
@@ -112,7 +129,7 @@ Entregue uma lista numerada de 1 a 10 com variações que mantenham o gancho for
 
 HEADLINE ESCOLHIDA: "${selectedHeadline || centralIdea}"
 CLIENTE / MARCA: ${clientName || "Otimizza"}
-PÚBLICO-ALVO: ${audience || "Empresários e gestores"}
+PÚBLICO-ALVO: ${audience}
 TOM DE VOZ: ${tone || "Direto e didático"}
 CTA FINAL: ${cta || "Iniciar conversa no WhatsApp"}
 
@@ -134,7 +151,7 @@ Formate com clareza:
 
 HEADLINE ESCOLHIDA: "${selectedHeadline || centralIdea}"
 CLIENTE / MARCA: ${clientName || "Otimizza"}
-PÚBLICO-ALVO: ${audience || "Empresários e gestores"}
+PÚBLICO-ALVO: ${audience}
 TOM DE VOZ: ${tone || "Direto e didático"}
 CTA FINAL: ${cta || "Salvar este post e mandar no WhatsApp"}
 
@@ -153,7 +170,7 @@ Formate cada opção slide a slide:
 
 HEADLINE APROVADA: "${selectedHeadline}"
 CLIENTE: ${clientName || "Otimizza"}
-PÚBLICO: ${audience || "Empresários e tomadores de decisão"}
+PÚBLICO: ${audience}
 TOM: ${tone || "Direto e didático"}
 CTA: ${cta || "Iniciar conversa no WhatsApp"}
 

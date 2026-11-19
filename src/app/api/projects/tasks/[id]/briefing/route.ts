@@ -72,7 +72,7 @@ export async function GET(
       const initialMessage = {
         id: "msg_intro",
         sender: "assistant",
-        text: `Olá, ${contactName}! 👋 Sou a Sofia, especialista em estratégia e crescimento aqui na Otimizza.\n\nO Valdemar já compartilhou comigo detalhes importantes sobre a ${companyName}. Estou aqui para guiar você na construção da estratégia e do conteúdo para suas redes sociais.\n\n💡 Dica importante: Se em algum momento você não souber uma resposta, basta me dizer "Não sei" ou pedir uma sugestão! Eu mesma crio opções para você aprovar ou ajustar com 1 clique.\n\nVamos começar?`,
+        text: `Olá, ${contactName}! 👋 Sou a Sofia, assistente do briefing aqui na Otimizza.\n\nA equipe da Otimizza preparou este briefing sobre a ${companyName}. Estou aqui para guiar você na construção da estratégia e do conteúdo para suas redes sociais.\n\n💡 Dica importante: Se em algum momento você não souber uma resposta, basta me dizer "Não sei" ou pedir uma sugestão! Eu mesma crio opções para você aprovar ou ajustar com 1 clique.\n\nVamos começar?`,
         options: [
           { label: "🚀 Vamos lá!", value: "START", action: "APPROVE" },
           { label: "Quero saber como funciona", value: "EXPLAIN", action: "EXPLAIN" },
@@ -207,7 +207,7 @@ export async function POST(
       );
       session = insertRes.rows[0];
     } else {
-      // Atualizar campos pré-preenchidos por Valdemar
+      // Atualizar campos pré-preenchidos pela equipe
       const updateRes = await query(
         `
         UPDATE public.client_briefing_sessions

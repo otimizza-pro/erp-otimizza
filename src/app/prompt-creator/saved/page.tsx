@@ -1,5 +1,6 @@
 "use client";
 
+import {contentCompanyId} from "@/modules/clients/internal-company";
 import { useCompany } from "@/lib/context/company-context";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -57,10 +58,9 @@ interface PostItem {
 
 export default function SavedPostsPage() {
   const [posts, setPosts] = useState<PostItem[]>([]);
-  const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
+
   const {selectedCompany}=useCompany();
-  const [selectedClientId, setSelectedClientId] = useState<string>("ALL");
-  useEffect(()=>{setSelectedClientId(selectedCompany.isOtimizza?"ALL":selectedCompany.id);},[selectedCompany.id,selectedCompany.isOtimizza]);
+  const selectedClientId=contentCompanyId(selectedCompany);
   const [activeTab, setActiveTab] = useState<"SOCIAL_MEDIA" | "ADS">("SOCIAL_MEDIA");
   const [adStatusFilter, setAdStatusFilter] = useState<"ALL" | "ACTIVE" | "PAUSED" | "FINISHED">("ALL");
   const [loading, setLoading] = useState(true);
@@ -90,23 +90,11 @@ export default function SavedPostsPage() {
   const [uploadingPostId, setUploadingPostId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Carregar Clientes
-  useEffect(() => {
-    fetch("/api/clients?limit=100")
-      .then((res) => res.json())
-      .then((json) => {
-        const list = Array.isArray(json) ? json : json.clients || [];
-        setClients(list.map((c: { id: string; name: string; tradeName?: string }) => ({
-          id: c.id,
-          name: c.tradeName || c.name,
-        })));
-      })
-      .catch((err) => console.error(err));
-  }, []);
-
+  const requestSequence=React.useRef(0);
+  const [loadError,setLoadError]=useState("");
   // Carregar Posts
   const loadPosts = async () => {
-    setLoading(true);
+    const requestId=++requestSequence.current;setPosts([]);setLoadError("");setLoading(true);
     try {
       const params = new URLSearchParams();
       if (selectedClientId !== "ALL") params.set("clientId", selectedClientId);
@@ -117,13 +105,15 @@ export default function SavedPostsPage() {
 
       const res = await fetch(`/api/content-studio/posts?${params.toString()}`);
       const json = await res.json();
+      if(requestId!==requestSequence.current)return;
+      if(!res.ok || !json.success)throw new Error(json.error || "Erro ao consultar conteúdos");
       if (json.success) {
         setPosts(json.data || []);
       }
     } catch (e) {
-      console.error(e);
+      if(requestId===requestSequence.current)setLoadError(e instanceof Error?e.message:"Erro ao consultar conteúdos");
     } finally {
-      setLoading(false);
+      if(requestId===requestSequence.current)setLoading(false);
     }
   };
 
@@ -279,19 +269,7 @@ export default function SavedPostsPage() {
           <div className="flex flex-wrap items-center gap-2">
             {/* Seletor de Cliente */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-zinc-600">Cliente:</span>
-              <select
-                value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                className="px-3 py-1.5 bg-zinc-50 border border-zinc-200 rounded-xl text-xs font-semibold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-900"
-              >
-                <option value="ALL">Todos os Clientes</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <span className="text-xs font-semibold text-zinc-600">{selectedCompany.name}</span><span className="text-[11px] text-zinc-400">Selecionado no cabeçalho</span>
             </div>
 
             {/* Separador */}

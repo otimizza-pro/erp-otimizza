@@ -1,3 +1,4 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { getPayableById, settlePayable, deletePayable } from "@/modules/financial/service";
 
@@ -5,6 +6,8 @@ export async function GET(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id } = await props.params;
     const payable = await getPayableById(id);
@@ -22,6 +25,8 @@ export async function POST(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id } = await props.params;
     const body = await request.json();
@@ -51,6 +56,8 @@ export async function DELETE(
   _request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { id } = await props.params;
     const result = await deletePayable(id);

@@ -61,7 +61,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/content-studio/clients");
       if (res.ok) {
         const data = await res.json();
-        const clients: SelectedCompany[] = (data.clients || []).map((c: any) => ({
+        const clients: SelectedCompany[] = (data.clients || []).map((c: {id:string;trade_name?:string;name?:string}) => ({
           id: c.id,
           name: c.trade_name || c.name || "Cliente sem Nome",
           isOtimizza: false,

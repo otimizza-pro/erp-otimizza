@@ -1,0 +1,27 @@
+import {describe,it,expect,vi} from "vitest";
+vi.mock("@/lib/db/pool",()=>({query:vi.fn()}));
+import {resolveContentBrief,contentBriefSchema} from "@/modules/clients/content-brief";
+import type {AiClientContext} from "@/lib/ai/client-context";
+import {mapBriefingIdentity} from "@/modules/clients/briefing-identity";
+import {calendarPlanSchema,validateCalendarMonth} from "@/modules/clients/calendar-plan";
+import {contentCompanyId,INTERNAL_COMPANY_ID} from "@/modules/clients/internal-company";
+import {identityAiFieldSchema,identityFieldPrompts} from "@/modules/clients/identity-ai";
+const themeId="11111111-1111-4111-8111-111111111111";
+const context:AiClientContext={companyId:"client",company:{name:"Empresa"},identity:{target_audiences:["Consumidores"],pain_points:["Pouco espaço"]},audiences:[],brandVoice:{},editorialLines:[{id:themeId,pillar_name:"Ambientes",theme:"Cozinhas"}],communicationProfile:{speakerTypes:["Empresa"],contentVoices:["Institucional"],audienceTypes:["Consumidores"],details:""},sources:[],missing:[]};
+const valid={themeId,speaker:"Empresa",voice:"Institucional",audience:"Consumidores",funnel:"TOP",journey:"DISCOVERY",goal:"Ajudar a planejar",pain:"Pouco espaço",tone:"Didático",cta:"Salvar para consultar"};
+describe("Content workflow",()=>{
+ it("requires every prerequisite before central idea generation",()=>{for(const field of Object.keys(valid)){expect(contentBriefSchema.safeParse({...valid,[field]:""}).success).toBe(false);}});
+ it("resolves pillar and theme from company data",()=>{expect(resolveContentBrief(context,valid)).toMatchObject({pillar:"Ambientes",theme:"Cozinhas"});});
+ it("allows no pain without inventing one",()=>{expect(resolveContentBrief(context,{...valid,pain:"NOT_APPLICABLE"}).pain).toBe("NOT_APPLICABLE");});
+ it("blocks another company theme",()=>{expect(()=>resolveContentBrief(context,{...valid,themeId:"22222222-2222-4222-8222-222222222222"})).toThrow("desta empresa");});
+ it("blocks unregistered speakers and audiences",()=>{expect(()=>resolveContentBrief(context,{...valid,speaker:"Médico"})).toThrow("quem comunica");expect(()=>resolveContentBrief(context,{...valid,audience:"Pacientes"})).toThrow("público cadastrado");});
+ it("blocks inconsistent funnel and journey",()=>{expect(()=>resolveContentBrief(context,{...valid,funnel:"TOP",journey:"DECISION"})).toThrow("jornada");});
+ it("blocks invented pain",()=>{expect(()=>resolveContentBrief(context,{...valid,pain:"Inventada"})).toThrow("dor cadastrada");});
+ it("does not invent briefing defaults or use the company name as niche",()=>{expect(mapBriefingIdentity({})).toMatchObject({marketNiche:"",archetype:"",valueProposition:"",targetAudiences:[],toneOfVoice:[],defaultCtas:[]});});
+ it("does not confuse a differential with value proposition",()=>{expect(mapBriefingIdentity({differentials:"Atendimento presencial"})).toMatchObject({valueProposition:"",differentials:["Atendimento presencial"]});});
+ it("preserves legitimate briefing arrays and context",()=>{expect(mapBriefingIdentity({marketNiche:"Marcenaria",brandContext:"Móveis sob medida",targetAudience:"Consumidores",painPoints:["Pouco espaço"]})).toMatchObject({marketNiche:"Marcenaria",brandContext:"Móveis sob medida",targetAudiences:["Consumidores"],painPoints:["Pouco espaço"]});});
+ it("limits calendar to selected month",()=>{expect(validateCalendarMonth([{scheduledDate:"2026-11-01"}],"2026-11")).toBe(true);expect(validateCalendarMonth([{scheduledDate:"2026-12-01"}],"2026-11")).toBe(false);});
+ it("rejects invalid dates and unsupported formats",()=>{expect(calendarPlanSchema.safeParse([{title:"Pauta",centralIdea:"Ideia",scheduledDate:"2026-02-30",scheduledTime:"18:00",format:"Inventado"}]).success).toBe(false);});
+ it("uses internal storage rather than all customers for own brand",()=>{expect(contentCompanyId({id:"otimizza",isOtimizza:true})).toBe(INTERNAL_COMPANY_ID);expect(contentCompanyId({id:"customer",isOtimizza:false})).toBe("customer");});
+ it("has individual instructions and excludes invented contact data",()=>{expect(Object.keys(identityFieldPrompts)).toHaveLength(13);expect(identityAiFieldSchema.safeParse("instagramHandle").success).toBe(false);expect(new Set(Object.values(identityFieldPrompts).map(p=>p.instruction)).size).toBe(13);});
+});

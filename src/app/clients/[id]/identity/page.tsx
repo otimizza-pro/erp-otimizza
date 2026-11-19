@@ -1,4 +1,6 @@
 "use client";
+import {IdentityAiButton} from "@/components/clients/identity-ai-button";
+import type {IdentityAiField} from "@/modules/clients/identity-ai";
 import {CommunicationProfileFields} from "@/components/clients/communication-profile";
 import {CommunicationProfileSchema,emptyCommunicationProfile} from "@/modules/clients/communication-profile";
 
@@ -134,6 +136,12 @@ export default function ClientIdentityPage() {
     }
   }, [id]);
 
+  const draftIdentity = {valueProposition,marketNiche,archetype,toneOfVoice:selectedTones,brandContext,targetAudiences,painPoints,differentials,forbiddenWords,mandatoryTerms,defaultCtas,notes,communicationProfile};
+  const aiButton = (field:IdentityAiField) => <IdentityAiButton clientId={id} field={field} draft={draftIdentity} onApply={value=>{
+    const asText=Array.isArray(value)?value.join("\n"):value;const asList=Array.isArray(value)?value:[value];
+    const setters={marketNiche:()=>setMarketNiche(asText),valueProposition:()=>setValueProposition(asText),brandContext:()=>setBrandContext(asText),archetype:()=>setArchetype(asText),toneOfVoice:()=>setSelectedTones(asList),targetAudiences:()=>setTargetAudiences(asList),painPoints:()=>setPainPoints(asList),differentials:()=>setDifferentials(asList),forbiddenWords:()=>setForbiddenWords(asList),mandatoryTerms:()=>setMandatoryTerms(asList),defaultCtas:()=>setDefaultCtas(asList),notes:()=>setNotes(asText),communicationDetails:()=>setCommunicationProfile({...communicationProfile,details:asText})};setters[field]();
+  }}/>;
+
   const toggleTone = (tone: string) => {
     if (selectedTones.includes(tone)) {
       setSelectedTones(selectedTones.filter((t) => t !== tone));
@@ -255,7 +263,7 @@ export default function ClientIdentityPage() {
         )}
 
         <form onSubmit={handleSave} className="space-y-6">
-          <CommunicationProfileFields value={communicationProfile} onChange={setCommunicationProfile}/>
+          <CommunicationProfileFields value={communicationProfile} onChange={setCommunicationProfile} detailsAction={aiButton("communicationDetails")}/>
           {/* 1. Proposta de Valor e Nicho */}
           <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4">
             <h2 className="text-sm font-bold text-zinc-900 border-b border-zinc-100 pb-2">
@@ -267,6 +275,7 @@ export default function ClientIdentityPage() {
                 <label className="text-xs font-semibold text-zinc-700 block mb-1">
                   Nicho de Mercado & Atuação
                 </label>
+                {aiButton("marketNiche")}
                 <input
                   type="text"
                   placeholder="Ex: Clínicas Odontológicas de Alto Padrão, Assessoria Contábil..."
@@ -280,6 +289,7 @@ export default function ClientIdentityPage() {
                 <label className="text-xs font-semibold text-zinc-700 block mb-1">
                   Promessa Central / Proposta de Valor
                 </label>
+                {aiButton("valueProposition")}
                 <input
                   type="text"
                   placeholder="Ex: Aumentar o faturamento da clínica com pacientes particulares..."
@@ -294,6 +304,7 @@ export default function ClientIdentityPage() {
               <label className="text-xs font-semibold text-zinc-700 block mb-1">
                 Contexto, História e DNA da Marca (Usado pela IA na geração de textos)
               </label>
+                {aiButton("brandContext")}
               <textarea
                 rows={3}
                 placeholder="Conte a história da empresa, valores centrais, modelo de entrega e como ela se diferencia..."
@@ -307,7 +318,7 @@ export default function ClientIdentityPage() {
           {/* 2. Arquétipo da Marca */}
           <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4">
             <div>
-              <h2 className="text-sm font-bold text-zinc-900 mb-0.5">2. Arquétipo de Marca</h2>
+              <h2 className="text-sm font-bold text-zinc-900 mb-0.5">2. Arquétipo de Marca</h2>{aiButton("archetype")}
               <p className="text-[11px] text-zinc-500">
                 Selecione o arquétipo que melhor define a postura e a personalidade da comunicação.
               </p>
@@ -345,7 +356,7 @@ export default function ClientIdentityPage() {
             <div>
               <h2 className="text-sm font-bold text-zinc-900 mb-0.5">
                 3. Tom de Voz (Marque com X os que combinam com este cliente)
-              </h2>
+              </h2>{aiButton("toneOfVoice")}
               <p className="text-[11px] text-zinc-500">
                 Estes tons ficarão marcados automaticamente no Estúdio de Criação de Conteúdo & IA.
               </p>
@@ -420,6 +431,7 @@ export default function ClientIdentityPage() {
             {/* Públicos */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-zinc-700 block">Públicos-Alvo Salvos</label>
+                {aiButton("targetAudiences")}
               <div className="flex flex-wrap gap-2">
                 {targetAudiences.map((aud, idx) => (
                   <span
@@ -472,6 +484,7 @@ export default function ClientIdentityPage() {
             {/* Dores */}
             <div className="space-y-2 pt-2 border-t border-zinc-100">
               <label className="text-xs font-semibold text-zinc-700 block">Dores e Objeções do Cliente</label>
+                {aiButton("painPoints")}
               <div className="flex flex-wrap gap-2">
                 {painPoints.map((pain, idx) => (
                   <span
@@ -534,6 +547,7 @@ export default function ClientIdentityPage() {
                 <ShieldAlert className="w-3.5 h-3.5" />
                 Palavras Proibidas (Termos que a IA NUNCA deve gerar para este cliente)
               </label>
+              {aiButton("forbiddenWords")}
               <div className="flex flex-wrap gap-2">
                 {forbiddenWords.map((word, idx) => (
                   <span
@@ -586,6 +600,7 @@ export default function ClientIdentityPage() {
             {/* CTAs Sugeridas */}
             <div className="space-y-2 pt-2 border-t border-zinc-100">
               <label className="text-xs font-semibold text-zinc-700 block">Chamadas para Ação (CTAs) Sugeridas</label>
+                {aiButton("defaultCtas")}
               <div className="flex flex-wrap gap-2">
                 {defaultCtas.map((cta, idx) => (
                   <span
@@ -687,6 +702,7 @@ export default function ClientIdentityPage() {
             </div>
           </div>
 
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6 space-y-5"><h2 className="text-sm font-bold text-zinc-900">Diferenciais e orientações complementares</h2>{([{field:"differentials",label:"Diferenciais comprovados",value:differentials.join("\n"),set:(text:string)=>setDifferentials(text.split("\n").filter(Boolean))},{field:"mandatoryTerms",label:"Termos obrigatórios",value:mandatoryTerms.join("\n"),set:(text:string)=>setMandatoryTerms(text.split("\n").filter(Boolean))},{field:"notes",label:"Observações editoriais",value:notes,set:setNotes}] as const).map(item=><div key={item.field}><label className="mb-2 block text-xs font-semibold text-zinc-700" htmlFor={item.field}>{item.label}</label>{aiButton(item.field)}<textarea id={item.field} rows={3} value={item.value} onChange={event=>item.set(event.target.value)} className="block w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none focus:bg-white focus:border-zinc-500"/></div>)}</section>
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-200">
             <Link
               href={`/clients/${id}`}

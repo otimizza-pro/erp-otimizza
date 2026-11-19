@@ -103,7 +103,7 @@ export default function DREPage() {
   };
 
   return (
-    <AppShell>
+    <AppShell activeSection="dre">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Cabeçalho */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

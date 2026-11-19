@@ -64,8 +64,9 @@ async function generate(client: PoolClient, contractId: string, competency?: str
 export async function configureBilling(contractId: string, input: BillingPlanInput) {
   const data = BillingPlanSchema.parse(input);
   return withTransaction(async client => {
-    const contract = (await client.query<{ status: string; billing_configured_at: Date | null }>("SELECT status,billing_configured_at FROM contracts WHERE id=$1 FOR UPDATE", [contractId])).rows[0];
+    const contract = (await client.query<{ status: string; billing_configured_at: Date | null; archived_at:Date|null }>("SELECT status,billing_configured_at,archived_at FROM contracts WHERE id=$1 FOR UPDATE", [contractId])).rows[0];
     if (!contract) throw new Error("Contrato não encontrado.");
+    if (contract.archived_at) throw new Error("Restaure o contrato arquivado antes de aprová-lo.");
     if (contract.billing_configured_at) return { createdCount: 0, alreadyConfigured: true };
     if (contract.status !== "DRAFT") throw new Error("Somente uma minuta pode ser aprovada neste fluxo.");
     const items = (await client.query<{ id: string; periodicity: ServicePeriod; total_price: string }>(`SELECT ci.id,ci.periodicity,ci.total_price FROM contract_items ci JOIN contract_versions cv ON cv.id=ci.contract_version_id WHERE cv.contract_id=$1 AND cv.version_number=(SELECT MAX(version_number) FROM contract_versions WHERE contract_id=$1)`, [contractId])).rows;

@@ -5,6 +5,7 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  { files: ["scripts/**/*.cjs"], rules: { "@typescript-eslint/no-require-imports": "off" } },
   {
     rules: {
       "react-hooks/set-state-in-effect": "off",
@@ -16,6 +17,7 @@ const eslintConfig = defineConfig([
     "Sistemas de Referência/**",
     "scratch/**",
     ".next/**",
+    ".next-*/**",
     "out/**",
     "build/**",
     "next-env.d.ts",

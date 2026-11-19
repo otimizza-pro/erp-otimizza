@@ -256,7 +256,7 @@ export default function ProjectWorkspacePage({
 
   if (loading && !project) {
     return (
-      <AppShell>
+      <AppShell activeSection="projects">
         <div className="p-12 text-center text-slate-500">
           <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600" />
           Carregando projeto...
@@ -267,7 +267,7 @@ export default function ProjectWorkspacePage({
 
   if (error || !project) {
     return (
-      <AppShell>
+      <AppShell activeSection="projects">
         <div className="p-6 max-w-4xl mx-auto">
           <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-4 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
@@ -283,7 +283,7 @@ export default function ProjectWorkspacePage({
   const taskProgressPct = allTasks.length > 0 ? Math.round((completedTasks / allTasks.length) * 100) : 0;
 
   return (
-    <AppShell>
+    <AppShell activeSection="projects">
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Top Breadcrumb & Status */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

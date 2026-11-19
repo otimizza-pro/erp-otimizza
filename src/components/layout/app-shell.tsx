@@ -97,6 +97,23 @@ export function AppShell({ children, activeSection }: AppShellProps) {
   const newDropdownButtonRef = useRef<HTMLButtonElement>(null);
 
   // Mapeamento dos grupos do menu organizados nos Pilares Estratégicos: Marketing & Growth, Comercial, Produção e Administrativo
+  const [commercialPipelines, setCommercialPipelines] = useState<{id:string;name:string;status:string}[]>([]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const response = await fetch("/api/crm/pipelines", {signal:controller.signal});
+        if (!response.ok) throw new Error("Não foi possível atualizar os funis do menu");
+        const data = await response.json();
+        if (Array.isArray(data)) setCommercialPipelines(data.filter(p => p.status === "ACTIVE"));
+      } catch (error) {if (!controller.signal.aborted) console.error("Falha ao carregar menu comercial", error);}
+    };
+    void load();
+    window.addEventListener("crm-pipelines-changed", load);
+    window.addEventListener("focus", load);
+    return () => {controller.abort();window.removeEventListener("crm-pipelines-changed", load);window.removeEventListener("focus", load);};
+  }, [pathname]);
+
   const navigationGroups: NavGroup[] = [
     { id: "marketing_growth", title: "Marketing & Growth", icon: Target, section: "MARKETING & GROWTH", items: [
       { id: "marketing_funnels", label: "Funis de Marketing", href: "/marketing/funnels", icon: Target },
@@ -106,6 +123,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       { id: "crm_overview", label: "Visão comercial", href: "/crm", icon: TrendingUp },
       { id: "crm_leads", label: "Leads", href: "/crm/leads", icon: TrendingUp },
       { id: "crm_opportunities", label: "Oportunidades", href: "/crm/opportunities", icon: TrendingUp },
+      ...commercialPipelines.map(pipeline => ({id:"crm_pipeline_" + pipeline.id, label:pipeline.name, href:"/crm/pipelines/" + encodeURIComponent(pipeline.id), icon:TrendingUp})),
       { id: "crm_activities", label: "Atividades comerciais", href: "/crm/activities", icon: TrendingUp },
     ] },
     { id: "clients", title: "Clientes", icon: Users, section: "COMERCIAL", items: [
@@ -195,6 +213,8 @@ export function AppShell({ children, activeSection }: AppShellProps) {
 
     const allItems = navigationGroups.flatMap((g) => g.items);
 
+    const pipelineItem = allItems.find(item => item.id.startsWith("crm_pipeline_") && pathname === item.href);
+    if (pipelineItem) return pipelineItem.id;
     const currentParams = new URLSearchParams(currentSearch);
     const currentTab = currentParams.get("tab");
     const currentCategory = currentParams.get("category");

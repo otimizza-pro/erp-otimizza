@@ -1,8 +1,11 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { DocumentService } from "@/modules/documents/service";
 import { CreateDocumentInputSchema, DocumentFilterOptions } from "@/modules/documents/types";
 
 export async function GET(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { searchParams } = new URL(request.url);
     const filters: DocumentFilterOptions = {
@@ -25,6 +28,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const contentType = request.headers.get("content-type") || "";
 

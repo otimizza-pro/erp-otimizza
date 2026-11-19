@@ -1,8 +1,11 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { StrategyService } from "@/modules/strategy/service";
 import { StrategySeedService } from "@/modules/strategy/seed";
 
 export async function GET(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category") || "ALL";
@@ -12,8 +15,8 @@ export async function GET(request: Request) {
 
     const docs = await StrategyService.listDocuments(category);
     return NextResponse.json(docs);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Erro ao buscar documentos estratégicos." }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: (error instanceof Error ? error.message : null) || "Erro ao buscar documentos estratégicos." }, { status: 500 });
   }
 }
 

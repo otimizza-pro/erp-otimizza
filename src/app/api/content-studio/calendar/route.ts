@@ -1,3 +1,4 @@
+import {contentBriefSchema} from "@/modules/clients/content-brief";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
+    const editorialBrief=body.editorialBrief?contentBriefSchema.parse(body.editorialBrief):null;
     const {
       clientId,
       editorialLineId,
@@ -95,10 +97,10 @@ export async function POST(request: NextRequest) {
         captions_generated, selected_caption,
         reels_options, selected_reels,
         carousel_options, selected_carousel,
-        notes
+        notes, editorial_brief
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
       ) RETURNING *`,
       [
         clientId,
@@ -121,7 +123,8 @@ export async function POST(request: NextRequest) {
         selectedReels || null,
         JSON.stringify(carouselOptions || []),
         selectedCarousel || null,
-        notes || null
+        notes || null,
+        editorialBrief?JSON.stringify(editorialBrief):null
       ]
     );
 

@@ -1,4 +1,10 @@
 "use client";
+import {contentCompanyId} from "@/modules/clients/internal-company";
+import {AudienceAiPlanner} from "@/components/content-studio/audience-ai-planner";
+import {ContentBriefFields} from "@/components/content-studio/content-brief-fields";
+import {contentBriefSchema} from "@/modules/clients/content-brief";
+import {EditorialPlanner} from "@/components/content-studio/editorial-planner";
+import {ClientDnaPanel} from "@/components/content-studio/client-dna-panel";
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
@@ -7,7 +13,6 @@ import {CommunicationProfileSchema,emptyCommunicationProfile} from "@/modules/cl
 import React, { useRef, Suspense, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/layout/app-shell";
-import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
   Sparkles,
   Users,
@@ -123,21 +128,22 @@ const DEFAULT_CTAS = [
 function ContentStudioPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { selectedCompany, selectCompany, availableCompanies } = useCompany();
+  const { selectedCompany } = useCompany();
   const [activeTab, setActiveTabState] = useState<"STUDIO" | "CALENDAR" | "EDITORIAL">("STUDIO");
   useEffect(() => {const tab=searchParams.get("tab");setActiveTabState(tab==="CALENDAR"||tab==="EDITORIAL"?tab:"STUDIO");},[searchParams]);
   const setActiveTab = (tab:"STUDIO"|"CALENDAR"|"EDITORIAL") => {setActiveTabState(tab);router.replace("/prompt-creator"+(tab==="STUDIO"?"":"?tab="+tab),{scroll:false});};
   const [contentMode, setContentMode] = useState<"SOCIAL_MEDIA" | "ADS">("SOCIAL_MEDIA");
 
   // Dados carregados do sistema
+  const [clientIdentity,setClientIdentity]=useState<Record<string,unknown>|null>(null);
+  const [identityError,setIdentityError]=useState("");
   const [communicationProfile,setCommunicationProfile]=useState(emptyCommunicationProfile);
   const [pieceSpeaker,setPieceSpeaker]=useState("");
   const [pieceAudience,setPieceAudience]=useState("");
   const [pieceVoice,setPieceVoice]=useState("");
   const contextRequest=useRef(0);
   const [clients, setClients] = useState<ClientRecord[]>([]);
-  const [selectedClientId, setSelectedClientId] = useState<string>("");
-  useEffect(() => { setSelectedClientId(selectedCompany.isOtimizza ? "" : selectedCompany.id); }, [selectedCompany.id, selectedCompany.isOtimizza]);
+  const selectedClientId = contentCompanyId(selectedCompany);
   const [audiences, setAudiences] = useState<AudienceRecord[]>([]);
   const [editorialLines, setEditorialLines] = useState<EditorialLineRecord[]>([]);
   const [calendarItems, setCalendarItems] = useState<CalendarItemRecord[]>([]);
@@ -146,10 +152,20 @@ function ContentStudioPageContent() {
   // Configuração do Conteúdo Atual
   const [format, setFormat] = useState<string>("HEADLINES");
   const [idea, setIdea] = useState("");
+  const [selectedThemeId,setSelectedThemeId]=useState("");
+  const [generatingIdea,setGeneratingIdea]=useState(false);
+  const [activeCalendarId,setActiveCalendarId]=useState("");
+  const importedContent=useRef("");
+  const [piecePain,setPiecePain]=useState("");
+  const [contentFunnel,setContentFunnel]=useState("");
+  const [journeyStage,setJourneyStage]=useState("");
+  const [pieceGoal,setPieceGoal]=useState("");
+  const currentContentCompany=useRef(selectedClientId);
+  useEffect(() => { currentContentCompany.current=selectedClientId; }, [selectedClientId]);
   const [selectedAudience, setSelectedAudience] = useState<string>("");
-  const [selectedTone, setSelectedTone] = useState<string>("Direto e didático");
+  const [selectedTone, setSelectedTone] = useState<string>("");
   const [customTone, setCustomTone] = useState<string>("");
-  const [selectedCta, setSelectedCta] = useState<string>("Iniciar conversa qualificada no WhatsApp");
+  const [selectedCta, setSelectedCta] = useState<string>("");
   const [customCta, setCustomCta] = useState<string>("");
   const [brandContext, setBrandContext] = useState("");
   const [scheduledDate, setScheduledDate] = useState<string>(new Date().toISOString().split("T")[0]);
@@ -232,14 +248,13 @@ function ContentStudioPageContent() {
   // 1. Carregar lista de clientes ao montar
   useEffect(() => {
     fetchClients();
-    const savedKey = localStorage.getItem("otimizza_openrouter_key");
-    if (savedKey) setOpenRouterKey(savedKey);
+    localStorage.removeItem("otimizza_openrouter_key");
   }, []);
 
   // 2. Carregar públicos, DNA e linhas editoriais ao mudar cliente
   useEffect(() => {
     if (!selectedClientId) {
-      contextRequest.current++;
+      contextRequest.current++; setClientIdentity(null);setIdentityError("");
       setCommunicationProfile(emptyCommunicationProfile);
       setPieceSpeaker("");setPieceAudience("");setPieceVoice("");
       setAudiences([]);
@@ -247,6 +262,7 @@ function ContentStudioPageContent() {
       setBrandContext("");
       return;
     }
+    setIdea("");setSelectedThemeId("");setAiOutput("");setActiveCalendarId("");importedContent.current="";setPiecePain("");setContentFunnel("");setJourneyStage("");setPieceGoal("");
     loadClientData(selectedClientId);
   }, [selectedClientId]);
 
@@ -304,7 +320,7 @@ function ContentStudioPageContent() {
     }
   }, [aiOutput, format]);
 
-  const fetchClients = async () => {
+  async function fetchClients() {
     try {
       const res = await fetch("/api/content-studio/clients");
       const data = await res.json();
@@ -318,8 +334,10 @@ function ContentStudioPageContent() {
     }
   };
 
-  const loadClientData = async (clientId: string) => {
+  async function loadClientData(clientId: string) {
     const requestId=++contextRequest.current;
+    setClientIdentity(null);setIdentityError("");
+    setCommunicationProfile(emptyCommunicationProfile);setAudiences([]);setEditorialLines([]);setClientPains([]);setClientDifferentials([]);
     setLoadingData(true);
     try {
       const [audRes, elRes, presetRes, calRes, identRes] = await Promise.all([
@@ -339,6 +357,8 @@ function ContentStudioPageContent() {
       ]);
 
       if(requestId!==contextRequest.current)return;
+      setClientIdentity(identData);
+      if(!identRes.ok)setIdentityError("Não foi possível consultar a identidade. Atualize os dados ou abra o cadastro do cliente.");
       const profile=CommunicationProfileSchema.parse(identData?.communicationProfile||{});
       setCommunicationProfile(profile);
       setPieceSpeaker(profile.speakerTypes.length===1?profile.speakerTypes[0]:"");
@@ -383,6 +403,7 @@ function ContentStudioPageContent() {
         setCalendarItems(calData.items);
       }
     } catch (err) {
+      if(requestId===contextRequest.current)setIdentityError("Não foi possível carregar os dados do cliente. Tente atualizar novamente.");
       console.error("Erro ao carregar dados do cliente:", err);
     } finally {
       if(requestId===contextRequest.current)setLoadingData(false);
@@ -414,8 +435,26 @@ function ContentStudioPageContent() {
     }
   };
 
+  const editorialBrief={themeId:selectedThemeId,speaker:pieceSpeaker,voice:pieceVoice,audience:selectedAudience,funnel:contentFunnel,journey:journeyStage,goal:pieceGoal,pain:piecePain,tone:customTone.trim()||selectedTone,cta:customCta.trim()||selectedCta};
+  const parsedBrief=contentBriefSchema.safeParse(editorialBrief);
+  const briefReady=parsedBrief.success;
+  const briefLabels:Record<string,string>={themeId:"pilar e tema",speaker:"quem comunica",voice:"porta-voz",audience:"público",funnel:"funil",journey:"jornada",goal:"objetivo",pain:"dor ou não se aplica",tone:"tom",cta:"CTA"};
+  const missingBrief=parsedBrief.success?[]:Array.from(new Set(parsedBrief.error.issues.map(issue=>briefLabels[String(issue.path[0])]||"direcionamento")));
+  useEffect(()=>{
+    const contentId=searchParams.get("contentId");if(!contentId||loadingData||importedContent.current===contentId)return;
+    const controller=new AbortController();
+    fetch("/api/content-studio/posts/"+contentId,{signal:controller.signal}).then(async response=>{const result=await response.json();if(!response.ok||!result.success)throw new Error(result.error||"Erro ao abrir pauta");const item=result.data;if(item.client_id!==selectedClientId)throw new Error("Esta pauta pertence a outra empresa. Selecione-a no cabeçalho.");const parsed=contentBriefSchema.safeParse(item.editorial_brief);if(parsed.success){const brief=parsed.data;setSelectedThemeId(brief.themeId);setPieceSpeaker(brief.speaker);setPieceVoice(brief.voice);setSelectedAudience(brief.audience);setContentFunnel(brief.funnel);setJourneyStage(brief.journey);setPieceGoal(brief.goal);setPiecePain(brief.pain);setCustomTone(brief.tone);setCustomCta(brief.cta);}setIdea(item.central_idea);setScheduledDate(item.scheduled_date?.slice(0,10)||scheduledDate);setScheduledTime(item.scheduled_time?.slice(0,5)||"18:00");const formats:Record<string,string>={"Reels":"REELS","Carrossel":"CAROUSEL","Post estático":"HEADLINES","Stories":"HEADLINES"};setFormat(formats[item.format]||item.format);setActiveCalendarId(item.id);importedContent.current=contentId;}).catch(error=>{if(error.name!=="AbortError")setNotification({message:error.message,type:"error"});});return()=>controller.abort();
+  },[searchParams,selectedClientId,loadingData]);
+  const requireBrief=()=>{if(loadingData||!briefReady){setNotification({message:loadingData?"Aguarde o contexto da empresa carregar.":"Preencha: "+missingBrief.join(", ")+".",type:"error"});return false;}return true;};
+
+  const generateCentralIdea = async () => {
+    if(!requireBrief())return;
+    const scope=selectedClientId;setGeneratingIdea(true);setNotification(null);
+    try{const response=await fetch("/api/content-studio/ideas/suggest",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId:scope,count:1,editorialBrief,editorialLineId:selectedThemeId||undefined,currentIdea:idea,audience:selectedAudience,format})});const data=await response.json();if(scope!==currentContentCompany.current)return;if(!response.ok||!data.success||data.source!=="OPENROUTER")throw new Error(data.error||"A IA não confirmou a ideia.");setIdea(data.ideas[0]);}catch(error){if(scope===currentContentCompany.current)setNotification({message:error instanceof Error?error.message:"Erro ao gerar ideia",type:"error"});}finally{setGeneratingIdea(false);}
+  };
+
   const handleSuggestIdeasWithAi = async () => {
-    if (!selectedClientId) return;
+    if (!selectedClientId || !requireBrief()) return;
     setLoadingSuggestedIdeas(true);
     setAiSuggestedIdeas([]);
     setNotification(null);
@@ -423,7 +462,7 @@ function ContentStudioPageContent() {
       const res = await fetch("/api/content-studio/ideas/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clientId: selectedClientId }),
+        body: JSON.stringify({ clientId: selectedClientId, editorialBrief }),
       });
       const data = await res.json();
       if (!res.ok || data.success !== true || data.source !== "OPENROUTER") throw new Error(data.error || "A geração de ideias não foi confirmada.");
@@ -442,10 +481,10 @@ function ContentStudioPageContent() {
   const selectedClient = clients.find((c) => c.id === selectedClientId);
 
   // Constrói o Prompt estruturado
-  const buildPrompt = () => {
+  function buildPrompt() {
     const toneToUse = customTone.trim() || selectedTone;
     const ctaToUse = customCta.trim() || selectedCta;
-    const clientName = selectedClient ? (selectedClient.trade_name || selectedClient.name) : "Otimizza";
+    const clientName = selectedCompany.name;
 
     const lines: string[] = [
       "Atue como Diretor Criativo e Redator Sênior de Marketing. Escreva em português brasileiro com alto rigor editorial.",
@@ -516,7 +555,9 @@ function ContentStudioPageContent() {
 
   // Disparo da IA com OpenRouter
   const handleGenerateAi = async (overrideFormat?: string, overridePayload?: Record<string, unknown>) => {
+    if(!requireBrief())return;
     if(loadingData){setNotification({message:"Aguarde o contexto do cliente terminar de carregar.",type:"info"});return;}
+    const generatedFor=selectedClientId;
     setAiLoading(true);
     setAiOutput("");
     setNotification(null);
@@ -524,7 +565,7 @@ function ContentStudioPageContent() {
     const formatToUse = overrideFormat || format;
     const toneToUse = customTone.trim() || selectedTone;
     const ctaToUse = customCta.trim() || selectedCta;
-    const clientName = selectedClient ? (selectedClient.trade_name || selectedClient.name) : "Otimizza";
+    const clientName = selectedCompany.name;
 
     const formatConfigPayload = {
       headlineCount,
@@ -557,6 +598,7 @@ function ContentStudioPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: selectedClientId || "otimizza",
+          editorialBrief,
           communicationChoice:{speaker:pieceSpeaker||undefined,audience:pieceAudience||undefined,voice:pieceVoice||undefined},
           format: formatToUse,
           prompt: promptText,
@@ -578,6 +620,7 @@ function ContentStudioPageContent() {
         throw new Error(data.error || "A geração pela IA não foi confirmada.");
       }
 
+      if(generatedFor!==currentContentCompany.current)return;
       setAiOutput(data.result || "");
       if (data.notice) {
         setNotification({ message: data.notice, type: "info" });
@@ -586,7 +629,7 @@ function ContentStudioPageContent() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Falha na chamada de IA.";
-      setNotification({ message: msg, type: "error" });
+      if(generatedFor===currentContentCompany.current)setNotification({ message: msg, type: "error" });
     } finally {
       setAiLoading(false);
     }
@@ -625,12 +668,14 @@ function ContentStudioPageContent() {
     }
 
     try {
-      const clientName = selectedClient ? (selectedClient.trade_name || selectedClient.name) : "Cliente";
+      const clientName = selectedCompany.name;
       const res = await fetch("/api/content-studio/calendar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: selectedClientId,
+          editorialBrief,
+          editorialLineId:selectedThemeId,
           scheduledDate,
           scheduledTime,
           format,
@@ -675,11 +720,12 @@ function ContentStudioPageContent() {
     }
 
     try {
-      const res = await fetch("/api/content-studio/posts", {
-        method: "POST",
+      const res = await fetch("/api/content-studio/posts"+(activeCalendarId?"/"+activeCalendarId:""), {
+        method: activeCalendarId?"PUT":"POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: selectedClientId,
+          editorialBrief,
           title: chosenHeadline || idea.slice(0, 80) || `Peça de ${format}`,
           centralIdea: idea,
           format,
@@ -865,7 +911,6 @@ function ContentStudioPageContent() {
         {/* ==================================================================== */}
         {/* ABA 1: ESTÚDIO CRIATIVO PRINCIPAL */}
         {/* ==================================================================== */}
-        {activeTab==="STUDIO"&&(communicationProfile.speakerTypes.length>0||communicationProfile.audienceTypes.length>0||communicationProfile.contentVoices.length>0)&&<section className="p-4 bg-white border rounded-xl mb-4"><h2 className="font-semibold text-sm mb-3">Quem comunica e para quem é esta peça</h2><div className="grid gap-3 sm:grid-cols-3">{([{label:"Quem comunica",options:communicationProfile.speakerTypes,value:pieceSpeaker,set:setPieceSpeaker},{label:"Público desta peça",options:communicationProfile.audienceTypes,value:pieceAudience,set:setPieceAudience},{label:"Como aparece",options:communicationProfile.contentVoices,value:pieceVoice,set:setPieceVoice}]).map(field=><label className="text-xs" key={field.label}>{field.label}<select className="block w-full border rounded-lg p-2 mt-1" value={field.value} onChange={e=>field.set(e.target.value)} disabled={loadingData}><option value="">{field.options.length?"Selecione":"Não definido no cadastro"}</option>{field.options.map(option=><option key={option}>{option}</option>)}</select></label>)}</div></section>}
         {activeTab === "STUDIO" && (
           <div className="space-y-6">
             {/* BARRA DE SELEÇÃO DE CLIENTE & PONTO DE PARTIDA */}
@@ -876,17 +921,7 @@ function ContentStudioPageContent() {
                   <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
                     1. Cliente do Conteúdo
                   </label>
-                  <SearchableSelect
-                    options={clients.map((c) => ({
-                      value: c.id,
-                      label: c.trade_name ? `${c.trade_name} (${c.name})` : c.name,
-                    }))}
-                    value={selectedClientId}
-                    onChange={(val) => {setSelectedClientId(val); const company=availableCompanies.find(c=>c.id===val);if(company)selectCompany(company);}}
-                    placeholder="Selecionar cliente..."
-                    searchPlaceholder="Digitar para buscar cliente..."
-                    className="w-full"
-                  />
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs font-semibold text-zinc-800">{selectedCompany.name}<p className="mt-1 text-[10px] font-normal text-zinc-400">Empresa selecionada no cabeçalho</p></div>
                 </div>
 
                 {/* 2. Selecionar da Linha Editorial */}
@@ -917,12 +952,13 @@ function ContentStudioPageContent() {
                   </div>
                   <select
                     onChange={(e) => {
+                      setSelectedThemeId(e.target.value);
                       const line = editorialLines.find((l) => l.id === e.target.value);
                       if (line) {
                         setIdea(`${line.pillar_name}: ${line.theme}${line.objective ? ` - Objetivo: ${line.objective}` : ""}`);
                       }
                     }}
-                    defaultValue=""
+                    value={selectedThemeId}
                     className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
                   >
                     <option value="">
@@ -961,6 +997,9 @@ function ContentStudioPageContent() {
               </div>
             </div>
 
+            <ContentBriefFields clientId={selectedClientId} companyName={selectedCompany.name} themeId={selectedThemeId} setThemeId={setSelectedThemeId} themes={editorialLines} speaker={pieceSpeaker} setSpeaker={setPieceSpeaker} speakers={communicationProfile.speakerTypes} voice={pieceVoice} setVoice={setPieceVoice} voices={communicationProfile.contentVoices} audience={selectedAudience} setAudience={setSelectedAudience} audiences={[...audiences.map(a=>a.name),...(Array.isArray(clientIdentity?.targetAudiences)?clientIdentity.targetAudiences.filter((v):v is string=>typeof v==="string"):[]),...communicationProfile.audienceTypes]} pain={piecePain} setPain={setPiecePain} pains={[...clientPains,...audiences.flatMap(a=>a.pain_points||[])]} funnel={contentFunnel} setFunnel={value=>{setContentFunnel(value);setJourneyStage("");}} journey={journeyStage} setJourney={setJourneyStage} goal={pieceGoal} setGoal={setPieceGoal} ready={briefReady} missing={missingBrief}/>
+            <ClientDnaPanel clientId={selectedClientId} identity={clientIdentity} loading={!!selectedClientId && loadingData} error={identityError} onRefresh={()=>{if(selectedClientId)void loadClientData(selectedClientId);}}/>
+
             {/* CAIXAS DE DIÁLOGO E DNA DA MARCA (Públicos, Tom e CTA em caixas visuais) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Card 1: Públicos-Alvo Salvos */}
@@ -968,7 +1007,7 @@ function ContentStudioPageContent() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-blue-600" />
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-900">Públicos-Alvo</h3>
+                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-900">Públicos-Alvo</h3><AudienceAiPlanner key={selectedClientId} clientId={selectedClientId} onSaved={()=>{void loadClientData(selectedClientId);}}/>
                   </div>
                   <button
                     type="button"
@@ -1298,7 +1337,7 @@ function ContentStudioPageContent() {
                         className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
                       />
                       <span className="font-medium">
-                        Foco em autoridade executiva e seriedade corporativa (sem clichês de marketing apelativo)
+                        Priorizar autoridade e clareza, respeitando o público e o tom da marca
                       </span>
                     </label>
                   </div>
@@ -1611,7 +1650,7 @@ function ContentStudioPageContent() {
                     <div className="flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-purple-600" />
                       <span className="text-xs font-bold text-zinc-900">
-                        Ideias & Dores Cadastradas no Cliente (1-Clique para Preencher):
+                        Referências da marca e sugestões de pautas
                       </span>
                     </div>
 
@@ -1619,7 +1658,7 @@ function ContentStudioPageContent() {
                       <button
                         type="button"
                         onClick={handleSuggestIdeasWithAi}
-                        disabled={loadingSuggestedIdeas || !selectedClientId}
+                        disabled={loadingSuggestedIdeas || !selectedClientId || !briefReady}
                         className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 bg-purple-100/70 hover:bg-purple-100 px-2.5 py-1 rounded-lg transition"
                       >
                         {loadingSuggestedIdeas ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />}
@@ -1642,16 +1681,16 @@ function ContentStudioPageContent() {
                   {clientPains.length > 0 && (
                     <div className="space-y-1">
                       <span className="text-[10px] uppercase font-bold text-rose-600 block">
-                        🔥 Dores do Cliente Cadastradas:
+                        🔥 Dores do público cadastradas:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {clientPains.map((pain, idx) => (
                           <button
                             key={idx}
                             type="button"
-                            onClick={() => setIdea(`Como solucionar o desafio de: "${pain}" sem desperdiçar tempo e dinheiro.`)}
+                            onClick={() => setPiecePain(pain)}
                             className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100 hover:border-rose-300 transition text-left"
-                            title="Clique para usar esta dor como ideia central"
+                            title="Selecionar esta dor para a peça"
                           >
                             {pain}
                           </button>
@@ -1707,7 +1746,7 @@ function ContentStudioPageContent() {
 
                   {clientPains.length === 0 && clientDifferentials.length === 0 && aiSuggestedIdeas.length === 0 && (
                     <p className="text-[11px] text-zinc-500">
-                      Nenhuma dor ou diferencial salvo ainda no cadastro deste cliente. Clique em &quot;Sugerir 5 Ideias com IA&quot; acima para gerar na hora ou cadastre no DNA do Cliente.
+                      Cadastre as dores do público e os diferenciais na Identidade & DNA. As sugestões de pautas por IA são ideias para conteúdos e não alteram esses dados permanentes.
                     </p>
                   )}
                 </div>
@@ -1715,8 +1754,8 @@ function ContentStudioPageContent() {
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-bold uppercase tracking-wider text-zinc-700">
-                      Ideia Central / Dúvida do Empresário
-                    </label>
+                      Ideia central / pergunta do público
+                    </label><button type="button" disabled={generatingIdea||loadingData||!briefReady} onClick={generateCentralIdea} className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-600 hover:bg-zinc-50 disabled:opacity-50"><Sparkles className="h-3 w-3"/>{generatingIdea?"Gerando ideia...":"Gerar ideia com IA"}</button>
                     {chosenHeadline && (
                       <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
                         Headline Ativa: &quot;{chosenHeadline}&quot;
@@ -1727,7 +1766,7 @@ function ContentStudioPageContent() {
                     rows={3}
                     value={idea}
                     onChange={(e) => setIdea(e.target.value)}
-                    placeholder="Ex: O empresário reclama que o lead é desqualificado, mas demora 4 horas para responder no WhatsApp e perde a venda."
+                    placeholder="Descreva a dúvida, necessidade ou situação que este conteúdo vai abordar para o público selecionado."
                     className="w-full px-3.5 py-2.5 rounded-xl border border-zinc-200 text-xs text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-950"
                   />
                 </div>
@@ -1749,7 +1788,7 @@ function ContentStudioPageContent() {
                 <div className="flex items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    Motor IA Otimizza Ativo (Servidor)
+                    Geração via OpenRouter
                   </span>
 
                   <button
@@ -1767,7 +1806,7 @@ function ContentStudioPageContent() {
                 <div className="p-3 bg-zinc-50 rounded-xl border border-zinc-200 space-y-2 text-xs animate-in fade-in">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-zinc-700">Chave de API OpenRouter (Opcional - Substitui a chave do Servidor):</span>
-                    <span className="text-zinc-400 text-[10px]">Salvo com segurança no seu navegador</span>
+                    <span className="text-zinc-400 text-[10px]">Usada somente nesta página, sem salvar no navegador</span>
                   </div>
                   <div className="flex gap-2">
                     <input
@@ -1776,7 +1815,6 @@ function ContentStudioPageContent() {
                       value={openRouterKey}
                       onChange={(e) => {
                         setOpenRouterKey(e.target.value);
-                        localStorage.setItem("otimizza_openrouter_key", e.target.value);
                       }}
                       className="flex-1 px-3 py-1.5 rounded-lg border border-zinc-200 text-xs font-mono"
                     />
@@ -1827,7 +1865,7 @@ function ContentStudioPageContent() {
                 />
 
                 <p className="text-[11px] text-zinc-400">
-                  Este prompt carrega as regras e diretrizes dos 20 manuais estratégicos da Otimizza.
+                  A geração usa o direcionamento da peça, o DNA do cliente e as diretrizes publicadas que estiverem disponíveis no servidor.
                 </p>
               </div>
 
@@ -1844,7 +1882,7 @@ function ContentStudioPageContent() {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      disabled={aiLoading}
+                      disabled={aiLoading || !briefReady || loadingData}
                       onClick={() => handleGenerateAi()}
                       className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition disabled:opacity-50 cursor-pointer"
                     >
@@ -1991,58 +2029,7 @@ function ContentStudioPageContent() {
         {/* ==================================================================== */}
         {activeTab === "CALENDAR" && <ContentCalendar key={selectedClientId} clientId={selectedClientId} />}
 
-        {activeTab === "EDITORIAL" && (
-          <div className="p-6 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-zinc-950">
-                  Pilares e Linhas Editoriais — {selectedClient?.name || "Cliente"}
-                </h2>
-                <p className="text-xs text-zinc-500">Defina os temas centrais de autoridade e conteúdo recorrente.</p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setEditorialModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 text-white text-xs font-bold hover:bg-zinc-800 transition"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Nova Linha Editorial
-              </button>
-            </div>
-
-            {editorialLines.length === 0 ? (
-              <p className="text-xs text-zinc-400 py-8 text-center border border-dashed border-zinc-200 rounded-xl">
-                Nenhuma linha editorial cadastrada. Clique em &quot;Nova Linha Editorial&quot; para estruturar a estratégia deste cliente.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {editorialLines.map((el) => (
-                  <div key={el.id} className="p-4 rounded-xl border border-zinc-200 bg-zinc-50 space-y-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider bg-emerald-100 text-emerald-800">
-                      {el.pillar_name}
-                    </span>
-                    <h3 className="text-xs font-bold text-zinc-900">{el.theme}</h3>
-                    {el.objective && <p className="text-xs text-zinc-600">{el.objective}</p>}
-                    <div className="pt-2 flex items-center justify-between text-[11px] text-zinc-400">
-                      <span>Formatos: {el.preferred_formats?.join(", ")}</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIdea(`${el.pillar_name}: ${el.theme}${el.objective ? ` - ${el.objective}` : ""}`);
-                          setActiveTab("STUDIO");
-                        }}
-                        className="font-bold text-emerald-700 hover:underline"
-                      >
-                        Usar Ideia →
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {activeTab === "EDITORIAL" && <EditorialPlanner key={selectedClientId} clientId={selectedClientId} companyName={selectedCompany.name} lines={editorialLines.map(line=>({...line,objective:line.objective||"",frequency_per_month:1,notes:""}))} onSaved={()=>{void loadClientData(selectedClientId);}} onUse={idea=>{setIdea(idea);setActiveTab("STUDIO");}} onManual={()=>setEditorialModalOpen(true)}/>}
 
         {/* ==================================================================== */}
         {/* MODAL 1: PERGUNTAR PRÓXIMO PASSO (SEQUÊNCIA LÓGICA DE HEADLINE) */}

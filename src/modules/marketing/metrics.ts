@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { query } from "@/lib/db/pool";
+import { query as databaseQuery } from "@/lib/db/pool";
 export const metricFiltersSchema=z.object({
  companyId:z.union([z.literal("otimizza"),z.string().uuid()]).default("otimizza"),
  start:z.string().date(),end:z.string().date(),
@@ -16,6 +16,11 @@ export function retentionMetrics(opening:CustomerRevenue[],closing:CustomerReven
 }
 const numeric=(row:Record<string,unknown>)=>Object.fromEntries(Object.entries(row).map(([k,v])=>[k,v===null?null:Number(v)]));
 export async function getFunnelMetrics(filters:MetricFilters){
+ // Declare types for all bindings, including dates unused by stock queries.
+ const query = (sql: string, parameters: (string | null)[]) => {
+  const typed = "WITH metric_parameters AS (SELECT $1::uuid, $2::date, $3::date, $4::text, $5::text, $6::text)";
+  return databaseQuery(typed + (/^WITH\s/i.test(sql) ? ", " + sql.replace(/^WITH\s/i, "") : " " + sql), parameters);
+ };
  const values=[filters.companyId==="otimizza"?null:filters.companyId,filters.start,filters.end,filters.acquisitionType,filters.source,filters.channel];
  const scope=`l.owner_client_id IS NOT DISTINCT FROM $1::uuid
  AND ($4='ALL' OR (CASE WHEN l.acquisition_verified THEN l.acquisition_type ELSE 'NAO_INFORMADO' END)=$4)

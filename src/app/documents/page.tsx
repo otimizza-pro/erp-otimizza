@@ -262,7 +262,7 @@ function DocumentsMainContent() {
   };
 
   return (
-    <AppShell>
+    <AppShell activeSection="documents_repo">
       <div className="space-y-6">
         {/* Cabeçalho */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -854,7 +854,7 @@ export default function DocumentsPage() {
   return (
     <Suspense
       fallback={
-        <AppShell>
+        <AppShell activeSection="documents_repo">
           <div className="p-8 text-center text-slate-500">
             Carregando repositório de documentos...
           </div>

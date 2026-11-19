@@ -67,6 +67,22 @@ export default function ContractDetailsPage() {
   const [selectedServiceIdToAdd, setSelectedServiceIdToAdd] = useState("");
 
   // Modal Exclusão de Contrato
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
+  const [visibilityError, setVisibilityError] = useState("");
+  const [visibilityAction, setVisibilityAction] = useState<"archive"|"restore"|"reject"|null>(null);
+  const [visibilityReason, setVisibilityReason] = useState("");
+  const openVisibility = (action:"archive"|"restore"|"reject") => {setVisibilityReason("");setVisibilityError("");setVisibilityAction(action);};
+  const changeVisibility = async (action:"archive"|"restore"|"reject") => {
+    const reason = visibilityReason.trim();
+    if (!reason || visibilityBusy) return;
+    setVisibilityBusy(true); setVisibilityError("");
+    try {
+      const response=await fetch("/api/contracts/"+contractId,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,reason})});
+      const data=await response.json();if(!response.ok || !data.success)throw new Error(data.error || "Não foi possível concluir a ação.");
+      setContract(data.contract); setVisibilityAction(null);
+    } catch(error){setVisibilityError(error instanceof Error ? error.message : "Erro ao atualizar contrato");}
+    finally {setVisibilityBusy(false);}
+  };
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -478,6 +494,8 @@ export default function ContractDetailsPage() {
   return (
     <AppShell activeSection="contracts">
       <div className="p-8 max-w-6xl mx-auto space-y-6">
+        {visibilityError && <p role="alert" className="p-3 rounded-xl bg-rose-50 text-rose-700">{visibilityError}</p>}
+        {contract.archivedAt && <p className="p-3 rounded-xl bg-amber-50 text-amber-800">Contrato arquivado. O histórico foi preservado.</p>}
         {/* Breadcrumb */}
         <div className="flex items-center justify-between">
           <Link
@@ -489,6 +507,8 @@ export default function ContractDetailsPage() {
           </Link>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button type="button" disabled={visibilityBusy} onClick={()=>openVisibility(contract.archivedAt ? "restore" : "archive")} className="px-3 py-2 rounded-full border border-zinc-200 bg-white text-zinc-700 text-xs font-semibold hover:bg-zinc-50 disabled:opacity-50">{contract.archivedAt ? "Restaurar contrato" : "Arquivar contrato"}</button>
+            {contract.status === "DRAFT" && !contract.archivedAt && <button type="button" disabled={visibilityBusy} onClick={()=>openVisibility("reject")} className="px-3 py-2 rounded-lg border border-amber-200 text-amber-800 text-xs font-semibold">Rejeitar rascunho</button>}
             <Link
               href={`/financial/receivables?contractId=${contract.id}`}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-xs font-semibold border border-emerald-200 transition-colors"
@@ -548,7 +568,7 @@ export default function ContractDetailsPage() {
           </div>
         </div>
 
-        {contract.status === "DRAFT" && <BillingSetup contractId={contract.id} clientId={contract.clientId} />}
+        {contract.status === "DRAFT" && !contract.archivedAt && <BillingSetup contractId={contract.id} clientId={contract.clientId} />}
         {/* Contract Header Banner */}
         <div className="bg-white p-6 rounded-xl border border-zinc-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
@@ -1746,6 +1766,7 @@ export default function ContractDetailsPage() {
           </div>
         </div>
       )}
+      {visibilityAction && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs"><section role="dialog" aria-modal="true" aria-labelledby="contract-visibility-title" className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl"><h2 id="contract-visibility-title" className="text-base font-bold text-zinc-950">{visibilityAction === "reject" ? "Rejeitar rascunho" : visibilityAction === "archive" ? "Arquivar contrato" : "Restaurar contrato"}</h2><p className="mt-2 text-xs leading-relaxed text-zinc-500">{visibilityAction === "reject" ? "O rascunho será cancelado com o motivo registrado. Nenhuma cobrança será gerada." : "O histórico será preservado. Arquivar altera a visibilidade e não interrompe cobranças de um contrato ativo."}</p><label className="mt-5 block text-xs font-semibold text-zinc-700">Motivo<textarea autoFocus rows={3} value={visibilityReason} disabled={visibilityBusy} onChange={event=>setVisibilityReason(event.target.value)} className="mt-2 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-normal outline-none focus:border-zinc-500 focus:bg-white"/></label>{visibilityError&&<p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{visibilityError}</p>}<div className="mt-5 flex justify-end gap-2"><button type="button" disabled={visibilityBusy} onClick={()=>setVisibilityAction(null)} className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600">Voltar</button><button type="button" disabled={visibilityBusy||!visibilityReason.trim()} onClick={()=>changeVisibility(visibilityAction)} className="rounded-full bg-zinc-950 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{visibilityBusy ? "Salvando..." : "Confirmar"}</button></div></section></div>}
     </AppShell>
   );
 }

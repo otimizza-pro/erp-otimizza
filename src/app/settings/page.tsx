@@ -225,7 +225,13 @@ export default function SettingsPage() {
         </div>
 
         {/* Tab Selector */}
-        <div className="flex items-center gap-2 p-1 bg-zinc-100 rounded-2xl w-full sm:w-max overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-2 p-1 bg-zinc-100 rounded-2xl w-full">
+          <Link href="/crm/pipelines" className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-white hover:text-zinc-950 transition">Configurar Funis & Etapas</Link>
+          <Link href="/projects/templates" className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-white hover:text-zinc-950 transition">Onboarding e Templates</Link>
+          <Link href="/services" className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-white hover:text-zinc-950 transition">Serviços</Link>
+          <Link href="/financial/accounts" className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-white hover:text-zinc-950 transition">Contas financeiras</Link>
+          <Link href="/suppliers" className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-white hover:text-zinc-950 transition">Fornecedores</Link>
+          <Link href="/informacoes-otimizza" className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-white hover:text-zinc-950 transition">Manuais da Otimizza</Link>
           <button
             type="button"
             onClick={() => switchTab("company")}

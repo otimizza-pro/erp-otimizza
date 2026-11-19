@@ -1,7 +1,10 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { listProjects, createProject } from "@/modules/projects/service";
 
 export async function GET(req: NextRequest) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { searchParams } = new URL(req.url);
     const clientId = searchParams.get("clientId") || undefined;
@@ -31,6 +34,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await req.json();
     const created = await createProject(body);

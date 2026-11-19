@@ -260,7 +260,7 @@ export async function getExecutiveKpis(filters: AnalyticsFilterParams = {}): Pro
   }
 
   // 8. Quantidades Ativas
-  const clientsCountRes = await query<{ total: string }>("SELECT COUNT(id) as total FROM clients WHERE status = 'ACTIVE'");
+  const clientsCountRes = await query<{ total: string }>("SELECT COUNT(id) as total FROM clients WHERE status = 'ACTIVE' AND id <> '00000000-0000-4000-8000-000000000001'::uuid");
   const contractsCountRes = await query<{ total: string }>("SELECT COUNT(id) as total FROM contracts WHERE status = 'ACTIVE'");
 
   return {
@@ -514,7 +514,7 @@ export async function getClientProfitabilityReport(): Promise<ClientProfitabilit
     FROM clients cl
     LEFT JOIN client_contracts cc ON cc.client_id = cl.id
     LEFT JOIN client_receivables cr ON cr.client_id = cl.id
-    WHERE cl.status = 'ACTIVE'
+    WHERE cl.status = 'ACTIVE' AND cl.id <> '00000000-0000-4000-8000-000000000001'::uuid
     ORDER BY total_received DESC, open_balance DESC
   `;
   const res = await query(sql, [todayStr]);

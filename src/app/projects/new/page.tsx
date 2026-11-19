@@ -256,7 +256,7 @@ function NewProjectFormContent() {
   };
 
   return (
-    <AppShell>
+    <AppShell activeSection="projects_new">
       <div className="p-6 max-w-4xl mx-auto space-y-6">
         {/* Cabeçalho */}
         <div className="flex items-center justify-between">

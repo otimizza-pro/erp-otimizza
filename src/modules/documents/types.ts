@@ -130,7 +130,7 @@ export const AddDocumentVersionInputSchema = z.object({
   originalFilename: z.string().min(1).max(255),
   mimeType: z.string().min(1).max(100),
   reasonForChange: z.string().min(3, "Informe a justificativa da nova versão").max(500),
-  metadata: z.record(z.unknown()).default({}),
+  metadata: z.record(z.string(),z.unknown()).default({}),
   actorId: z.string().uuid().optional().nullable(),
   actorName: z.string().max(150).optional().nullable(),
 });

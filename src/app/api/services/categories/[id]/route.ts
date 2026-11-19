@@ -1,3 +1,5 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
+import { z } from "zod";
 import { NextResponse } from "next/server";
 import { updateServiceCategory, deleteServiceCategory } from "@/modules/catalog/service";
 
@@ -5,8 +7,10 @@ export async function PATCH(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado"},{status:401}); }
   try {
     const { id } = await props.params;
+    if (!z.string().uuid().safeParse(id).success) return NextResponse.json({error:"Categoria inválida"},{status:400});
     const body = await request.json();
     const updated = await updateServiceCategory(id, {
       name: body.name,

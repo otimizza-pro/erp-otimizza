@@ -1,8 +1,11 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { listClients, createClient, purgeClient } from "@/modules/clients/service";
 import { getDbPool } from "@/lib/db/pool";
 
 export async function GET(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || undefined;
@@ -21,6 +24,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     if (!body.name || !body.type) {
@@ -42,6 +47,8 @@ export async function POST(request: Request) {
  * Exclusão em Massa de Clientes com expurgo definitivo de documentos e arquivos
  */
 export async function DELETE(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     const ids: string[] = Array.isArray(body.ids) ? body.ids : [];
@@ -85,6 +92,8 @@ export async function DELETE(request: Request) {
  * Edição em Massa de Clientes (Status, Tipo PF/PJ)
  */
 export async function PATCH(request: Request) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const body = await request.json();
     const ids: string[] = Array.isArray(body.ids) ? body.ids : [];

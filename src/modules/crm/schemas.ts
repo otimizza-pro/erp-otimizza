@@ -6,7 +6,7 @@ import { normalizeDocument, validateDocument } from "@/shared/cpf-cnpj";
 // =========================================================================
 export const CreateLeadSchema = z.object({
   personType: z.enum(["PF", "PJ"], {
-    errorMap: () => ({ message: "Tipo de pessoa deve ser 'PF' ou 'PJ'." }),
+    message: "Tipo de pessoa deve ser 'PF' ou 'PJ'.",
   }),
   name: z.string().trim().min(2, "Nome ou razão social deve ter pelo menos 2 caracteres."),
   tradeName: z.string().trim().optional().nullable(),

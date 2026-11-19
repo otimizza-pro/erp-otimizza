@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { query } from "@/lib/db/pool";
+import { syncBriefingIdentity } from "@/modules/clients/briefing-identity";
+import { query, withTransaction } from "@/lib/db/pool";
 import { encryptPassword } from "@/modules/passwords/crypto";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
+
+const messageSchema=z.object({
+  action:z.enum(["MESSAGE","DONT_KNOW","DECISION","SUBMIT_CREDENTIALS","SKIP_CREDENTIALS"]),
+  message:z.string().max(6000).optional(),
+  decision:z.enum(["APPROVE","ADJUST","RETRY"]).optional(),
+  suggestedField:z.enum(["targetAudience","differentials","toneOfVoice","competitors"]).optional(),
+  suggestedValue:z.string().max(6000).optional(),
+  credentials:z.object({username:z.string().max(500),password:z.string().max(2000)}).nullish(),
+});
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +75,7 @@ export async function GET(
       const introMsg: ChatMessage = {
         id: "msg_intro",
         sender: "assistant",
-        text: `Olá, ${row.contact_name}! 👋 Sou a Sofia, especialista em estratégia da Otimizza.\n\nO Valdemar já me passou o contexto inicial da ${row.company_name} e estou aqui para guiá-lo no alinhamento do posicionamento e das redes sociais da sua marca.\n\n💡 Dica importante: Este briefing foi desenhado para ser rápido e direto. Se em algum momento você não souber uma resposta, basta clicar em "Não sei" ou pedir uma sugestão — eu mesma crio opções para você aprovar!\n\nPodemos iniciar agora?`,
+        text: `Olá, ${row.contact_name}! 👋 Sou a Sofia, especialista em estratégia da Otimizza.\n\nO equipe da Otimizza já me passou o contexto inicial da ${row.company_name} e estou aqui para guiá-lo no alinhamento do posicionamento e das redes sociais da sua marca.\n\n💡 Dica importante: Este briefing foi desenhado para ser rápido e direto. Se em algum momento você não souber uma resposta, basta clicar em "Não sei" ou pedir uma sugestão — eu mesma crio opções para você aprovar!\n\nPodemos iniciar agora?`,
         options: [
           { label: "🚀 Sim, vamos iniciar!", value: "START", action: "APPROVE" },
           { label: "Como vai funcionar?", value: "EXPLAIN", action: "EXPLAIN" },
@@ -116,7 +127,9 @@ export async function POST(
 ) {
   try {
     const { token } = await params;
-    const body = await req.json();
+    const parsed=messageSchema.safeParse(await req.json());
+    if(!parsed.success) return NextResponse.json({error:"Resposta de briefing inválida."},{status:400});
+    const body = parsed.data;
 
     const {
       action, // "MESSAGE" | "DONT_KNOW" | "DECISION" | "SUBMIT_CREDENTIALS" | "SKIP_CREDENTIALS"
@@ -137,6 +150,7 @@ export async function POST(
     }
 
     const session = res.rows[0];
+    if(session.status === "COMPLETED") return NextResponse.json({error:"Este briefing já foi concluído. Solicite uma revisão à equipe."},{status:409});
     let history: ChatMessage[] = [];
     try {
       history = typeof session.conversation_history === "string"
@@ -190,15 +204,14 @@ export async function POST(
             );
             ownerId = vaultRes.rows[0]?.owner_id;
           }
-          if (!ownerId) {
-            ownerId = "00000000-0000-0000-0000-000000000001";
-          }
+          if (!ownerId) throw new Error("Responsável pelo cofre não configurado.");
 
           const entryId = randomUUID();
           const encrypted = encryptPassword(password, `${ownerId}:${entryId}`);
           const website = session.instagram_url || `https://instagram.com/${username.replace("@", "")}`;
 
-          await query(
+          await withTransaction(async client => {
+          await client.query(
             `
             INSERT INTO public.password_vault_entries (
               id, owner_id, title, username, website, encrypted_password, created_at, updated_at
@@ -209,15 +222,17 @@ export async function POST(
             [entryId, ownerId, `Instagram - ${company}`, username, website, encrypted]
           );
 
-          await query(
+          await client.query(
             `UPDATE public.client_briefing_sessions SET credentials_saved = true WHERE id = $1`,
             [session.id]
           );
+          });
           session.credentials_saved = true;
         } catch (vaultErr) {
           console.error("Erro ao salvar no cofre de senhas:", vaultErr);
+          return NextResponse.json({error:"Não foi possível salvar os acessos no cofre. Tente novamente ou escolha enviar os acessos depois."},{status:503});
         }
-      }
+      } else return NextResponse.json({error:"Informe usuário e senha para salvar os acessos."},{status:400});
 
       // Adicionar resposta do usuário e confirmação da Sofia
       history.push({
@@ -242,14 +257,14 @@ export async function POST(
       history.push({
         id: `usr_${Date.now()}`,
         sender: "user",
-        text: "Prefiro enviar os acessos diretamente pelo WhatsApp do Valdemar.",
+        text: "Prefiro enviar os acessos diretamente pelo canal de atendimento da Otimizza.",
         timestamp: now,
       });
 
       history.push({
         id: `ast_${Date.now()}`,
         sender: "assistant",
-        text: `Sem problema nenhum! O Valdemar vai receber essa notificação e você pode compartilhar com ele no momento que for mais conveniente.\n\nCom isso, já temos tudo o que precisamos para dar a largada na estratégia da ${company}!`,
+        text: `Sem problema nenhum! Você pode combinar o envio dos acessos com a equipe da Otimizza no momento que for mais conveniente.\n\nCom isso, já temos tudo o que precisamos para dar a largada na estratégia da ${company}!`,
         timestamp: now,
         options: [
           { label: "🎉 Finalizar e Entregar para a Otimizza", value: "FINALIZE", action: "APPROVE" },
@@ -272,7 +287,7 @@ export async function POST(
 
         // Avançar para a próxima pergunta baseada no campo aprovado
         if (suggestedField === "targetAudience") {
-          progress = 75; // Aceleração psicológica!
+          progress = 75;
           history.push({
             id: `ast_${Date.now()}`,
             sender: "assistant",
@@ -315,7 +330,7 @@ export async function POST(
             text: `Anotado! Analisaremos o posicionamento deles para garantir que a ${company} se destaque.\n\n🔐 **Último passo: Acesso às redes sociais**\nPara que a equipe da Otimizza possa agendar publicações e cuidar do seu perfil com máxima agilidade, você pode preencher o usuário e senha do Instagram abaixo. Seus dados ficam protegidos por criptografia de ponta a ponta no nosso cofre de senhas.\n\nSe preferir, pode enviar depois pelo WhatsApp!`,
             isCredentialStep: true,
             options: [
-              { label: "📲 Enviar depois pelo WhatsApp do Valdemar", value: "WHATSAPP", action: "NEXT" },
+              { label: "📲 Enviar depois pelo canal de atendimento da Otimizza", value: "WHATSAPP", action: "NEXT" },
             ],
             timestamp: now,
           });
@@ -354,7 +369,7 @@ export async function POST(
       history.push({
         id: `ast_${Date.now()}`,
         sender: "assistant",
-        text: `Com certeza, para isso que estou aqui! 💡 Com base no que o Valdemar me passou sobre a ${company}, criei esta sugestão estratégica para você:\n\n👉 **"${suggestion.text}"**\n\nPodemos seguir com essa ou você prefere ajustar algo?`,
+        text: `Exemplo genérico para ajudar no preenchimento, não uma análise de IA da ${company}: ${suggestion.text}. Aprove apenas se corresponder à realidade ou personalize a resposta.`,
         suggestedData: {
           field: suggestion.field,
           value: suggestion.text,
@@ -390,7 +405,7 @@ export async function POST(
         });
       } else if (!extracted.targetAudience) {
         extracted.targetAudience = userText;
-        progress = 75; // Aceleração psicológica: 50% real -> 75% na tela
+        progress = 25;
         history.push({
           id: `ast_${Date.now()}`,
           sender: "assistant",
@@ -432,10 +447,10 @@ export async function POST(
         history.push({
           id: `ast_${Date.now()}`,
           sender: "assistant",
-          text: `Ótimo! Faremos um comparativo para que a ${company} se posicione como referência única.\n\n🔐 **Acesso seguro às redes sociais**\nPara iniciarmos o agendamento de posts e a configuração profissional do seu perfil, informe o usuário e senha do Instagram abaixo. Seus dados são salvos com criptografia militar no nosso cofre de senhas do ERP.\n\nOu, se preferir, pode enviar depois pelo WhatsApp do Valdemar!`,
+          text: `Ótimo! Faremos um comparativo para que a ${company} se posicione como referência única.\n\n🔐 **Acesso seguro às redes sociais**\nPara iniciarmos o agendamento de posts e a configuração profissional do seu perfil, informe o usuário e senha do Instagram abaixo. Seus dados são salvos com criptografia militar no nosso cofre de senhas do ERP.\n\nOu, se preferir, pode enviar depois pelo canal de atendimento da Otimizza!`,
           isCredentialStep: true,
           options: [
-            { label: "📲 Prefiro enviar pelo WhatsApp do Valdemar", value: "WHATSAPP", action: "NEXT" },
+            { label: "📲 Prefiro enviar pelo canal de atendimento da Otimizza", value: "WHATSAPP", action: "NEXT" },
           ],
           timestamp: now,
         });
@@ -445,7 +460,7 @@ export async function POST(
         history.push({
           id: `ast_${Date.now()}`,
           sender: "assistant",
-          text: `🎉 **Briefing Concluído com Sucesso!**\n\nMuito obrigado pelo seu tempo, ${contact}! Eu compilei todas as diretrizes da ${company} e enviei diretamente para o sistema do Valdemar e da equipe da Otimizza.\n\nO próximo passo é a montagem do seu primeiro calendário editorial e a criação das peças. Vamos com tudo! 🚀`,
+          text: `Briefing concluído. Obrigado, ${contact}. As respostas da ${company} foram registradas para revisão da equipe da Otimizza. O calendário e as peças serão preparados em uma próxima etapa.`,
           timestamp: now,
         });
       }
@@ -453,6 +468,12 @@ export async function POST(
 
     // Se o progresso atingir 100% ou se foi finalizado
     const isCompleted = progress >= 100 || (action === "DECISION" && decision === "APPROVE" && suggestedValue === "FINALIZE");
+    const answered = ["targetAudience","differentials","toneOfVoice","competitors"].filter(field => {
+      const value = extracted[field];
+      return typeof value === "string" ? value.trim().length > 0 : Array.isArray(value) && value.length > 0;
+    }).length;
+    if (isCompleted && answered < 4) return NextResponse.json({error:"Conclua as quatro perguntas do briefing antes de finalizar."},{status:400});
+    if (!isCompleted) progress = session.credentials_saved || action === "SKIP_CREDENTIALS" ? 98 : Math.round(answered / 4 * 90);
     if (isCompleted) {
       progress = 100;
     }
@@ -471,62 +492,14 @@ export async function POST(
       RETURNING *
     `;
 
-    const updatedRes = await query(updateSql, [
-      JSON.stringify(history),
-      JSON.stringify(extracted),
-      progress,
-      isCompleted,
-      session.id,
-    ]);
-
-    // Se concluído, sincronizar automaticamente com client_identities e concluir a tarefa
-    if (isCompleted) {
-      try {
-        if (session.client_id) {
-          const tones = Array.isArray(extracted.toneOfVoice) 
-            ? extracted.toneOfVoice 
-            : [String(extracted.toneOfVoice || "Direto e didático")];
-          const audiences = extracted.targetAudience ? [String(extracted.targetAudience)] : [];
-          const diffs = extracted.differentials ? [String(extracted.differentials)] : [];
-
-          await query(
-            `
-            INSERT INTO public.client_identities (
-              client_id, value_proposition, market_niche, archetype,
-              tone_of_voice, target_audiences, differentials, notes, updated_at
-            ) VALUES (
-              $1, $2, $3, 'SABIO', $4, $5, $6, $7, NOW()
-            )
-            ON CONFLICT (client_id) DO UPDATE SET
-              value_proposition = COALESCE(NULLIF(EXCLUDED.value_proposition, ''), client_identities.value_proposition),
-              tone_of_voice = EXCLUDED.tone_of_voice,
-              target_audiences = EXCLUDED.target_audiences,
-              differentials = EXCLUDED.differentials,
-              notes = COALESCE(NULLIF(EXCLUDED.notes, ''), client_identities.notes),
-              updated_at = NOW()
-            `,
-            [
-              session.client_id,
-              String(extracted.differentials || ""),
-              String(session.company_name),
-              tones,
-              audiences,
-              diffs,
-              `Briefing coletado via IA com ${session.contact_name}. Concorrentes: ${extracted.competitors || "Não informados"}`,
-            ]
-          );
-        }
-
-        if (session.task_id) {
-          await query(
-            `UPDATE public.project_tasks SET status = 'DONE', completed_at = NOW() WHERE id = $1`,
-            [session.task_id]
-          );
-        }
-      } catch (syncErr) {
-        console.error("Erro na sincronização automática pós-briefing:", syncErr);
+    const updatedRes = await withTransaction(async client=>{
+      const result=await client.query(updateSql,[JSON.stringify(history),JSON.stringify(extracted),progress,isCompleted,session.id]);
+      if(isCompleted){
+        if(session.client_id)await syncBriefingIdentity(client,session.client_id,extracted,{instagram:session.instagram_url||"",website:session.website_url||"",notes:session.initial_notes||""});
+        if(session.task_id)await client.query("UPDATE project_tasks SET status='DONE',completed_at=NOW() WHERE id=$1",[session.task_id]);
       }
-    }
+      return result;
+    });
 
     return NextResponse.json({
       success: true,

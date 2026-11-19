@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { checkDatabaseConnection } from "@/lib/db/pool";
+import { requireAdminUser } from "@/lib/auth/require-auth";
 
 export async function GET() {
+  try { await requireAdminUser(); } catch { return NextResponse.json({error:"Acesso não autorizado."},{status:401}); }
   const dbHealth = await checkDatabaseConnection();
 
   const responsePayload = {
@@ -20,6 +22,5 @@ export async function GET() {
     },
   };
 
-  // Retornar 200 permite que o AdminShell e ferramentas de monitoramento consumam o diagnóstico em JSON
-  return NextResponse.json(responsePayload, { status: 200 });
+  return NextResponse.json(responsePayload, { status: dbHealth.ok ? 200 : 503 });
 }

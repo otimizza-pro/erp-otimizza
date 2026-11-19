@@ -88,6 +88,7 @@ export default function PipelinesManagementPage() {
       const res = await fetch("/api/crm/pipelines?includeArchived=true");
       if (res.ok) {
         setPipelines(await res.json());
+        window.dispatchEvent(new Event("crm-pipelines-changed"));
       }
     } catch (e) {
       console.error("Erro ao carregar funis:", e);

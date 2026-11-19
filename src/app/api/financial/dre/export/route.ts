@@ -1,8 +1,11 @@
+import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextRequest, NextResponse } from "next/server";
 import { getDREStatementForMonth, exportDREStatementToCSV } from "@/modules/financial/dre/service";
 import { AccountingMethod } from "@/modules/financial/dre/types";
 
 export async function GET(req: NextRequest) {
+  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+
   try {
     const { searchParams } = new URL(req.url);
     const methodParam = searchParams.get("method") || "ACCRUAL";

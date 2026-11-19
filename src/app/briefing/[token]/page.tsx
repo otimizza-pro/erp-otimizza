@@ -470,16 +470,16 @@ export default function PublicBriefingPage({
             <h3 className="font-bold text-white text-base">Briefing Entregue com Sucesso!</h3>
             <p className="text-xs text-slate-300 leading-relaxed">
               As diretrizes estratégicas da <strong>{session.companyName}</strong> já foram sincronizadas
-              diretamente no sistema da Otimizza. O Valdemar e a equipe darão os próximos passos.
+              diretamente no sistema da Otimizza. A equipe da Otimizza dará os próximos passos.
             </p>
             <a
-              href={`https://wa.me/?text=Ol%C3%A1%20Valdemar!%20Acabei%20de%20finalizar%20o%20briefing%20de%20redes%20sociais%20da%20${encodeURIComponent(session.companyName)}.%20Podemos%20avan%C3%A7ar!`}
+              href={`https://wa.me/?text=Ol%C3%A1%20equipe%20Otimizza!%20Acabei%20de%20finalizar%20o%20briefing%20de%20redes%20sociais%20da%20${encodeURIComponent(session.companyName)}.%20Podemos%20avan%C3%A7ar!`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl text-xs transition"
             >
               <WhatsAppIcon className="w-4 h-4" />
-              Avisar o Valdemar no WhatsApp
+              Compartilhar conclusão no WhatsApp
             </a>
           </div>
         )}

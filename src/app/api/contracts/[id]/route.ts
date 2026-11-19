@@ -6,6 +6,7 @@ import {
   getContractProjections,
   updateContract,
   deleteContract,
+  setContractVisibility,
 } from "@/modules/contracts/service";
 import { query } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
@@ -58,6 +59,11 @@ export async function POST(
     const { id } = await props.params;
     const body = await request.json();
 
+    if (["archive", "restore", "reject"].includes(body.action)) {
+      await requireAdminUser();
+      const contract=await setContractVisibility(id,body.action,typeof body.reason === "string" ? body.reason : "");
+      return NextResponse.json({success:true,contract});
+    }
     // Se a requisição for para cancelamento
     if (body.action === "cancel") {
       if (!body.reason) {

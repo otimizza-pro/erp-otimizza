@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const clientsRes = await query(`
       SELECT id, name, trade_name, type, status
       FROM clients
-      WHERE status = 'ACTIVE'
+      WHERE status = 'ACTIVE' AND id <> '00000000-0000-4000-8000-000000000001'::uuid
       ORDER BY name ASC
     `);
 

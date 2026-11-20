@@ -508,23 +508,27 @@ function ContentStudioPageContent() {
     lines.push(idea.trim() || "[Defina a ideia central ou dor do cliente]");
 
     lines.push("");
-    lines.push("REGRAS DE ENTREGA E CONFIGURAÇÕES ESPECÍFICAS:");
+    lines.push("REGRAS DE ENTREGA E CONFIGURAÇÕES ESPECÍFICAS (HUMANIZAÇÃO ADAPTATIVA):");
     if (format === "HEADLINES") {
       lines.push(`• Quantidade desejada: exatamente ${headlineCount} headlines.`);
       lines.push(`• Ângulos e estilos prioritários: ${headlineStyles.join(", ") || "Variações estratégicas"}.`);
       lines.push(`• Formato do título: ${headlineType}.`);
+      lines.push("• Diretriz de Humanização: Proibido títulos de manual ou clickbait vazio. Cada opção deve soar como um pensamento real do público-alvo numa conversa franca.");
       if (headlineUrgency) lines.push("• Diretriz de tom: Foco em autoridade executiva, firmeza e seriedade.");
       lines.push("• Entregue em lista numerada de 1 a N.");
     } else if (format === "CAPTION") {
       lines.push(`• Extensão da legenda: ${captionLength}.`);
       lines.push(`• Estrutura de copy: ${captionStructure}.`);
-      lines.push(`• Uso de emojis: ${captionEmojiLevel}.`);
+      lines.push(`• Uso de emojis: ${captionEmojiLevel} (máximo 2 por peça).`);
+      lines.push("• Storytelling e Proximidade: Parágrafos que conversam entre si com situação cotidiana real, sem listas secas ou frases isoladas.");
       if (captionIncludeAltHook) lines.push("• Forneça 1 opção alternativa de primeiro parágrafo/gancho de abertura (para teste A/B).");
       lines.push("• Use quebras de linha limpas para garantir leitura escaneável no smartphone.");
       if (captionIncludeHashtags) lines.push("• Inclua 4 a 6 hashtags estratégicas e nichadas ao final.");
     } else if (format === "REELS") {
       lines.push(`• Duração estimada do vídeo: ${reelsDuration}.`);
       lines.push(`• Estilo de gravação: ${reelsStyle}.`);
+      lines.push("• Regra do Fluxo Contínuo: Escreva primeiro o [FIO CONDUTOR / HISTÓRIA CORRIDA] (conversa fluida e humana) e só depois decupe nos tempos com marcações [entre colchetes].");
+      lines.push("• Teste da Leitura em Voz Alta: Frases com ritmo de respiração natural e conectivos falados ('e aí', 'só que', 'na prática', 'o ponto é que').");
       lines.push("• Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de roteiro (Opção 1: Ângulo Direto/Confrontacional; Opção 2: Ângulo Narrativo/Bastidores).");
       if (reelsIncludeOnScreen) lines.push("• Inclua indicações claras de [TEXTO NA TELA] (lettering) sincronizado com a fala.");
       if (reelsIncludeBroll) lines.push("• Inclua sugestões de cortes de cena e B-rolls visuais a cada 3 a 5 segundos.");
@@ -533,22 +537,22 @@ function ContentStudioPageContent() {
       lines.push(`• Quantidade de slides: exatamente ${carouselSlides} slides.`);
       lines.push(`• Tipo de estrutura: ${carouselType}.`);
       lines.push(`• Limite de palavras: ${carouselWordLimit}.`);
-      lines.push("• Crie DUAS OPÇÕES COMPLETAS de carrossel (Estrutura A e Estrutura B) slide a slide.");
-      lines.push("• Slide 1 (Capa): Título com gancho de alto impacto + subtítulo explicativo curto.");
+      lines.push("• Crie DUAS OPÇÕES COMPLETAS de carrossel (Estrutura A e Estrutura B) slide a slide, com raciocínio encadeado entre os slides.");
+      lines.push("• Slide 1 (Capa): Título com gancho que soe como um pensamento real do cliente + subtítulo explicativo curto.");
       lines.push("• Slides intermediários: Apenas uma ideia central por slide para leitura rápida.");
       if (carouselIncludeSaveShare) lines.push("• Slide final: Resumo dos pontos + CTA claro convidando a SALVAR e COMPARTILHAR.");
     } else if (format === "LANDING_PAGE") {
       lines.push(`• Objetivo da Landing Page: ${lpGoal}.`);
-      lines.push("• Estrutura completa de copy dividida em seções:");
-      lines.push("  - Dobra Superior (Hero): Headline de impacto, subheadline explicativa, CTA e bullet points de valor.");
-      if (lpIncludePains) lines.push("  - Dores e Sintomas do ICP: Conexão imediata com os problemas que o cliente enfrenta.");
+      lines.push("• Estrutura completa de copy dividida em blocos de conversão com parágrafos que conversam entre si:");
+      lines.push("  - Dobra Superior (Hero): Headline de impacto que soe autêntica, subheadline explicativa, CTA e bullet points de valor.");
+      if (lpIncludePains) lines.push("  - Dores e Sintomas do ICP: Conexão imediata com os problemas cotidianos que o cliente enfrenta.");
       lines.push("  - Como Funciona / Solução: Passo a passo claro da entrega.");
       lines.push("  - Diferenciais e Autoridade: Por que esta assessoria/serviço.");
       if (lpIncludeFaq) lines.push("  - FAQ: 4 a 5 dúvidas mais frequentes respondidas estrategicamente.");
       if (lpIncludeGuarantee) lines.push("  - Chamada Final de Ação: CTA forte com garantia e alívio de risco.");
     }
 
-    lines.push("• Evite clichês corporativos, travessões excessivos e promessas vazias. Mantenha vocabulário maduro.");
+    lines.push("• LISTA NEGRA DE CLICHÊS DE IA (PROIBIDO USAR): 'desbloqueie', 'eleve', 'potencialize', 'mergulhe', 'no cenário atual', 'transforme sua jornada', 'alavanque', 'mude o jogo', 'solução definitiva'. Máximo 2 emojis.");
 
     setPromptText(lines.join("\n"));
   };

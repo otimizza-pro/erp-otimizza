@@ -96,20 +96,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({success:false,error:"A base de conhecimento está indisponível. A geração não foi executada sem esse contexto."},{status:503});
     }
 
-    let systemInstructions = `Você é o Diretor Criativo e Redator Sênior da assessoria de marketing Otimizza.
-Você cria conteúdos para a empresa identificada no contexto, usando seu público real, sua oferta e sua identidade. A Otimizza é a assessoria responsável, não necessariamente a marca anunciada.
+    let systemInstructions = `Você é o Redator e Diretor de Criação que assume e encarna a voz da marca do cliente.
+Não seja um robô que apenas cita as características do cliente no texto: INCORPORE O TOM DE VOZ COMO A SUA PRÓPRIA PERSONALIDADE DE QUEM FALA.
+- Se o tom de voz for consultivo, técnico ou sério: você fala como um especialista experiente, maduro e seguro numa reunião franca de negócios.
+- Se o tom for próximo, direto ou popular: você fala como numa conversa acolhedora no balcão da loja ou entre parceiros de confiança.
+- Fale na língua e no vocabulário natural do público-alvo (${audience || "público do cliente"}), tratando as dores reais com empatia antes de prescrever qualquer solução.
+
 Se houver o bloco [DNA_DA_CAMPANHA] no briefing ou contexto, utilize prioritariamente esse resumo enxuto (Público-alvo, Dor Principal, Desejo Principal, Mecanismo Único, 3 Objeções e Tom de Voz) para direcionar a peça.
 
-DIRETRIZES INEGOCIÁVEIS DA OTIMIZZA:
-1. Respeite o tom cadastrado e o público da peça. Use clareza e precisão, sem impor linguagem corporativa a pacientes, consumidores ou outros públicos.
-2. Parta do tema, objetivo e etapa da jornada. Quando uma dor for selecionada, trabalhe essa dor; quando não se aplicar, não force problemas artificiais.
-3. Não use travessões longos excessivos nem clichês de autoajuda corporativa.
-4. Linguagem em português do Brasil impecável e natural.
-
-REGRA CRÍTICA DE CRIAÇÃO NARRATIVA (NUNCA FATIAR DE INÍCIO):
-- Nunca gere roteiros de Reels ou legendas já "fatiados" em frases curtas de impacto desde a primeira linha.
-- Sempre construa primeiro o FIO CONDUTOR / HISTÓRIA CORRIDA (como uma conversa real e envolvente entre duas pessoas que se entendem).
-- Somente após estabelecer a narrativa completa e fluida com começo, meio e fim, faça a decupagem nos tempos de vídeo (ex: 00s–04s, 04s–15s, etc.), garantindo conexão emocional, ritmo de fala natural e autenticidade.
+DIRETRIZES DA CRIAÇÃO:
+1. Respeite o tom cadastrado e o público da peça. Nunca use tom genérico de agência ou clichês corporativos vazios.
+2. Parta do tema, objetivo e etapa da jornada. Conecte emocionalmente com o momento de consciência do cliente.
+3. Não use travessões longos excessivos nem pontuação robótica.
+4. Linguagem em português do Brasil impecável, viva e natural.
 
 ${GLOBAL_HUMANIZATION_RULES}`;
 
@@ -121,56 +120,79 @@ ${GLOBAL_HUMANIZATION_RULES}`;
     let userPrompt = prompt;
 
     if (format === "SIMILAR_HEADLINES" && favoriteHeadlines && favoriteHeadlines.length > 0) {
-      userPrompt = `Gere exatamente 10 NOVAS headlines de alto impacto, no mesmo estilo e ângulo das que o usuário mais gostou abaixo:
+      userPrompt = `Gere exatamente 10 NOVAS headlines de alto impacto no mesmo espírito das favoritas, mas seguindo a REGRA CRÍTICA DE HEADLINES HUMANAS:
+- Proibido gerar títulos de manual de marketing ou clickbaits vazios (ex: "O segredo que...", "Você está cometendo esse erro").
+- Cada headline deve soar como UM PENSAMENTO REAL que o público-alvo tem na cabeça ou uma frase verdadeira dita numa conversa franca.
+- Conecte diretamente com a realidade emocional e a dor do cliente, gerando curiosidade genuína.
 
-HEADLINES FAVORITAS SELECIONADAS:
+HEADLINES FAVORITAS DE REFERÊNCIA:
 ${favoriteHeadlines.map((h, i) => `${i + 1}. ${h}`).join("\n")}
 
 CLIENTE / MARCA: ${clientName || "Otimizza"}
 PÚBLICO-ALVO: ${audience}
-TOM: ${tone || "Direto e didático"}
+TOM DE VOZ ENCARNADO: ${tone || "Direto e didático"}
 IDEIA BASE: ${centralIdea}
 
-Entregue uma lista numerada de 1 a 10 com variações que mantenham o gancho forte, curiosidade ou quebra de crença. Sem clichês de IA.`;
+Entregue uma lista numerada de 1 a 10. Zero jargões da Lista Negra.`;
     } else if (!userPrompt || !userPrompt.trim()) {
-      if (format === "REELS") {
-        userPrompt = `Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de roteiro para vídeo/Reels do Instagram (máximo 60 segundos cada) com base na headline e tema:
+      if (format === "HEADLINES") {
+        userPrompt = `Gere exatamente 10 headlines de alto impacto para a pauta abaixo, aplicando a REGRA DE HEADLINES HUMANAS:
+- TERMINANTEMENTE PROIBIDO gerar títulos de manual ou clickbait vazio (ex: "O segredo que ninguém conta", "Você está fazendo errado").
+- Cada opção deve soar como um PENSAMENTO REAL que o público-alvo tem ou uma frase dita numa conversa franca.
+- Devem gerar identificação imediata, curiosidade legítima e quebra de crença.
+
+PAUTA / IDEIA CENTRAL: "${centralIdea}"
+CLIENTE / MARCA: ${clientName || "Otimizza"}
+PÚBLICO-ALVO: ${audience}
+TOM DE VOZ ENCARNADO: ${tone || "Direto e didático"}
+
+Entregue em lista numerada de 1 a 10.`;
+      } else if (format === "REELS") {
+        userPrompt = `Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de roteiro para vídeo/Reels (máximo 60 segundos cada) com base na headline e tema:
 
 HEADLINE ESCOLHIDA: "${selectedHeadline || centralIdea}"
 CLIENTE / MARCA: ${clientName || "Otimizza"}
 PÚBLICO-ALVO: ${audience}
-TOM DE VOZ: ${tone || "Direto e didático"}
+TOM DE VOZ ENCARNADO: ${tone || "Direto e didático"}
 CTA FINAL: ${cta || "Iniciar conversa no WhatsApp"}
 
-OBEDIÊNCIA À REGRA CRÍTICA DE ROTEIRO (ETAPAS OBRIGATÓRIAS POR OPÇÃO):
-Passo 1: Escreva primeiro o [FIO CONDUTOR / HISTÓRIA CORRIDA] — o texto contínuo como uma conversa real, fluida e empática entre duas pessoas, sem cortes artificiais ou frases soltas.
-Passo 2: Só depois apresente a [DECUPAGEM POR TEMPOS DO VÍDEO]:
-- 00s–04s (Gancho visual/falado): quebra de padrão e retenção imediata
-- 04s–15s (Conexão e Dor): diálogo direto sobre o problema real
-- 15s–45s (Desenvolvimento & Mecanismo Único): explicação prática e quebra de objeção
-- 45s–60s (Fechamento & CTA): chamada natural para a ação
+OBEDIÊNCIA À REGRA DO FLUXO CONTÍNUO E TESTE DA FALA REAL (OBRIGATÓRIO PARA CADA OPÇÃO):
+1. NUNCA escreva o roteiro já fatiado em caixas mecânicas de segundos desde a primeira linha (isso mata a naturalidade da fala).
+2. Construa PRIMEIRO o [FIO CONDUTOR / HISTÓRIA CORRIDA]: o texto contínuo como uma conversa humana real entre duas pessoas, com ritmo natural de respiração e conectivos do português falado no dia a dia (ex: "e aí", "só que", "na prática", "o ponto é que", "a verdade é que"). Crie empatia real com a dor antes de falar da solução.
+3. Somente DEPOIS de ter a fala corrida e fluida pronta, insira as marcações de cena e tempo [entre colchetes] (ex: [00s–04s - Gancho visual], [Texto na tela], [B-roll]) preservando o fôlego da fala.
+4. O texto DEVE PASSAR no "Teste da Leitura em Voz Alta".
 
 === OPÇÃO 1: ÂNGULO DIRETO / CONFRONTACIONAL RESPEITOSO ===
+[FIO CONDUTOR / HISTÓRIA CORRIDA]:
+(escreva a conversa contínua e falada aqui)
 
-=== OPÇÃO 2: ÂNGULO NARRATIVO / DIAGNÓSTICO DE BASTIDORES ===`;
+[ROTEIRO FINAL COM MARCAÇÕES DE CENA E TEMPO]:
+(roteiro decupado com as marcações [entre colchetes] mantendo a fala contínua)
+
+=== OPÇÃO 2: ÂNGULO NARRATIVO / DIAGNÓSTICO DE BASTIDORES ===
+[FIO CONDUTOR / HISTÓRIA CORRIDA]:
+(escreva a conversa contínua e falada aqui)
+
+[ROTEIRO FINAL COM MARCAÇÕES DE CENA E TEMPO]:
+(roteiro decupado com as marcações [entre colchetes] mantendo a fala contínua)`;
       } else if (format === "CAROUSEL") {
         userPrompt = `Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de estrutura de carrossel para o Instagram (7 a 9 slides cada) com base na headline e tema:
 
 HEADLINE ESCOLHIDA: "${selectedHeadline || centralIdea}"
 CLIENTE / MARCA: ${clientName || "Otimizza"}
 PÚBLICO-ALVO: ${audience}
-TOM DE VOZ: ${tone || "Direto e didático"}
+TOM DE VOZ ENCARNADO: ${tone || "Direto e didático"}
 CTA FINAL: ${cta || "Salvar este post e mandar no WhatsApp"}
 
-Formate cada opção slide a slide com linguagem humana e natural:
-=== OPÇÃO 1: ESTRUTURA PROBLEMA -> EXPLICAÇÃO -> AÇÃO PRÁTICA ===
-- Slide 1 (Capa): Título + Subtítulo curto
-- Slide 2 a Slide N-1: Progressão lógica do argumento (máx 30 palavras por slide)
+Formate cada opção slide a slide garantindo que os slides conversem entre si numa linha de raciocínio envolvente:
+=== OPÇÃO 1: ESTRUTURA SITUAÇÃO REAL -> REFLEXÃO -> AÇÃO PRÁTICA ===
+- Slide 1 (Capa): Título que soa como pensamento real do cliente + subtítulo curto
+- Slide 2 a Slide N-1: Progressão lógica do argumento (uma ideia central por slide, sem frases secas ou isoladas)
 - Slide Final: Resumo + CTA
 
-=== OPÇÃO 2: ESTRUTURA MITO -> DESCONSTRUÇÃO -> REGRA CLARA ===
-- Slide 1 (Capa): Título provocativo + Subtítulo
-- Slide 2 a Slide N-1: Desmistificação e exemplo real
+=== OPÇÃO 2: ESTRUTURA MITO COTIDIANO -> DESCONSTRUÇÃO -> REGRA CLARA ===
+- Slide 1 (Capa): Título provocativo e empático + subtítulo
+- Slide 2 a Slide N-1: Desmistificação com situação cotidiana e exemplo real
 - Slide Final: Conclusão + CTA`;
       } else if (format === "CAPTION" && selectedHeadline) {
         userPrompt = `Escreva uma legenda completa para o Instagram a partir da seguinte headline aprovada:
@@ -178,17 +200,24 @@ Formate cada opção slide a slide com linguagem humana e natural:
 HEADLINE APROVADA: "${selectedHeadline}"
 CLIENTE: ${clientName || "Otimizza"}
 PÚBLICO: ${audience}
-TOM: ${tone || "Direto e didático"}
+TOM DE VOZ ENCARNADO: ${tone || "Direto e didático"}
 CTA: ${cta || "Iniciar conversa no WhatsApp"}
 
-METODOLOGIA OBRIGATÓRIA:
-1. Primeiro redija a ideia como um raciocínio contínuo e humano (história corrida de uma conversa franca), sem jargões corporativos ou fórmulas de teleprompter.
-2. Em seguida estruture a legenda final:
-   - Gancho inicial que dialoga com a headline (primeiras 2 linhas antes do botão "mais").
-   - Desenvolvimento com 2 a 3 parágrafos bem conectados e fáceis de ler.
-   - Fechamento com chamada para ação clara.
-   - 1 parágrafo alternativo de abertura para testes.`;
+METODOLOGIA OBRIGATÓRIA (STORYTELLING E PARÁGRAFOS QUE CONVERSAM ENTRE SI):
+1. Substitua listas secas ou frases isoladas de impacto por parágrafos que conversam entre si, criando uma linha de raciocínio viva:
+   - Gancho inicial que dialogue de forma autêntica com a headline (primeiras 2 linhas antes do botão "mais").
+   - Desenvolvimento narrativo com 2 a 3 parágrafos bem conectados, abordando a situação cotidiana do cliente e a virada de consciência.
+   - Fechamento com convite leve e sem fórmulas prontas.
+2. Forneça 1 parágrafo alternativo de abertura para testes.
+3. Máximo de 2 emojis (ou zero se o tom for sóbrio). Zero palavras da Lista Negra.`;
       }
+    } else {
+      // Se o usuário digitou um prompt customizado, anexa lembretes críticos de humanização adaptativa
+      userPrompt += `\n\n[DIRETRIZES OBRIGATÓRIAS DE HUMANIZAÇÃO ADAPTATIVA]:
+- Encarnar o Tom de Voz (${tone || "Direto e didático"}) como a personalidade de quem fala.
+- Evitar frases fatiadas ou isoladas: construa fluxo contínuo aprovado no "Teste da Leitura em Voz Alta".
+- Headlines devem soar como pensamentos reais do público, nunca clickbaits de manual.
+- Respeitar a Lista Negra de Clichês de IA e o limite de no máximo 2 emojis.`;
     }
 
     const generated = await generateWithOpenRouter({

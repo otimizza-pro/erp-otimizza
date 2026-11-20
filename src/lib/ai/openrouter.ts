@@ -17,11 +17,46 @@ export const CONTENT_TEMPERATURE = 0.7;
 export const WEB_TEMPERATURE = 0.5;
 export const ADS_TEMPERATURE = 0.65;
 
-export const GLOBAL_HUMANIZATION_RULES = `REGRAS GLOBAIS DE HUMANIZAÇÃO E ESCRITA:
-- Escrever em português brasileiro natural, falado e próximo — como uma conversa franca de negócios, nunca como texto de manual ou teleprompter.
-- LISTA NEGRA DE CLICHÊS DE IA (TERMINANTEMENTE PROIBIDO USAR): "desbloqueie", "eleve", "potencialize", "mergulhe", "no cenário atual", "transforme sua jornada", "alavanque", "segredo revelado", "mude o jogo".
-- Evitar aberturas genéricas com perguntas clichês (ex: "Você já se perguntou...?").
-- Limitar emojis a no máximo 2 por texto, apenas quando fizerem sentido real para o contexto da mensagem.`;
+export const GLOBAL_HUMANIZATION_RULES = `CAMADA OBRIGATÓRIA DE HUMANIZAÇÃO ADAPTATIVA:
+
+1. LEITURA E ENCARNAÇÃO DINÂMICA DO TOM DE VOZ (NUNCA DESCREVA, ENCARNE):
+- O Tom de Voz, o Nicho, as Dores e o Público-alvo fornecidos no contexto não são apenas dados informativos: eles definem a PERSONALIDADE VIVA DE QUEM FALA.
+- Se o tom do cliente for consultivo, técnico ou sério: fale como um especialista experiente conversando numa reunião franca de negócios.
+- Se o tom for próximo, direto ou popular: fale como uma conversa real no balcão da loja ou entre parceiros de confiança.
+- Respeite rigorosamente o vocabulário natural do público-alvo daquele cliente específico, sem afetação corporativa nem gírias artificiais.
+
+2. REGRAS PARA HEADLINES (CAPAS, TÍTULOS DE SITE E ANÚNCIOS):
+- TERMINANTEMENTE PROIBIDO gerar headlines "de manual de marketing" ou clickbait vazio (ex: "O segredo que ninguém te conta", "Você está cometendo esse erro", "Descubra o segredo").
+- As headlines devem soar como UM PENSAMENTO REAL que o público-alvo tem na cabeça ou uma frase verdadeira dita numa conversa franca.
+- Devem gerar identificação imediata e curiosidade genuína, conectadas à realidade emocional e prática do cliente.
+
+3. ROTEIROS DE VÍDEO (REELS / CRIATIVOS) — REGRA DO FLUXO CONTÍNUO E TESTE DA FALA REAL:
+- NUNCA escreva o roteiro já fatiado em caixas mecânicas de segundos desde a primeira linha (isso quebra o raciocínio e deixa a fala robótica).
+- Construa PRIMEIRO UMA NARRATIVA ÚNICA E FLUIDA (começo, meio e fim com sentido lógico e emocional, onde uma frase puxa naturalmente a próxima).
+- Só após a fala estar fluida e completa, insira as marcações de tempo e cena [entre colchetes], sem quebrar o fôlego da narrativa.
+- OBRIGATÓRIO PASSAR NO "TESTE DA LEITURA EM VOZ ALTA":
+  • Ritmo natural de respiração de quem conversa ao vivo.
+  • Conectivos do português falado natural (ex: "e aí", "só que", "na prática", "o ponto é que", "a verdade é que").
+  • Empatia real com a dor concreta antes de apresentar qualquer solução.
+
+4. LEGENDAS E TEXTOS DE PÁGINA (STORYTELLING E PROXIMIDADE):
+- Substitua listas secas e parágrafos desconexos por PARÁGRAFOS QUE CONVERSAM ENTRE SI, criando uma linha de raciocínio envolvente: história ou situação cotidiana do cliente -> reflexão / virada de consciência -> solução prática -> convite leve e natural.
+
+5. LISTA NEGRA GLOBAL DE CLICHÊS DE IA (TERMINANTEMENTE PROIBIDO USAR):
+- "desbloqueie"
+- "eleve"
+- "potencialize"
+- "mergulhe"
+- "no cenário atual"
+- "transforme sua jornada"
+- "alavanque"
+- "mude o jogo"
+- "solução definitiva"
+- "segredo revelado"
+
+6. REGRAS DE ABERTURA E EMOJIS:
+- Evite aberturas genéricas com perguntas clichês (ex: "Você já se perguntou...?").
+- Limite emojis a no máximo 2 por texto (ou ZERO se o tom do cliente for mais sóbrio e formal).`;
 
 export const STRATEGY_CAMPAIGN_DNA_INSTRUCTION = `Ao final da entrega estratégica, encerre OBRIGATORIAMENTE com um bloco padronizado chamado [DNA_DA_CAMPANHA] (contendo apenas: Público-alvo, Dor Principal, Desejo Principal, Mecanismo Único, 3 Objeções e Tom de Voz), para que os outros agentes consumam esse resumo enxuto em vez do briefing inteiro:
 [DNA_DA_CAMPANHA]

@@ -11,10 +11,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:migrate": "tsx src/lib/db/migrate.ts",
-    "db:seed": "tsx src/lib/db/seed.ts",
-    "db:status": "tsx src/lib/db/status.ts",
-    "db:audit": "tsx src/lib/db/audit-migrations.ts"
+    "db:migrate": "tsx --dns-result-order=verbatim src/lib/db/migrate.ts",
+    "db:seed": "tsx --dns-result-order=verbatim src/lib/db/seed.ts",
+    "db:status": "tsx --dns-result-order=verbatim src/lib/db/status.ts",
+    "db:audit": "tsx --dns-result-order=verbatim src/lib/db/audit-migrations.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

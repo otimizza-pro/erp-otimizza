@@ -38,6 +38,7 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isCronRoute =
+    request.nextUrl.pathname === "/api/headlines/brainstorm/weekly" ||
     request.nextUrl.pathname === "/api/documents/cleanup" ||
     request.nextUrl.pathname === "/api/financial/recurrence/process" ||
     request.nextUrl.pathname === "/api/projects/recurrence/process";

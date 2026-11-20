@@ -1,3 +1,5 @@
+import dns from "node:dns";
+try { dns.setDefaultResultOrder("verbatim"); } catch {}
 import pg from "pg";
 import { getEnv } from "@/lib/env";
 

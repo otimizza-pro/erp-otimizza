@@ -19,6 +19,7 @@ export interface BrainstormIdea {
   rationale: string;
   status: "IDEA" | "SAVED_FOR_LATER" | "REJECTED" | "HEADLINES_IN_PROGRESS" | "HEADLINE_CHOSEN" | "IN_CREATION" | "DONE" | "ARCHIVED";
   rejection_reason?: string;
+  team?: "A" | "B";
   workspace_id: string | null;
   content_id: string | null;
   created_at: string;
@@ -114,6 +115,7 @@ const aiIdeaSchema = z.object({
   pain_or_desire: z.string().max(1000),
   goal: z.string().max(500),
   rationale: z.string().max(1000),
+  team: z.enum(["A", "B"]).default("A"),
 });
 
 export async function generateBrainstormIdeas(input: {
@@ -123,6 +125,7 @@ export async function generateBrainstormIdeas(input: {
   editorialLineId?: string;
   direction?: string;
   count?: number;
+  team?: "A" | "B" | "BOTH";
 }): Promise<Array<z.infer<typeof aiIdeaSchema> & { pillar_id?: string; editorial_line_id?: string }>> {
   const count = Math.min(Math.max(input.count || 5, 1), 10);
   const context = await loadAiClientContext(input.clientId);
@@ -164,6 +167,20 @@ Sua missão é fazer um BRAINSTORM DE CONTEÚDO para a empresa cliente, gerando 
 
 ${GLOBAL_HUMANIZATION_RULES}
 
+${input.team === "A" ? `
+DIRETRIZ DE EQUIPE - TIME A (PERFORMANCE & COPY DIRETA):
+- Foque em ganchos cortantes, problemas urgentes, erros comuns caros, quebras de padrão e apelo para ação/conversão rápida.
+- Atribua o campo team como "A".
+` : input.team === "B" ? `
+DIRETRIZ DE EQUIPE - TIME B (STORYTELLING & CONEXÃO):
+- Foque em narrativas humanas, histórias reais, bastidores, lições aprendidas, empatia profunda e construção de autoridade da marca.
+- Atribua o campo team como "B".
+` : `
+DIRETRIZ DE EQUIPES (TIME A E TIME B):
+- Distribua as ideias geradas equilibradamente entre Time A (Copy Direta / Performance) e Time B (Storytelling / Conexão Humana).
+- Atribua o campo team como "A" ou "B" conforme o ângulo de cada ideia.
+`}
+
 DIRETRIZES FUNDAMENTAIS:
 1. NÃO gere apenas títulos genéricos ou clickbaits. Gere TEMAS e IDEIAS DE CONTEÚDO substanciais, com ângulo específico e abordagem clara.
 2. Cada ideia DEVE estar estritamente ancorada nos Pilares Estratégicos e Assuntos/Linhas Editoriais da empresa.
@@ -182,7 +199,8 @@ DIRETRIZES FUNDAMENTAIS:
    - target_audience: Público-alvo ao qual se destina (dos cadastrados)
    - pain_or_desire: A dor específica que o conteúdo alivia ou o desejo que ele ativa
    - goal: Objetivo da peça (ex: Educar, Quebrar Objeção, Atrair, Vender, Engajar)
-   - rationale: Por que este tema funciona agora e gera identificação imediata com o público`;
+   - rationale: Por que este tema funciona agora e gera identificação imediata com o público
+   - team: "A" (para Performance/Copy Direta) ou "B" (para Storytelling/Conexão)`;
 
   const userContent = JSON.stringify({
     empresa: {
@@ -271,6 +289,7 @@ export async function saveBrainstormIdea(input: {
   rationale?: string;
   status?: BrainstormIdea["status"];
   rejectionReason?: string;
+  team?: "A" | "B";
 }): Promise<BrainstormIdea> {
   const statusToUse = input.status || "SAVED_FOR_LATER";
 
@@ -278,8 +297,8 @@ export async function saveBrainstormIdea(input: {
     `INSERT INTO content_brainstorm_ideas (
       client_id, pillar_id, editorial_line_id, pillar_name, theme_name,
       title, angle, format, target_audience, pain_or_desire, goal, rationale,
-      status, rejection_reason, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      status, rejection_reason, team, created_by
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
     RETURNING *`,
     [
       input.clientId,
@@ -296,6 +315,7 @@ export async function saveBrainstormIdea(input: {
       input.rationale || "",
       statusToUse,
       input.rejectionReason || "",
+      input.team || "A",
       input.userId,
     ]
   );

@@ -21,6 +21,9 @@ import {
   CheckCircle2,
   Layers,
   Sparkles,
+  Sliders,
+  Video,
+  TrendingUp,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import {
@@ -120,10 +123,21 @@ export function ClientStrategyPanel({
   const [whatsappCta, setWhatsappCta] = useState("");
   const [notes, setNotes] = useState("");
 
+  const [formatGuidelines, setFormatGuidelines] = useState<{
+    reelsStandard: string;
+    headlinesStandard: string;
+    carouselStandard: string;
+  }>({
+    reelsStandard: "",
+    headlinesStandard: "",
+    carouselStandard: "",
+  });
+
   const [communicationProfile, setCommunicationProfile] = useState<CommunicationProfile>(emptyCommunicationProfile);
+  const [generatingAiField, setGeneratingAiField] = useState<string | null>(null);
 
   // Sub-aba ativa dentro da Estratégia
-  const [subTab, setSubTab] = useState<"dna" | "audiences" | "voice" | "channels" | "editorial">("dna");
+  const [subTab, setSubTab] = useState<"dna" | "audiences" | "voice" | "formatStandards" | "channels" | "editorial">("dna");
 
   // Carregar dados de identidade/estratégia do cliente
   const loadStrategyData = async () => {
@@ -151,6 +165,13 @@ export function ClientStrategyPanel({
       setWebsiteUrl(data.websiteUrl || "");
       setWhatsappCta(data.whatsappCta || "");
       setNotes(data.notes || "");
+      if (data.formatGuidelines) {
+        setFormatGuidelines({
+          reelsStandard: data.formatGuidelines.reelsStandard || "",
+          headlinesStandard: data.formatGuidelines.headlinesStandard || "",
+          carouselStandard: data.formatGuidelines.carouselStandard || "",
+        });
+      }
 
       const parsedProfile = CommunicationProfileSchema.safeParse(data.communicationProfile);
       setCommunicationProfile(parsedProfile.success ? parsedProfile.data : emptyCommunicationProfile);
@@ -158,6 +179,64 @@ export function ClientStrategyPanel({
       setFeedback({ type: "error", text: e.message || "Falha ao carregar dados de estratégia." });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Gerar / Sugerir campo com IA
+  const handleGenerateAiField = async (field: string) => {
+    setGeneratingAiField(field);
+    setFeedback(null);
+    try {
+      const draft = {
+        brandContext,
+        marketNiche,
+        valueProposition,
+        archetype,
+        toneOfVoice: selectedTones,
+        targetAudiences,
+        painPoints,
+        differentials,
+        forbiddenWords,
+        mandatoryTerms,
+        defaultCtas,
+        notes,
+      };
+
+      const res = await fetch(`/api/clients/${clientId}/identity/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field, draft }),
+      });
+
+      const d = await res.json();
+      if (!res.ok || !d.success) throw new Error(d.error || "Falha ao gerar sugestão com IA.");
+
+      if (field === "valueProposition" && typeof d.value === "string") {
+        setValueProposition(d.value);
+      } else if (field === "marketNiche" && typeof d.value === "string") {
+        setMarketNiche(d.value);
+      } else if (field === "brandContext" && typeof d.value === "string") {
+        setBrandContext(d.value);
+      } else if (field === "archetype" && typeof d.value === "string") {
+        setArchetype(d.value);
+      } else if (field === "differentials" && Array.isArray(d.value)) {
+        setDifferentials((prev) => Array.from(new Set([...prev, ...d.value])));
+      } else if (field === "painPoints" && Array.isArray(d.value)) {
+        setPainPoints((prev) => Array.from(new Set([...prev, ...d.value])));
+      } else if (field === "targetAudiences" && Array.isArray(d.value)) {
+        setTargetAudiences((prev) => Array.from(new Set([...prev, ...d.value])));
+      } else if (field === "defaultCtas" && Array.isArray(d.value)) {
+        setDefaultCtas((prev) => Array.from(new Set([...prev, ...d.value])));
+      } else if (field === "forbiddenWords" && Array.isArray(d.value)) {
+        setForbiddenWords((prev) => Array.from(new Set([...prev, ...d.value])));
+      }
+
+      setFeedback({ type: "success", text: `Sugestão de IA gerada com sucesso para ${field}!` });
+      setTimeout(() => setFeedback(null), 3000);
+    } catch (e: any) {
+      setFeedback({ type: "error", text: e.message || "Erro na IA." });
+    } finally {
+      setGeneratingAiField(null);
     }
   };
 
@@ -188,6 +267,7 @@ export function ClientStrategyPanel({
         websiteUrl,
         whatsappCta,
         notes,
+        formatGuidelines,
         communicationProfile,
       };
 
@@ -360,7 +440,20 @@ export function ClientStrategyPanel({
           }
         >
           <MessageSquare size={16} />
-          3. Tom de Voz, CTAs & Diretrizes
+          3. Tom de Voz & CTAs
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("formatStandards")}
+          className={
+            "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition cursor-pointer " +
+            (subTab === "formatStandards"
+              ? "bg-zinc-900 text-white shadow-2xs"
+              : "bg-white text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950 border border-zinc-200")
+          }
+        >
+          <Sliders size={16} />
+          4. Padrões de Formatos (Reels, Headlines)
         </button>
         <button
           type="button"
@@ -373,7 +466,7 @@ export function ClientStrategyPanel({
           }
         >
           <Globe size={16} />
-          4. Canais & Conversão
+          5. Canais & Conversão
         </button>
         <button
           type="button"
@@ -386,7 +479,7 @@ export function ClientStrategyPanel({
           }
         >
           <Layers size={16} />
-          5. Pilares & Linhas Cadastradas
+          6. Pilares & Linhas Cadastradas
           {pillars.length > 0 && (
             <span className="ml-1 rounded-full bg-zinc-700 px-2 py-0.2 text-[11px] text-zinc-200">
               {pillars.length}
@@ -406,7 +499,18 @@ export function ClientStrategyPanel({
             </h3>
 
             <div>
-              <label className="text-xs font-semibold text-zinc-700">Nicho de Mercado / Especialidade</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-zinc-700">Nicho de Mercado / Especialidade</label>
+                <button
+                  type="button"
+                  disabled={generatingAiField === "marketNiche"}
+                  onClick={() => handleGenerateAiField("marketNiche")}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                >
+                  <Sparkles size={12} className={generatingAiField === "marketNiche" ? "animate-spin" : ""} />
+                  {generatingAiField === "marketNiche" ? "Gerando..." : "Sugerir com IA"}
+                </button>
+              </div>
               <input
                 className={control}
                 placeholder="Ex: Clínicas Odontológicas Premium, Consultoria Tributária B2B..."
@@ -416,7 +520,18 @@ export function ClientStrategyPanel({
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-zinc-700">Proposta de Valor Única</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-zinc-700">Proposta de Valor Única</label>
+                <button
+                  type="button"
+                  disabled={generatingAiField === "valueProposition"}
+                  onClick={() => handleGenerateAiField("valueProposition")}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                >
+                  <Sparkles size={12} className={generatingAiField === "valueProposition" ? "animate-spin" : ""} />
+                  {generatingAiField === "valueProposition" ? "Gerando..." : "Sugerir com IA"}
+                </button>
+              </div>
               <textarea
                 className={`${control} min-h-[90px]`}
                 placeholder="O que a sua empresa entrega que ninguém mais entrega? Qual é a promessa transformadora?"
@@ -426,7 +541,18 @@ export function ClientStrategyPanel({
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-zinc-700">Contexto da Empresa / História da Marca</label>
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-zinc-700">Contexto da Empresa / História da Marca</label>
+                <button
+                  type="button"
+                  disabled={generatingAiField === "brandContext"}
+                  onClick={() => handleGenerateAiField("brandContext")}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                >
+                  <Sparkles size={12} className={generatingAiField === "brandContext" ? "animate-spin" : ""} />
+                  {generatingAiField === "brandContext" ? "Gerando..." : "Sugerir com IA"}
+                </button>
+              </div>
               <textarea
                 className={`${control} min-h-[110px]`}
                 placeholder="Resumo executivo do negócio, histórico dos fundadores, reputação e momento atual da empresa..."
@@ -939,7 +1065,83 @@ export function ClientStrategyPanel({
         </div>
       )}
 
-      {/* CONTEÚDO DA SUB-ABA 4: CANAIS & CONVERSÃO */}
+      {/* CONTEÚDO DA SUB-ABA 4: PADRÕES DE FORMATOS */}
+      {subTab === "formatStandards" && (
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-5">
+            <div>
+              <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+                <Sliders size={18} className="text-emerald-600" />
+                Padrões Editoriais & Regras por Formato do Cliente
+              </h3>
+              <p className="text-xs text-zinc-500">
+                Defina as diretrizes fixas para cada formato. A IA aplicará estas regras rigorosamente nas próximas etapas de geração de headlines e roteiros.
+              </p>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-3">
+              {/* Padrão para Reels */}
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+                <h4 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5">
+                  <Video size={16} className="text-indigo-600" />
+                  Padrão para Reels & Vídeos
+                </h4>
+                <p className="text-[11px] text-zinc-500">
+                  Duração ideal, tipo de gancho inicial, ritmo de falas e estilo de CTA.
+                </p>
+                <textarea
+                  className={`${control} min-h-[140px] text-xs`}
+                  placeholder="Ex: Vídeos de até 45s, gancho direto nos primeiros 3s sem vinheta, falas divididas com textos na tela dinâmicos, CTA para comentar palavra-chave..."
+                  value={formatGuidelines.reelsStandard}
+                  onChange={(e) =>
+                    setFormatGuidelines((prev) => ({ ...prev, reelsStandard: e.target.value }))
+                  }
+                />
+              </div>
+
+              {/* Padrão para Headlines */}
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+                <h4 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5">
+                  <TrendingUp size={16} className="text-emerald-600" />
+                  Padrão para Headlines
+                </h4>
+                <p className="text-[11px] text-zinc-500">
+                  Fórmulas preferidas, limite de palavras, tom e estruturação de subtítulo.
+                </p>
+                <textarea
+                  className={`${control} min-h-[140px] text-xs`}
+                  placeholder="Ex: Títulos diretos de até 8 palavras, priorizar quebra de objeção ou erro comum, sem sensacionalismo vazio, sempre acompanhar subtítulo explicativo com dados..."
+                  value={formatGuidelines.headlinesStandard}
+                  onChange={(e) =>
+                    setFormatGuidelines((prev) => ({ ...prev, headlinesStandard: e.target.value }))
+                  }
+                />
+              </div>
+
+              {/* Padrão para Carrossel */}
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
+                <h4 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5">
+                  <Layers size={16} className="text-amber-600" />
+                  Padrão para Carrosséis
+                </h4>
+                <p className="text-[11px] text-zinc-500">
+                  Número médio de slides, densidade de texto por slide e estrutura visual.
+                </p>
+                <textarea
+                  className={`${control} min-h-[140px] text-xs`}
+                  placeholder="Ex: Entre 5 e 7 slides, capa com headline grande e contraste alto, máximo de 35 palavras por slide, slide final com resumo acionável e chamada para salvar..."
+                  value={formatGuidelines.carouselStandard}
+                  onChange={(e) =>
+                    setFormatGuidelines((prev) => ({ ...prev, carouselStandard: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONTEÚDO DA SUB-ABA 5: CANAIS & CONVERSÃO */}
       {subTab === "channels" && (
         <div className="grid gap-6 md:grid-cols-2">
           <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">

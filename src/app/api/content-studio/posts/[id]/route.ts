@@ -59,6 +59,12 @@ export async function PUT(
         format = COALESCE($11, format),
         status = COALESCE($12, status),
         scheduled_date = COALESCE($13, scheduled_date),
+        scheduled_time = COALESCE($17, scheduled_time),
+        visual_prompt = COALESCE($18, visual_prompt),
+        visual_format = COALESCE($19, visual_format),
+        copy_site_lp = COALESCE($20, copy_site_lp),
+        copy_meta_ads = COALESCE($21, copy_meta_ads),
+        copy_google_ads = COALESCE($22, copy_google_ads),
         editorial_brief = COALESCE($15::jsonb, editorial_brief),
         headline_brief = CASE WHEN headline_brief IS NOT NULL THEN headline_brief || $16::jsonb ELSE headline_brief END,
         headline_content_stale = CASE WHEN $4::text IS NOT NULL OR $5::text IS NOT NULL OR $6::text IS NOT NULL THEN false
@@ -88,6 +94,12 @@ export async function PUT(
       id,
       editorialBrief?JSON.stringify(editorialBrief):null,
       JSON.stringify(sharedPatch),
+      body.scheduledTime || null,
+      body.visualPrompt || null,
+      body.visualFormat || null,
+      body.copySiteLp || null,
+      body.copyMetaAds || null,
+      body.copyGoogleAds || null,
     ]);
       if(result.rowCount&&Object.keys(sharedPatch).length)await db.query('UPDATE headline_workspaces SET brief=brief || $2::jsonb,revision=revision+1,updated_at=NOW() WHERE content_id=$1',[id,JSON.stringify(sharedPatch)]);
       return result;

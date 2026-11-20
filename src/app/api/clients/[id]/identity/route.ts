@@ -40,6 +40,7 @@ export async function GET(
         websiteUrl: "",
         whatsappCta: "",
         notes: "",
+        formatGuidelines: { reelsStandard: "", headlinesStandard: "", carouselStandard: "" },
       });
     }
 
@@ -64,6 +65,7 @@ export async function GET(
       websiteUrl: row.website_url || "",
       whatsappCta: row.whatsapp_cta || "",
       notes: row.notes || "",
+      formatGuidelines: row.format_guidelines || { reelsStandard: "", headlinesStandard: "", carouselStandard: "" },
     });
   } catch (error: unknown) {
     console.error("Erro ao buscar identidade do cliente:", error);
@@ -111,6 +113,7 @@ export async function PUT(
         website_url = CASE WHEN $19::jsonb ? 'websiteUrl' THEN EXCLUDED.website_url ELSE client_identities.website_url END,
         whatsapp_cta = CASE WHEN $19::jsonb ? 'whatsappCta' THEN EXCLUDED.whatsapp_cta ELSE client_identities.whatsapp_cta END,
         notes = CASE WHEN $19::jsonb ? 'notes' THEN EXCLUDED.notes ELSE client_identities.notes END,
+        format_guidelines = CASE WHEN $19::jsonb ? 'formatGuidelines' THEN $20::jsonb ELSE client_identities.format_guidelines END,
         communication_profile = COALESCE($18::jsonb,client_identities.communication_profile),
         updated_at = NOW()
       RETURNING *
@@ -138,6 +141,7 @@ export async function PUT(
       body.notes || null,
       body.communicationProfile !== undefined && profile.success ? JSON.stringify(profile.data) : null,
       JSON.stringify(Object.keys(body)),
+      JSON.stringify(body.formatGuidelines || {}),
       ]);
     });
 

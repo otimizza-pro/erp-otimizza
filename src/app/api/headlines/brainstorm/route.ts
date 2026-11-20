@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
         editorialLineId: body.editorialLineId || undefined,
         direction: body.direction || undefined,
         count: body.count || 5,
+        team: body.team || "BOTH",
       });
       return NextResponse.json({ success: true, ideas });
     }
@@ -91,6 +92,7 @@ export async function POST(request: NextRequest) {
         painOrDesire: body.painOrDesire || "",
         goal: body.goal || "",
         rationale: body.rationale || "",
+        team: body.team || "A",
         status: "SAVED_FOR_LATER",
       });
       return NextResponse.json({ success: true, idea });

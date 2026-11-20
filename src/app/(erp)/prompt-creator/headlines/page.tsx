@@ -9,6 +9,9 @@ import { briefSchema, blankBrief, fieldGroups, structures, angles, triggers, awa
 import { makeHeadlinePrompt } from "@/modules/headlines/prompt";
 import type { Context, WorkspaceState, Run, Candidate, ModelSlot } from "@/modules/headlines/types";
 import { ClientStrategyPanel } from "@/components/headlines/client-strategy-panel";
+import { ContentWriterPanel } from "@/components/headlines/content-writer-panel";
+import { ImagePromptPanel } from "@/components/headlines/image-prompt-panel";
+import { SchedulePanel } from "@/components/headlines/schedule-panel";
 import {
   ThumbsUp,
   ThumbsDown,
@@ -33,6 +36,9 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Calendar,
+  FileText,
+  Image as ImageIcon,
 } from "lucide-react";
 
 const control = "mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition";
@@ -55,6 +61,7 @@ interface SavedIdea {
   rationale: string;
   status: "IDEA" | "SAVED_FOR_LATER" | "REJECTED" | "HEADLINES_IN_PROGRESS" | "HEADLINE_CHOSEN" | "IN_CREATION" | "DONE" | "ARCHIVED";
   rejection_reason?: string;
+  team?: "A" | "B";
   workspace_id: string | null;
   content_id: string | null;
   created_at: string;
@@ -251,15 +258,24 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
   const workspaceId = params.get("workspaceId");
   const contentId = params.get("contentId");
 
-  // Sequência Criativa de 4 Passos: "strategy" | "brainstorm" | "headlines" | "studio"
+  // Sequência Criativa de 6 Passos: "strategy" | "brainstorm" | "headlines" | "content" | "imagePrompt" | "schedule"
   const tabParam = params.get("tab");
-  const [activeTab, setActiveTab] = useState<"strategy" | "brainstorm" | "headlines" | "studio">(
+  const [activeTab, setActiveTab] = useState<"strategy" | "brainstorm" | "headlines" | "content" | "imagePrompt" | "schedule">(
     tabParam === "strategy"
       ? "strategy"
       : workspaceId || contentId
       ? "headlines"
       : "brainstorm"
   );
+
+  // Times A e B no Brainstorm e dados do fluxo de criação
+  const [brainstormTeam, setBrainstormTeam] = useState<"BOTH" | "A" | "B">("BOTH");
+  const [filterTeam, setFilterTeam] = useState<"ALL" | "A" | "B">("ALL");
+  const [activeContentData, setActiveContentData] = useState<{
+    format: string;
+    text: string;
+    contentId: string;
+  } | null>(null);
 
   // Estado do Brainstorm de Conteúdo
   const [pillars, setPillars] = useState<Pillar[]>([]);
@@ -602,6 +618,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
           editorialLineId: selectedLineId || undefined,
           direction: brainstormDirection.trim() || undefined,
           count: 5,
+          team: brainstormTeam,
         }),
       });
       const d = await res.json();
@@ -845,6 +862,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
   const filteredIdeas = savedIdeas.filter((idea) => {
     if (filterPillar !== "ALL" && idea.pillar_id !== filterPillar) return false;
     if (filterFormat !== "ALL" && idea.format !== filterFormat) return false;
+    if (filterTeam !== "ALL" && idea.team !== filterTeam) return false;
     return true;
   });
 
@@ -866,44 +884,52 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               ? "Brainstorm de Conteúdo"
               : activeTab === "headlines"
               ? "Laboratório de Headlines"
-              : "Estúdio Criativo"}
+              : activeTab === "content"
+              ? "Redação do Texto & Roteiro"
+              : activeTab === "imagePrompt"
+              ? "Prompt de Imagem & Arte"
+              : "Calendário & Agendamento"}
           </h1>
           <p className="mt-1 text-sm text-zinc-500 max-w-3xl">
             {activeTab === "strategy"
               ? "Diretrizes estratégicas, posicionamento, públicos-alvo, dores, arquétipos, regras de voz e canais do cliente."
               : activeTab === "brainstorm"
-              ? "Defina os temas e ideias dos próximos conteúdos com base nos pilares estratégicos e assuntos cadastrados antes de criar as headlines."
+              ? "Defina os temas e ideias dos próximos conteúdos com base nos pilares estratégicos e gere com os Times A e B de IA."
               : activeTab === "headlines"
-              ? "Desdobre suas ideias de conteúdo em headlines de alto impacto com os times de IA, avalie opções e envie diretamente para o estúdio criativo."
-              : "Redija o conteúdo completo (roteiro de Reels, Carrossel, Post ou Legenda) da pauta selecionada."}
+              ? "Desdobre suas ideias de conteúdo em headlines de alto impacto com os times de IA, avalie opções e escolha a melhor."
+              : activeTab === "content"
+              ? "Redija ou gere com IA o conteúdo completo no formato escolhido (Reels, Feed, Carrossel, Site, Meta Ads ou Google Ads)."
+              : activeTab === "imagePrompt"
+              ? "Gere prompts visuais detalhados para Capa de Reels, Cards de Carrossel ou Artes de Feed e anexe a imagem da peça."
+              : "Defina a data e horário de postagem sem conflitos e envie automaticamente para o Calendário e Feed & Criativos."}
           </p>
         </div>
 
-        {/* NAVEGAÇÃO DE FLUXO SEQUENCIAL (4 PASSOS) & ATALHOS */}
+        {/* NAVEGAÇÃO DE FLUXO SEQUENCIAL (6 PASSOS) & ATALHOS */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* MENU DAS 4 SEQUÊNCIAS DE CRIAÇÃO */}
+          {/* MENU DAS 6 SEQUÊNCIAS DE CRIAÇÃO */}
           <div className="inline-flex rounded-xl bg-zinc-100 p-1 border border-zinc-200 shadow-2xs">
             <button
               onClick={() => setActiveTab("strategy")}
               className={
-                "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
                 (activeTab === "strategy" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
               }
             >
-              <Compass size={16} className={activeTab === "strategy" ? "text-emerald-600" : ""} />
-              1. Estratégia Completa
+              <Compass size={14} className={activeTab === "strategy" ? "text-emerald-600" : ""} />
+              1. Estratégia
             </button>
             <button
               onClick={() => setActiveTab("brainstorm")}
               className={
-                "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
                 (activeTab === "brainstorm" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
               }
             >
-              <Lightbulb size={16} className={activeTab === "brainstorm" ? "text-amber-500" : ""} />
-              2. Brainstorm & Ideias
+              <Lightbulb size={14} className={activeTab === "brainstorm" ? "text-amber-500" : ""} />
+              2. Brainstorm
               {savedIdeas.length > 0 && (
-                <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.2 text-[11px] font-bold text-emerald-800">
+                <span className="ml-1 rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
                   {savedIdeas.length}
                 </span>
               )}
@@ -911,22 +937,42 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
             <button
               onClick={() => setActiveTab("headlines")}
               className={
-                "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
                 (activeTab === "headlines" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
               }
             >
-              <Sparkles size={16} className={activeTab === "headlines" ? "text-emerald-600" : ""} />
+              <Sparkles size={14} className={activeTab === "headlines" ? "text-emerald-600" : ""} />
               3. Headlines
             </button>
             <button
-              onClick={() => setActiveTab("studio")}
+              onClick={() => setActiveTab("content")}
               className={
-                "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition cursor-pointer " +
-                (activeTab === "studio" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
+                (activeTab === "content" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
               }
             >
-              <ArrowRight size={16} className={activeTab === "studio" ? "text-indigo-600" : ""} />
-              4. Estúdio Criativo
+              <FileText size={14} className={activeTab === "content" ? "text-indigo-600" : ""} />
+              4. Texto & Roteiro
+            </button>
+            <button
+              onClick={() => setActiveTab("imagePrompt")}
+              className={
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
+                (activeTab === "imagePrompt" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
+              }
+            >
+              <ImageIcon size={14} className={activeTab === "imagePrompt" ? "text-pink-600" : ""} />
+              5. Prompt de Arte
+            </button>
+            <button
+              onClick={() => setActiveTab("schedule")}
+              className={
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
+                (activeTab === "schedule" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
+              }
+            >
+              <Calendar size={14} className={activeTab === "schedule" ? "text-blue-600" : ""} />
+              6. Calendário & Post
             </button>
           </div>
 
@@ -1107,17 +1153,57 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
             </div>
 
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="md:col-span-2">
-                <label className="block text-xs font-bold text-zinc-700">
-                  Direcionamento Estratégico (Opcional):
-                </label>
-                <textarea
-                  rows={2}
-                  className={control}
-                  value={brainstormDirection}
-                  onChange={(e) => setBrainstormDirection(e.target.value)}
-                  placeholder="Ex: Foco em quebrar objeções sobre preço, dúvidas mais comuns de clientes novos, campanha de fim de ano, bastidores da equipe..."
-                />
+              <div className="md:col-span-2 space-y-3">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-700">
+                    Direcionamento Estratégico (Opcional):
+                  </label>
+                  <textarea
+                    rows={2}
+                    className={control}
+                    value={brainstormDirection}
+                    onChange={(e) => setBrainstormDirection(e.target.value)}
+                    placeholder="Ex: Foco em quebrar objeções sobre preço, dúvidas mais comuns de clientes novos, campanha de fim de ano, bastidores da equipe..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">
+                    Time de IA para Geração:
+                  </label>
+                  <div className="grid grid-cols-3 gap-1.5 p-1 bg-zinc-100 rounded-xl border border-zinc-200">
+                    <button
+                      type="button"
+                      onClick={() => setBrainstormTeam("BOTH")}
+                      className={
+                        "rounded-lg py-1.5 text-xs font-bold transition cursor-pointer " +
+                        (brainstormTeam === "BOTH" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
+                      }
+                    >
+                      Ambos os Times
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBrainstormTeam("A")}
+                      className={
+                        "rounded-lg py-1.5 text-xs font-bold transition cursor-pointer " +
+                        (brainstormTeam === "A" ? "bg-emerald-600 text-white shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
+                      }
+                    >
+                      Time A (Performance)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBrainstormTeam("B")}
+                      className={
+                        "rounded-lg py-1.5 text-xs font-bold transition cursor-pointer " +
+                        (brainstormTeam === "B" ? "bg-indigo-600 text-white shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
+                      }
+                    >
+                      Time B (Storytelling)
+                    </button>
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-zinc-700">
@@ -1135,7 +1221,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                   <option value="Stories">Stories</option>
                 </select>
 
-                <div className="mt-3">
+                <div className="mt-6">
                   <button
                     onClick={handleGenerateAiIdeas}
                     disabled={generatingIdeas || !context}
@@ -1166,6 +1252,16 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                     <article key={idx} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-3 flex flex-col justify-between shadow-2xs">
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-1.5">
+                          {idea.team && (
+                            <span
+                              className={
+                                "rounded-md px-2 py-0.5 text-[10px] font-bold " +
+                                (idea.team === "A" ? "bg-emerald-700 text-white" : "bg-indigo-700 text-white")
+                              }
+                            >
+                              {idea.team === "A" ? "Time A" : "Time B"}
+                            </span>
+                          )}
                           <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
                             {idea.pillar_name}
                           </span>
@@ -1243,6 +1339,16 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               {/* FILTROS DO MURAL */}
               <div className="flex flex-wrap items-center gap-2">
                 <select
+                  value={filterTeam}
+                  onChange={(e) => setFilterTeam(e.target.value as any)}
+                  className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-2xs"
+                >
+                  <option value="ALL">Todos os Times</option>
+                  <option value="A">Time A (Performance)</option>
+                  <option value="B">Time B (Storytelling)</option>
+                </select>
+
+                <select
                   value={filterPillar}
                   onChange={(e) => setFilterPillar(e.target.value)}
                   className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-2xs"
@@ -1288,6 +1394,16 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                       <div className="space-y-3">
                         {/* TAGS */}
                         <div className="flex flex-wrap items-center gap-1.5">
+                          {idea.team && (
+                            <span
+                              className={
+                                "rounded-md px-2 py-0.5 text-[10px] font-bold " +
+                                (idea.team === "A" ? "bg-emerald-700 text-white" : "bg-indigo-700 text-white")
+                              }
+                            >
+                              {idea.team === "A" ? "Time A" : "Time B"}
+                            </span>
+                          )}
                           <span className="rounded-md bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-900">
                             {idea.pillar_name || "Geral"}
                           </span>
@@ -1562,7 +1678,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       )}
 
       {/* ========================================================================= */}
-      {/* ABA 2: LABORATÓRIO DE HEADLINES (PASSO 2 DA SEQUÊNCIA)                    */}
+      {/* ABA 3: LABORATÓRIO DE HEADLINES (PASSO 3 DA SEQUÊNCIA)                    */}
       {/* ========================================================================= */}
       {activeTab === "headlines" && (
         <div className="space-y-6">
@@ -1573,7 +1689,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               className="inline-flex items-center gap-2 text-xs font-bold text-zinc-700 hover:text-zinc-950 transition cursor-pointer"
             >
               <ArrowLeft size={16} />
-              ← Voltar ao Passo 1: Brainstorm
+              ← Voltar ao Passo 2: Brainstorm
             </button>
 
             {activeIdeaForHeadline && (
@@ -1584,10 +1700,10 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
 
             {targetContentId && (
               <button
-                onClick={() => setActiveTab("studio")}
+                onClick={() => setActiveTab("content")}
                 className="inline-flex items-center gap-2 text-xs font-bold text-indigo-700 hover:text-indigo-950 transition cursor-pointer"
               >
-                Avançar para Passo 3: Estúdio Criativo →
+                Avançar para Passo 4: Redação Completa →
               </button>
             )}
           </div>
@@ -1904,7 +2020,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                 </section>
               )}
 
-              {/* HEADLINE ESCOLHIDA -> AVANÇAR PARA PASSO 3: ESTÚDIO CRIATIVO */}
+              {/* HEADLINE ESCOLHIDA -> AVANÇAR PARA PASSO 4: REDAÇÃO DO CONTEÚDO */}
               {data.workspace.headline_candidate_id && (
                 <section className="space-y-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-6 shadow-2xs">
                   <div>
@@ -1919,10 +2035,10 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
 
                   <div className="pt-2 flex flex-wrap items-center gap-3">
                     <button
-                      onClick={() => setActiveTab("studio")}
+                      onClick={() => setActiveTab("content")}
                       className={buttonPrimary + " py-2.5 px-6 text-sm"}
                     >
-                      Avançar para Passo 3: Estúdio Criativo →
+                      Avançar para Passo 4: Redação Completa →
                     </button>
                     <button onClick={() => setActiveTab("brainstorm")} className={button}>
                       Voltar ao Brainstorm
@@ -1936,93 +2052,58 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       )}
 
       {/* ========================================================================= */}
-      {/* ABA 3: ESTÚDIO CRIATIVO (PASSO 3 DA SEQUÊNCIA - REDAÇÃO DO CONTEÚDO)       */}
+      {/* ABA 4: REDAÇÃO COMPLETA DO CONTEÚDO (PASSO 4 DA SEQUÊNCIA)                */}
       {/* ========================================================================= */}
-      {activeTab === "studio" && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between bg-zinc-100 rounded-xl p-3 border border-zinc-200 shadow-2xs">
-            <button
-              onClick={() => setActiveTab("headlines")}
-              className="inline-flex items-center gap-2 text-xs font-bold text-zinc-700 hover:text-zinc-950 transition cursor-pointer"
-            >
-              <ArrowLeft size={16} />
-              ← Voltar ao Passo 3: Headlines
-            </button>
+      {activeTab === "content" && (
+        <ContentWriterPanel
+          clientId={clientId}
+          companyName={companyName}
+          contentId={targetContentId}
+          headline={data?.workspace?.selected_headline || activeIdeaForHeadline?.title || ""}
+          subheadline={data?.workspace?.selected_subheadline || ""}
+          angle={activeIdeaForHeadline?.angle || ""}
+          initialFormat={activeIdeaForHeadline?.format || brief.format || "Reels"}
+          onAdvanceToImagePrompt={(contentData) => {
+            setActiveContentData(contentData);
+            setActiveTab("imagePrompt");
+          }}
+          onBackToHeadlines={() => setActiveTab("headlines")}
+        />
+      )}
 
-            {targetContentId ? (
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-indigo-900 font-bold bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg">
-                  🚀 Passo 4: Redação Completa no Estúdio Criativo
-                </span>
-                <Link
-                  href={`/prompt-creator?contentId=${targetContentId}`}
-                  target="_blank"
-                  className={button + " !py-1 !text-xs text-zinc-700"}
-                  title="Abrir em aba cheia"
-                >
-                  <ExternalLink size={13} />
-                  Abrir em nova aba
-                </Link>
-              </div>
-            ) : (
-              <span className="text-xs text-zinc-500 font-semibold">
-                Nenhuma peça ativa selecionada
-              </span>
-            )}
-          </div>
+      {/* ========================================================================= */}
+      {/* ABA 5: PROMPT DE IMAGEM & UPLOAD DE ARTE (PASSO 5 DA SEQUÊNCIA)           */}
+      {/* ========================================================================= */}
+      {activeTab === "imagePrompt" && (
+        <ImagePromptPanel
+          clientId={clientId}
+          companyName={companyName}
+          contentId={activeContentData?.contentId || targetContentId}
+          headline={data?.workspace?.selected_headline || activeIdeaForHeadline?.title || ""}
+          subheadline={data?.workspace?.selected_subheadline || ""}
+          format={activeContentData?.format || activeIdeaForHeadline?.format || brief.format || "Reels"}
+          textContent={activeContentData?.text || ""}
+          onAdvanceToSchedule={() => setActiveTab("schedule")}
+          onBackToContent={() => setActiveTab("content")}
+        />
+      )}
 
-          {targetContentId ? (
-            <div className="rounded-2xl border border-zinc-200 overflow-hidden shadow-2xs bg-white">
-              <iframe
-                src={`/prompt-creator?contentId=${targetContentId}&embedded=true`}
-                className="w-full min-h-[1100px] border-0"
-                title="Estúdio Criativo Integrado"
-              />
-            </div>
-          ) : (
-            <section className="rounded-2xl border border-zinc-200 bg-white p-8 text-center space-y-4 shadow-2xs">
-              <Sparkles size={36} className="mx-auto text-zinc-400" />
-              <h2 className="text-lg font-bold text-zinc-950">Selecione uma peça para abrir o Estúdio Criativo</h2>
-              <p className="text-xs text-zinc-500 max-w-lg mx-auto">
-                No fluxo de criação sequencial, primeiro você consulta a <strong>Estratégia Completa & DNA</strong>, define a ideia no <strong>Passo 2: Brainstorm</strong>, depois gera e escolhe a headline no <strong>Passo 3: Headlines</strong>, e por fim redige o roteiro de reels, carrossel ou post aqui no <strong>Passo 4: Estúdio Criativo</strong>.
-              </p>
-              <div className="flex justify-center gap-3 pt-2">
-                <button onClick={() => setActiveTab("strategy")} className={button}>
-                  <Compass size={16} />
-                  Passo 1: Estratégia
-                </button>
-                <button onClick={() => setActiveTab("brainstorm")} className={buttonPrimary}>
-                  <Lightbulb size={16} />
-                  Passo 2: Brainstorm
-                </button>
-                <button onClick={() => setActiveTab("headlines")} className={button}>
-                  <Sparkles size={16} />
-                  Passo 3: Headlines
-                </button>
-              </div>
-
-              {list.length > 0 && (
-                <div className="pt-6 border-t border-zinc-100 max-w-2xl mx-auto text-left">
-                  <h4 className="text-xs font-bold text-zinc-700 uppercase tracking-wider mb-3">
-                    Ou selecione uma peça recente deste cliente:
-                  </h4>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {list.slice(0, 6).map((item) => (
-                      <Link
-                        key={item.id}
-                        href={`/prompt-creator?contentId=${item.id}`}
-                        className="rounded-xl border border-zinc-200 p-3 text-xs hover:border-zinc-300 hover:bg-zinc-50 transition flex items-center justify-between"
-                      >
-                        <span className="font-semibold text-zinc-900 truncate">{item.title}</span>
-                        <span className="text-[10px] text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded">{item.format}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-        </div>
+      {/* ========================================================================= */}
+      {/* ABA 6: CALENDÁRIO & AGENDAMENTO (PASSO 6 DA SEQUÊNCIA)                     */}
+      {/* ========================================================================= */}
+      {activeTab === "schedule" && (
+        <SchedulePanel
+          clientId={clientId}
+          companyName={companyName}
+          contentId={activeContentData?.contentId || targetContentId}
+          headline={data?.workspace?.selected_headline || activeIdeaForHeadline?.title || "Conteúdo"}
+          format={activeContentData?.format || activeIdeaForHeadline?.format || brief.format || "Reels"}
+          onFinish={() => {
+            setMessage("Conteúdo agendado com sucesso no Calendário!");
+            router.push("/prompt-creator?tab=CALENDAR");
+          }}
+          onBackToImagePrompt={() => setActiveTab("imagePrompt")}
+        />
       )}
     </main>
   );

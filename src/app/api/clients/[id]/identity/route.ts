@@ -27,6 +27,7 @@ export async function GET(
         valueProposition: "",
         marketNiche: "",
         archetype: "",
+        secondaryArchetype: "",
         toneOfVoice: [],
         brandContext: "",
         targetAudiences,
@@ -50,6 +51,7 @@ export async function GET(
       valueProposition: row.value_proposition || "",
       marketNiche: row.market_niche || "",
       archetype: row.archetype || "",
+      secondaryArchetype: row.secondary_archetype || "",
       toneOfVoice: row.tone_of_voice || [],
       brandContext: row.brand_context || "",
       targetAudiences,
@@ -85,30 +87,31 @@ export async function PUT(
 
     const sql = `
       INSERT INTO client_identities (
-        client_id, value_proposition, market_niche, archetype,
+        client_id, value_proposition, market_niche, archetype, secondary_archetype,
         tone_of_voice, brand_context, target_audiences, pain_points,
         differentials, forbidden_words, mandatory_terms, default_ctas,
         instagram_handle, website_url, whatsapp_cta, notes, communication_profile, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, COALESCE($17::jsonb,'{}'::jsonb), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, COALESCE($18::jsonb,'{}'::jsonb), NOW()
       )
       ON CONFLICT (client_id) DO UPDATE SET
-        value_proposition = CASE WHEN $18::jsonb ? 'valueProposition' THEN EXCLUDED.value_proposition ELSE client_identities.value_proposition END,
-        market_niche = CASE WHEN $18::jsonb ? 'marketNiche' THEN EXCLUDED.market_niche ELSE client_identities.market_niche END,
-        archetype = CASE WHEN $18::jsonb ? 'archetype' THEN EXCLUDED.archetype ELSE client_identities.archetype END,
-        tone_of_voice = CASE WHEN $18::jsonb ? 'toneOfVoice' THEN EXCLUDED.tone_of_voice ELSE client_identities.tone_of_voice END,
-        brand_context = CASE WHEN $18::jsonb ? 'brandContext' THEN EXCLUDED.brand_context ELSE client_identities.brand_context END,
+        value_proposition = CASE WHEN $19::jsonb ? 'valueProposition' THEN EXCLUDED.value_proposition ELSE client_identities.value_proposition END,
+        market_niche = CASE WHEN $19::jsonb ? 'marketNiche' THEN EXCLUDED.market_niche ELSE client_identities.market_niche END,
+        archetype = CASE WHEN $19::jsonb ? 'archetype' THEN EXCLUDED.archetype ELSE client_identities.archetype END,
+        secondary_archetype = CASE WHEN $19::jsonb ? 'secondaryArchetype' THEN EXCLUDED.secondary_archetype ELSE client_identities.secondary_archetype END,
+        tone_of_voice = CASE WHEN $19::jsonb ? 'toneOfVoice' THEN EXCLUDED.tone_of_voice ELSE client_identities.tone_of_voice END,
+        brand_context = CASE WHEN $19::jsonb ? 'brandContext' THEN EXCLUDED.brand_context ELSE client_identities.brand_context END,
         target_audiences = client_identities.target_audiences,
-        pain_points = CASE WHEN $18::jsonb ? 'painPoints' THEN EXCLUDED.pain_points ELSE client_identities.pain_points END,
-        differentials = CASE WHEN $18::jsonb ? 'differentials' THEN EXCLUDED.differentials ELSE client_identities.differentials END,
-        forbidden_words = CASE WHEN $18::jsonb ? 'forbiddenWords' THEN EXCLUDED.forbidden_words ELSE client_identities.forbidden_words END,
-        mandatory_terms = CASE WHEN $18::jsonb ? 'mandatoryTerms' THEN EXCLUDED.mandatory_terms ELSE client_identities.mandatory_terms END,
-        default_ctas = CASE WHEN $18::jsonb ? 'defaultCtas' THEN EXCLUDED.default_ctas ELSE client_identities.default_ctas END,
-        instagram_handle = CASE WHEN $18::jsonb ? 'instagramHandle' THEN EXCLUDED.instagram_handle ELSE client_identities.instagram_handle END,
-        website_url = CASE WHEN $18::jsonb ? 'websiteUrl' THEN EXCLUDED.website_url ELSE client_identities.website_url END,
-        whatsapp_cta = CASE WHEN $18::jsonb ? 'whatsappCta' THEN EXCLUDED.whatsapp_cta ELSE client_identities.whatsapp_cta END,
-        notes = CASE WHEN $18::jsonb ? 'notes' THEN EXCLUDED.notes ELSE client_identities.notes END,
-        communication_profile = COALESCE($17::jsonb,client_identities.communication_profile),
+        pain_points = CASE WHEN $19::jsonb ? 'painPoints' THEN EXCLUDED.pain_points ELSE client_identities.pain_points END,
+        differentials = CASE WHEN $19::jsonb ? 'differentials' THEN EXCLUDED.differentials ELSE client_identities.differentials END,
+        forbidden_words = CASE WHEN $19::jsonb ? 'forbiddenWords' THEN EXCLUDED.forbidden_words ELSE client_identities.forbidden_words END,
+        mandatory_terms = CASE WHEN $19::jsonb ? 'mandatoryTerms' THEN EXCLUDED.mandatory_terms ELSE client_identities.mandatory_terms END,
+        default_ctas = CASE WHEN $19::jsonb ? 'defaultCtas' THEN EXCLUDED.default_ctas ELSE client_identities.default_ctas END,
+        instagram_handle = CASE WHEN $19::jsonb ? 'instagramHandle' THEN EXCLUDED.instagram_handle ELSE client_identities.instagram_handle END,
+        website_url = CASE WHEN $19::jsonb ? 'websiteUrl' THEN EXCLUDED.website_url ELSE client_identities.website_url END,
+        whatsapp_cta = CASE WHEN $19::jsonb ? 'whatsappCta' THEN EXCLUDED.whatsapp_cta ELSE client_identities.whatsapp_cta END,
+        notes = CASE WHEN $19::jsonb ? 'notes' THEN EXCLUDED.notes ELSE client_identities.notes END,
+        communication_profile = COALESCE($18::jsonb,client_identities.communication_profile),
         updated_at = NOW()
       RETURNING *
     `;
@@ -120,6 +123,7 @@ export async function PUT(
       body.valueProposition || null,
       body.marketNiche || null,
       body.archetype || null,
+      body.secondaryArchetype || null,
       body.toneOfVoice || [],
       body.brandContext || null,
       [],

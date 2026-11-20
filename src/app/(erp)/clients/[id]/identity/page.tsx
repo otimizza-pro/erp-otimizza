@@ -30,6 +30,8 @@ import {
   Globe,
   Instagram,
   Target,
+  Star,
+  X,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 
@@ -73,6 +75,7 @@ export default function ClientIdentityPage() {
   const [valueProposition, setValueProposition] = useState("");
   const [marketNiche, setMarketNiche] = useState("");
   const [archetype, setArchetype] = useState("");
+  const [secondaryArchetype, setSecondaryArchetype] = useState("");
   const [selectedTones, setSelectedTones] = useState<string[]>([]);
   const [newCustomTone, setNewCustomTone] = useState("");
   const [brandContext, setBrandContext] = useState("");
@@ -105,6 +108,7 @@ export default function ClientIdentityPage() {
     valueProposition,
     marketNiche,
     archetype,
+    secondaryArchetype,
     selectedTones,
     brandContext,
     painPoints,
@@ -124,6 +128,7 @@ export default function ClientIdentityPage() {
       valueProposition,
       marketNiche,
       archetype,
+      secondaryArchetype,
       selectedTones,
       brandContext,
       painPoints,
@@ -141,6 +146,7 @@ export default function ClientIdentityPage() {
     valueProposition,
     marketNiche,
     archetype,
+    secondaryArchetype,
     selectedTones,
     brandContext,
     painPoints,
@@ -174,6 +180,7 @@ export default function ClientIdentityPage() {
           setCommunicationProfile(CommunicationProfileSchema.parse(data.communicationProfile||{}));
           setMarketNiche(data.marketNiche || "");
           setArchetype(data.archetype || "");
+          setSecondaryArchetype(data.secondaryArchetype || "");
           setSelectedTones(data.toneOfVoice || []);
           setBrandContext(data.brandContext || "");
           setTargetAudiences(data.targetAudiences || []);
@@ -215,6 +222,7 @@ export default function ClientIdentityPage() {
         valueProposition: cur.valueProposition,
         marketNiche: cur.marketNiche,
         archetype: cur.archetype,
+        secondaryArchetype: cur.secondaryArchetype,
         toneOfVoice: cur.selectedTones,
         brandContext: cur.brandContext,
         painPoints: cur.painPoints,
@@ -263,7 +271,7 @@ export default function ClientIdentityPage() {
     }
   };
 
-  const draftIdentity = {valueProposition,marketNiche,archetype,toneOfVoice:selectedTones,brandContext,targetAudiences,painPoints,differentials,forbiddenWords,mandatoryTerms,defaultCtas,notes,communicationProfile};
+  const draftIdentity = {valueProposition,marketNiche,archetype,secondaryArchetype,toneOfVoice:selectedTones,brandContext,targetAudiences,painPoints,differentials,forbiddenWords,mandatoryTerms,defaultCtas,notes,communicationProfile};
   const aiButton = (field:IdentityAiField) => <IdentityAiButton clientId={id} field={field} draft={draftIdentity} onApply={value=>{
     const asText=Array.isArray(value)?value.join("\n"):value;const asList=Array.isArray(value)?value:[value];
     const setters={marketNiche:()=>setMarketNiche(asText),valueProposition:()=>setValueProposition(asText),brandContext:()=>setBrandContext(asText),archetype:()=>setArchetype(asText),toneOfVoice:()=>setSelectedTones(asList),targetAudiences:()=>setTargetAudiences(asList),painPoints:()=>setPainPoints(asList),differentials:()=>setDifferentials(asList),forbiddenWords:()=>setForbiddenWords(asList),mandatoryTerms:()=>setMandatoryTerms(asList),defaultCtas:()=>setDefaultCtas(asList),notes:()=>setNotes(asText),communicationDetails:()=>setCommunicationProfile({...communicationProfile,details:asText})};setters[field]();
@@ -463,37 +471,162 @@ export default function ClientIdentityPage() {
 
           {/* 2. Arquétipo da Marca */}
           <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4">
-            <div>
-              <h2 className="text-sm font-bold text-zinc-900 mb-0.5">2. Arquétipo de Marca</h2>{aiButton("archetype")}
-              <p className="text-[11px] text-zinc-500">
-                Selecione o arquétipo que melhor define a postura e a personalidade da comunicação.
-              </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-sm font-bold text-zinc-900">2. Arquétipo de Marca</h2>
+                  {aiButton("archetype")}
+                </div>
+                <p className="text-[11px] text-zinc-500">
+                  Selecione o arquétipo principal e um arquétipo secundário complementar para guiar o tom da IA e do time.
+                </p>
+              </div>
+
+              {/* Status dos Arquétipos Selecionados */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {archetype ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-100 text-purple-800 border border-purple-200 font-medium">
+                    <Star className="w-3.5 h-3.5 fill-purple-700 text-purple-700" />
+                    <span>Primário: <strong className="font-semibold">{archetype.split("/")[0]?.trim() || archetype}</strong></span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setArchetype("");
+                        setDirty(true);
+                        setTimeout(() => void saveIdentity(true), 100);
+                      }}
+                      className="p-0.5 hover:bg-purple-200 rounded text-purple-700"
+                      title="Remover arquétipo primário"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-zinc-400 bg-zinc-100 px-2.5 py-1 rounded-lg border border-dashed border-zinc-300">
+                    Nenhum Primário
+                  </span>
+                )}
+
+                {secondaryArchetype ? (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200 font-medium">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-700" />
+                    <span>Secundário: <strong className="font-semibold">{secondaryArchetype.split("/")[0]?.trim() || secondaryArchetype}</strong></span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSecondaryArchetype("");
+                        setDirty(true);
+                        setTimeout(() => void saveIdentity(true), 100);
+                      }}
+                      className="p-0.5 hover:bg-indigo-200 rounded text-indigo-700"
+                      title="Remover arquétipo secundário"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-zinc-400 bg-zinc-100 px-2.5 py-1 rounded-lg border border-dashed border-zinc-300">
+                    + Secundário (opcional)
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {ARCHETYPES.map((arch) => {
-                const isSelected = archetype === arch.name || archetype === arch.id;
+                const isPrimary = archetype === arch.name || archetype === arch.id;
+                const isSecondary = secondaryArchetype === arch.name || secondaryArchetype === arch.id;
 
                 return (
                   <div
                     key={arch.id}
                     onClick={() => {
-                      setArchetype(arch.name);
+                      if (isPrimary) {
+                        setArchetype("");
+                      } else if (isSecondary) {
+                        setSecondaryArchetype("");
+                      } else if (!archetype) {
+                        setArchetype(arch.name);
+                      } else if (!secondaryArchetype) {
+                        setSecondaryArchetype(arch.name);
+                      } else {
+                        setSecondaryArchetype(arch.name);
+                      }
                       setDirty(true);
                       setTimeout(() => void saveIdentity(true), 100);
                     }}
-                    className={`p-3.5 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
-                      isSelected
-                        ? "bg-purple-50/70 border-purple-400 ring-2 ring-purple-600/20"
-                        : "bg-zinc-50/60 border-zinc-200 hover:border-zinc-300"
+                    className={`p-3.5 rounded-xl border cursor-pointer transition flex flex-col justify-between select-none ${
+                      isPrimary
+                        ? "bg-purple-50/80 border-purple-400 ring-2 ring-purple-600/30"
+                        : isSecondary
+                        ? "bg-indigo-50/70 border-indigo-300 ring-2 ring-indigo-500/20"
+                        : "bg-zinc-50/60 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-xs text-zinc-900">{arch.name}</span>
-                        {isSelected && <Check className="w-4 h-4 text-purple-700" />}
+                      <div className="flex items-center justify-between mb-1.5 gap-2">
+                        <span className="font-bold text-xs text-zinc-900 leading-snug">{arch.name}</span>
+                        {isPrimary && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-600 text-white shrink-0 shadow-2xs">
+                            <Star className="w-2.5 h-2.5 fill-current" /> Primário
+                          </span>
+                        )}
+                        {isSecondary && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-600 text-white shrink-0 shadow-2xs">
+                            <Sparkles className="w-2.5 h-2.5" /> Secundário
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] text-zinc-500 leading-relaxed">{arch.desc}</p>
+                      <p className="text-[11px] text-zinc-500 leading-relaxed mb-3">{arch.desc}</p>
+                    </div>
+
+                    {/* Botões explícitos para alternar Primário / Secundário */}
+                    <div className="pt-2 border-t border-zinc-200/60 flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isPrimary) {
+                            setArchetype("");
+                          } else {
+                            if (isSecondary) setSecondaryArchetype("");
+                            setArchetype(arch.name);
+                          }
+                          setDirty(true);
+                          setTimeout(() => void saveIdentity(true), 100);
+                        }}
+                        className={`text-[10px] font-medium px-2 py-1 rounded transition ${
+                          isPrimary
+                            ? "bg-purple-700 text-white"
+                            : "bg-zinc-100 text-zinc-600 hover:bg-purple-100 hover:text-purple-700"
+                        }`}
+                      >
+                        {isPrimary ? "★ Primário" : "+ Primário"}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isSecondary) {
+                            setSecondaryArchetype("");
+                          } else {
+                            if (isPrimary) setArchetype("");
+                            setSecondaryArchetype(arch.name);
+                          }
+                          setDirty(true);
+                          setTimeout(() => void saveIdentity(true), 100);
+                        }}
+                        className={`text-[10px] font-medium px-2 py-1 rounded transition ${
+                          isSecondary
+                            ? "bg-indigo-700 text-white"
+                            : "bg-zinc-100 text-zinc-600 hover:bg-indigo-100 hover:text-indigo-700"
+                        }`}
+                      >
+                        {isSecondary ? "✦ Secundário" : "+ Secundário"}
+                      </button>
                     </div>
                   </div>
                 );

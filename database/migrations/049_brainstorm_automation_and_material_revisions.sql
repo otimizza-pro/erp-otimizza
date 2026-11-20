@@ -20,7 +20,12 @@ ALTER TABLE content_brainstorm_ideas ADD COLUMN generation_id uuid
 CREATE INDEX content_brainstorm_generation_search ON content_brainstorm_generations(search_id);
 CREATE INDEX content_brainstorm_idea_generation ON content_brainstorm_ideas(generation_id);
 
-ALTER TABLE content_calendar_items ADD COLUMN stale_materials text[] NOT NULL DEFAULT '{}';
+ALTER TABLE content_calendar_items
+  ADD COLUMN IF NOT EXISTS content_type varchar(30) NOT NULL DEFAULT 'SOCIAL_MEDIA',
+  ADD COLUMN IF NOT EXISTS ad_status varchar(30) NOT NULL DEFAULT 'ACTIVE',
+  ADD COLUMN IF NOT EXISTS post_tag text,
+  ADD COLUMN IF NOT EXISTS image_url text,
+  ADD COLUMN stale_materials text[] NOT NULL DEFAULT '{}';
 
 CREATE FUNCTION track_content_material_revisions() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE

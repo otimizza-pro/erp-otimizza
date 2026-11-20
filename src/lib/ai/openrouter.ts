@@ -92,6 +92,7 @@ export interface GenerateWithOpenRouterInput {
   customApiKey?: string;
   timeoutMs?: number;
   reasoningEffort?: "low" | "medium" | "high";
+  disableThinking?: boolean;
 }
 
 export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput){
@@ -130,6 +131,7 @@ export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput)
         provider: { max_price: { prompt: 2, completion: 10 } },
         ...tempConfig,
         ...(input.reasoningEffort?{reasoning:{effort:input.reasoningEffort,exclude:true}}:{}),
+        ...(input.disableThinking?{reasoning:{enabled:false,exclude:true},chat_template_kwargs:{enable_thinking:false}}:{}),
         max_tokens: input.maxTokens ?? 6000
       })
     });

@@ -99,7 +99,7 @@ export async function executeRun(id:string,user:string) {
  if(!claim.rowCount)return;
  const start=Date.now();let usage:unknown=null;let actual:string|null=null;
  try {
-  const generated=await generateWithOpenRouter({model:run.requested_model,maxTokens:8000,reasoningEffort:"low",temperature:run.brief.creativity==="Conservadora"?0.3:run.brief.creativity==="Exploratória"?0.9:0.65,timeoutMs:80000,messages:[{role:"system",content:headlineRules},{role:"user",content:makeRunPrompt(run.prompt,run.mode,run.style_snapshot||run.style,run.rejection_snapshot)}]});
+  const generated=await generateWithOpenRouter({model:run.requested_model,maxTokens:8000,reasoningEffort:"low",disableThinking:run.requested_model.startsWith('nvidia/nemotron-3.5-lightning'),temperature:run.brief.creativity==="Conservadora"?0.3:run.brief.creativity==="Exploratória"?0.9:0.65,timeoutMs:80000,messages:[{role:"system",content:headlineRules},{role:"user",content:makeRunPrompt(run.prompt,run.mode,run.style_snapshot||run.style,run.rejection_snapshot)}]});
   usage=generated.usage;actual=generated.model;
   const candidates=validateCandidates(JSON.parse(generated.text.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"").trim()),briefSchema.parse(run.brief));
   await withTransaction(async db=>{

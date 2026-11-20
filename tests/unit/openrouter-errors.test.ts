@@ -46,6 +46,11 @@ describe("Falhas de IA não viram sucesso local", () => {
     await expect(generateWithOpenRouter({...request,reasoningEffort:'low',maxTokens:8000})).rejects.toMatchObject({code:'AI_TRUNCATED_RESPONSE',actualModel:'test/actual',usage:{cost:0.02}});
     expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body)).reasoning).toEqual({effort:'low',exclude:true});
   });
+  it('reserva a saída estruturada ao desativar thinking explicitamente',async()=>{
+    vi.mocked(fetch).mockResolvedValue(Response.json({choices:[{message:{content:'[]'},finish_reason:'stop'}]}));
+    await generateWithOpenRouter({...request,reasoningEffort:'low',disableThinking:true});
+    const body=JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));expect(body.reasoning).toEqual({enabled:false,exclude:true});expect(body.chat_template_kwargs).toEqual({enable_thinking:false});
+  });
   it("envia o teto de preço mesmo quando o modelo é substituído pela configuração", async () => {
     vi.mocked(fetch).mockResolvedValue(Response.json({ model: "test/actual", choices: [{ message: { content: "Completo" }, finish_reason: "stop" }] }));
     await generateWithOpenRouter(request);

@@ -67,6 +67,7 @@ function mapClientRow(row: DbClientRow): Client {
 }
 
 export async function listClients(options?: {
+  includeInternal?: boolean;
   relationship?: "current" | "former";
   search?: string;
   status?: "ACTIVE" | "ARCHIVED";
@@ -76,7 +77,10 @@ export async function listClients(options?: {
   orderBy?: "name" | "created_at";
   orderDirection?: "asc" | "desc";
 }): Promise<{ clients: Client[]; total: number }> {
-  const conditions: string[] = ["id <> '"+INTERNAL_COMPANY_ID+"'::uuid"];
+  const conditions: string[] = [];
+  if (!options?.includeInternal) {
+    conditions.push("id <> '"+INTERNAL_COMPANY_ID+"'::uuid");
+  }
   const params: unknown[] = [];
   let paramIdx = 1;
 

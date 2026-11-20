@@ -167,14 +167,15 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
   // Filtro de Projetos
   const filtered = useMemo(() => {
     return projects.filter((p) => {
+      const clientLabel = p.clientName || (p.projectType === "INTERNAL" ? "Otimizza Growth" : "");
       const matchesSearch =
         !search ||
-        `${p.name} ${p.clientName || ""} ${p.projectNumber || ""}`
+        `${p.name} ${clientLabel} ${p.projectNumber || ""}`
           .toLowerCase()
           .includes(search.toLowerCase());
 
       const matchesStatus = !status || p.status === status;
-      const matchesClient = !client || p.clientId === client;
+      const matchesClient = !client || p.clientId === client || (client === "INTERNAL_OTIMIZZA" && p.projectType === "INTERNAL");
       const matchesPriority = !priority || p.priority === priority;
       const matchesContract = !contract || p.contractId === contract;
       const matchesType = !type || p.projectType === type;
@@ -465,10 +466,16 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
                 <option value="">Todos os clientes</option>
                 {[
                   ...new Map(
-                    projects.filter((p) => p.clientId).map((p) => [p.clientId, p.clientName])
+                    projects
+                      .map((p) => {
+                        const cId = p.clientId || (p.projectType === "INTERNAL" ? "INTERNAL_OTIMIZZA" : null);
+                        const cName = p.clientName || (p.projectType === "INTERNAL" ? "Otimizza Growth (Interno)" : null);
+                        return cId && cName ? [cId, cName] : null;
+                      })
+                      .filter(Boolean) as Array<[string, string]>
                   ).entries(),
                 ].map(([id, name]) => (
-                  <option key={id} value={id!}>
+                  <option key={id} value={id}>
                     {name}
                   </option>
                 ))}
@@ -667,10 +674,12 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
 
                           {/* Linha 3: Cliente & Contrato */}
                           <div className="space-y-1 text-[11px] text-zinc-500">
-                            {p.clientName && (
+                            {(p.clientName || p.projectType === "INTERNAL") && (
                               <div className="flex items-center gap-1.5 truncate">
                                 <Building className="w-3 h-3 text-zinc-400 shrink-0" />
-                                <span className="font-semibold text-zinc-700 truncate">{p.clientName}</span>
+                                <span className="font-semibold text-zinc-700 truncate">
+                                  {p.clientName || "Otimizza Growth"}
+                                </span>
                               </div>
                             )}
 
@@ -785,7 +794,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
                         </Link>
                       </td>
                       <td className="py-3.5 px-4 text-zinc-600">
-                        <div className="font-semibold text-zinc-800">{p.clientName || "—"}</div>
+                        <div className="font-semibold text-zinc-800">{p.clientName || (p.projectType === "INTERNAL" ? "Otimizza Growth" : "—")}</div>
                         {p.contractNumber && (
                           <span className="text-[10px] text-zinc-400">Contrato: {p.contractNumber}</span>
                         )}
@@ -867,7 +876,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
                       {p.name}
                     </Link>
                     <span className="text-[11px] text-zinc-400 truncate block">
-                      {p.clientName || "Sem cliente"} · {STATUS_CONFIG[p.status]?.label}
+                      {p.clientName || (p.projectType === "INTERNAL" ? "Otimizza Growth" : "Sem cliente")} · {STATUS_CONFIG[p.status]?.label}
                     </span>
                   </div>
 

@@ -20,12 +20,13 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { ProjectTemplateRecord, ProjectType, ProjectPriority } from "@/modules/projects/types";
+import { INTERNAL_COMPANY_ID } from "@/modules/clients/internal-company";
 
 function NewProjectFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { selectedCompany } = useCompany();
-  const initialClientId = searchParams.get("clientId") || (selectedCompany.isOtimizza ? "" : selectedCompany.id);
+  const initialClientId = searchParams.get("clientId") || (selectedCompany.isOtimizza ? INTERNAL_COMPANY_ID : selectedCompany.id);
 
   const [name, setName] = useState<string>("");
   const [description, setDescription] = useState<string>("");
@@ -78,46 +79,71 @@ function NewProjectFormContent() {
           if (client && client.id) {
             const formatted = {
               id: client.id,
-              name: `${client.name}${client.tradeName ? ` (${client.tradeName})` : ""}`,
+              name: client.id === INTERNAL_COMPANY_ID
+                ? "Otimizza Growth (Empresa Interna / Própria)"
+                : `${client.name}${client.tradeName ? ` (${client.tradeName})` : ""}`,
             };
             setClients((prev) => {
               if (prev.some((c) => c.id === client.id)) return prev;
               return [formatted, ...prev];
             });
-            setName((prev) => (prev ? prev : `Projeto Operacional - ${client.tradeName || client.name}`));
+            setName((prev) => (prev ? prev : (client.id === INTERNAL_COMPANY_ID ? "" : `Projeto Operacional - ${client.tradeName || client.name}`)));
           }
         })
         .catch(() => {});
 
       // Carrega contratos deste cliente
-      fetch(`/api/clients/${initialClientId}/contracts`)
-        .then((r) => r.json())
-        .then((data) => {
-          const list = Array.isArray(data) ? data : data.contracts || [];
-          if (list.length > 0) {
-            setContracts(
-              list.map((co: { id: string; contractNumber?: string; contract_number?: string; description?: string }) => ({
-                id: co.id,
-                contractNumber: co.contractNumber || co.contract_number || "Contrato",
-                clientName: co.description || "",
-              }))
-            );
-          }
-        })
-        .catch(() => {});
+      if (initialClientId !== INTERNAL_COMPANY_ID) {
+        fetch(`/api/clients/${initialClientId}/contracts`)
+          .then((r) => r.json())
+          .then((data) => {
+            const list = Array.isArray(data) ? data : data.contracts || [];
+            if (list.length > 0) {
+              setContracts(
+                list.map((co: { id: string; contractNumber?: string; contract_number?: string; description?: string }) => ({
+                  id: co.id,
+                  contractNumber: co.contractNumber || co.contract_number || "Contrato",
+                  clientName: co.description || "",
+                }))
+              );
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [initialClientId]);
 
   useEffect(() => {
-    // Carregar clientes
-    fetch("/api/clients?limit=100")
+    // Carregar clientes (inclui a Otimizza como empresa interna)
+    fetch("/api/clients?limit=200&includeInternal=true")
       .then((res) => res.json())
       .then(async (json) => {
-        const clientList = Array.isArray(json) ? json : json.clients || (json.success && json.data) || [];
+        let clientList = Array.isArray(json) ? json : json.clients || (json.success && json.data) || [];
+        
+        // Garante formatação especial para Otimizza Growth e posiciona no topo
+        const otimizzaIndex = clientList.findIndex((c: { id: string }) => c.id === INTERNAL_COMPANY_ID);
+        if (otimizzaIndex > -1) {
+          const [otimizzaItem] = clientList.splice(otimizzaIndex, 1);
+          clientList.unshift({
+            ...otimizzaItem,
+            name: "Otimizza Growth (Empresa Interna / Própria)",
+          });
+        } else {
+          try {
+            const single = await fetch(`/api/clients/${INTERNAL_COMPANY_ID}`).then((r) => r.json());
+            if (single && single.id) {
+              clientList.unshift({
+                ...single,
+                name: "Otimizza Growth (Empresa Interna / Própria)",
+              });
+            }
+          } catch {}
+        }
+
         if (initialClientId && !clientList.some((c: { id: string }) => c.id === initialClientId)) {
           try {
             const single = await fetch(`/api/clients/${initialClientId}`).then((r) => r.json());
-            if (single && single.id) clientList.unshift(single);
+            if (single && single.id) clientList.push(single);
           } catch {}
         }
         setClients(clientList);
@@ -224,7 +250,7 @@ function NewProjectFormContent() {
         name,
         description: description || null,
         projectType,
-        clientId: projectType !== "INTERNAL" ? clientId || null : null,
+        clientId: (projectType === "INTERNAL" ? (clientId || INTERNAL_COMPANY_ID) : clientId) || null,
         contractId: contractId || null,
         useServiceOnboarding: searchParams.get("onboarding") === "1" && !templateId,
         templateId: templateId || null,
@@ -297,12 +323,19 @@ function NewProjectFormContent() {
               </label>
               <select
                 value={projectType}
-                onChange={(e) => setProjectType(e.target.value as ProjectType)}
+                onChange={(e) => {
+                  const val = e.target.value as ProjectType;
+                  setProjectType(val);
+                  if (val === "INTERNAL") {
+                    setClientId(INTERNAL_COMPANY_ID);
+                    setContractId("");
+                  }
+                }}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="STANDALONE">Projeto Avulso (Entrega Específica)</option>
                 <option value="RECURRING">Projeto Recorrente (Operação Contratual)</option>
-                <option value="INTERNAL">Projeto Interno (Sem Cliente)</option>
+                <option value="INTERNAL">Projeto Interno da Otimizza</option>
               </select>
             </div>
 
@@ -399,7 +432,28 @@ function NewProjectFormContent() {
           </div>
 
           {/* Vínculo com Cliente e Contrato */}
-          {projectType !== "INTERNAL" && (
+          {projectType === "INTERNAL" ? (
+            <div className="bg-emerald-50 border border-emerald-200/90 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-100 text-emerald-800 shrink-0">
+                  <Building className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="font-bold text-emerald-950 text-sm">Projeto Interno Otimizza</span>
+                  <p className="text-[11px] text-emerald-700 mt-0.5">
+                    Este projeto pertence às demandas e operações da própria agência (Otimizza Growth), sem cobrança de cliente externo.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProjectType("STANDALONE")}
+                className="text-[11px] font-semibold text-emerald-800 hover:text-emerald-950 underline shrink-0 text-left cursor-pointer"
+              >
+                Vincular a cliente externo
+              </button>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100 items-start">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
@@ -424,12 +478,14 @@ function NewProjectFormContent() {
                 </label>
                 <select
                   value={contractId}
-                  disabled={!clientId}
+                  disabled={!clientId || clientId === INTERNAL_COMPANY_ID}
                   onChange={(e) => setContractId(e.target.value)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
                 >
                   {!clientId ? (
                     <option value="">Selecione um cliente primeiro...</option>
+                  ) : clientId === INTERNAL_COMPANY_ID ? (
+                    <option value="">Sem contrato (Operação Interna da Agência)</option>
                   ) : contracts.length === 0 ? (
                     <option value="">Nenhum contrato ativo encontrado para este cliente</option>
                   ) : (

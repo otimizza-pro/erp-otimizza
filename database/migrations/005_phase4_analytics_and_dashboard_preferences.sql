@@ -34,10 +34,15 @@ CREATE INDEX IF NOT EXISTS idx_contract_versions_contract_effective
   ON contract_versions(contract_id, effective_date DESC);
 
 -- Garantir compatibilidade com instâncias Postgres sem Supabase Auth nativo (ex: CI e Docker)
-CREATE SCHEMA IF NOT EXISTS auth;
-CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb AS $$
-  SELECT '{}'::jsonb;
-$$ LANGUAGE sql STABLE;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'auth') THEN
+    CREATE SCHEMA auth;
+    CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb AS $f$
+      SELECT '{}'::jsonb;
+    $f$ LANGUAGE sql STABLE;
+  END IF;
+END $$;
 
 -- RLS
 ALTER TABLE dashboard_preferences ENABLE ROW LEVEL SECURITY;

@@ -12,7 +12,11 @@ interface MigrationRecord {
 
 /** Checksums históricos legítimos auditados (compatibilidade de Docker/CI e quebras de linha) */
 const AUDITED_LEGITIMATE_CHECKSUMS: Record<string, string[]> = {
-  "005_phase4_analytics_and_dashboard_preferences": ["a662ce20f07840d381c08f6afdbb6d5de8d7e003b6d11c5838a01e37952d45d8"],
+  "005_phase4_analytics_and_dashboard_preferences": [
+    "a662ce20f07840d381c08f6afdbb6d5de8d7e003b6d11c5838a01e37952d45d8",
+    "6c5e969c6eb5d300cd6fccb63cbbe74f97834348e8f3ccd3f2bbcee30e55a8e1",
+    "dd8b1db56fe4b35ea21de107a4b86a39cd62a6e66e6ecf14a04d28b80c008c3b"
+  ],
   "008_security_hardening": ["a85611daac980ba6f1c2c0129a91a4189f36416aa750117ea6c56993d9f6c5f6"],
   "012_phase11_project_management": ["9d511940740029938c76afecc8f1db87f49dd3b702a2fff4517a24c325e3aa2d"],
   "014_knowledge_base_pages": ["ef85d6bfa377ff6ad0c0d2f22cb20026032a2480accdd9b118ecefac6a0b5e36"],

@@ -390,6 +390,7 @@ export default function SavedPostsPage() {
                   {/* Container da Imagem com Aspect Ratio 4:5 Vertical Exato */}
                   <div className="relative aspect-[4/5] bg-zinc-950 overflow-hidden group">
                     {post.imageUrl ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
                       <img
                         src={post.imageUrl}
                         alt={post.title}

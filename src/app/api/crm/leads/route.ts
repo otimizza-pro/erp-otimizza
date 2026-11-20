@@ -2,7 +2,7 @@ import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { CrmService } from "@/modules/crm/service";
-import { LeadStatus } from "@/modules/crm/types";
+import { LeadStatus, AcquisitionType } from "@/modules/crm/types";
 import { getDbPool } from "@/lib/db/pool";
 
 export async function GET(request: Request) {
@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const search = searchParams.get("search") || undefined;
     const status = (searchParams.get("status") as LeadStatus | "ALL") || undefined;
     const source = searchParams.get("source") || undefined;
-    const acquisitionType = (searchParams.get("acquisitionType") as any) || undefined;
+    const acquisitionType = (searchParams.get("acquisitionType") as AcquisitionType | "ALL") || undefined;
     const leadSource = searchParams.get("leadSource") || undefined;
     const firstContactChannel = searchParams.get("firstContactChannel") || undefined;
     const pipelineId = searchParams.get("pipelineId") || undefined;

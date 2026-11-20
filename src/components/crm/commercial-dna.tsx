@@ -132,9 +132,11 @@ export function CommercialDnaPanel({
   useEffect(() => { callbacks.current = { onReady, onSaved }; }, [onReady,onSaved]);
   
   const dirtyRef = useRef(dirty);
-  dirtyRef.current = dirty;
   const dnaRef = useRef(dna);
-  dnaRef.current = dna;
+  useEffect(() => {
+    dirtyRef.current = dirty;
+    dnaRef.current = dna;
+  }, [dirty, dna]);
 
   const url = leadId ? `/api/crm/leads/${leadId}/dna` : `/api/clients/${clientId}/commercial-dna`;
   useEffect(() => {

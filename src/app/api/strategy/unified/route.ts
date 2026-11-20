@@ -11,7 +11,7 @@ export interface UnifiedStrategyBlock {
   blockType: string;
   title: string;
   instructions?: string;
-  content: { text?: string; list?: string[]; [key: string]: any };
+  content: { text?: string; list?: string[]; [key: string]: unknown };
   classification: "DECLARADO" | "DECIDIDO" | "HIPOTESE" | "RECOMENDACAO" | "PENDENTE";
   dataNature?: string;
   gridWidth?: number;

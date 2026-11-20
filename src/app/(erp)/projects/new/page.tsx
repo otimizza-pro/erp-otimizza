@@ -118,7 +118,7 @@ function NewProjectFormContent() {
     fetch("/api/clients?limit=200&includeInternal=true")
       .then((res) => res.json())
       .then(async (json) => {
-        let clientList = Array.isArray(json) ? json : json.clients || (json.success && json.data) || [];
+        const clientList = Array.isArray(json) ? json : json.clients || (json.success && json.data) || [];
         
         // Garante formatação especial para Otimizza Growth e posiciona no topo
         const otimizzaIndex = clientList.findIndex((c: { id: string }) => c.id === INTERNAL_COMPANY_ID);

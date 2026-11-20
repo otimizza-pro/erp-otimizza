@@ -271,13 +271,30 @@ export default function ClientIdentityPage() {
     }
   };
 
-  const draftIdentity = {valueProposition,marketNiche,archetype,secondaryArchetype,toneOfVoice:selectedTones,brandContext,targetAudiences,painPoints,differentials,forbiddenWords,mandatoryTerms,defaultCtas,notes,communicationProfile};
-  const aiButton = (field:IdentityAiField) => <IdentityAiButton clientId={id} field={field} draft={draftIdentity} onApply={value=>{
-    const asText=Array.isArray(value)?value.join("\n"):value;const asList=Array.isArray(value)?value:[value];
-    const setters={marketNiche:()=>setMarketNiche(asText),valueProposition:()=>setValueProposition(asText),brandContext:()=>setBrandContext(asText),archetype:()=>setArchetype(asText),toneOfVoice:()=>setSelectedTones(asList),targetAudiences:()=>setTargetAudiences(asList),painPoints:()=>setPainPoints(asList),differentials:()=>setDifferentials(asList),forbiddenWords:()=>setForbiddenWords(asList),mandatoryTerms:()=>setMandatoryTerms(asList),defaultCtas:()=>setDefaultCtas(asList),notes:()=>setNotes(asText),communicationDetails:()=>setCommunicationProfile({...communicationProfile,details:asText})};setters[field]();
+  const handleApplyAi = (field: IdentityAiField, value: string | string[]) => {
+    const asText = Array.isArray(value) ? value.join("\n") : value;
+    const asList = Array.isArray(value) ? value : [value];
+    if (field === "marketNiche") setMarketNiche(asText);
+    else if (field === "valueProposition") setValueProposition(asText);
+    else if (field === "brandContext") setBrandContext(asText);
+    else if (field === "archetype") setArchetype(asText);
+    else if (field === "toneOfVoice") setSelectedTones(asList);
+    else if (field === "targetAudiences") setTargetAudiences(asList);
+    else if (field === "painPoints") setPainPoints(asList);
+    else if (field === "differentials") setDifferentials(asList);
+    else if (field === "forbiddenWords") setForbiddenWords(asList);
+    else if (field === "mandatoryTerms") setMandatoryTerms(asList);
+    else if (field === "defaultCtas") setDefaultCtas(asList);
+    else if (field === "notes") setNotes(asText);
+    else if (field === "communicationDetails") {
+      setCommunicationProfile((prev) => ({ ...prev, details: asText }));
+    }
     setDirty(true);
     setTimeout(() => { void saveIdentity(true); }, 150);
-  }}/>;
+  };
+
+  const draftIdentity = {valueProposition,marketNiche,archetype,secondaryArchetype,toneOfVoice:selectedTones,brandContext,targetAudiences,painPoints,differentials,forbiddenWords,mandatoryTerms,defaultCtas,notes,communicationProfile};
+  const aiButton = (field:IdentityAiField) => <IdentityAiButton clientId={id} field={field} draft={draftIdentity} onApply={(val) => handleApplyAi(field, val)} />;
 
   const toggleTone = (tone: string) => {
     const nextTones = selectedTones.includes(tone)

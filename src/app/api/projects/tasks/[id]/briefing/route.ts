@@ -54,7 +54,7 @@ export async function GET(
     const task = taskRes.rows[0];
 
     // 2. Verificar se já existe uma sessão para esta tarefa ou projeto
-    let sessionRes = await query(
+    const sessionRes = await query(
       `SELECT * FROM public.client_briefing_sessions WHERE task_id = $1 OR project_id = $2 ORDER BY created_at DESC LIMIT 1`,
       [taskId, task.project_id]
     );
@@ -164,7 +164,7 @@ export async function POST(
     } = body;
 
     // Verificar se existe a sessão
-    let sessionRes = await query(
+    const sessionRes = await query(
       `SELECT * FROM public.client_briefing_sessions WHERE task_id = $1 LIMIT 1`,
       [taskId]
     );

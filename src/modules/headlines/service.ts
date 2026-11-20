@@ -146,7 +146,7 @@ export async function selectCandidate(id:string,user:string) {
   const b=briefSchema.parse(c.brief);
   const editorial=b.themeId&&b.speaker&&b.voice&&b.audience&&b.goal&&b.tone&&b.cta?{themeId:b.themeId,speaker:b.speaker,voice:b.voice,audience:b.audience,funnel:b.funnel,journey:b.journey,goal:b.goal,pain:b.pain||"NOT_APPLICABLE",tone:b.tone,cta:b.cta}:null;
   const before=await db.query("SELECT headline_candidate_id FROM content_calendar_items WHERE id=$1 FOR UPDATE",[c.content_id]);
-  await db.query(`UPDATE content_calendar_items SET selected_headline=$2,selected_subheadline=$3,headline_candidate_id=$4,title=$2,headline_brief=$5::jsonb,
+  await db.query(`UPDATE content_calendar_items SET selected_headline=$2::text,selected_subheadline=$3,headline_candidate_id=$4,title=$2::text,headline_brief=$5::jsonb,
     format=$6,central_idea=$7,tone_of_voice=$8,call_to_action=$9,target_audience_name=$10,editorial_brief=$11::jsonb,
     headline_content_stale=CASE WHEN headline_candidate_id IS DISTINCT FROM $4::uuid AND (selected_caption IS NOT NULL OR selected_reels IS NOT NULL OR selected_carousel IS NOT NULL) THEN true ELSE headline_content_stale END,updated_at=NOW() WHERE id=$1`,[c.content_id,c.headline,c.subheadline,c.id,JSON.stringify(c.brief),b.format==="Estático"?"Post estático":b.format,b.bigIdea,b.tone,b.cta,b.audience,editorial?JSON.stringify(editorial):null]);
     

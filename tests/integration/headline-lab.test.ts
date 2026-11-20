@@ -8,6 +8,14 @@ describe('Persistência do laboratório de headlines',()=>{
   await db.query('BEGIN');
   try {
    if(!(await db.query("SELECT to_regclass('public.headline_workspaces') AS t")).rows[0].t)await db.query(await readFile('database/migrations/043_headline_teams.sql','utf8'));
+   const service=await readFile('src/modules/headlines/service.ts','utf8');
+   const selection=service.match(/`(UPDATE content_calendar_items SET selected_headline[\s\S]*?)`/)?.[1];
+   const route=await readFile('src/app/api/content-studio/posts/[id]/route.ts','utf8');
+   const handoff=route.match(/const sql = `([\s\S]*?)`/)?.[1];
+   expect(selection).toBeTruthy();expect(handoff).toBeTruthy();
+   await db.query('PREPARE headline_selection_validation AS '+selection);
+   await db.query('PREPARE headline_handoff_validation AS '+handoff);
+   await db.query('DEALLOCATE headline_selection_validation');await db.query('DEALLOCATE headline_handoff_validation');
    const client=(await db.query("INSERT INTO clients(type,name) VALUES('PJ','[TEST] Headline') RETURNING id")).rows[0].id;
    const content=(await db.query("INSERT INTO content_calendar_items(client_id,title,central_idea,format,status,selected_reels) VALUES($1,'Teste','Ideia','Reels','PLANNED','Roteiro preservado') RETURNING id",[client])).rows[0].id;
    const workspace=(await db.query("INSERT INTO headline_workspaces(client_id,user_id,content_id) VALUES($1,'test-headline',$2) RETURNING id",[client,content])).rows[0].id;

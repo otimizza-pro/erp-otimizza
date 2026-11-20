@@ -1,0 +1,1118 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  Building2,
+  Target,
+  MessageSquare,
+  BookOpen,
+  Plus,
+  Trash2,
+  Save,
+  Check,
+  ExternalLink,
+  RefreshCw,
+  AlertCircle,
+  ArrowRight,
+  ShieldAlert,
+  Globe,
+  Instagram,
+  CheckCircle2,
+  Layers,
+  Sparkles,
+} from "lucide-react";
+import { WhatsAppIcon } from "@/components/ui/whatsapp";
+import {
+  COMMUNICATION_OPTIONS,
+  CommunicationProfile,
+  CommunicationProfileSchema,
+  emptyCommunicationProfile,
+} from "@/modules/clients/communication-profile";
+
+const ARCHETYPES = [
+  { id: "SABIO", name: "O Sábio / Especialista", desc: "Autoridade, precisão técnica, dados, didática e clareza profunda." },
+  { id: "AMIGO", name: "O Amigo / Parceiro", desc: "Proximidade, empatia, diálogo acessível e suporte constante." },
+  { id: "CRIADOR", name: "O Criador / Visionário", desc: "Inovação, originalidade, design arrojado e soluções fora da caixa." },
+  { id: "HEROI", name: "O Herói / Conquistador", desc: "Superação de desafios, alta performance, foco em resultados e vitórias." },
+  { id: "MAGO", name: "O Mago / Transformador", desc: "Transformação rápida, visão estratégica, saltos de crescimento e impacto." },
+  { id: "GOVERNANTE", name: "O Governante / Líder", desc: "Liderança de mercado, segurança, governança, estabilidade e solidez." },
+];
+
+const PRESET_TONES = [
+  "Direto e didático",
+  "Sem juridiquês ou jargões vazios",
+  "Focado em decisões e crescimento",
+  "Orientado a dados com clareza",
+  "Enérgico e persuasivo",
+  "Empático e consultivo",
+  "Sofisticado e exclusivo",
+  "Provocativo e instigante",
+  "Calmo e acolhedor",
+  "Técnico e fundamentado",
+];
+
+const control =
+  "mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition";
+
+interface Pillar {
+  id: string;
+  name: string;
+}
+
+interface EditorialLine {
+  id: string;
+  pillar_id: string | null;
+  pillar_name: string;
+  theme: string;
+  objective: string | null;
+  preferred_formats: string[];
+}
+
+interface ClientStrategyPanelProps {
+  clientId: string;
+  companyName: string;
+  pillars: Pillar[];
+  editorialLines: EditorialLine[];
+  onAdvanceToBrainstorm: () => void;
+}
+
+export function ClientStrategyPanel({
+  clientId,
+  companyName,
+  pillars,
+  editorialLines,
+  onAdvanceToBrainstorm,
+}: ClientStrategyPanelProps) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Campos de Estratégia e DNA
+  const [brandContext, setBrandContext] = useState("");
+  const [marketNiche, setMarketNiche] = useState("");
+  const [valueProposition, setValueProposition] = useState("");
+  const [archetype, setArchetype] = useState("");
+  const [secondaryArchetype, setSecondaryArchetype] = useState("");
+  const [selectedTones, setSelectedTones] = useState<string[]>([]);
+  const [newCustomTone, setNewCustomTone] = useState("");
+
+  const [targetAudiences, setTargetAudiences] = useState<string[]>([]);
+  const [newAudience, setNewAudience] = useState("");
+
+  const [painPoints, setPainPoints] = useState<string[]>([]);
+  const [newPain, setNewPain] = useState("");
+
+  const [differentials, setDifferentials] = useState<string[]>([]);
+  const [newDifferential, setNewDifferential] = useState("");
+
+  const [forbiddenWords, setForbiddenWords] = useState<string[]>([]);
+  const [newForbidden, setNewForbidden] = useState("");
+
+  const [mandatoryTerms, setMandatoryTerms] = useState<string[]>([]);
+  const [newMandatory, setNewMandatory] = useState("");
+
+  const [defaultCtas, setDefaultCtas] = useState<string[]>([]);
+  const [newCta, setNewCta] = useState("");
+
+  const [instagramHandle, setInstagramHandle] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [whatsappCta, setWhatsappCta] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const [communicationProfile, setCommunicationProfile] = useState<CommunicationProfile>(emptyCommunicationProfile);
+
+  // Sub-aba ativa dentro da Estratégia
+  const [subTab, setSubTab] = useState<"dna" | "audiences" | "voice" | "channels" | "editorial">("dna");
+
+  // Carregar dados de identidade/estratégia do cliente
+  const loadStrategyData = async () => {
+    if (!clientId) return;
+    setLoading(true);
+    setFeedback(null);
+    try {
+      const res = await fetch(`/api/clients/${clientId}/identity`);
+      if (!res.ok) throw new Error("Erro ao carregar estratégia do cliente.");
+      const data = await res.json();
+
+      setBrandContext(data.brandContext || "");
+      setMarketNiche(data.marketNiche || "");
+      setValueProposition(data.valueProposition || "");
+      setArchetype(data.archetype || "");
+      setSecondaryArchetype(data.secondaryArchetype || "");
+      setSelectedTones(Array.isArray(data.toneOfVoice) ? data.toneOfVoice : []);
+      setTargetAudiences(Array.isArray(data.targetAudiences) ? data.targetAudiences : []);
+      setPainPoints(Array.isArray(data.painPoints) ? data.painPoints : []);
+      setDifferentials(Array.isArray(data.differentials) ? data.differentials : []);
+      setForbiddenWords(Array.isArray(data.forbiddenWords) ? data.forbiddenWords : []);
+      setMandatoryTerms(Array.isArray(data.mandatoryTerms) ? data.mandatoryTerms : []);
+      setDefaultCtas(Array.isArray(data.defaultCtas) ? data.defaultCtas : []);
+      setInstagramHandle(data.instagramHandle || "");
+      setWebsiteUrl(data.websiteUrl || "");
+      setWhatsappCta(data.whatsappCta || "");
+      setNotes(data.notes || "");
+
+      const parsedProfile = CommunicationProfileSchema.safeParse(data.communicationProfile);
+      setCommunicationProfile(parsedProfile.success ? parsedProfile.data : emptyCommunicationProfile);
+    } catch (e: any) {
+      setFeedback({ type: "error", text: e.message || "Falha ao carregar dados de estratégia." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStrategyData();
+  }, [clientId]);
+
+  // Salvar estratégia
+  const handleSave = async () => {
+    if (!clientId) return;
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const body = {
+        brandContext,
+        marketNiche,
+        valueProposition,
+        archetype,
+        secondaryArchetype,
+        toneOfVoice: selectedTones,
+        targetAudiences,
+        painPoints,
+        differentials,
+        forbiddenWords,
+        mandatoryTerms,
+        defaultCtas,
+        instagramHandle,
+        websiteUrl,
+        whatsappCta,
+        notes,
+        communicationProfile,
+      };
+
+      const res = await fetch(`/api/clients/${clientId}/identity`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Erro ao salvar alterações de estratégia.");
+      }
+
+      setFeedback({ type: "success", text: "Estratégia e DNA salvos com sucesso!" });
+      setTimeout(() => setFeedback(null), 4000);
+    } catch (e: any) {
+      setFeedback({ type: "error", text: e.message || "Erro ao salvar estratégia." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Helpers para adicionar itens em arrays
+  const addItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string, clear: () => void) => {
+    const trimmed = val.trim();
+    if (!trimmed) return;
+    setter((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    clear();
+  };
+
+  const removeItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) => {
+    setter((prev) => prev.filter((item) => item !== val));
+  };
+
+  const toggleTone = (tone: string) => {
+    setSelectedTones((prev) =>
+      prev.includes(tone) ? prev.filter((t) => t !== tone) : [...prev, tone]
+    );
+  };
+
+  const toggleProfileField = (
+    field: "speakerTypes" | "audienceTypes" | "contentVoices",
+    value: string
+  ) => {
+    setCommunicationProfile((prev) => {
+      const current = prev[field] || [];
+      const updated = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+      return { ...prev, [field]: updated };
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-16 text-center">
+        <RefreshCw className="h-8 w-8 animate-spin text-emerald-600 mb-3" />
+        <p className="text-sm font-semibold text-zinc-700">Carregando Estratégia Completa & DNA do cliente...</p>
+        <p className="text-xs text-zinc-400 mt-1">Buscando identidade, público-alvo, diretrizes e canais de conversão.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* BARRA SUPERIOR DE AÇÕES DA ESTRATÉGIA */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-emerald-800">
+              <Building2 size={13} />
+              DNA & Estratégia de Conteúdo
+            </span>
+            <span className="text-xs text-zinc-400">·</span>
+            <span className="text-xs font-semibold text-zinc-600">{companyName}</span>
+          </div>
+          <h2 className="mt-1 text-xl font-extrabold text-zinc-950">Estratégia Completa do Cliente</h2>
+          <p className="text-xs text-zinc-500">
+            Todas as diretrizes estratégicas que orientam o Brainstorm, as Headlines e os roteiros da IA.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {feedback && (
+            <div
+              className={
+                "inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold " +
+                (feedback.type === "success"
+                  ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border border-rose-200 bg-rose-50 text-rose-800")
+              }
+            >
+              {feedback.type === "success" ? <Check size={14} /> : <AlertCircle size={14} />}
+              {feedback.text}
+            </div>
+          )}
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={handleSave}
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-50 transition cursor-pointer"
+          >
+            {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save size={16} />}
+            {saving ? "Salvando..." : "Salvar Estratégia"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onAdvanceToBrainstorm}
+            className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-bold text-white shadow-xs hover:bg-zinc-800 transition cursor-pointer"
+          >
+            Avançar para Brainstorm & Ideias
+            <ArrowRight size={16} />
+          </button>
+
+          <Link
+            href={`/clients/${clientId}/identity`}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition"
+            title="Abrir editor avançado de identidade e manuais"
+          >
+            <ExternalLink size={14} />
+            Editor Completo
+          </Link>
+        </div>
+      </div>
+
+      {/* SUB-MENU EM ABAS DA ESTRATÉGIA */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-zinc-200 pb-3">
+        <button
+          type="button"
+          onClick={() => setSubTab("dna")}
+          className={
+            "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition cursor-pointer " +
+            (subTab === "dna"
+              ? "bg-zinc-900 text-white shadow-2xs"
+              : "bg-white text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950 border border-zinc-200")
+          }
+        >
+          <Building2 size={16} />
+          1. Posicionamento & DNA da Marca
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("audiences")}
+          className={
+            "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition cursor-pointer " +
+            (subTab === "audiences"
+              ? "bg-zinc-900 text-white shadow-2xs"
+              : "bg-white text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950 border border-zinc-200")
+          }
+        >
+          <Target size={16} />
+          2. Públicos-Alvo & Dores
+          {targetAudiences.length > 0 && (
+            <span className="ml-1 rounded-full bg-zinc-700 px-2 py-0.2 text-[11px] text-zinc-200">
+              {targetAudiences.length}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("voice")}
+          className={
+            "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition cursor-pointer " +
+            (subTab === "voice"
+              ? "bg-zinc-900 text-white shadow-2xs"
+              : "bg-white text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950 border border-zinc-200")
+          }
+        >
+          <MessageSquare size={16} />
+          3. Tom de Voz, CTAs & Diretrizes
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("channels")}
+          className={
+            "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition cursor-pointer " +
+            (subTab === "channels"
+              ? "bg-zinc-900 text-white shadow-2xs"
+              : "bg-white text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950 border border-zinc-200")
+          }
+        >
+          <Globe size={16} />
+          4. Canais & Conversão
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubTab("editorial")}
+          className={
+            "inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bold transition cursor-pointer " +
+            (subTab === "editorial"
+              ? "bg-zinc-900 text-white shadow-2xs"
+              : "bg-white text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950 border border-zinc-200")
+          }
+        >
+          <Layers size={16} />
+          5. Pilares & Linhas Cadastradas
+          {pillars.length > 0 && (
+            <span className="ml-1 rounded-full bg-zinc-700 px-2 py-0.2 text-[11px] text-zinc-200">
+              {pillars.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* CONTEÚDO DA SUB-ABA 1: POSICIONAMENTO & DNA */}
+      {subTab === "dna" && (
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Proposta de Valor e Nicho */}
+          <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
+            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+              <Building2 size={18} className="text-emerald-600" />
+              Posicionamento Central
+            </h3>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-700">Nicho de Mercado / Especialidade</label>
+              <input
+                className={control}
+                placeholder="Ex: Clínicas Odontológicas Premium, Consultoria Tributária B2B..."
+                value={marketNiche}
+                onChange={(e) => setMarketNiche(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-700">Proposta de Valor Única</label>
+              <textarea
+                className={`${control} min-h-[90px]`}
+                placeholder="O que a sua empresa entrega que ninguém mais entrega? Qual é a promessa transformadora?"
+                value={valueProposition}
+                onChange={(e) => setValueProposition(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-700">Contexto da Empresa / História da Marca</label>
+              <textarea
+                className={`${control} min-h-[110px]`}
+                placeholder="Resumo executivo do negócio, histórico dos fundadores, reputação e momento atual da empresa..."
+                value={brandContext}
+                onChange={(e) => setBrandContext(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Arquétipos e Diferenciais */}
+          <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
+            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+              <Sparkles size={18} className="text-indigo-600" />
+              Arquétipos & Diferenciais
+            </h3>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="text-xs font-semibold text-zinc-700">Arquétipo Principal</label>
+                <select
+                  className={control}
+                  value={archetype}
+                  onChange={(e) => setArchetype(e.target.value)}
+                >
+                  <option value="">Selecione o Arquétipo</option>
+                  {ARCHETYPES.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+                {archetype && (
+                  <p className="mt-1 text-[11px] text-zinc-500">
+                    {ARCHETYPES.find((a) => a.id === archetype)?.desc}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700">Arquétipo Secundário (opcional)</label>
+                <select
+                  className={control}
+                  value={secondaryArchetype}
+                  onChange={(e) => setSecondaryArchetype(e.target.value)}
+                >
+                  <option value="">Nenhum / Opcional</option>
+                  {ARCHETYPES.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+                {secondaryArchetype && (
+                  <p className="mt-1 text-[11px] text-zinc-500">
+                    {ARCHETYPES.find((a) => a.id === secondaryArchetype)?.desc}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-700">Diferenciais Competitivos da Marca</label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  className={control}
+                  placeholder="Ex: Atendimento 24h, Metodologia própria patenteada, Sem taxa oculta..."
+                  value={newDifferential}
+                  onChange={(e) => setNewDifferential(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addItem(setDifferentials, newDifferential, () => setNewDifferential(""));
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => addItem(setDifferentials, newDifferential, () => setNewDifferential(""))}
+                  className="mt-1 inline-flex items-center gap-1 rounded-xl bg-zinc-900 px-3 text-xs font-bold text-white hover:bg-zinc-800 transition"
+                >
+                  <Plus size={14} />
+                  Adicionar
+                </button>
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {differentials.map((diff) => (
+                  <span
+                    key={diff}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-800"
+                  >
+                    <Check size={12} />
+                    {diff}
+                    <button
+                      type="button"
+                      onClick={() => removeItem(setDifferentials, diff)}
+                      className="ml-1 text-emerald-600 hover:text-emerald-900"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </span>
+                ))}
+                {differentials.length === 0 && (
+                  <p className="text-xs text-zinc-400 italic">Nenhum diferencial cadastrado ainda.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONTEÚDO DA SUB-ABA 2: PÚBLICOS & DORES */}
+      {subTab === "audiences" && (
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Públicos-Alvo Cadastrados */}
+          <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
+            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+              <Target size={18} className="text-emerald-600" />
+              Públicos-Alvo & Personas
+            </h3>
+            <p className="text-xs text-zinc-500">
+              Esses perfis de público alimentam automaticamente o campo de público no Brainstorm e no Briefing das Headlines.
+            </p>
+
+            <div className="flex gap-2">
+              <input
+                className={control}
+                placeholder="Ex: Diretores Financeiros de PMEs, Médicos com consultório próprio..."
+                value={newAudience}
+                onChange={(e) => setNewAudience(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addItem(setTargetAudiences, newAudience, () => setNewAudience(""));
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => addItem(setTargetAudiences, newAudience, () => setNewAudience(""))}
+                className="mt-1 inline-flex items-center gap-1 rounded-xl bg-zinc-900 px-3 text-xs font-bold text-white hover:bg-zinc-800 transition"
+              >
+                <Plus size={14} />
+                Adicionar
+              </button>
+            </div>
+
+            <div className="space-y-2 mt-3">
+              {targetAudiences.map((aud) => (
+                <div
+                  key={aud}
+                  className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 text-sm text-zinc-800"
+                >
+                  <div className="flex items-center gap-2 font-medium">
+                    <Target size={14} className="text-emerald-600" />
+                    {aud}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(setTargetAudiences, aud)}
+                    className="text-zinc-400 hover:text-rose-600 transition"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              {targetAudiences.length === 0 && (
+                <p className="text-xs text-zinc-400 italic">Nenhum público cadastrado ainda.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Dores & Necessidades */}
+          <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
+            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+              <AlertCircle size={18} className="text-amber-600" />
+              Principais Dores, Problemas e Necessidades
+            </h3>
+            <p className="text-xs text-zinc-500">
+              Quais são as frustrações que o cliente vive diariamente e que seu conteúdo promete ajudar a resolver?
+            </p>
+
+            <div className="flex gap-2">
+              <input
+                className={control}
+                placeholder="Ex: Falta de tempo para atrair clientes, Gastos descontrolados com anúncios..."
+                value={newPain}
+                onChange={(e) => setNewPain(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addItem(setPainPoints, newPain, () => setNewPain(""));
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => addItem(setPainPoints, newPain, () => setNewPain(""))}
+                className="mt-1 inline-flex items-center gap-1 rounded-xl bg-zinc-900 px-3 text-xs font-bold text-white hover:bg-zinc-800 transition"
+              >
+                <Plus size={14} />
+                Adicionar
+              </button>
+            </div>
+
+            <div className="space-y-2 mt-3">
+              {painPoints.map((pain) => (
+                <div
+                  key={pain}
+                  className="flex items-center justify-between rounded-xl border border-amber-200/60 bg-amber-50/50 p-3 text-sm text-zinc-800"
+                >
+                  <div className="flex items-center gap-2 font-medium">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    {pain}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(setPainPoints, pain)}
+                    className="text-zinc-400 hover:text-rose-600 transition"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+              {painPoints.length === 0 && (
+                <p className="text-xs text-zinc-400 italic">Nenhuma dor cadastrada ainda.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONTEÚDO DA SUB-ABA 3: TOM DE VOZ, CTAS & DIRETRIZES */}
+      {subTab === "voice" && (
+        <div className="space-y-6">
+          {/* Tom de Voz */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">
+            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+              <MessageSquare size={18} className="text-emerald-600" />
+              Tom de Voz da Marca
+            </h3>
+            <p className="text-xs text-zinc-500">
+              Selecione as nuances que definem o tom e estilo da comunicação da marca.
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {PRESET_TONES.map((tone) => {
+                const active = selectedTones.includes(tone);
+                return (
+                  <button
+                    key={tone}
+                    type="button"
+                    onClick={() => toggleTone(tone)}
+                    className={
+                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition cursor-pointer " +
+                      (active
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-900 shadow-2xs font-bold"
+                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50")
+                    }
+                  >
+                    {active && <Check size={12} />}
+                    {tone}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex gap-2 max-w-md pt-2">
+              <input
+                className={control}
+                placeholder="Adicionar tom personalizado..."
+                value={newCustomTone}
+                onChange={(e) => setNewCustomTone(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addItem(setSelectedTones, newCustomTone, () => setNewCustomTone(""));
+                  }
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => addItem(setSelectedTones, newCustomTone, () => setNewCustomTone(""))}
+                className="mt-1 inline-flex items-center gap-1 rounded-xl bg-zinc-900 px-3 text-xs font-bold text-white hover:bg-zinc-800 transition"
+              >
+                <Plus size={14} />
+                Adicionar
+              </button>
+            </div>
+          </div>
+
+          {/* Perfil de Comunicação (Quem comunica / Vozes) */}
+          <div className="grid gap-6 md:grid-cols-3">
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
+              <h4 className="text-sm font-bold text-zinc-950">Quem Comunica (Porta-Voz)</h4>
+              <div className="space-y-2">
+                {COMMUNICATION_OPTIONS.speakerTypes.map((speaker) => {
+                  const active = communicationProfile.speakerTypes?.includes(speaker);
+                  return (
+                    <button
+                      key={speaker}
+                      type="button"
+                      onClick={() => toggleProfileField("speakerTypes", speaker)}
+                      className={
+                        "flex w-full items-center justify-between rounded-xl border p-2.5 text-xs font-medium text-left transition " +
+                        (active
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-900 font-bold"
+                          : "border-zinc-200 bg-zinc-50/50 text-zinc-700 hover:bg-zinc-100")
+                      }
+                    >
+                      {speaker}
+                      {active && <Check size={14} className="text-emerald-600" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
+              <h4 className="text-sm font-bold text-zinc-950">Com Quem Fala (Destinatário)</h4>
+              <div className="space-y-2">
+                {COMMUNICATION_OPTIONS.audienceTypes.slice(0, 7).map((aud) => {
+                  const active = communicationProfile.audienceTypes?.includes(aud);
+                  return (
+                    <button
+                      key={aud}
+                      type="button"
+                      onClick={() => toggleProfileField("audienceTypes", aud)}
+                      className={
+                        "flex w-full items-center justify-between rounded-xl border p-2.5 text-xs font-medium text-left transition " +
+                        (active
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-900 font-bold"
+                          : "border-zinc-200 bg-zinc-50/50 text-zinc-700 hover:bg-zinc-100")
+                      }
+                    >
+                      {aud}
+                      {active && <Check size={14} className="text-emerald-600" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
+              <h4 className="text-sm font-bold text-zinc-950">Como Aparece (Voz do Conteúdo)</h4>
+              <div className="space-y-2">
+                {COMMUNICATION_OPTIONS.contentVoices.map((voice) => {
+                  const active = communicationProfile.contentVoices?.includes(voice);
+                  return (
+                    <button
+                      key={voice}
+                      type="button"
+                      onClick={() => toggleProfileField("contentVoices", voice)}
+                      className={
+                        "flex w-full items-center justify-between rounded-xl border p-2.5 text-xs font-medium text-left transition " +
+                        (active
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-900 font-bold"
+                          : "border-zinc-200 bg-zinc-50/50 text-zinc-700 hover:bg-zinc-100")
+                      }
+                    >
+                      {voice}
+                      {active && <Check size={14} className="text-emerald-600" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* CTAs, Termos Obrigatórios e Palavras Proibidas */}
+          <div className="grid gap-6 md:grid-cols-3">
+            {/* CTAs Padrão */}
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
+              <h4 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5">
+                <CheckCircle2 size={16} className="text-emerald-600" />
+                Chamadas para Ação (CTAs)
+              </h4>
+              <div className="flex gap-1.5">
+                <input
+                  className={control}
+                  placeholder="Ex: Clique no link da bio..."
+                  value={newCta}
+                  onChange={(e) => setNewCta(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addItem(setDefaultCtas, newCta, () => setNewCta(""));
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => addItem(setDefaultCtas, newCta, () => setNewCta(""))}
+                  className="mt-1 inline-flex items-center rounded-xl bg-zinc-900 px-2.5 text-xs font-bold text-white hover:bg-zinc-800"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {defaultCtas.map((cta) => (
+                  <span
+                    key={cta}
+                    className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 p-2 text-xs text-zinc-800"
+                  >
+                    {cta}
+                    <button
+                      type="button"
+                      onClick={() => removeItem(setDefaultCtas, cta)}
+                      className="text-zinc-400 hover:text-rose-600"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Termos Obrigatórios */}
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
+              <h4 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5">
+                <Sparkles size={16} className="text-indigo-600" />
+                Termos Obrigatórios
+              </h4>
+              <div className="flex gap-1.5">
+                <input
+                  className={control}
+                  placeholder="Ex: Método X, Registro no CRM..."
+                  value={newMandatory}
+                  onChange={(e) => setNewMandatory(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addItem(setMandatoryTerms, newMandatory, () => setNewMandatory(""));
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => addItem(setMandatoryTerms, newMandatory, () => setNewMandatory(""))}
+                  className="mt-1 inline-flex items-center rounded-xl bg-zinc-900 px-2.5 text-xs font-bold text-white hover:bg-zinc-800"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {mandatoryTerms.map((term) => (
+                  <span
+                    key={term}
+                    className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50/50 p-2 text-xs text-indigo-900"
+                  >
+                    {term}
+                    <button
+                      type="button"
+                      onClick={() => removeItem(setMandatoryTerms, term)}
+                      className="text-indigo-400 hover:text-rose-600"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Palavras Proibidas / Blacklist de Termos */}
+            <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
+              <h4 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5 text-rose-700">
+                <ShieldAlert size={16} className="text-rose-600" />
+                Palavras Proibidas (Blacklist)
+              </h4>
+              <div className="flex gap-1.5">
+                <input
+                  className={control}
+                  placeholder="Ex: Barato, Garantido, Grátis..."
+                  value={newForbidden}
+                  onChange={(e) => setNewForbidden(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addItem(setForbiddenWords, newForbidden, () => setNewForbidden(""));
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => addItem(setForbiddenWords, newForbidden, () => setNewForbidden(""))}
+                  className="mt-1 inline-flex items-center rounded-xl bg-rose-600 px-2.5 text-xs font-bold text-white hover:bg-rose-700"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+              <div className="space-y-1.5">
+                {forbiddenWords.map((word) => (
+                  <span
+                    key={word}
+                    className="flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-800"
+                  >
+                    {word}
+                    <button
+                      type="button"
+                      onClick={() => removeItem(setForbiddenWords, word)}
+                      className="text-rose-400 hover:text-rose-700"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONTEÚDO DA SUB-ABA 4: CANAIS & CONVERSÃO */}
+      {subTab === "channels" && (
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">
+            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+              <Globe size={18} className="text-emerald-600" />
+              Canais Digitais de Conversão
+            </h3>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-700 flex items-center gap-1.5">
+                <Instagram size={14} className="text-pink-600" />
+                Instagram (@perfil)
+              </label>
+              <input
+                className={control}
+                placeholder="@otimizzagrowth"
+                value={instagramHandle}
+                onChange={(e) => setInstagramHandle(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-700 flex items-center gap-1.5">
+                <Globe size={14} className="text-blue-600" />
+                Site Oficial / Landing Page
+              </label>
+              <input
+                className={control}
+                placeholder="https://otimizza.com.br"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-zinc-700 flex items-center gap-1.5">
+                <WhatsAppIcon className="h-3.5 w-3.5 text-emerald-600" />
+                WhatsApp para CTA / Agendamentos
+              </label>
+              <input
+                className={control}
+                placeholder="Ex: +55 (11) 99999-9999 ou link de atendimento"
+                value={whatsappCta}
+                onChange={(e) => setWhatsappCta(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">
+            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+              <BookOpen size={18} className="text-zinc-600" />
+              Orientações Adicionais & Notas de Copy
+            </h3>
+            <p className="text-xs text-zinc-500">
+              Instruções livres sobre preferências de conteúdo, estilo de narrativa e observações estratégicas.
+            </p>
+
+            <textarea
+              className={`${control} min-h-[160px]`}
+              placeholder="Ex: O cliente prefere conteúdos técnicos sem exageros emocionais. Sempre reforçar a autoridade médica e citar o CRM nos finais de posts..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* CONTEÚDO DA SUB-ABA 5: PILARES & LINHAS EDITORIAIS */}
+      {subTab === "editorial" && (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-5">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+                <Layers size={18} className="text-emerald-600" />
+                Pilares Estratégicos & Linhas Editoriais
+              </h3>
+              <p className="text-xs text-zinc-500">
+                Pilares cadastrados para o cliente que categorizam e organizam as ideias no Brainstorm e no Calendário.
+              </p>
+            </div>
+            <Link
+              href="/prompt-creator?tab=EDITORIAL"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition"
+            >
+              <BookOpen size={14} />
+              Gerenciar Pilares & Linhas
+            </Link>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {pillars.map((pillar) => {
+              const lines = editorialLines.filter((l) => l.pillar_id === pillar.id);
+              return (
+                <div
+                  key={pillar.id}
+                  className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-zinc-900">{pillar.name}</h4>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
+                      {lines.length} {lines.length === 1 ? "tema" : "temas"}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {lines.map((line) => (
+                      <div
+                        key={line.id}
+                        className="rounded-lg border border-zinc-200/80 bg-white p-2.5 text-xs"
+                      >
+                        <div className="font-semibold text-zinc-900">{line.theme}</div>
+                        {line.objective && (
+                          <div className="text-[11px] text-zinc-500 mt-0.5">{line.objective}</div>
+                        )}
+                        {line.preferred_formats && line.preferred_formats.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {line.preferred_formats.map((fmt) => (
+                              <span
+                                key={fmt}
+                                className="rounded bg-zinc-100 px-1.5 py-0.2 text-[10px] text-zinc-600"
+                              >
+                                {fmt}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {lines.length === 0 && (
+                      <p className="text-xs text-zinc-400 italic">Nenhum tema cadastrado para este pilar.</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {pillars.length === 0 && (
+              <div className="col-span-full rounded-xl border border-dashed border-zinc-300 p-8 text-center">
+                <p className="text-xs text-zinc-500">Nenhum pilar editorial cadastrado para esta empresa ainda.</p>
+                <Link
+                  href="/prompt-creator?tab=EDITORIAL"
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:underline"
+                >
+                  Criar primeiro pilar editorial →
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* RODAPÉ INFORMATIVO E BOTÃO DE AVANÇO */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-emerald-200/80 bg-emerald-50/50 p-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+            <CheckCircle2 size={20} />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-zinc-950">Estratégia integrada com o Brainstorm e IA</h4>
+            <p className="text-xs text-zinc-600">
+              Todas as informações salvas aqui são injetadas diretamente nos prompts de Brainstorm, Headlines e roteiros criativos.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onAdvanceToBrainstorm}
+          className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer"
+        >
+          Ir para o Passo 2: Brainstorm & Ideias
+          <ArrowRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}

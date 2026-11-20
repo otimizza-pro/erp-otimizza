@@ -8,6 +8,7 @@ import { contentCompanyId } from "@/modules/clients/internal-company";
 import { briefSchema, blankBrief, fieldGroups, structures, angles, triggers, awareness, formats, missingBrief, sameBrief, type HeadlineBrief } from "@/modules/headlines/schema";
 import { makeHeadlinePrompt } from "@/modules/headlines/prompt";
 import type { Context, WorkspaceState, Run, Candidate, ModelSlot } from "@/modules/headlines/types";
+import { ClientStrategyPanel } from "@/components/headlines/client-strategy-panel";
 import {
   ThumbsUp,
   ThumbsDown,
@@ -250,9 +251,14 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
   const workspaceId = params.get("workspaceId");
   const contentId = params.get("contentId");
 
-  // Sequência Criativa de 3 Passos: "brainstorm" | "headlines" | "studio"
-  const [activeTab, setActiveTab] = useState<"brainstorm" | "headlines" | "studio">(
-    workspaceId || contentId ? "headlines" : "brainstorm"
+  // Sequência Criativa de 4 Passos: "strategy" | "brainstorm" | "headlines" | "studio"
+  const tabParam = params.get("tab");
+  const [activeTab, setActiveTab] = useState<"strategy" | "brainstorm" | "headlines" | "studio">(
+    tabParam === "strategy"
+      ? "strategy"
+      : workspaceId || contentId
+      ? "headlines"
+      : "brainstorm"
   );
 
   // Estado do Brainstorm de Conteúdo
@@ -642,7 +648,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       setActiveIdeaForHeadline(idea);
       setActiveTab("headlines");
       router.push(`/prompt-creator/headlines?workspaceId=${d.workspaceId}`);
-      setMessage(`Ideia selecionada! Configure e gere as headlines no Passo 2.`);
+      setMessage(`Ideia selecionada! Configure e gere as headlines no Passo 3.`);
       await loadBrainstormData();
     } catch (e: any) {
       setError(e.message || "Erro ao avançar para headlines.");
@@ -854,14 +860,18 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
             </span>
           </div>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-zinc-950">
-            {activeTab === "brainstorm"
+            {activeTab === "strategy"
+              ? "Estratégia Completa & DNA"
+              : activeTab === "brainstorm"
               ? "Brainstorm de Conteúdo"
               : activeTab === "headlines"
               ? "Laboratório de Headlines"
               : "Estúdio Criativo"}
           </h1>
           <p className="mt-1 text-sm text-zinc-500 max-w-3xl">
-            {activeTab === "brainstorm"
+            {activeTab === "strategy"
+              ? "Diretrizes estratégicas, posicionamento, públicos-alvo, dores, arquétipos, regras de voz e canais do cliente."
+              : activeTab === "brainstorm"
               ? "Defina os temas e ideias dos próximos conteúdos com base nos pilares estratégicos e assuntos cadastrados antes de criar as headlines."
               : activeTab === "headlines"
               ? "Desdobre suas ideias de conteúdo em headlines de alto impacto com os times de IA, avalie opções e envie diretamente para o estúdio criativo."
@@ -869,10 +879,20 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
           </p>
         </div>
 
-        {/* NAVEGAÇÃO DE FLUXO SEQUENCIAL (3 PASSOS) & ATALHOS */}
+        {/* NAVEGAÇÃO DE FLUXO SEQUENCIAL (4 PASSOS) & ATALHOS */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* MENU DAS 3 SEQUÊNCIAS DE CRIAÇÃO */}
+          {/* MENU DAS 4 SEQUÊNCIAS DE CRIAÇÃO */}
           <div className="inline-flex rounded-xl bg-zinc-100 p-1 border border-zinc-200 shadow-2xs">
+            <button
+              onClick={() => setActiveTab("strategy")}
+              className={
+                "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition cursor-pointer " +
+                (activeTab === "strategy" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
+              }
+            >
+              <Compass size={16} className={activeTab === "strategy" ? "text-emerald-600" : ""} />
+              1. Estratégia Completa
+            </button>
             <button
               onClick={() => setActiveTab("brainstorm")}
               className={
@@ -881,7 +901,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               }
             >
               <Lightbulb size={16} className={activeTab === "brainstorm" ? "text-amber-500" : ""} />
-              1. Brainstorm & Ideias
+              2. Brainstorm & Ideias
               {savedIdeas.length > 0 && (
                 <span className="ml-1 rounded-full bg-emerald-100 px-2 py-0.2 text-[11px] font-bold text-emerald-800">
                   {savedIdeas.length}
@@ -896,7 +916,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               }
             >
               <Sparkles size={16} className={activeTab === "headlines" ? "text-emerald-600" : ""} />
-              2. Headlines
+              3. Headlines
             </button>
             <button
               onClick={() => setActiveTab("studio")}
@@ -906,7 +926,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               }
             >
               <ArrowRight size={16} className={activeTab === "studio" ? "text-indigo-600" : ""} />
-              3. Estúdio Criativo
+              4. Estúdio Criativo
             </button>
           </div>
 
@@ -936,7 +956,20 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       )}
 
       {/* ========================================================================= */}
-      {/* ABA 1: BRAINSTORM DE CONTEÚDO (PILARES, ASSUNTOS E BANCO DE IDEIAS)        */}
+      {/* PASSO 1: ESTRATÉGIA COMPLETA & DNA DO CLIENTE                             */}
+      {/* ========================================================================= */}
+      {activeTab === "strategy" && (
+        <ClientStrategyPanel
+          clientId={clientId}
+          companyName={companyName}
+          pillars={pillars}
+          editorialLines={editorialLines}
+          onAdvanceToBrainstorm={() => setActiveTab("brainstorm")}
+        />
+      )}
+
+      {/* ========================================================================= */}
+      {/* PASSO 2: BRAINSTORM DE CONTEÚDO (PILARES, ASSUNTOS E BANCO DE IDEIAS)     */}
       {/* ========================================================================= */}
       {activeTab === "brainstorm" && (
         <div className="space-y-8">
@@ -1309,7 +1342,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                           onClick={() => handleUseIdeaNow(idea)}
                           disabled={isConverting}
                           className={buttonPrimary + " w-full py-2"}
-                          title="Usar esta ideia e avançar para o Passo 2: Headlines"
+                          title="Usar esta ideia e avançar para o Passo 3: Headlines"
                         >
                           <Sparkles size={16} className={isConverting ? "animate-spin" : ""} />
                           {isConverting ? "Preparando headlines..." : "🎯 Usar essa ideia (Criar Headlines)"}
@@ -1913,13 +1946,13 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               className="inline-flex items-center gap-2 text-xs font-bold text-zinc-700 hover:text-zinc-950 transition cursor-pointer"
             >
               <ArrowLeft size={16} />
-              ← Voltar ao Passo 2: Headlines
+              ← Voltar ao Passo 3: Headlines
             </button>
 
             {targetContentId ? (
               <div className="flex items-center gap-3">
                 <span className="text-xs text-indigo-900 font-bold bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg">
-                  🚀 Passo 3: Redação Completa no Estúdio Criativo
+                  🚀 Passo 4: Redação Completa no Estúdio Criativo
                 </span>
                 <Link
                   href={`/prompt-creator?contentId=${targetContentId}`}
@@ -1951,16 +1984,20 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               <Sparkles size={36} className="mx-auto text-zinc-400" />
               <h2 className="text-lg font-bold text-zinc-950">Selecione uma peça para abrir o Estúdio Criativo</h2>
               <p className="text-xs text-zinc-500 max-w-lg mx-auto">
-                No fluxo de criação sequencial, primeiro você define a ideia no <strong>Passo 1: Brainstorm</strong>, depois gera e escolhe a headline no <strong>Passo 2: Headlines</strong>, e por fim redige o roteiro de reels, carrossel ou post aqui no <strong>Passo 3: Estúdio Criativo</strong>.
+                No fluxo de criação sequencial, primeiro você consulta a <strong>Estratégia Completa & DNA</strong>, define a ideia no <strong>Passo 2: Brainstorm</strong>, depois gera e escolhe a headline no <strong>Passo 3: Headlines</strong>, e por fim redige o roteiro de reels, carrossel ou post aqui no <strong>Passo 4: Estúdio Criativo</strong>.
               </p>
               <div className="flex justify-center gap-3 pt-2">
+                <button onClick={() => setActiveTab("strategy")} className={button}>
+                  <Compass size={16} />
+                  Passo 1: Estratégia
+                </button>
                 <button onClick={() => setActiveTab("brainstorm")} className={buttonPrimary}>
                   <Lightbulb size={16} />
-                  Ir para Passo 1: Brainstorm
+                  Passo 2: Brainstorm
                 </button>
                 <button onClick={() => setActiveTab("headlines")} className={button}>
                   <Sparkles size={16} />
-                  Ir para Passo 2: Headlines
+                  Passo 3: Headlines
                 </button>
               </div>
 

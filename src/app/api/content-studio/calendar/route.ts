@@ -38,17 +38,21 @@ export async function GET(request: NextRequest) {
     }
 
     if (month) {
-      conditions.push(`TO_CHAR(c.scheduled_date, 'YYYY-MM') = $${pIdx++}`);
+      conditions.push(`TO_CHAR(COALESCE((p.published_at AT TIME ZONE 'America/Sao_Paulo')::date,c.scheduled_date), 'YYYY-MM') = $${pIdx++}`);
       params.push(month);
     }
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     const res = await query(
-      `SELECT c.*, cl.name as client_name, el.pillar_name, el.theme as line_theme
+      `SELECT c.*, cl.name as client_name, el.pillar_name, el.theme as line_theme, p.platform AS publication_platform,
+              p.url AS publication_url,
+              COALESCE((p.published_at AT TIME ZONE 'America/Sao_Paulo')::date,c.scheduled_date)::text AS calendar_display_date,
+              COALESCE((p.published_at AT TIME ZONE 'America/Sao_Paulo')::time,c.scheduled_time)::text AS calendar_display_time
        FROM content_calendar_items c
        JOIN clients cl ON cl.id = c.client_id
        LEFT JOIN client_editorial_lines el ON el.id = c.editorial_line_id
+       LEFT JOIN content_publications p ON p.content_id = c.id
        ${where}
        ORDER BY c.scheduled_date DESC NULLS LAST, c.created_at DESC`,
       params

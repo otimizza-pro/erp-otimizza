@@ -41,12 +41,27 @@ export async function buildWeeklyReview(clientId?: string) {
            AND NOT EXISTS (SELECT 1 FROM content_brainstorm_ideas i WHERE i.content_id = p.id)
        ) slots
        CROSS JOIN LATERAL (
-         SELECT jsonb_agg(to_jsonb(idea) ORDER BY (idea.source_date IS NOT NULL) DESC,
+         SELECT jsonb_agg(to_jsonb(idea) ORDER BY (idea.source_date IS NOT NULL) DESC, idea.performance DESC NULLS LAST,
            (idea.status = 'SAVED_FOR_LATER') DESC, idea.created_at DESC, idea.id) AS ideas FROM (
-           SELECT i.id, i.format, i.source_date, i.status, i.created_at FROM content_brainstorm_ideas i
+           SELECT i.id, i.format, i.source_date, i.status, i.created_at, history.performance FROM content_brainstorm_ideas i
+           LEFT JOIN LATERAL (
+             SELECT avg(score.relative_rate) AS performance FROM (
+               SELECT rates.format, rates.rate / NULLIF(max(rates.rate) OVER (PARTITION BY rates.primary_metric), 0) AS relative_rate
+               FROM (
+                 SELECT post.format, p.primary_metric,
+                   sum(CASE p.primary_metric WHEN 'clicks' THEN m.clicks WHEN 'leads' THEN m.leads WHEN 'sales' THEN m.sales ELSE m.impressions END)::numeric /
+                   NULLIF(CASE WHEN p.primary_metric='impressions' THEN sum(m.date_to - m.date_from + 1) ELSE sum(m.impressions) END,0) AS rate
+                 FROM content_publications p JOIN content_calendar_items post ON post.id=p.content_id
+                 JOIN content_delivery_measurements m ON m.content_id=p.content_id
+                 WHERE post.client_id=i.client_id AND post.archived_at IS NULL
+                   AND lower(btrim(p.objective))=lower(btrim(i.goal)) AND m.date_to >= $2::date - 90
+                 GROUP BY post.format, p.primary_metric
+               ) rates
+             ) score WHERE score.format=i.format
+           ) history ON true
            WHERE i.client_id = c.id AND i.content_id IS NULL AND i.status IN ('IDEA', 'SAVED_FOR_LATER')
              AND (i.source_date IS NULL OR i.source_date BETWEEN $2::date AND $3::date)
-           ORDER BY (i.source_date IS NOT NULL) DESC, (i.status = 'SAVED_FOR_LATER') DESC, i.created_at DESC, i.id
+           ORDER BY (i.source_date IS NOT NULL) DESC, history.performance DESC NULLS LAST, (i.status = 'SAVED_FOR_LATER') DESC, i.created_at DESC, i.id
            LIMIT 60
          ) idea
        ) backlog

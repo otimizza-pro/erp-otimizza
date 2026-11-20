@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
          LEFT JOIN LATERAL (
            SELECT i.source_title, i.source_url, i.source_date::text AS source_date
            FROM content_brainstorm_ideas i
-           WHERE i.content_id = c.id AND i.client_id = c.client_id AND i.source_title IS NOT NULL
-           ORDER BY i.updated_at DESC LIMIT 1
+           WHERE i.content_id IN (c.id, c.origin_content_id) AND i.client_id = c.client_id AND i.source_title IS NOT NULL
+           ORDER BY (i.content_id = c.id) DESC, i.updated_at DESC LIMIT 1
          ) reference ON true
          WHERE c.id=$1 AND c.client_id=$2 AND c.archived_at IS NULL`,
         [body.contentId,clientContext.companyId],

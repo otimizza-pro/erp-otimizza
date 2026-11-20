@@ -7,6 +7,8 @@ import {contentBriefSchema} from "@/modules/clients/content-brief";
 import {EditorialPlanner} from "@/components/content-studio/editorial-planner";
 import {ClientDnaPanel} from "@/components/content-studio/client-dna-panel";
 import {ProjectPostPicker} from "@/components/content-studio/project-post-picker";
+import { ProductionChecklist } from "@/components/content-studio/production-checklist";
+import { ContentDeliveryPanel } from "@/components/content-studio/content-delivery-panel";
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
@@ -996,6 +998,13 @@ function ContentStudioPageContent() {
               </nav>
             )}
           </aside>
+        )}
+
+        {activeTab === "STUDIO" && openPiece && openPiece.id === activeCalendarId && requestedContentId === activeCalendarId && (
+          <div key={`${selectedClientId}:${activeCalendarId}`} className="space-y-3">
+            <ProductionChecklist clientId={selectedClientId} contentId={activeCalendarId} />
+            <ContentDeliveryPanel clientId={selectedClientId} contentId={activeCalendarId} />
+          </div>
         )}
 
         {/* Notificações / Alertas */}

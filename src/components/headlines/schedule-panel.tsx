@@ -304,7 +304,7 @@ export function SchedulePanel({
               >
                 <option value="SCHEDULED">Agendado (Pronto para postagem)</option>
                 <option value="PLANNED">Planejado (Aguardando arte final)</option>
-                <option value="APPROVED">Aprovado pelo cliente</option>
+                <option value="APPROVED">Aprovado internamente</option>
               </select>
               <p className="mt-1 text-[11px] text-zinc-500">
                 {imageUrl

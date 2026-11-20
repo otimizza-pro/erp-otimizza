@@ -10,6 +10,8 @@ import { briefSchema, blankBrief, fieldGroups, structures, angles, triggers, awa
 import { makeHeadlinePrompt } from "@/modules/headlines/prompt";
 import { brainstormModes, type BrainstormMode } from "@/modules/headlines/brainstorm-modes";
 import { suggestPostFits } from "@/modules/headlines/brainstorm-post-fit";
+import { ProductionChecklist } from "@/components/content-studio/production-checklist";
+import { ContentDeliveryPanel } from "@/components/content-studio/content-delivery-panel";
 import type { Context, WorkspaceState, Run, Candidate, ModelSlot } from "@/modules/headlines/types";
 import { ClientStrategyPanel } from "@/components/headlines/client-strategy-panel";
 import { ContentWriterPanel } from "@/components/headlines/content-writer-panel";
@@ -2297,6 +2299,12 @@ function Workspace({ clientId, companyName, projectPost }: {
       {/* ========================================================================= */}
       {/* ABA 4: REDAÇÃO COMPLETA DO CONTEÚDO (PASSO 4 DA SEQUÊNCIA)                */}
       {/* ========================================================================= */}
+      {needsProductionWorkspace && destinationReady && targetContentId && (
+        <div key={`${clientId}:${targetContentId}:${activeTab}`} className="space-y-3">
+          <ProductionChecklist clientId={clientId} contentId={targetContentId} />
+          <ContentDeliveryPanel clientId={clientId} contentId={targetContentId} />
+        </div>
+      )}
       {needsProductionWorkspace && !destinationReady && (
         <p role="status" className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
           {workspaceId || contentId ? "Carregando a peça…" : "Selecione uma pauta no Brainstorm para abrir esta etapa."}

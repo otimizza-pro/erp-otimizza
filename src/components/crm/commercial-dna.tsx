@@ -2,11 +2,118 @@
 import { useEffect, useRef, useState } from "react";
 import { commercialDnaFields, emptyCommercialDna, type CommercialDna } from "@/modules/crm/commercial-dna-schema";
 
-export function CommercialDnaFields({ value, onChange, showBusinessDescription = true }: { value: CommercialDna; onChange: (value: CommercialDna) => void; showBusinessDescription?: boolean }) {
-  return <div className="grid gap-4 sm:grid-cols-2">{commercialDnaFields.filter(field => showBusinessDescription || field.key !== "businessDescription").map(field => <label key={field.key} className="text-xs font-semibold text-zinc-700">{field.label}{"required" in field && field.required && <span className="ml-1 text-amber-700">(para gerar com IA)</span>}<textarea rows={3} value={value[field.key]} onChange={event => onChange({ ...value, [field.key]: event.target.value })} placeholder={field.placeholder} className="mt-1.5 block w-full resize-y rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-normal text-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500" /></label>)}</div>;
+export function CommercialDnaFields({
+  value,
+  onChange,
+  showBusinessDescription = true,
+  audiences = [],
+  onScrollToAudiences,
+}: {
+  value: CommercialDna;
+  onChange: (value: CommercialDna) => void;
+  showBusinessDescription?: boolean;
+  audiences?: string[];
+  onScrollToAudiences?: () => void;
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      {commercialDnaFields
+        .filter(field => showBusinessDescription || field.key !== "businessDescription")
+        .map(field => (
+          <div key={field.key} className="space-y-1">
+            <label className="text-xs font-semibold text-zinc-700 block">
+              {field.label}
+              {"required" in field && field.required && (
+                <span className="ml-1 text-amber-700">(para gerar com IA)</span>
+              )}
+            </label>
+            <textarea
+              rows={3}
+              value={value[field.key]}
+              onChange={event => onChange({ ...value, [field.key]: event.target.value })}
+              placeholder={field.placeholder}
+              className="mt-1 block w-full resize-y rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-normal text-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+            {field.key === "idealCustomer" && (
+              <div className="pt-1">
+                {audiences && audiences.length > 0 ? (
+                  <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                    <span className="text-zinc-500 font-medium">Públicos cadastrados:</span>
+                    {audiences.map(aud => {
+                      const isIncluded = (value.idealCustomer || "").toLowerCase().includes(aud.toLowerCase());
+                      return (
+                        <button
+                          key={aud}
+                          type="button"
+                          onClick={() => {
+                            if (isIncluded) return;
+                            const current = (value.idealCustomer || "").trim();
+                            const separator = current ? (current.endsWith(",") ? " " : ", ") : "";
+                            onChange({ ...value, idealCustomer: `${current}${separator}${aud}` });
+                          }}
+                          title={isIncluded ? "Público já citado" : "Clique para incluir no campo"}
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition cursor-pointer border ${
+                            isIncluded
+                              ? "bg-purple-50 text-purple-700 border-purple-200"
+                              : "bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200"
+                          }`}
+                        >
+                          {isIncluded ? "✓ " : "+ "}
+                          {aud}
+                        </button>
+                      );
+                    })}
+                    {onScrollToAudiences && (
+                      <button
+                        type="button"
+                        onClick={onScrollToAudiences}
+                        className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 underline ml-1 cursor-pointer"
+                      >
+                        Gerenciar públicos ↓
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  onScrollToAudiences && (
+                    <div className="flex items-center justify-between text-[11px] text-zinc-500">
+                      <span>Atende múltiplos públicos?</span>
+                      <button
+                        type="button"
+                        onClick={onScrollToAudiences}
+                        className="font-semibold text-purple-600 hover:text-purple-800 underline cursor-pointer"
+                      >
+                        Cadastrar públicos segmentados com IA ↓
+                      </button>
+                    </div>
+                  )
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+    </div>
+  );
 }
 
-export function CommercialDnaPanel({ leadId, clientId, onReady, onSaved, showBusinessDescription = true, showProposalTexts = true }: { leadId?: string; clientId?: string; onReady?: (ready: boolean) => void; onSaved?: () => void; showBusinessDescription?: boolean; showProposalTexts?: boolean }) {
+export function CommercialDnaPanel({
+  leadId,
+  clientId,
+  onReady,
+  onSaved,
+  showBusinessDescription = true,
+  showProposalTexts = true,
+  audiences = [],
+  onScrollToAudiences,
+}: {
+  leadId?: string;
+  clientId?: string;
+  onReady?: (ready: boolean) => void;
+  onSaved?: () => void;
+  showBusinessDescription?: boolean;
+  showProposalTexts?: boolean;
+  audiences?: string[];
+  onScrollToAudiences?: () => void;
+}) {
   const [dna, setDna] = useState<CommercialDna>(emptyCommercialDna);
   const [missing, setMissing] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,7 +152,7 @@ export function CommercialDnaPanel({ leadId, clientId, onReady, onSaved, showBus
   }
   return <section className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-xs">
     <header><h2 className="text-sm font-bold text-zinc-900">DNA comercial inicial</h2><p className="mt-1 text-xs leading-relaxed text-zinc-500">Preencha desde o primeiro contato. Estes dados são compartilhados entre o cadastro, a proposta e o DNA do cliente após a conversão. Não é necessário criar uma oportunidade.</p></header>
-    {loading ? <p role="status" className="text-xs text-zinc-500">Carregando DNA...</p> : <fieldset disabled={saving || Boolean(error && !dirty)} className="disabled:opacity-70"><CommercialDnaFields value={dna} showBusinessDescription={showBusinessDescription} onChange={value => { setDna(value); setDirty(true); setMessage(""); callbacks.current.onReady?.(false); }} /></fieldset>}
+    {loading ? <p role="status" className="text-xs text-zinc-500">Carregando DNA...</p> : <fieldset disabled={saving || Boolean(error && !dirty)} className="disabled:opacity-70"><CommercialDnaFields value={dna} showBusinessDescription={showBusinessDescription} audiences={audiences} onScrollToAudiences={onScrollToAudiences} onChange={value => { setDna(value); setDirty(true); setMessage(""); callbacks.current.onReady?.(false); }} /></fieldset>}
     {!loading && missing.length > 0 && <p className="text-xs text-amber-800">Para gerar foco e indicadores com IA, preencha: {missing.join("; ")}.</p>}
     {dirty && <p className="text-xs text-amber-800">Salve as alterações do DNA antes de gerar os textos da proposta.</p>}
     {error && <p role="alert" className="text-xs text-rose-700">{error}</p>}

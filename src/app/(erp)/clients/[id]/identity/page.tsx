@@ -6,7 +6,8 @@ import {IdentityAiButton} from "@/components/clients/identity-ai-button";
 import type {IdentityAiField} from "@/modules/clients/identity-ai";
 import {CommunicationProfileFields} from "@/components/clients/communication-profile";
 import { CommercialDnaPanel } from "@/components/crm/commercial-dna";
-import {CommunicationProfileSchema,emptyCommunicationProfile} from "@/modules/clients/communication-profile";
+import { CommunicationProfileSchema, emptyCommunicationProfile } from "@/modules/clients/communication-profile";
+import { ClientAudiencesManager } from "@/components/clients/client-audiences-manager";
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -266,7 +267,14 @@ export default function ClientIdentityPage() {
           </div>
         )}
 
-        <CommercialDnaPanel clientId={id} showBusinessDescription={false} />
+        <CommercialDnaPanel
+          clientId={id}
+          showBusinessDescription={false}
+          audiences={targetAudiences}
+          onScrollToAudiences={() => {
+            document.getElementById("secao-publicos")?.scrollIntoView({ behavior: "smooth" });
+          }}
+        />
         <form onSubmit={handleSave} className="space-y-6">
           <CommunicationProfileFields value={communicationProfile} onChange={setCommunicationProfile} detailsAction={aiButton("communicationDetails")}/>
           {/* 1. Proposta de Valor e Nicho */}
@@ -428,16 +436,34 @@ export default function ClientIdentityPage() {
           </div>
 
           {/* 4. Públicos-Alvo & Dores */}
-          <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4">
-            <h2 className="text-sm font-bold text-zinc-900 border-b border-zinc-100 pb-2">
-              4. Públicos-Alvo, ICP & Dores Principais
-            </h2>
+          <div id="secao-publicos" className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-6">
+            <div className="border-b border-zinc-100 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-1.5">
+                  <Target className="w-4 h-4 text-purple-600" />
+                  4. Públicos-Alvo, ICP & Personas
+                </h2>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Cadastre e gerencie os públicos diretamente aqui. A IA do Estúdio e os roteiros usarão esses dados automaticamente.
+                </p>
+              </div>
+            </div>
 
-            <div className="space-y-3"><h3 className="text-xs font-semibold text-zinc-700">Públicos cadastrados</h3><p className="text-xs leading-relaxed text-zinc-500">O cadastro é único para o DNA, Estúdio, calendário e campanhas. Edite descrições, dores, desejos e objeções na gestão de públicos.</p><div className="flex flex-wrap gap-2">{targetAudiences.map(aud=><span key={aud} className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs">{aud}</span>)}</div><Link className="inline-flex rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold" href="/prompt-creator/configuracoes?tab=publicos" onClick={()=>selectCompany({id:id===INTERNAL_COMPANY_ID?"otimizza":id,name:clientName,isOtimizza:id===INTERNAL_COMPANY_ID})}>Gerenciar públicos e gerar com IA</Link></div>
-            {/* Dores */}
-            <div className="space-y-2 pt-2 border-t border-zinc-100">
-              <label className="text-xs font-semibold text-zinc-700 block">Dores e Objeções do Cliente</label>
-                {aiButton("painPoints")}
+            {/* Gerenciador completo de públicos com criação, edição, exclusão e IA */}
+            <ClientAudiencesManager
+              clientId={id}
+              clientName={clientName}
+              onAudiencesChange={(list) => {
+                setTargetAudiences(list.map((a) => a.name));
+              }}
+            />
+
+            {/* Dores Globais do Cliente */}
+            <div className="space-y-2 pt-4 border-t border-zinc-100">
+              <label className="text-xs font-semibold text-zinc-700 block">
+                Dores e Objeções Globais do Negócio
+              </label>
+              {aiButton("painPoints")}
               <div className="flex flex-wrap gap-2">
                 {painPoints.map((pain, idx) => (
                   <span
@@ -448,7 +474,7 @@ export default function ClientIdentityPage() {
                     <button
                       type="button"
                       onClick={() => setPainPoints(painPoints.filter((_, i) => i !== idx))}
-                      className="hover:text-rose-600"
+                      className="hover:text-rose-600 cursor-pointer"
                     >
                       &times;
                     </button>
@@ -480,7 +506,7 @@ export default function ClientIdentityPage() {
                       setNewPain("");
                     }
                   }}
-                  className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-semibold rounded-xl"
+                  className="px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-xs font-semibold rounded-xl cursor-pointer"
                 >
                   + Adicionar Dor
                 </button>

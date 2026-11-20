@@ -149,10 +149,11 @@ Gere o prompt visual ultra detalhado agora em JSON.`;
       visualType,
       ...parsed,
     });
-  } catch (error: any) {
-    console.error("Erro ao gerar prompt visual:", error);
+  } catch (error: unknown) {
+    const err = error as Error;
+    console.error("Erro ao gerar prompt visual:", err);
     return NextResponse.json(
-      { success: false, error: error.message || "Erro ao gerar prompt visual." },
+      { success: false, error: err.message || "Erro ao gerar prompt visual." },
       { status: 500 }
     );
   }

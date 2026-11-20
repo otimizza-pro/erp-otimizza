@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { socialMediaScheduleSchema } from "./social-media-schedule";
 
 export type ProjectType = "STANDALONE" | "RECURRING" | "INTERNAL";
 
@@ -140,6 +141,7 @@ export interface ContractRecurringSettingsRecord {
 // ----------------------------------------------------------------------
 
 export const CreateProjectSchema = z.object({
+  socialMediaSchedule: socialMediaScheduleSchema.optional(),
   useServiceOnboarding: z.boolean().default(false),
   name: z.string().min(3).max(200).trim(),
   description: z.string().max(2000).optional().nullable(),
@@ -158,7 +160,7 @@ export const CreateProjectSchema = z.object({
   notes: z.string().max(2000).optional().nullable(),
 });
 
-export const UpdateProjectSchema = CreateProjectSchema.partial().extend({
+export const UpdateProjectSchema = CreateProjectSchema.omit({ socialMediaSchedule: true }).partial().extend({
   useServiceOnboarding: CreateProjectSchema.shape.useServiceOnboarding.removeDefault().optional(),
   projectType: CreateProjectSchema.shape.projectType.removeDefault().optional(),
   status: CreateProjectSchema.shape.status.removeDefault().optional(),

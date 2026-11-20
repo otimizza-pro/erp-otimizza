@@ -9,7 +9,8 @@ describe('Continuidade entre laboratório e criação',()=>{
   const result=await PUT(new Request('http://localhost/api/content-studio/posts/content',{method:'PUT',body:JSON.stringify({centralIdea:'Nova ideia',format:'Estático',toneOfVoice:'Direto',selectedCaption:'Legenda revisada'})}),{params:Promise.resolve({id:'content'})});
   expect(result.status).toBe(200);
   const update=sql.mock.calls.find(([s])=>s.includes('UPDATE content_calendar_items SET'));
-  expect(update?.[1]).toHaveLength(16);expect(update?.[1][10]).toBe('Post estático');
+  expect(update?.[1][10]).toBe('Post estático');
+  expect(update?.[1][13]).toBe('content');
   expect(JSON.parse(update?.[1][15])).toEqual({bigIdea:'Nova ideia',format:'Estático',tone:'Direto'});
   const sync=sql.mock.calls.find(([s])=>s.startsWith('UPDATE headline_workspaces'));
   expect(sync?.[0]).toContain('brief=brief ||');expect(sync?.[0]).toContain('revision=revision+1');expect(sync?.[1][0]).toBe('content');

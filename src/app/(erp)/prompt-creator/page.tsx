@@ -6,6 +6,7 @@ import {ContentBriefFields} from "@/components/content-studio/content-brief-fiel
 import {contentBriefSchema} from "@/modules/clients/content-brief";
 import {EditorialPlanner} from "@/components/content-studio/editorial-planner";
 import {ClientDnaPanel} from "@/components/content-studio/client-dna-panel";
+import {ProjectPostPicker} from "@/components/content-studio/project-post-picker";
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
@@ -841,6 +842,9 @@ function ContentStudioPageContent() {
   return (
     <>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {activeTab === "STUDIO" && <section className="rounded-xl border border-zinc-200 bg-white p-4">
+          <ProjectPostPicker clientId={selectedClientId} />
+        </section>}
         {/* Cabeçalho Superior do Estúdio */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-zinc-200">
           <div>

@@ -44,7 +44,7 @@ export async function saveBrief(id:string,user:string,raw:unknown,revision:numbe
   const updated=await db.query("UPDATE headline_workspaces SET brief=$3::jsonb,revision=revision+1,updated_at=NOW() WHERE id=$1 AND user_id=$2 AND revision=$4 RETURNING revision",[id,user,JSON.stringify(b),revision]);
   if(!updated.rowCount)throw new Error("Esta peça mudou em outra tela. Recarregue antes de salvar.");
   const editorial=b.themeId&&b.speaker&&b.voice&&b.audience&&b.goal&&b.tone&&b.cta?{themeId:b.themeId,speaker:b.speaker,voice:b.voice,audience:b.audience,funnel:b.funnel,journey:b.journey,goal:b.goal,pain:b.pain||"NOT_APPLICABLE",tone:b.tone,cta:b.cta}:null;
-  await db.query(`UPDATE content_calendar_items SET central_idea=$2,title=CASE WHEN selected_headline IS NULL THEN COALESCE(NULLIF($2,''),title) ELSE title END,
+  await db.query(`UPDATE content_calendar_items SET central_idea=$2,title=CASE WHEN project_id IS NULL AND selected_headline IS NULL THEN COALESCE(NULLIF($2,''),title) ELSE title END,
    format=$3,tone_of_voice=$4,call_to_action=$5,target_audience_name=$6,headline_brief=$7::jsonb,editorial_brief=$8::jsonb,
    headline_content_stale=CASE WHEN headline_brief IS DISTINCT FROM $7::jsonb AND (selected_caption IS NOT NULL OR selected_reels IS NOT NULL OR selected_carousel IS NOT NULL) THEN true ELSE headline_content_stale END,updated_at=NOW() WHERE id=$1`,
    [w.content_id,b.bigIdea,b.format==="Estático"?"Post estático":b.format,b.tone,b.cta,b.audience,JSON.stringify(b),editorial?JSON.stringify(editorial):null]);
@@ -146,7 +146,7 @@ export async function selectCandidate(id:string,user:string) {
   const b=briefSchema.parse(c.brief);
   const editorial=b.themeId&&b.speaker&&b.voice&&b.audience&&b.goal&&b.tone&&b.cta?{themeId:b.themeId,speaker:b.speaker,voice:b.voice,audience:b.audience,funnel:b.funnel,journey:b.journey,goal:b.goal,pain:b.pain||"NOT_APPLICABLE",tone:b.tone,cta:b.cta}:null;
   const before=await db.query("SELECT headline_candidate_id FROM content_calendar_items WHERE id=$1 FOR UPDATE",[c.content_id]);
-  await db.query(`UPDATE content_calendar_items SET selected_headline=$2::text,selected_subheadline=$3,headline_candidate_id=$4,title=$2::text,headline_brief=$5::jsonb,
+  await db.query(`UPDATE content_calendar_items SET selected_headline=$2::text,selected_subheadline=$3,headline_candidate_id=$4,title=CASE WHEN project_id IS NULL THEN $2::text ELSE title END,headline_brief=$5::jsonb,
     format=$6,central_idea=$7,tone_of_voice=$8,call_to_action=$9,target_audience_name=$10,editorial_brief=$11::jsonb,
     headline_content_stale=CASE WHEN headline_candidate_id IS DISTINCT FROM $4::uuid AND (selected_caption IS NOT NULL OR selected_reels IS NOT NULL OR selected_carousel IS NOT NULL) THEN true ELSE headline_content_stale END,updated_at=NOW() WHERE id=$1`,[c.content_id,c.headline,c.subheadline,c.id,JSON.stringify(c.brief),b.format==="Estático"?"Post estático":b.format,b.bigIdea,b.tone,b.cta,b.audience,editorial?JSON.stringify(editorial):null]);
     

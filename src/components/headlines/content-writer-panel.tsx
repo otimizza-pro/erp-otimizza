@@ -145,16 +145,16 @@ export function ContentWriterPanel({
       let generatedText = "";
       if (activeFormat === "REELS") {
         if (Array.isArray(d.reelsOptions) && d.reelsOptions.length) {
-          generatedText = d.reelsOptions
-            .map((r: any, i: number) => `=== OPÇÃO ${i + 1}: ${r.title || "Roteiro"} ===\n\n${r.hook ? `GANCHO:\n${r.hook}\n\n` : ""}${r.script || r.text || JSON.stringify(r, null, 2)}`)
+          generatedText = (d.reelsOptions as Record<string, unknown>[])
+            .map((r, i) => `=== OPÇÃO ${i + 1}: ${String(r.title || "Roteiro")} ===\n\n${r.hook ? `GANCHO:\n${String(r.hook)}\n\n` : ""}${String(r.script || r.text || JSON.stringify(r, null, 2))}`)
             .join("\n\n------------------------\n\n");
         } else {
           generatedText = d.text || d.result || "";
         }
       } else if (activeFormat === "CAROUSEL") {
         if (Array.isArray(d.carouselOptions) && d.carouselOptions.length) {
-          generatedText = d.carouselOptions
-            .map((c: any, i: number) => `=== CARROSSEL OPÇÃO ${i + 1} ===\n\n` + (Array.isArray(c.slides) ? c.slides.map((s: any, idx: number) => `[SLIDE ${idx + 1}] ${s.title || ""}\n${s.body || s.text || ""}`).join("\n\n") : JSON.stringify(c, null, 2)))
+          generatedText = (d.carouselOptions as Record<string, unknown>[])
+            .map((c, i) => `=== CARROSSEL OPÇÃO ${i + 1} ===\n\n` + (Array.isArray(c.slides) ? (c.slides as Record<string, unknown>[]).map((s, idx) => `[SLIDE ${idx + 1}] ${String(s.title || "")}\n${String(s.body || s.text || "")}`).join("\n\n") : JSON.stringify(c, null, 2)))
             .join("\n\n------------------------\n\n");
         } else {
           generatedText = d.text || d.result || "";
@@ -169,8 +169,9 @@ export function ContentWriterPanel({
       }));
 
       setFeedback({ type: "success", text: "Texto gerado com sucesso pela IA!" });
-    } catch (e: any) {
-      setFeedback({ type: "error", text: e.message || "Erro na geração." });
+    } catch (e: unknown) {
+      const err = e as Error;
+      setFeedback({ type: "error", text: err.message || "Erro na geração." });
     } finally {
       setGenerating(false);
     }
@@ -185,7 +186,7 @@ export function ContentWriterPanel({
     setSaving(true);
     setFeedback(null);
     try {
-      const payload: Record<string, any> = {
+      const payload: Record<string, unknown> = {
         selectedHeadline: headline,
       };
 
@@ -206,8 +207,9 @@ export function ContentWriterPanel({
 
       setFeedback({ type: "success", text: "Texto salvo com sucesso na peça!" });
       setTimeout(() => setFeedback(null), 3000);
-    } catch (e: any) {
-      setFeedback({ type: "error", text: e.message || "Falha ao salvar texto." });
+    } catch (e: unknown) {
+      const err = e as Error;
+      setFeedback({ type: "error", text: err.message || "Falha ao salvar texto." });
     } finally {
       setSaving(false);
     }

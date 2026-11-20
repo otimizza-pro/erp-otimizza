@@ -116,8 +116,9 @@ export function ImagePromptPanel({
       setArtDirectionNotes(d.artDirectionNotes || "");
       setRecommendedAspect(d.recommendedAspect || "4:5");
       setFeedback({ type: "success", text: "Prompt visual detalhado gerado com sucesso!" });
-    } catch (e: any) {
-      setFeedback({ type: "error", text: e.message || "Erro na geração do prompt." });
+    } catch (e: unknown) {
+      const err = e as Error;
+      setFeedback({ type: "error", text: err.message || "Erro na geração do prompt." });
     } finally {
       setGenerating(false);
     }
@@ -146,8 +147,9 @@ export function ImagePromptPanel({
 
       setFeedback({ type: "success", text: "Arte salva com sucesso na peça!" });
       setTimeout(() => setFeedback(null), 3000);
-    } catch (e: any) {
-      setFeedback({ type: "error", text: e.message || "Falha ao salvar arte." });
+    } catch (e: unknown) {
+      const err = e as Error;
+      setFeedback({ type: "error", text: err.message || "Falha ao salvar arte." });
     } finally {
       setSavingArt(false);
     }
@@ -184,8 +186,9 @@ export function ImagePromptPanel({
           body: JSON.stringify({ imageUrl: d.url }),
         });
       }
-    } catch (err: any) {
-      setFeedback({ type: "error", text: err.message || "Erro no upload da imagem." });
+    } catch (err: unknown) {
+      const error = err as Error;
+      setFeedback({ type: "error", text: error.message || "Erro no upload da imagem." });
     } finally {
       setUploadingImage(false);
     }
@@ -272,19 +275,19 @@ export function ImagePromptPanel({
 
       {/* SELETOR DO TIPO VISUAL */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {[
+        {([
           { id: "REELS_COVER", label: "Capa do Reels (9:16)", icon: Video, desc: "Foco na área central 1:1, expressão marcante e iluminação de estúdio." },
           { id: "CAROUSEL_CARDS", label: "Cards de Carrossel (4:5)", icon: Layers, desc: "Capa com alto contraste + direção de arte dos slides de conteúdo." },
           { id: "FEED_IMAGE", label: "Arte Post Estático (4:5)", icon: ImageIcon, desc: "Fotografia editorial de alta definição ou ilustração moderna." },
           { id: "AD_CREATIVE", label: "Criativo de Anúncio", icon: Target, desc: "Gancho visual imediato focado em clique e quebra de padrão." },
-        ].map((item) => {
+        ] as const).map((item) => {
           const Icon = item.icon;
           const active = visualType === item.id;
           return (
             <button
               key={item.id}
               type="button"
-              onClick={() => setVisualType(item.id as any)}
+              onClick={() => setVisualType(item.id)}
               className={
                 "flex flex-col items-start p-4 rounded-xl border text-left transition cursor-pointer " +
                 (active
@@ -356,7 +359,7 @@ export function ImagePromptPanel({
                     Sugestão de Texto para Sobrepor na Arte/Capa:
                   </span>
                   <div className="text-xs font-extrabold text-indigo-950 mt-0.5">
-                    "{coverTextSuggestion}"
+                    &ldquo;{coverTextSuggestion}&rdquo;
                   </div>
                 </div>
               )}
@@ -372,7 +375,7 @@ export function ImagePromptPanel({
             <div className="rounded-xl border border-dashed border-zinc-200 p-8 text-center space-y-3">
               <Sparkles size={32} className="mx-auto text-zinc-300" />
               <p className="text-xs text-zinc-500 max-w-xs mx-auto">
-                Clique no botão <strong>"Gerar Prompt Visual com IA"</strong> acima para criar o prompt detalhado desta peça.
+                Clique no botão <strong>&ldquo;Gerar Prompt Visual com IA&rdquo;</strong> acima para criar o prompt detalhado desta peça.
               </p>
             </div>
           )}
@@ -437,6 +440,7 @@ export function ImagePromptPanel({
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block mb-1">
                   Preview da Arte
                 </span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={imageUrl}
                   alt="Arte do post"

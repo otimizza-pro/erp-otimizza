@@ -117,11 +117,10 @@ export default function CombosPage() {
         {/* Notificações de Feedback */}
         {feedback && (
           <div
-            className={`p-4 rounded-xl border text-xs flex items-center justify-between ${
-              feedback.type === "success"
+            className={`p-4 rounded-xl border text-xs flex items-center justify-between ${feedback.type === "success"
                 ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                 : "bg-rose-50 border-rose-200 text-rose-700"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2">
               {feedback.type === "success" ? (
@@ -155,22 +154,20 @@ export default function CombosPage() {
               <button
                 type="button"
                 onClick={() => setStatusFilter("ACTIVE")}
-                className={`px-3 py-1 rounded-full font-medium transition ${
-                  statusFilter === "ACTIVE"
+                className={`px-3 py-1 rounded-full font-medium transition ${statusFilter === "ACTIVE"
                     ? "bg-white text-zinc-950 shadow-2xs font-semibold"
                     : "text-zinc-600 hover:text-zinc-950"
-                }`}
+                  }`}
               >
                 Ativos
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter("ARCHIVED")}
-                className={`px-3 py-1 rounded-full font-medium transition ${
-                  statusFilter === "ARCHIVED"
+                className={`px-3 py-1 rounded-full font-medium transition ${statusFilter === "ARCHIVED"
                     ? "bg-white text-zinc-950 shadow-2xs font-semibold"
                     : "text-zinc-600 hover:text-zinc-950"
-                }`}
+                  }`}
               >
                 Arquivados
               </button>
@@ -213,11 +210,10 @@ export default function CombosPage() {
                       {combo.items?.length || 0} Serviços Agrupados
                     </span>
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${
-                        combo.status === "ACTIVE"
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border ${combo.status === "ACTIVE"
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                           : "bg-zinc-100 text-zinc-500 border-zinc-200"
-                      }`}
+                        }`}
                     >
                       {combo.status === "ACTIVE" ? "ATIVO" : "ARQUIVADO"}
                     </span>
@@ -259,7 +255,7 @@ export default function CombosPage() {
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Link href={"/combos/"+combo.id+"/edit"} className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-semibold">Editar</Link>
+                    <Link href={"/combos/" + combo.id + "/edit"} className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-semibold">Editar</Link>
                     <button
                       type="button"
                       onClick={() => handleToggleArchive(combo.id, combo.status)}

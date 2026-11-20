@@ -90,10 +90,6 @@ export function AppShell({ children, activeSection }: AppShellProps) {
     }
   }, []);
 
-  if (isEmbedded) {
-    return <main className="w-full min-h-screen bg-transparent p-2 sm:p-4">{children}</main>;
-  }
-
   // Estados de layout
   const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile drawer
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false); // Desktop compact
@@ -478,6 +474,10 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       router.push("/login");
     }
   };
+
+  if (isEmbedded) {
+    return <main className="w-full min-h-screen bg-transparent p-2 sm:p-4">{children}</main>;
+  }
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] text-zinc-900 flex flex-col md:flex-row antialiased font-sans">

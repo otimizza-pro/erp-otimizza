@@ -129,8 +129,9 @@ export function SchedulePanel({
 
       setScheduledSuccess(true);
       setFeedback({ type: "success", text: "Publicação agendada no Calendário com sucesso!" });
-    } catch (e: any) {
-      setFeedback({ type: "error", text: e.message || "Falha ao agendar publicação." });
+    } catch (e: unknown) {
+      const err = e as Error;
+      setFeedback({ type: "error", text: err.message || "Falha ao agendar publicação." });
     } finally {
       setSaving(false);
     }
@@ -292,7 +293,7 @@ export function SchedulePanel({
               <select
                 className={control}
                 value={status}
-                onChange={(e) => setStatus(e.target.value as any)}
+                onChange={(e) => setStatus(e.target.value as "SCHEDULED" | "PLANNED" | "APPROVED")}
               >
                 <option value="SCHEDULED">Agendado (Pronto para postagem)</option>
                 <option value="PLANNED">Planejado (Aguardando arte final)</option>

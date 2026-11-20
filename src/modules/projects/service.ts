@@ -1,4 +1,5 @@
 import { query, withTransaction } from "@/lib/db/pool";
+import { createSocialMediaMonth, saveSocialMediaSchedule } from "./social-media-planning";
 import {
   ProjectRecord,
   ProjectStageRecord,
@@ -329,6 +330,18 @@ export async function createProject(
     ]);
     const projectId = prjRes.rows[0].id;
 
+    if (validated.socialMediaSchedule) {
+      if (!validated.clientId) throw new Error("Vincule uma empresa ao projeto para planejar posts.");
+      const company = await client.query<{ name: string }>(
+        "SELECT COALESCE(NULLIF(trade_name, ''), name) AS name FROM clients WHERE id = $1",
+        [validated.clientId],
+      );
+      await saveSocialMediaSchedule(client, projectId, validated.socialMediaSchedule);
+      await createSocialMediaMonth(client, {
+        id: projectId, clientId: validated.clientId, company: company.rows[0].name,
+      }, validated.startDate.slice(0, 7), validated.socialMediaSchedule);
+    }
+
     // 2. Se houver template, clonar etapas e tarefas
     const templateIds = validated.templateId ? [validated.templateId] : serviceTemplates;
     if (templateIds.length) {
@@ -461,6 +474,10 @@ export async function archiveProject(id: string): Promise<void> {
 
 export async function deleteProject(id: string): Promise<void> {
   await withTransaction(async (client) => {
+    await client.query("SELECT id FROM projects WHERE id = $1 FOR UPDATE", [id]);
+    const plannedContent = await client.query("SELECT 1 FROM content_calendar_items WHERE project_id = $1 LIMIT 1", [id]);
+    if (plannedContent.rows.length) throw new Error("Este projeto tem posts vinculados. Arquive o projeto para manter o histórico.");
+
     // 1. Limpar sessões de briefing vinculadas
     await client.query("DELETE FROM client_briefing_sessions WHERE project_id = $1", [id]);
     // 2. Limpar lançamentos de horas

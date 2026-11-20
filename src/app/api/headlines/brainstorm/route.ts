@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
     if (action === "REJECT") {
       const clientId = uuidSchema.parse(body.clientId);
-      let ideaId = body.ideaId ? uuidSchema.parse(body.ideaId) : null;
+      const ideaId = body.ideaId ? uuidSchema.parse(body.ideaId) : null;
 
       // Se a ideia foi rejeitada direto da geração da IA (ainda não salva no banco), cria como rejeitada
       if (!ideaId) {
@@ -171,13 +171,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "USE_NOW" || action === "CONVERT_TO_HEADLINES") {
-      let ideaId = body.ideaId ? uuidSchema.parse(body.ideaId) : null;
-
-      // Se for ideia direta da IA ainda não persistida, salva primeiro
-      if (!ideaId) {
-        const clientId = uuidSchema.parse(body.clientId);
-        const saved = await brainstormService.saveBrainstormIdea({
-          clientId,
+      const projectPost = body.projectPostId ? {
+        id: uuidSchema.parse(body.projectPostId),
+        clientId: uuidSchema.parse(body.clientId),
+      } : undefined;
+      const selection: Parameters<typeof brainstormService.convertIdeaToHeadlines>[0] =
+        body.ideaId ? uuidSchema.parse(body.ideaId) : {
+          clientId: uuidSchema.parse(body.clientId),
           userId: user.id,
           title: body.title,
           pillarId: body.pillarId || null,
@@ -191,12 +191,10 @@ export async function POST(request: NextRequest) {
           goal: body.goal || "",
           rationale: body.rationale || "",
           status: "HEADLINES_IN_PROGRESS",
-        });
-        ideaId = saved.id;
-      }
+        };
 
-      const result = await brainstormService.convertIdeaToHeadlines(ideaId, user.id);
-      return NextResponse.json({ success: true, ...result, ideaId });
+      const result = await brainstormService.convertIdeaToHeadlines(selection, user.id, projectPost);
+      return NextResponse.json({ success: true, ...result });
     }
 
     return NextResponse.json({ error: "Ação não reconhecida." }, { status: 400 });

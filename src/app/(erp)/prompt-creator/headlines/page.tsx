@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { ProjectPostPicker, type PlannedProjectPost } from "@/components/content-studio/project-post-picker";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
 import { contentCompanyId } from "@/modules/clients/internal-company";
@@ -70,6 +71,22 @@ interface SavedIdea {
 interface Pillar {
   id: string;
   name: string;
+}
+
+interface BrainstormAiIdea {
+  id?: string;
+  title: string;
+  pillar_id?: string | null;
+  editorial_line_id?: string | null;
+  pillar_name?: string;
+  theme_name?: string;
+  angle?: string;
+  format?: string;
+  target_audience?: string;
+  pain_or_desire?: string;
+  goal?: string;
+  rationale?: string;
+  team?: "A" | "B";
 }
 
 interface EditorialLine {
@@ -249,14 +266,45 @@ function CandidateCard({
 
 function HeadlineWorkspace() {
   const { selectedCompany } = useCompany();
-  return <Workspace key={contentCompanyId(selectedCompany)} clientId={contentCompanyId(selectedCompany)} companyName={selectedCompany.name} />;
+  const params = useSearchParams();
+  const postId = params.get("projectPostId");
+  const [result, setResult] = useState<{ id: string; post?: PlannedProjectPost; error?: string } | null>(null);
+
+  useEffect(() => {
+    if (!postId) return;
+    const controller = new AbortController();
+    fetch("/api/content-studio/project-posts?" + new URLSearchParams({ id: postId }), { signal: controller.signal })
+      .then(async response => {
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error);
+        setResult({ id: postId, post: body.posts[0] });
+      })
+      .catch(reason => { if (!controller.signal.aborted) setResult({ id: postId, error: reason.message }); });
+    return () => controller.abort();
+  }, [postId]);
+
+  if (postId && result?.id !== postId) return <p className="p-6" role="status">Carregando post do projeto…</p>;
+  if (postId && !result?.post) return <div className="space-y-2 p-6">
+    <p role="alert">{result?.error || "Post de projeto indisponível."}</p>
+    <Link href="/prompt-creator/brainstorm" className="underline">Voltar ao brainstorm</Link>
+  </div>;
+
+  const projectPost = postId ? result?.post : undefined;
+  const clientId = projectPost?.clientId || contentCompanyId(selectedCompany);
+  return <Workspace key={projectPost?.id || clientId} clientId={clientId}
+    companyName={projectPost?.companyName || selectedCompany.name} projectPost={projectPost} />;
 }
 
-function Workspace({ clientId, companyName }: { clientId: string; companyName: string }) {
+function Workspace({ clientId, companyName, projectPost }: {
+  clientId: string;
+  companyName: string;
+  projectPost?: PlannedProjectPost;
+}) {
   const params = useSearchParams();
   const router = useRouter();
   const workspaceId = params.get("workspaceId");
-  const contentId = params.get("contentId");
+  const contentId = projectPost ? null : params.get("contentId");
+  const projectPostId = projectPost?.id;
 
   // Sequência Criativa de 6 Passos: "strategy" | "brainstorm" | "headlines" | "content" | "imagePrompt" | "schedule"
   const tabParam = params.get("tab");
@@ -288,7 +336,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
   const [selectedLineId, setSelectedLineId] = useState<string>("");
   const [brainstormDirection, setBrainstormDirection] = useState("");
   const [brainstormFormat, setBrainstormFormat] = useState("Todos");
-  const [aiGeneratedIdeas, setAiGeneratedIdeas] = useState<any[]>([]);
+  const [aiGeneratedIdeas, setAiGeneratedIdeas] = useState<BrainstormAiIdea[]>([]);
   const [generatingIdeas, setGeneratingIdeas] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
   const [manualTitle, setManualTitle] = useState("");
@@ -342,8 +390,9 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       setEditorialLines(d.lines || []);
       setSavedIdeas(d.ideas || []);
       setRejectedIdeas(d.rejectedIdeas || []);
-    } catch (e: any) {
-      setError(e.message || "Falha ao carregar brainstorm.");
+    } catch (e: unknown) {
+      const err = e as Error;
+      setError(err.message || "Falha ao carregar brainstorm.");
     } finally {
       setLoadingBrainstorm(false);
     }
@@ -432,6 +481,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       .then((v) => {
         if (!alive) return;
         if (v.workspace.client_id !== clientId) throw new Error("Esta peça pertence a outro cliente. Selecione-o no cabeçalho.");
+        if (projectPostId && v.workspace.content_id !== projectPostId) throw new Error("Esta criação pertence a outro post.");
         setData(v);
         revision.current = v.workspace.revision;
         setBrief(briefSchema.parse(v.workspace.brief));
@@ -443,7 +493,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
     return () => {
       alive = false;
     };
-  }, [workspaceId, clientId]);
+  }, [workspaceId, clientId, projectPostId]);
 
   useEffect(() => {
     if (!contentId || workspaceId) return;
@@ -625,15 +675,16 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       if (!res.ok || !d.success) throw new Error(d.error || "Erro ao gerar ideias de conteúdo.");
       setAiGeneratedIdeas(d.ideas || []);
       setMessage("5 ideias de conteúdo geradas! Você pode Usar Agora, Guardar para a Próxima ou Rejeitar.");
-    } catch (e: any) {
-      setError(e.message || "Falha na geração de ideias.");
+    } catch (e: unknown) {
+      const err = e as Error;
+      setError(err.message || "Falha na geração de ideias.");
     } finally {
       setGeneratingIdeas(false);
     }
   }
 
   // 2. Ação A: Usar essa ideia (Avança imediatamente para Headlines)
-  async function handleUseIdeaNow(idea: any) {
+  async function handleUseIdeaNow(idea: BrainstormAiIdea | SavedIdea) {
     setError("");
     setMessage("");
     try {
@@ -643,6 +694,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
         body: JSON.stringify({
           action: "USE_NOW",
           clientId,
+          projectPostId: projectPost?.id,
           ideaId: idea.id || undefined,
           title: idea.title,
           pillarId: idea.pillar_id || null,
@@ -662,18 +714,21 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       
       // Remove da lista temporária de sugestões
       setAiGeneratedIdeas((prev) => prev.filter((i) => i.title !== idea.title));
-      setActiveIdeaForHeadline(idea);
+      setActiveIdeaForHeadline(idea as SavedIdea);
       setActiveTab("headlines");
-      router.push(`/prompt-creator/headlines?workspaceId=${d.workspaceId}`);
+      const destination = new URLSearchParams({ workspaceId: d.workspaceId });
+      if (projectPost) destination.set("projectPostId", projectPost.id);
+      router.push(`/prompt-creator/headlines?${destination}`);
       setMessage(`Ideia selecionada! Configure e gere as headlines no Passo 3.`);
       await loadBrainstormData();
-    } catch (e: any) {
-      setError(e.message || "Erro ao avançar para headlines.");
+    } catch (e: unknown) {
+      const err = e as Error;
+      setError(err.message || "Erro ao avançar para headlines.");
     }
   }
 
   // 3. Ação B: Deixar para a próxima (Salva no mural para aparecer no pilar/assunto)
-  async function handleSaveForLater(idea: any) {
+  async function handleSaveForLater(idea: BrainstormAiIdea | SavedIdea) {
     try {
       const res = await fetch("/api/headlines/brainstorm", {
         method: "POST",
@@ -699,13 +754,14 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       setAiGeneratedIdeas((prev) => prev.filter((i) => i.title !== idea.title));
       setMessage(`Ideia guardada no mural para a próxima! Ela ficará disponível no pilar selecionado.`);
       await loadBrainstormData();
-    } catch (e: any) {
-      setError(e.message || "Erro ao guardar ideia.");
+    } catch (e: unknown) {
+      const err = e as Error;
+      setError(err.message || "Erro ao guardar ideia.");
     }
   }
 
   // 4. Ação C: Rejeitar (Move para a Lista Negra de Brainstorm)
-  async function handleRejectIdea(idea: any, customReason?: string) {
+  async function handleRejectIdea(idea: BrainstormAiIdea | SavedIdea, customReason?: string) {
     try {
       const reason = customReason || "Rejeitado no brainstorm";
       const res = await fetch("/api/headlines/brainstorm", {
@@ -734,8 +790,9 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       setAiGeneratedIdeas((prev) => prev.filter((i) => i.title !== idea.title));
       setMessage(`Ideia movida para a lista negra. A IA aprenderá a não sugerir temas semelhantes.`);
       await loadBrainstormData();
-    } catch (e: any) {
-      setError(e.message || "Erro ao rejeitar ideia.");
+    } catch (e: unknown) {
+      const err = e as Error;
+      setError(err.message || "Erro ao rejeitar ideia.");
     }
   }
 
@@ -750,8 +807,9 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       if (!res.ok) throw new Error("Erro ao restaurar ideia.");
       setMessage("Ideia restaurada para o mural de temas com sucesso!");
       await loadBrainstormData();
-    } catch (e: any) {
-      setError(e.message || "Erro ao restaurar.");
+    } catch (e: unknown) {
+      const err = e as Error;
+      setError(err.message || "Erro ao restaurar.");
     }
   }
 
@@ -794,8 +852,9 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       setManualGoal("");
       setManualRationale("");
       await loadBrainstormData();
-    } catch (e: any) {
-      setError(e.message || "Erro ao salvar ideia.");
+    } catch (e: unknown) {
+      const err = e as Error;
+      setError(err.message || "Erro ao salvar ideia.");
     }
   }
 
@@ -811,8 +870,9 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       setSavedIdeas((prev) => prev.filter((i) => i.id !== ideaId));
       setRejectedIdeas((prev) => prev.filter((i) => i.id !== ideaId));
       setMessage("Ideia removida definitivamente.");
-    } catch (e: any) {
-      setError(e.message || "Erro ao excluir.");
+    } catch (e: unknown) {
+      const err = e as Error;
+      setError(err.message || "Erro ao excluir.");
     }
   }
 
@@ -868,6 +928,14 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
 
   return (
     <main className="mx-auto max-w-[1800px] space-y-6 p-4 md:p-8 text-zinc-900">
+      <section className="space-y-2 rounded-xl border border-zinc-200 bg-white p-4">
+        <ProjectPostPicker clientId={clientId} selected={projectPost} />
+        {projectPost && <div className="flex flex-wrap gap-4 text-sm">
+          <Link className="text-emerald-700 underline" href={`/projects/${projectPost.projectId}`}>{projectPost.projectName}</Link>
+          {projectPost.workspaceId && <Link className="text-emerald-700 underline"
+            href={`/prompt-creator/headlines?workspaceId=${projectPost.workspaceId}&projectPostId=${projectPost.id}`}>Continuar criação</Link>}
+        </div>}
+      </section>
       {/* CABEÇALHO PRINCIPAL COM CONTEXTO DA EMPRESA E ABAS DE SEQUÊNCIA CRIATIVA */}
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 pb-6">
         <div>
@@ -1332,7 +1400,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                   Mural de Temas Guardados para os Próximos Conteúdos ({filteredIdeas.length})
                 </h2>
                 <p className="text-xs text-zinc-500">
-                  Ideias guardadas no sistema por pilar e tema. Quando estiver pronto para produzir, clique em <strong>"Usar essa ideia"</strong> para gerar as headlines.
+                  Ideias guardadas no sistema por pilar e tema. Quando estiver pronto para produzir, clique em <strong>&ldquo;Usar essa ideia&rdquo;</strong> para gerar as headlines.
                 </p>
               </div>
 
@@ -1340,7 +1408,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={filterTeam}
-                  onChange={(e) => setFilterTeam(e.target.value as any)}
+                  onChange={(e) => setFilterTeam(e.target.value as "ALL" | "A" | "B")}
                   className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-2xs"
                 >
                   <option value="ALL">Todos os Times</option>
@@ -1379,7 +1447,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                 <Lightbulb size={32} className="mx-auto text-zinc-400" />
                 <h3 className="text-base font-bold text-zinc-800">Nenhuma ideia guardada para este filtro</h3>
                 <p className="text-xs text-zinc-500 max-w-md mx-auto">
-                  Use o <strong>Brainstorm com IA</strong> acima ou clique em <strong>"+ Nova Ideia Manual"</strong> para definir os temas dos próximos conteúdos da {companyName}.
+                  Use o <strong>Brainstorm com IA</strong> acima ou clique em <strong>&ldquo;+ Nova Ideia Manual&rdquo;</strong> para definir os temas dos próximos conteúdos da {companyName}.
                 </p>
               </div>
             ) : (
@@ -1446,7 +1514,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
 
                         {idea.rationale && (
                           <p className="text-[11px] text-zinc-500 italic leading-relaxed">
-                            "{idea.rationale}"
+                            &ldquo;{idea.rationale}&rdquo;
                           </p>
                         )}
                       </div>
@@ -1694,7 +1762,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
 
             {activeIdeaForHeadline && (
               <span className="text-xs text-emerald-800 font-semibold bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg">
-                📌 Pauta Ativa: "{activeIdeaForHeadline.title}"
+                📌 Pauta Ativa: &ldquo;{activeIdeaForHeadline.title}&rdquo;
               </span>
             )}
 
@@ -1708,7 +1776,10 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
             )}
           </div>
 
-          {!data && (
+          {!data && projectPost && <p className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
+            {workspaceId ? "Carregando a criação deste post…" : "Escolha uma ideia no brainstorm para iniciar a criação deste post."}
+          </p>}
+          {!data && !projectPost && (
             <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs">
               <h2 className="font-bold text-base text-zinc-950">Peças com Headlines deste cliente</h2>
               <p className="mt-1 text-xs text-zinc-500">

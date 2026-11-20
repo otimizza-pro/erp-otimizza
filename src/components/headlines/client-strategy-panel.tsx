@@ -175,8 +175,9 @@ export function ClientStrategyPanel({
 
       const parsedProfile = CommunicationProfileSchema.safeParse(data.communicationProfile);
       setCommunicationProfile(parsedProfile.success ? parsedProfile.data : emptyCommunicationProfile);
-    } catch (e: any) {
-      setFeedback({ type: "error", text: e.message || "Falha ao carregar dados de estratégia." });
+    } catch (e: unknown) {
+      const err = e as Error;
+      setFeedback({ type: "error", text: err.message || "Falha ao carregar dados de estratégia." });
     } finally {
       setLoading(false);
     }
@@ -233,8 +234,9 @@ export function ClientStrategyPanel({
 
       setFeedback({ type: "success", text: `Sugestão de IA gerada com sucesso para ${field}!` });
       setTimeout(() => setFeedback(null), 3000);
-    } catch (e: any) {
-      setFeedback({ type: "error", text: e.message || "Erro na IA." });
+    } catch (e: unknown) {
+      const err = e as Error;
+      setFeedback({ type: "error", text: err.message || "Erro na IA." });
     } finally {
       setGeneratingAiField(null);
     }
@@ -284,8 +286,9 @@ export function ClientStrategyPanel({
 
       setFeedback({ type: "success", text: "Estratégia e DNA salvos com sucesso!" });
       setTimeout(() => setFeedback(null), 4000);
-    } catch (e: any) {
-      setFeedback({ type: "error", text: e.message || "Erro ao salvar estratégia." });
+    } catch (e: unknown) {
+      const err = e as Error;
+      setFeedback({ type: "error", text: err.message || "Erro ao salvar estratégia." });
     } finally {
       setSaving(false);
     }

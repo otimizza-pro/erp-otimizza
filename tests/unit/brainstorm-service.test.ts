@@ -71,11 +71,11 @@ describe("Brainstorm Service", () => {
   });
 
   it("lists pillars and lines for client", async () => {
-    (query as any)
-      .mockResolvedValueOnce({ rows: [{ id: "p-1", name: "Educativo" }] })
+    vi.mocked(query)
+      .mockResolvedValueOnce({ rows: [{ id: "p-1", name: "Educativo" }] } as never)
       .mockResolvedValueOnce({
         rows: [{ id: "l-1", pillar_id: "p-1", pillar_name: "Educativo", theme: "Gestão Financeira" }],
-      });
+      } as never);
 
     const result = await listPillarsAndLines("client-123");
     expect(result.pillars).toHaveLength(1);
@@ -85,14 +85,14 @@ describe("Brainstorm Service", () => {
   });
 
   it("generates brainstorm ideas feeding approved and rejected history into the prompt", async () => {
-    (query as any)
-      .mockResolvedValueOnce({ rows: [{ id: "p-1", name: "Educativo" }] }) // pillars
+    vi.mocked(query)
+      .mockResolvedValueOnce({ rows: [{ id: "p-1", name: "Educativo" }] } as never) // pillars
       .mockResolvedValueOnce({
         rows: [{ id: "l-1", pillar_id: "p-1", pillar_name: "Educativo", theme: "Gestão Financeira" }],
-      }) // lines
-      .mockResolvedValueOnce({ rows: [] }) // recent posts
-      .mockResolvedValueOnce({ rows: [{ title: "Ideia Aprovada Anterior" }] }) // approved ideas
-      .mockResolvedValueOnce({ rows: [{ title: "Ideia Rejeitada Proibida", rejection_reason: "Muito rasa" }] }); // rejected ideas blacklist
+      } as never) // lines
+      .mockResolvedValueOnce({ rows: [] } as never) // recent posts
+      .mockResolvedValueOnce({ rows: [{ title: "Ideia Aprovada Anterior" }] } as never) // approved ideas
+      .mockResolvedValueOnce({ rows: [{ title: "Ideia Rejeitada Proibida", rejection_reason: "Muito rasa" }] } as never); // rejected ideas blacklist
 
     const ideas = await generateBrainstormIdeas({
       clientId: "client-123",
@@ -107,7 +107,7 @@ describe("Brainstorm Service", () => {
   });
 
   it("saves a brainstorm idea with SAVED_FOR_LATER status", async () => {
-    (query as any).mockResolvedValueOnce({
+    vi.mocked(query).mockResolvedValueOnce({
       rows: [
         {
           id: "idea-1",
@@ -116,7 +116,7 @@ describe("Brainstorm Service", () => {
           status: "SAVED_FOR_LATER",
         },
       ],
-    });
+    } as never);
 
     const saved = await saveBrainstormIdea({
       clientId: "client-123",
@@ -133,7 +133,7 @@ describe("Brainstorm Service", () => {
   });
 
   it("rejects an idea and stores rejection reason for blacklist learning", async () => {
-    (query as any).mockResolvedValueOnce({ rowCount: 1 });
+    vi.mocked(query).mockResolvedValueOnce({ rowCount: 1 } as never);
 
     await rejectBrainstormIdea("idea-1", "Tema muito clichê");
     expect(query).toHaveBeenCalledWith(
@@ -143,7 +143,7 @@ describe("Brainstorm Service", () => {
   });
 
   it("restores a rejected idea back to the mural", async () => {
-    (query as any).mockResolvedValueOnce({ rowCount: 1 });
+    vi.mocked(query).mockResolvedValueOnce({ rowCount: 1 } as never);
 
     await restoreBrainstormIdea("idea-1");
     expect(query).toHaveBeenCalledWith(
@@ -153,7 +153,7 @@ describe("Brainstorm Service", () => {
   });
 
   it("converts a brainstorm idea to headlines workflow", async () => {
-    (withTransaction as any).mockImplementationOnce(async (cb: any) => {
+    vi.mocked(withTransaction).mockImplementationOnce((async (cb: (db: { query: ReturnType<typeof vi.fn> }) => Promise<unknown>) => {
       const mockDb = {
         query: vi.fn(),
       };
@@ -186,10 +186,29 @@ describe("Brainstorm Service", () => {
       });
 
       return cb(mockDb);
-    });
+    }) as never);
 
     const result = await convertIdeaToHeadlines("idea-1", "user-1");
     expect(result.workspaceId).toBe("workspace-1");
     expect(result.contentId).toBe("content-1");
+  });
+
+  it("usa o post planejado e cria o workspace sem inserir outro post no calendário", async () => {
+    const execute = vi.fn()
+      .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: "idea-1", client_id: "client-123", title: "Ideia do mês", format: "Reels" }] })
+      .mockResolvedValueOnce({ rows: [{ id: "planned-post" }] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rowCount: 1 })
+      .mockResolvedValueOnce({ rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ id: "workspace-1" }] })
+      .mockResolvedValueOnce({ rowCount: 1 });
+    vi.mocked(withTransaction).mockImplementationOnce((async (callback: (db: { query: typeof execute }) => Promise<unknown>) =>
+      callback({ query: execute })) as never);
+
+    const result = await convertIdeaToHeadlines("idea-1", "user-1", { id: "planned-post", clientId: "client-123" });
+
+    expect(result).toEqual({ ideaId: "idea-1", workspaceId: "workspace-1", contentId: "planned-post" });
+    expect(execute).toHaveBeenCalledWith(expect.stringContaining("SET central_idea"), ["planned-post", "Ideia do mês", null, "Reels", null]);
+    expect(execute.mock.calls.some(([sql]) => sql.includes("INSERT INTO content_calendar_items"))).toBe(false);
   });
 });

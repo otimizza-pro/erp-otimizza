@@ -273,7 +273,7 @@ DIRETRIZES FUNDAMENTAIS:
   });
 }
 
-export async function saveBrainstormIdea(input: {
+type SaveBrainstormIdeaInput = {
   clientId: string;
   userId: string;
   title: string;
@@ -290,10 +290,12 @@ export async function saveBrainstormIdea(input: {
   status?: BrainstormIdea["status"];
   rejectionReason?: string;
   team?: "A" | "B";
-}): Promise<BrainstormIdea> {
+};
+
+export async function saveBrainstormIdea(input: SaveBrainstormIdeaInput, execute = query): Promise<BrainstormIdea> {
   const statusToUse = input.status || "SAVED_FOR_LATER";
 
-  const res = await query(
+  const res = await execute(
     `INSERT INTO content_brainstorm_ideas (
       client_id, pillar_id, editorial_line_id, pillar_name, theme_name,
       title, angle, format, target_audience, pain_or_desire, goal, rationale,
@@ -346,10 +348,14 @@ export async function deleteBrainstormIdea(ideaId: string): Promise<void> {
 }
 
 export async function convertIdeaToHeadlines(
-  ideaId: string,
-  userId: string
-): Promise<{ workspaceId: string; contentId: string }> {
+  selection: string | SaveBrainstormIdeaInput,
+  userId: string,
+  projectPost?: { id: string; clientId: string },
+): Promise<{ workspaceId: string; contentId: string; ideaId: string }> {
   return withTransaction(async (db) => {
+    const ideaId = typeof selection === "string"
+      ? selection
+      : (await saveBrainstormIdea(selection, db.query.bind(db))).id;
     // 1. Busca a ideia
     const ideaRes = await db.query(`SELECT * FROM content_brainstorm_ideas WHERE id = $1 FOR UPDATE`, [ideaId]);
     if (!ideaRes.rowCount) throw new Error("Ideia de brainstorm não encontrada.");
@@ -375,6 +381,35 @@ export async function convertIdeaToHeadlines(
         : "Estático";
 
     let contentId = idea.content_id;
+
+    if (projectPost) {
+      if (idea.client_id !== projectPost.clientId || (contentId && contentId !== projectPost.id)) {
+        throw new Error("Esta ideia já está vinculada a outro conteúdo ou pertence a outra empresa.");
+      }
+      const target = await db.query(
+        `SELECT c.id FROM content_calendar_items c
+         JOIN projects p ON p.id = c.project_id AND p.client_id = c.client_id
+         WHERE c.id = $1 AND c.client_id = $2 AND c.archived_at IS NULL
+           AND p.archived_at IS NULL AND c.content_type = 'SOCIAL_MEDIA'
+         FOR UPDATE OF c`,
+        [projectPost.id, projectPost.clientId],
+      );
+      if (!target.rows.length) throw new Error("Post de projeto indisponível.");
+      const current = await db.query("SELECT id, user_id FROM headline_workspaces WHERE content_id = $1 ORDER BY updated_at DESC LIMIT 1", [projectPost.id]);
+      if (current.rows.length) {
+        if (current.rows[0].user_id !== userId) throw new Error("Esta criação pertence a outro usuário.");
+        if (contentId === projectPost.id) return { workspaceId: current.rows[0].id, contentId, ideaId };
+        throw new Error("Este post já tem uma criação em andamento. Clique em Continuar criação.");
+      }
+      contentId = projectPost.id;
+      await db.query(
+        `UPDATE content_calendar_items
+         SET central_idea = $2, editorial_line_id = $3, format = $4, target_audience_name = $5,
+             status = CASE WHEN status = 'PLANNED' THEN 'IN_CREATION' ELSE status END, updated_at = NOW()
+         WHERE id = $1`,
+        [contentId, idea.title, idea.editorial_line_id || null, calendarFormat, idea.target_audience || null],
+      );
+    }
 
     // 2. Se não existir peça no calendário, cria
     if (!contentId) {
@@ -450,6 +485,7 @@ export async function convertIdeaToHeadlines(
     return {
       workspaceId,
       contentId,
+      ideaId,
     };
   });
 }

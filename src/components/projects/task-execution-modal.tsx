@@ -64,7 +64,7 @@ export function TaskExecutionModal({
 
   // Briefing state
   const [briefingSession, setBriefingSession] = useState<{token?:string;status?:string;progress_percent?:number;project_id?:string;company_name?:string;contact_name?:string;credentials_saved?:boolean;extracted_identity?:{targetAudience?:string;differentials?:string;toneOfVoice?:string|string[];competitors?:string};conversation_history?:{sender:string;content?:string;text?:string;timestamp?:string}[]}|null>(null);
-  const [clientIdentity, setClientIdentity] = useState<any>(null);
+  const [clientIdentity, setClientIdentity] = useState<Record<string, unknown> | null>(null);
   const [loadingBriefing, setLoadingBriefing] = useState<boolean>(false);
   const [briefingFeedback, setBriefingFeedback] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
@@ -560,7 +560,7 @@ export function TaskExecutionModal({
                               ? Array.isArray(briefingSession.extracted_identity.toneOfVoice)
                                 ? briefingSession.extracted_identity.toneOfVoice.join(", ")
                                 : String(briefingSession.extracted_identity.toneOfVoice)
-                              : clientIdentity?.tone_of_voice && clientIdentity.tone_of_voice.length > 0
+                              : Array.isArray(clientIdentity?.tone_of_voice) && clientIdentity.tone_of_voice.length > 0
                               ? clientIdentity.tone_of_voice.join(", ")
                               : "Direto, especialista e focado em resultados reais"}
                           </p>
@@ -571,7 +571,7 @@ export function TaskExecutionModal({
                           <p className="text-zinc-800 font-medium">
                             {String(
                               briefingSession?.extracted_identity?.differentials ||
-                                (clientIdentity?.differentials && clientIdentity.differentials.length > 0
+                                (Array.isArray(clientIdentity?.differentials) && clientIdentity.differentials.length > 0
                                   ? clientIdentity.differentials.join(", ")
                                   : "Velocidade na entrega, atendimento direto e resultados mensuráveis")
                             )}
@@ -583,7 +583,7 @@ export function TaskExecutionModal({
                           <p className="text-zinc-800 font-medium">
                             {String(
                               briefingSession?.extracted_identity?.targetAudience ||
-                                (clientIdentity?.target_audiences && clientIdentity.target_audiences.length > 0
+                                (Array.isArray(clientIdentity?.target_audiences) && clientIdentity.target_audiences.length > 0
                                   ? clientIdentity.target_audiences.join(", ")
                                   : "Clientes qualificados buscando soluções completas")
                             )}

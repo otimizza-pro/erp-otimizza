@@ -1,5 +1,7 @@
 "use client";
 
+import { ProjectSocialMediaPlan } from "@/components/projects/social-media-plan";
+
 import React, { useState, useEffect, useCallback, use } from "react";
 
 import Link from "next/link";
@@ -365,6 +367,8 @@ export default function ProjectWorkspacePage({
         </div>
 
         <div className="flex flex-wrap gap-2"><EditRecordAction url={"/api/projects/"+project.id} label="projeto" data={{name:project.name,description:project.description,startDate:project.startDate,dueDate:project.dueDate,estimatedHours:project.estimatedHours}} fields={[{key:"name",label:"Nome",required:true},{key:"description",label:"Descrição",type:"textarea"},{key:"startDate",label:"Início",type:"date",required:true},{key:"dueDate",label:"Prazo",type:"date",required:true},{key:"estimatedHours",label:"Horas estimadas",type:"number",required:true}]} onSaved={loadProject}/><ArchiveRecordAction url={"/api/projects/"+project.id} archived={!!project.archivedAt} onChanged={loadProject}/></div>
+        {project.clientId && <ProjectSocialMediaPlan key={project.id} projectId={project.id}
+          startDate={project.startDate} archived={Boolean(project.archivedAt)} />}
         {/* Resumo do Projeto (Header Banner) */}
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
           <div>

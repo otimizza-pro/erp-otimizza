@@ -4,6 +4,8 @@ import { useCompany } from "@/lib/context/company-context";
 import React, { useState, useEffect, Suspense } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { SocialMediaScheduleFields } from "@/components/projects/social-media-plan";
+import type { SocialMediaSchedule } from "@/modules/projects/social-media-schedule";
 import Link from "next/link";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import {
@@ -68,6 +70,8 @@ function NewProjectFormContent() {
 
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [planSocialMedia, setPlanSocialMedia] = useState(false);
+  const [socialMediaSchedule, setSocialMediaSchedule] = useState<SocialMediaSchedule>({ postsPerMonth: 12, weekdays: [1, 3, 5] });
 
   // Resolução imediata do Cliente e Contratos passados por query param
   useEffect(() => {
@@ -242,6 +246,10 @@ function NewProjectFormContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (planSocialMedia && !socialMediaSchedule.weekdays.length) {
+      setError("Selecione pelo menos um dia de publicação.");
+      return;
+    }
     setSaving(true);
     setError(null);
 
@@ -251,6 +259,7 @@ function NewProjectFormContent() {
         description: description || null,
         projectType,
         clientId: (projectType === "INTERNAL" ? (clientId || INTERNAL_COMPANY_ID) : clientId) || null,
+        socialMediaSchedule: planSocialMedia ? socialMediaSchedule : undefined,
         contractId: contractId || null,
         useServiceOnboarding: searchParams.get("onboarding") === "1" && !templateId,
         templateId: templateId || null,
@@ -315,6 +324,16 @@ function NewProjectFormContent() {
 
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
+          <section className="space-y-3 rounded-lg border border-slate-200 p-4">
+            <label className="flex items-center gap-2 text-sm font-semibold">
+              <input type="checkbox" checked={planSocialMedia} onChange={event => setPlanSocialMedia(event.target.checked)} />
+              Planejar conteúdo de Social Media
+            </label>
+            {planSocialMedia && <>
+              <p className="text-sm text-slate-600">Os posts do primeiro mês serão criados no calendário com base no mês de início do projeto.</p>
+              <SocialMediaScheduleFields value={socialMediaSchedule} onChange={setSocialMediaSchedule} />
+            </>}
+          </section>
           {/* Tipo de Projeto e Modelo */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>

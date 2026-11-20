@@ -44,7 +44,7 @@ export default function ContractDetailsPage() {
 
   const [contract, setContract] = useState<ContractRecord | null>(null);
   const [projections, setProjections] = useState<RecurrenceProjection[]>([]);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<{id:string;action:string;new_data:unknown;created_at:string}[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"details" | "history" | "projections" | "projects">("details");
 
@@ -880,7 +880,7 @@ export default function ContractDetailsPage() {
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {auditLogs.map((log: any) => {
+                  {auditLogs.map((log) => {
                     const actionLabel =
                       log.action === "INSERT"
                         ? "Criação"
@@ -919,7 +919,7 @@ export default function ContractDetailsPage() {
                               {details || "Registro gravado na auditoria"}
                             </span>
                           </div>
-                          {log.new_data && (
+                          {Boolean(log.new_data) && (
                             <p className="text-[11px] font-mono text-zinc-500 truncate max-w-xl">
                               {typeof log.new_data === "string" ? log.new_data : JSON.stringify(log.new_data)}
                             </p>
@@ -1621,7 +1621,7 @@ export default function ContractDetailsPage() {
                               value={it.periodicity || "MONTHLY"}
                               onChange={(e) => {
                                 const copy = [...editItems];
-                                copy[idx].periodicity = e.target.value as any;
+                                copy[idx].periodicity = e.target.value as typeof editItems[number]["periodicity"];
                                 setEditItems(copy);
                               }}
                               className="w-24 px-1.5 py-1 bg-white border border-zinc-200 rounded text-[11px]"

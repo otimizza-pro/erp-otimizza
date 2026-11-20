@@ -440,7 +440,7 @@ export class StrategySeedService {
             )
             VALUES ($1, $2, $3, $4, $5, 'MANUAL', $6, $7)
             `,
-            [secId, b.type, b.title, b.content, b.class, (b as any).unit || null, bIdx]
+            [secId, b.type, b.title, b.content, b.class, ("unit" in b ? b.unit : null) || null, bIdx]
           );
         }
       }

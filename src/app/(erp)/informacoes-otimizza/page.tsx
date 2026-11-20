@@ -8,8 +8,8 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function AdminKnowledgePage() {
-  let pages: any[] = [];
-  let tree: any[] = [];
+  let pages: Awaited<ReturnType<typeof listAdminPages>> = [];
+  let tree: Awaited<ReturnType<typeof getAdminPageTree>> = [];
   let errorMessage: string | null = null;
 
   try {

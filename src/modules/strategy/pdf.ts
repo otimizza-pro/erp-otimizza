@@ -129,7 +129,7 @@ export async function generateStrategyPdf(options: StrategyPdfExportOptions): Pr
       doc.text(`${block.title} [${block.classification}]`, margin, currentY);
       currentY += 5;
 
-      const content = block.content as any;
+      const content = block.content as {columns?:string[];rows?:string[][];items?:Array<string|{done?:boolean;task?:string}>;text?:string;rangeMin?:number;rangeMax?:number;[key:string]:unknown};
 
       if (block.blockType === "TABLE" && content?.columns && content?.rows) {
         const cols: string[] = content.columns;
@@ -185,7 +185,8 @@ export async function generateStrategyPdf(options: StrategyPdfExportOptions): Pr
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8.5);
         doc.setTextColor(51, 65, 85);
-        for (const item of content.items) {
+        for (const entry of content.items) {
+          const item=typeof entry==="string"?{task:entry}:entry;
           if (currentY > pageHeight - 25) {
             doc.addPage();
             drawHeader();

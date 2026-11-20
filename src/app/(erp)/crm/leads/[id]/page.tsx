@@ -60,7 +60,7 @@ export default function LeadDetailPage() {
     validUntil: string;
     createdAt: string;
   }>>([]);
-  const [onboardingSession, setOnboardingSession] = useState<any>(null);
+  const [onboardingSession, setOnboardingSession] = useState<{token?:string;status?:string;progress_percent?:number;project_id?:string;company_name?:string;contact_name?:string;credentials_saved?:boolean;extracted_identity?:{targetAudience?:string;differentials?:string;toneOfVoice?:string|string[];competitors?:string};conversation_history?:{sender:string;content?:string;text?:string;timestamp?:string}[]}|null>(null);
   const [showBriefingTranscriptModal, setShowBriefingTranscriptModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -143,7 +143,7 @@ export default function LeadDetailPage() {
 
   // Modal de Criação de Oportunidade com Verificação de Duplicidade
   const [showCreateOppModal, setShowCreateOppModal] = useState(false);
-  const [pipelines, setPipelines] = useState<any[]>([]);
+  const [pipelines, setPipelines] = useState<{id:string;name:string;isDefault?:boolean;stages:{id:string;name:string}[]}[]>([]);
   const [selectedPipeId, setSelectedPipeId] = useState("");
   const [selectedStageId, setSelectedStageId] = useState("");
   const [newOppTitle, setNewOppTitle] = useState("");
@@ -449,7 +449,7 @@ export default function LeadDetailPage() {
         const data = await res.json();
         const list = Array.isArray(data) ? data : (data.pipelines || []);
         setPipelines(list);
-        const def = list.find((p: any) => p.isDefault) || list[0];
+        const def = list.find((p: {id:string;isDefault?:boolean;stages:{id:string;name:string}[]}) => p.isDefault) || list[0];
         if (def) {
           setSelectedPipeId(def.id);
           if (def.stages && def.stages.length > 0) {
@@ -2465,7 +2465,7 @@ export default function LeadDetailPage() {
                     onChange={(e) => setSelectedStageId(e.target.value)}
                     className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900"
                   >
-                    {(pipelines.find((p) => p.id === selectedPipeId)?.stages || []).map((s: any) => (
+                    {(pipelines.find((p) => p.id === selectedPipeId)?.stages || []).map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name}
                       </option>
@@ -2546,7 +2546,7 @@ export default function LeadDetailPage() {
 
               <div className="p-4 overflow-y-auto space-y-3 flex-1 bg-zinc-50/30">
                 {Array.isArray(onboardingSession.conversation_history) &&
-                  onboardingSession.conversation_history.map((msg: any, idx: number) => {
+                  onboardingSession.conversation_history.map((msg, idx: number) => {
                     const isAssistant = msg.sender === "assistant";
                     return (
                       <div

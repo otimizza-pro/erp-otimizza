@@ -27,7 +27,7 @@ export class StrategyService {
     sql += ` ORDER BY topic_number ASC NULLS LAST, code ASC`;
 
     const res = await query(sql, params);
-    return res.rows.map((r: any) => ({
+    return res.rows.map((r) => ({
       id: r.id,
       code: r.code,
       title: r.title,
@@ -74,7 +74,7 @@ export class StrategyService {
         metadata: s.metadata || {},
         createdAt: s.created_at.toISOString(),
         updatedAt: s.updated_at.toISOString(),
-        blocks: blockRes.rows.map((b: any) => ({
+        blocks: blockRes.rows.map((b) => ({
           id: b.id,
           sectionId: b.section_id,
           blockType: b.block_type,
@@ -246,7 +246,7 @@ export class StrategyService {
     const res = await query(
       `SELECT * FROM strategy_goals ORDER BY category ASC, name ASC`
     );
-    return res.rows.map((r: any) => ({
+    return res.rows.map((r) => ({
       id: r.id,
       name: r.name,
       category: r.category,
@@ -492,7 +492,7 @@ export class StrategyService {
     const res = await query(
       `SELECT * FROM strategy_initiatives ORDER BY priority ASC, planned_start ASC NULLS LAST`
     );
-    return res.rows.map((r: any) => ({
+    return res.rows.map((r) => ({
       id: r.id,
       title: r.title,
       description: r.description,

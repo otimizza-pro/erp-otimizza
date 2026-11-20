@@ -63,7 +63,7 @@ export function TaskExecutionModal({
   const [activeTab, setActiveTab] = useState<"EXECUTE" | "CHECKLIST" | "TIMES">("EXECUTE");
 
   // Briefing state
-  const [briefingSession, setBriefingSession] = useState<any>(null);
+  const [briefingSession, setBriefingSession] = useState<{token?:string;status?:string;progress_percent?:number;project_id?:string;company_name?:string;contact_name?:string;credentials_saved?:boolean;extracted_identity?:{targetAudience?:string;differentials?:string;toneOfVoice?:string|string[];competitors?:string};conversation_history?:{sender:string;content?:string;text?:string;timestamp?:string}[]}|null>(null);
   const [clientIdentity, setClientIdentity] = useState<any>(null);
   const [loadingBriefing, setLoadingBriefing] = useState<boolean>(false);
   const [briefingFeedback, setBriefingFeedback] = useState<string | null>(null);

@@ -1,38 +1,59 @@
-# Laboratório de Headlines
+# Brainstorm de Conteúdo & Laboratório de Headlines
 
-Rotas: `/prompt-creator/headlines` e `/prompt-creator/headlines/bi`.
+Rotas: `/prompt-creator/headlines` e `/prompt-creator/brainstorm` (com BI em `/prompt-creator/headlines/bi`).
 
-## Uso
+## Fluxo Estratégico de Criação
 
-1. Selecione a empresa no cabeçalho. Crie uma peça ou abra uma existente por `?contentId=UUID`.
-2. Gere sugestões de pauta ou preencha o briefing. Públicos, temas e DNA vêm do contexto da empresa. Os dados específicos da peça ficam na pauta, sem alterar o DNA institucional.
-3. Revise o prompt completo e gere o Time A. Cada posição recebe duas solicitações: quatro opções pelo prompt e quatro com exemplos do seu estilo. São 32 opções por time quando todas as solicitações retornam respostas válidas.
-4. Avalie, escolha ou crie sua própria headline. O Time B e as novas tentativas são opcionais e acrescentam resultados ao histórico.
-5. Abra o Estúdio para continuar na mesma pauta. Headline, subheadline e briefing acompanham a peça. Trocar a escolha preserva o conteúdo existente e sinaliza revisão necessária.
+O fluxo foi concebido na ordem natural do planejamento editorial de alto nível:
 
-## Configuração
+```
+[Pilares & Assuntos da Linha Editorial] 
+        ↓
+[Brainstorm de Ideias de Conteúdo] 
+        ↓
+[Laboratório de Headlines (Times A e B de IAs)] 
+        ↓
+[Estúdio Criativo (Carrossel, Reels, Post ou Legenda)]
+```
 
-Os oito slots usam `OPENROUTER_HEADLINE_TEAM_A_1_MODEL` até `OPENROUTER_HEADLINE_TEAM_A_4_MODEL` e `OPENROUTER_HEADLINE_TEAM_B_1_MODEL` até `OPENROUTER_HEADLINE_TEAM_B_4_MODEL`. Os IDs solicitados constam em `.env.example`; valores locais ficam em `.env.local` e no arquivo de transferência `.envias`. Next.js não carrega `.envias` automaticamente. Em hospedagem, configure as variáveis do projeto e publique novamente para trocá-las.
+---
 
-O botão de catálogo compara os IDs com o catálogo atual do OpenRouter. Um ID ausente, restrição de acesso ou indisponibilidade dentro do teto de preço aparece como erro da posição. Não há troca silenciosa de modelo. O teto de preço já existente no conector continua aplicado. Falhas podem ser repetidas isoladamente, com nova tentativa auditável.
+## 1. Brainstorm de Conteúdo (Ideação Estratégica)
 
-## Estilo e avaliações
+1. **Seleção de Empresa:** O contexto da empresa selecionada no cabeçalho carrega automaticamente os **Pilares Estratégicos** (`client_editorial_pillars`) e os **Assuntos / Linhas Editoriais** (`client_editorial_lines`).
+2. **Filtro por Pilar e Assunto:** O usuário pode clicar em um pilar específico (ex: *Educativo*, *Autoridade*, *Conexão*, *Vendas*) para explorar seus temas e focar o brainstorming.
+3. **Brainstorm com IA:**
+   - Permite direcionamento estratégico livre (ex: quebrar objeções de preço, dúvidas de clientes, campanha do mês, bastidores).
+   - A IA consulta o DNA da marca, públicos, dores, desejos e os últimos conteúdos publicados para **evitar repetições**.
+   - Sugere 5 ideias concretas de conteúdo com:
+     - Título / Tema concreto
+     - Pilar e Assunto associado
+     - Formato recomendado (Carrossel, Reels, Post estático, Stories)
+     - Ângulo / Abordagem (Passo a passo, Erro comum, Estudo de caso, etc.)
+     - Público e Dor/Desejo
+     - Justificativa estratégica
+   - As sugestões podem ser salvas individualmente ou em lote no mural.
+4. **Adição Manual de Ideia:** O usuário pode cadastrar ideias e temas próprios no mural a qualquer momento.
+5. **Mural de Ideias (Backlog):** Lista visual de ideias com filtros por pilar e formato.
+6. **🎯 Ação "Criar Headlines":**
+   - Ao clicar no botão **"Criar Headlines"** em qualquer card do mural, o sistema converte a ideia em peça de conteúdo (`content_calendar_items`) e inicializa o workspace (`headline_workspaces`) com o briefing 100% preenchido.
+   - O usuário é levado diretamente para o Laboratório de Headlines para essa ideia específica.
 
-- 👍 inclui o exemplo positivo; 👎 registra rejeição e motivo opcional. Remover avaliação volta a neutro.
-- Neutro significa não avaliado, não uma rejeição usada para aprendizado.
-- Preferências são isoladas por administrador, empresa e formato. A modalidade pelo prompt não recebe a biblioteca de estilo.
-- Cada nova rodada e cada novo lote capturam exemplos e orientação atuais. Repetir uma execução com erro usa seu contexto original.
-- Criação humana entra positiva e pode registrar inspirações. Sua seleção não conta como vitória de modelo.
-- A adaptação usa exemplos no contexto. Não há treinamento dos pesos dos modelos.
+---
 
-## BI
+## 2. Laboratório de Headlines
 
-Preferência editorial, erros/latência/custos e resultados reais são separados. Custos sem informação do provedor são desconhecidos, não zero. Custos do provedor ficam em USD; investimento manual em BRL. Avaliações automáticas de qualidade não predizem performance real.
+1. **Briefing Integrado:** A ideia escolhida já preenche a *Big Idea*, formato, público, dores, objetivos e parâmetros criativos.
+2. **Times A e B de Modelos:**
+   - Cada posição gera opções tanto pelo prompt quanto adaptadas ao estilo histórico do cliente.
+   - Avaliação com 👍 / 👎 e motivo opcional para alimentar a biblioteca de estilo.
+3. **Headline Vencedora:** O usuário seleciona a melhor headline (ou escreve uma autoral).
+4. **Handoff para o Estúdio Criativo:** Com a headline definida, um clique em **"Avançar para criar conteúdo no Estúdio Criativo"** carrega a pauta com headline, subheadline e briefing no Estúdio Criativo para a redação completa de carrossel, roteiro de reels ou legenda.
 
-O Time B costuma receber as rodadas mais difíceis e sua comparação com A tem viés de seleção. A avaliação cega oculta os nomes dos modelos nos cards. As métricas de campanha exigem período, fonte e dados reais; intervalos sobrepostos da mesma peça são recusados para evitar soma duplicada. Experimentos registram hipótese, variável, controles, métrica e conclusão. Não há importação automática de plataformas de anúncios.
+---
 
-## Persistência e validação
-
-Migração `043_headline_teams.sql`: histórico de rodadas, execuções, candidatos, eventos, perfis, métricas e experimentos. Novas tabelas têm RLS e acesso direto revogado para `anon` e `authenticated`; a API exige administrador e verifica propriedade das peças. A pauta existente em `content_calendar_items` é reutilizada. Briefings editáveis e snapshots de geração têm funções distintas; snapshots preservam o contexto histórico.
-
-Testes: `tests/unit/headline-lab.test.ts`, `tests/unit/headline-handoff.test.ts` e `tests/integration/headline-lab.test.ts`. O teste de integração usa transação com rollback e deve rodar apenas em banco de testes autorizado pela proteção do pool.
+## Persistência e Tabelas
+- `client_editorial_pillars` & `client_editorial_lines`: Pilares e assuntos estratégicos.
+- `content_brainstorm_ideas` (migração 044): Mural de ideias pré-headline com status, pilar, assunto e vínculo com a peça.
+- `headline_workspaces`, `headline_rounds`, `headline_runs`, `headline_candidates`: Histórico do laboratório e avaliações.
+- `content_calendar_items`: Pautas integradas ao calendário e ao estúdio criativo.

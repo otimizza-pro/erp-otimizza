@@ -38,6 +38,7 @@ import {
   PanelLeftOpen,
   Calendar,
   Sparkles,
+  Lightbulb,
   Compass,
   BookOpen,
   Rocket,
@@ -152,7 +153,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       { id: "projects_list", label: "Projetos em andamento", href: "/projects", icon: Briefcase },
     ] },
     { id: "content_studio", title: "Social Media", icon: Sparkles, section: "PRODUÇÃO", items: [
-        { id: "headline_lab", label: "Laboratório de Headlines", href: "/prompt-creator/headlines", icon: Sparkles },
+        { id: "content_brainstorm", label: "Brainstorm de Conteúdo", href: "/prompt-creator/headlines", icon: Lightbulb },
       { id: "prompt_creator", label: "Estúdio Criativo", href: "/prompt-creator", icon: Sparkles },
       { id: "editorial", label: "Linha Editorial", href: "/prompt-creator?tab=EDITORIAL", icon: Sparkles },
       { id: "calendar", label: "Calendário de Conteúdo", href: "/prompt-creator?tab=CALENDAR", icon: Sparkles },

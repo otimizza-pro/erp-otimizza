@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import crypto from "node:crypto";
 import { getMigrationDbPool } from "./pool";
+import { isMigrationChecksumValid } from "./migrate";
 
 interface AppliedMigrationRow {
   id: string;
@@ -38,7 +39,7 @@ export async function checkMigrationStatus(): Promise<void> {
 
       if (appliedMap.has(id)) {
         const record = appliedMap.get(id);
-        const match = record && record.checksum === currentChecksum ? "OK" : "MODIFICADO";
+        const match = record && isMigrationChecksumValid(id, content, record.checksum) ? "OK" : "MODIFICADO";
         const dateStr = record ? new Date(record.applied_at).toLocaleString("pt-BR") : "-";
         console.log(
           `${file.padEnd(35)} | ${("APLICADO (" + match + ")").padEnd(12)} | ${dateStr}`

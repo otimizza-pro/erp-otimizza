@@ -11,9 +11,21 @@ describe("Jornada de serviços e combos no PostgreSQL isolado", () => {
     const clientId = randomUUID(); let proposalId = ""; let contractId = "";
     await query("INSERT INTO clients(id,type,name) VALUES($1,'PJ','Teste jornada '||$2)", [clientId, randomUUID()]);
     try {
-      const services = (await query<{ id: string; name: string; default_price: string; billing_unit: string }>("SELECT id,name,default_price,billing_unit FROM services WHERE name IN ('Domínio','Hospedagem de Site','Criação de WebSite','T.P. Google Ads') AND archived_at IS NULL ORDER BY name")).rows;
-      expect(services.length).toBeGreaterThanOrEqual(4);
-      const distinct = [...new Map(services.map(s => [s.name, s])).values()];
+      const allFound = (await query<{ id: string; name: string; default_price: string; billing_unit: string }>(
+        "SELECT id,name,default_price,billing_unit FROM services WHERE name IN ('Domínio','Hospedagem','Hospedagem de Site','Criação de WebSite Institucional','Criação de WebSite','Tráfego Pago Google Ads','T.P. Google Ads') AND archived_at IS NULL ORDER BY name"
+      )).rows;
+      const pickService = (names: string[]) => allFound.find(s => names.includes(s.name));
+      const distinct = [
+        pickService(["Domínio"]),
+        pickService(["Hospedagem", "Hospedagem de Site"]),
+        pickService(["Criação de WebSite Institucional", "Criação de WebSite"]),
+        pickService(["Tráfego Pago Google Ads", "T.P. Google Ads"]),
+      ].filter(Boolean) as Array<{ id: string; name: string; default_price: string; billing_unit: string }>;
+      expect(distinct.length).toBe(4);
+
+      const totalReference = distinct.reduce((a, s) => a + Number(s.default_price), 0);
+      const expectedTotal = totalReference - 85;
+
       const proposal = await ProposalService.createProposal({ title: "Proposta jornada", clientId, validUntil: "2027-12-31", globalDiscount: 85, items: distinct.map(s => ({ serviceId: s.id, referenceUnitPrice: Number(s.default_price), negotiatedUnitPrice: Number(s.default_price), quantity: 1, periodicity: s.billing_unit === "ANUAL" ? "YEARLY" : s.billing_unit === "MES" ? "MONTHLY" : "ONE_TIME" })) });
       proposalId = proposal.id;
       await expect(withTransaction(async client => {
@@ -25,7 +37,7 @@ describe("Jornada de serviços e combos no PostgreSQL isolado", () => {
       const conversion = await ProposalService.convertToContract(proposalId, { idempotencyKey: randomUUID(), dueDay: 31, startDate: "2027-01-01" });
       expect(conversion.contracts).toHaveLength(1); contractId = conversion.contracts[0].id;
       expect(conversion.contracts[0].status).toBe("DRAFT");
-      expect(conversion.contracts[0].currentVersion?.totalAmount).toBe(1900);
+      expect(conversion.contracts[0].currentVersion?.totalAmount).toBe(expectedTotal);
       const repeat = await ProposalService.convertToContract(proposalId, { idempotencyKey: randomUUID(), dueDay: 31 });
       expect(repeat.contracts[0].id).toBe(contractId);
       const plan = await getBillingPlan(contractId);
@@ -35,7 +47,7 @@ describe("Jornada de serviços e combos no PostgreSQL isolado", () => {
       const financial = (await query<{ amount: string; periods: string; count: string }>(`SELECT r.original_amount AS amount,count(ri.id)::text AS count,string_agg(DISTINCT ci.periodicity,',') AS periods FROM receivables r JOIN receivable_items ri ON ri.receivable_id=r.id JOIN contract_items ci ON ci.id=ri.contract_item_id WHERE r.contract_id=$1 GROUP BY r.id`, [contractId])).rows;
       expect(financial.every(r => !r.periods.includes(","))).toBe(true);
       expect(financial.find(r => r.periods === "YEARLY")?.count).toBe("2");
-      expect(financial.reduce((a, r) => a + Math.round(Number(r.amount) * 100), 0)).toBe(190000);
+      expect(financial.reduce((a, r) => a + Math.round(Number(r.amount) * 100), 0)).toBe(expectedTotal * 100);
       expect(await generateServiceRecurrence(contractId, "2027-02")).toBe(1);
       expect(await generateServiceRecurrence(contractId, "2027-02")).toBe(0);
       const project = await createProject({ name: "Onboarding de serviços", clientId, contractId, useServiceOnboarding: true, startDate: "2027-01-01", dueDate: "2027-02-01" });

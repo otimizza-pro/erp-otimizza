@@ -33,6 +33,10 @@ const FORMAT_OPTIONS = [
 ] as const;
 
 type FormatType = typeof FORMAT_OPTIONS[number]["id"];
+const materialByFormat: Record<FormatType, string> = {
+  REELS: "selected_reels", CAPTION: "selected_caption", CAROUSEL: "selected_carousel",
+  LANDING_PAGE: "copy_site_lp", META_ADS: "copy_meta_ads", GOOGLE_ADS: "copy_google_ads",
+};
 
 interface ContentWriterPanelProps {
   clientId: string;
@@ -81,18 +85,23 @@ export function ContentWriterPanel({
 
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editVersion, setEditVersion] = useState("");
+  const [staleMaterials, setStaleMaterials] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // Carrega conteúdo já salvo da peça se houver
   useEffect(() => {
     if (!contentId) return;
+    const controller = new AbortController();
     const loadSaved = async () => {
       try {
-        const res = await fetch(`/api/content-studio/posts/${contentId}`);
+        const res = await fetch(`/api/content-studio/posts/${contentId}`, { signal: controller.signal });
         if (!res.ok) return;
         const d = await res.json();
-        if (d.data) {
+        if (!controller.signal.aborted && d.data) {
+          setEditVersion(d.data.edit_version || "");
+          setStaleMaterials(d.data.stale_materials || []);
           setContentTexts({
             REELS: d.data.selected_reels || "",
             CAPTION: d.data.selected_caption || "",
@@ -105,6 +114,7 @@ export function ContentWriterPanel({
       } catch {}
     };
     loadSaved();
+    return () => controller.abort();
   }, [contentId]);
 
   // Gerar texto com IA
@@ -187,7 +197,9 @@ export function ContentWriterPanel({
     setFeedback(null);
     try {
       const payload: Record<string, unknown> = {
-        selectedHeadline: headline,
+        clientId,
+        editVersion,
+        confirmContentRevision: true,
       };
 
       if (activeFormat === "REELS") payload.selectedReels = contentTexts.REELS;
@@ -203,7 +215,10 @@ export function ContentWriterPanel({
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Erro ao salvar texto no sistema.");
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Erro ao salvar texto no sistema.");
+      setEditVersion(result.data.edit_version);
+      setStaleMaterials(result.data.stale_materials || []);
 
       setFeedback({ type: "success", text: "Texto salvo com sucesso na peça!" });
       setTimeout(() => setFeedback(null), 3000);
@@ -324,6 +339,7 @@ export function ContentWriterPanel({
                 <span className="text-xs">{fmt.label}</span>
               </div>
               <p className="text-[10px] text-zinc-500 line-clamp-2 leading-relaxed">{fmt.desc}</p>
+              {staleMaterials.includes(materialByFormat[fmt.id]) && <span className="mt-1 text-[10px] font-semibold text-amber-800">Revisar</span>}
             </button>
           );
         })}
@@ -349,7 +365,7 @@ export function ContentWriterPanel({
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-50 transition cursor-pointer"
             >
               <Sparkles size={14} className={generating ? "animate-spin" : ""} />
-              {generating ? "Redigindo com IA..." : "Gerar com IA"}
+              {generating ? "Redigindo com IA..." : staleMaterials.includes(materialByFormat[activeFormat]) ? "Regenerar este material" : "Gerar com IA"}
             </button>
 
             {currentText && (

@@ -8,6 +8,8 @@ import { useCompany } from "@/lib/context/company-context";
 import { contentCompanyId } from "@/modules/clients/internal-company";
 import { briefSchema, blankBrief, fieldGroups, structures, angles, triggers, awareness, formats, missingBrief, sameBrief, type HeadlineBrief } from "@/modules/headlines/schema";
 import { makeHeadlinePrompt } from "@/modules/headlines/prompt";
+import { brainstormModes, type BrainstormMode } from "@/modules/headlines/brainstorm-modes";
+import { suggestPostFits } from "@/modules/headlines/brainstorm-post-fit";
 import type { Context, WorkspaceState, Run, Candidate, ModelSlot } from "@/modules/headlines/types";
 import { ClientStrategyPanel } from "@/components/headlines/client-strategy-panel";
 import { ContentWriterPanel } from "@/components/headlines/content-writer-panel";
@@ -46,7 +48,28 @@ const control = "mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3.5 p
 const button = "inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-2xs hover:bg-zinc-50 hover:text-zinc-950 disabled:opacity-40 transition cursor-pointer";
 const buttonPrimary = "inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-40 transition cursor-pointer";
 
-interface SavedIdea {
+interface IdeaSource {
+  source_title?: string | null;
+  source_url?: string | null;
+  source_date?: string | null;
+}
+
+function BrainstormIdeaSource({ source }: { source: IdeaSource }) {
+  if (!source.source_title) return null;
+  const date = source.source_date?.slice(0, 10).split("-").reverse().join("/");
+  return (
+    <p className="text-xs text-zinc-600">
+      {source.source_url ? (
+        <a href={source.source_url} target="_blank" rel="noreferrer" className="font-medium text-emerald-800 underline">
+          {source.source_title}
+        </a>
+      ) : source.source_title}
+      {date && <span className="ml-2 text-zinc-500">{date}</span>}
+    </p>
+  );
+}
+
+interface SavedIdea extends IdeaSource {
   id: string;
   client_id: string;
   pillar_id: string | null;
@@ -65,6 +88,8 @@ interface SavedIdea {
   team?: "A" | "B";
   workspace_id: string | null;
   content_id: string | null;
+  post_status?: string | null;
+  project_id?: string | null;
   created_at: string;
 }
 
@@ -73,8 +98,10 @@ interface Pillar {
   name: string;
 }
 
-interface BrainstormAiIdea {
+interface BrainstormAiIdea extends IdeaSource {
   id?: string;
+  is_new?: boolean;
+  status?: SavedIdea["status"];
   title: string;
   pillar_id?: string | null;
   editorial_line_id?: string | null;
@@ -302,19 +329,29 @@ function Workspace({ clientId, companyName, projectPost }: {
 }) {
   const params = useSearchParams();
   const router = useRouter();
-  const workspaceId = params.get("workspaceId");
-  const contentId = projectPost ? null : params.get("contentId");
-  const projectPostId = projectPost?.id;
-
-  // Sequência Criativa de 6 Passos: "strategy" | "brainstorm" | "headlines" | "content" | "imagePrompt" | "schedule"
   const tabParam = params.get("tab");
-  const [activeTab, setActiveTab] = useState<"strategy" | "brainstorm" | "headlines" | "content" | "imagePrompt" | "schedule">(
-    tabParam === "strategy"
-      ? "strategy"
-      : workspaceId || contentId
-      ? "headlines"
-      : "brainstorm"
-  );
+  const [linkedProjectPostId, setLinkedProjectPostId] = useState<string | null>(null);
+  const productionTab = tabParam === "headlines" || tabParam === "content" || tabParam === "imagePrompt" || tabParam === "schedule" ? tabParam : null;
+  const workspaceId = params.get("workspaceId") || (productionTab ? projectPost?.workspaceId : null);
+  const contentId = projectPost ? (productionTab && (projectPost.hasIdea || linkedProjectPostId === projectPost.id) ? projectPost.id : null) : params.get("contentId");
+  const projectPostId = projectPost?.id;
+  const activeTab = productionTab || (tabParam === "strategy" || tabParam === "brainstorm" ? tabParam :
+    workspaceId || contentId ? "headlines" : "brainstorm");
+  const setActiveTab = (tab: typeof activeTab) => {
+    const next = new URLSearchParams(params.toString());
+    next.set("tab", tab);
+    if (workspaceId) next.set("workspaceId", workspaceId);
+    router.replace("?" + next, { scroll: false });
+  };
+  const [availablePosts, setAvailablePosts] = useState<PlannedProjectPost[]>([]);
+  const [weeklyReview, setWeeklyReview] = useState<{
+    recommendations: { ideaId: string; postId: string }[];
+    tokens: number | null;
+    adopted: number;
+    tokensPerAdopted: number | null;
+  } | null>(null);
+  const [refreshingReview, setRefreshingReview] = useState(false);
+  const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" }).format(new Date());
 
   // Times A e B no Brainstorm e dados do fluxo de criação
   const [brainstormTeam, setBrainstormTeam] = useState<"BOTH" | "A" | "B">("BOTH");
@@ -335,6 +372,8 @@ function Workspace({ clientId, companyName, projectPost }: {
   const [selectedPillarId, setSelectedPillarId] = useState<string>("");
   const [selectedLineId, setSelectedLineId] = useState<string>("");
   const [brainstormDirection, setBrainstormDirection] = useState("");
+  const [brainstormMode, setBrainstormMode] = useState<BrainstormMode>("PILLARS");
+  const [brainstormView, setBrainstormView] = useState<"discover" | "bank" | "rejected">("discover");
   const [brainstormFormat, setBrainstormFormat] = useState("Todos");
   const [aiGeneratedIdeas, setAiGeneratedIdeas] = useState<BrainstormAiIdea[]>([]);
   const [generatingIdeas, setGeneratingIdeas] = useState(false);
@@ -347,6 +386,7 @@ function Workspace({ clientId, companyName, projectPost }: {
   const [manualGoal, setManualGoal] = useState("");
   const [manualRationale, setManualRationale] = useState("");
   const [convertingIdeaId, setConvertingIdeaId] = useState<string | null>(null);
+  const convertingIdea = useRef(false);
 
   // Filtros de exibição do mural
   const [filterPillar, setFilterPillar] = useState<string>("ALL");
@@ -390,6 +430,7 @@ function Workspace({ clientId, companyName, projectPost }: {
       setEditorialLines(d.lines || []);
       setSavedIdeas(d.ideas || []);
       setRejectedIdeas(d.rejectedIdeas || []);
+      setWeeklyReview(d.weeklyReview || null);
     } catch (e: unknown) {
       const err = e as Error;
       setError(err.message || "Falha ao carregar brainstorm.");
@@ -398,16 +439,27 @@ function Workspace({ clientId, companyName, projectPost }: {
     }
   };
 
+  const refreshWeeklyReview = async () => {
+    setRefreshingReview(true);
+    try {
+      const response = await fetch("/api/headlines/brainstorm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "REFRESH_WEEKLY_REVIEW", clientId }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Não foi possível atualizar a curadoria.");
+      setWeeklyReview(result.weeklyReview);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Não foi possível atualizar a curadoria.");
+    } finally {
+      setRefreshingReview(false);
+    }
+  };
+
   useEffect(() => {
     loadBrainstormData();
   }, [clientId]);
-
-  // Se houver workspaceId na URL, troca automaticamente para a aba headlines
-  useEffect(() => {
-    if (workspaceId || contentId) {
-      setActiveTab("headlines");
-    }
-  }, [workspaceId, contentId]);
 
   // Carrega serviços
   useEffect(() => {
@@ -500,7 +552,12 @@ function Workspace({ clientId, companyName, projectPost }: {
     let alive = true;
     api<{ id: string }>("", { action: "CREATE", clientId, contentId })
       .then((v) => {
-        if (alive) router.replace("/prompt-creator/headlines?workspaceId=" + v.id);
+        if (alive) {
+          const next = new URLSearchParams({ workspaceId: v.id });
+          if (projectPostId) next.set("projectPostId", projectPostId);
+          if (productionTab) next.set("tab", productionTab);
+          router.replace("/prompt-creator/headlines?" + next, { scroll: false });
+        }
       })
       .catch((e) => {
         if (alive) setError(e.message);
@@ -508,7 +565,7 @@ function Workspace({ clientId, companyName, projectPost }: {
     return () => {
       alive = false;
     };
-  }, [contentId, workspaceId, clientId, router]);
+  }, [contentId, workspaceId, clientId, projectPostId, productionTab, router]);
 
   useEffect(() => {
     let alive = true;
@@ -664,17 +721,24 @@ function Workspace({ clientId, companyName, projectPost }: {
         body: JSON.stringify({
           action: "GENERATE",
           clientId,
+          mode: brainstormMode,
           pillarId: selectedPillarId || undefined,
           editorialLineId: selectedLineId || undefined,
           direction: brainstormDirection.trim() || undefined,
           count: 5,
           team: brainstormTeam,
+          format: brainstormFormat === "Todos" ? undefined : brainstormFormat,
         }),
       });
       const d = await res.json();
       if (!res.ok || !d.success) throw new Error(d.error || "Erro ao gerar ideias de conteúdo.");
       setAiGeneratedIdeas(d.ideas || []);
-      setMessage("5 ideias de conteúdo geradas! Você pode Usar Agora, Guardar para a Próxima ou Rejeitar.");
+      setMessage(d.checking ? "Já existe uma consulta em andamento. Consulte novamente em instantes."
+        : d.refreshFailed ? "A atualização falhou. Confira as ideias já salvas."
+        : d.newCount ? `${d.newCount} ideias novas salvas. As ideias anteriores continuam disponíveis.`
+        : d.ideas?.length ? "Sem novas ideias nesta consulta. Veja as sugestões já salvas."
+        : "Nenhuma sugestão disponível para esta consulta.");
+      if (d.newCount) await loadBrainstormData();
     } catch (e: unknown) {
       const err = e as Error;
       setError(err.message || "Falha na geração de ideias.");
@@ -684,7 +748,10 @@ function Workspace({ clientId, companyName, projectPost }: {
   }
 
   // 2. Ação A: Usar essa ideia (Avança imediatamente para Headlines)
-  async function handleUseIdeaNow(idea: BrainstormAiIdea | SavedIdea) {
+  async function handleUseIdeaNow(idea: BrainstormAiIdea | SavedIdea, linkOnly = false, suggestedPostId?: string) {
+    if (convertingIdea.current) return;
+    convertingIdea.current = true;
+    setConvertingIdeaId(idea.id || null);
     setError("");
     setMessage("");
     try {
@@ -692,9 +759,9 @@ function Workspace({ clientId, companyName, projectPost }: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "USE_NOW",
+          action: linkOnly ? "LINK_TO_POST" : "USE_NOW",
           clientId,
-          projectPostId: projectPost?.id,
+          projectPostId: suggestedPostId || projectPost?.id || ("project_id" in idea && idea.project_id ? idea.content_id : undefined),
           ideaId: idea.id || undefined,
           title: idea.title,
           pillarId: idea.pillar_id || null,
@@ -714,16 +781,26 @@ function Workspace({ clientId, companyName, projectPost }: {
       
       // Remove da lista temporária de sugestões
       setAiGeneratedIdeas((prev) => prev.filter((i) => i.title !== idea.title));
-      setActiveIdeaForHeadline(idea as SavedIdea);
-      setActiveTab("headlines");
+      if (linkOnly) {
+        setLinkedProjectPostId(d.contentId);
+        setAvailablePosts(posts => posts.filter(post => post.id !== d.contentId));
+        setBrainstormView("bank");
+        await loadBrainstormData();
+        setMessage("Ideia vinculada ao post planejado.");
+        return;
+      }
+      setActiveIdeaForHeadline({ ...idea, content_id: d.contentId } as SavedIdea);
       const destination = new URLSearchParams({ workspaceId: d.workspaceId });
-      if (projectPost) destination.set("projectPostId", projectPost.id);
+      if (projectPost || ("project_id" in idea && idea.project_id)) destination.set("projectPostId", d.contentId);
       router.push(`/prompt-creator/headlines?${destination}`);
       setMessage(`Ideia selecionada! Configure e gere as headlines no Passo 3.`);
       await loadBrainstormData();
     } catch (e: unknown) {
       const err = e as Error;
       setError(err.message || "Erro ao avançar para headlines.");
+    } finally {
+      convertingIdea.current = false;
+      setConvertingIdeaId(null);
     }
   }
 
@@ -736,6 +813,7 @@ function Workspace({ clientId, companyName, projectPost }: {
         body: JSON.stringify({
           action: "SAVE_FOR_LATER",
           clientId,
+          ideaId: idea.id || undefined,
           title: idea.title,
           pillarId: idea.pillar_id || null,
           editorialLineId: idea.editorial_line_id || null,
@@ -882,6 +960,8 @@ function Workspace({ clientId, companyName, projectPost }: {
   const preview = context ? makeHeadlinePrompt(brief, context) : "Carregando o contexto do cliente...";
 
   const targetContentId = data?.workspace?.content_id || contentId || activeIdeaForHeadline?.content_id || null;
+  const currentIdea = activeIdeaForHeadline?.content_id === targetContentId ? activeIdeaForHeadline : null;
+  const currentContent = activeContentData?.contentId === targetContentId ? activeContentData : null;
 
   const select = (key: keyof HeadlineBrief, label: string, options: { value: string; label: string }[]) => (
     <label className="text-xs font-semibold text-zinc-700">
@@ -925,11 +1005,38 @@ function Workspace({ clientId, companyName, projectPost }: {
     if (filterTeam !== "ALL" && idea.team !== filterTeam) return false;
     return true;
   });
+  const renderSuggestedPosts = (idea: BrainstormAiIdea | SavedIdea) => {
+    if (!idea.id || ("content_id" in idea && idea.content_id)) return null;
+    const suggestions = suggestPostFits(availablePosts, idea, today, projectPost?.projectId);
+    if (!suggestions.length) return null;
+    return (
+      <details className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs">
+        <summary className="cursor-pointer font-semibold text-zinc-800">Encaixes sugeridos</summary>
+        <ul className="mt-2 space-y-2">
+          {suggestions.map(({ post, sameFormat }) => (
+            <li key={post.id} className="flex flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0">
+                <span className="block font-medium text-zinc-900">{post.projectName} · {post.title}</span>
+                <span className="text-zinc-600">
+                  {post.scheduledDate?.split("-").reverse().join("/")}
+                  {sameFormat ? " · Mesmo formato" : ` · Sugestão em ${idea.format || post.format || "formato aberto"}`}
+                </span>
+              </span>
+              <button type="button" disabled={convertingIdeaId !== null} className={button + " px-2 py-1"}
+                onClick={() => handleUseIdeaNow(idea, true, post.id)}>Vincular</button>
+            </li>
+          ))}
+        </ul>
+      </details>
+    );
+  };
+  const destinationReady = !!data && data.workspace.id === workspaceId;
+  const needsProductionWorkspace = activeTab === "content" || activeTab === "imagePrompt" || activeTab === "schedule";
 
   return (
     <main className="mx-auto max-w-[1800px] space-y-6 p-4 md:p-8 text-zinc-900">
       <section className="space-y-2 rounded-xl border border-zinc-200 bg-white p-4">
-        <ProjectPostPicker clientId={clientId} selected={projectPost} />
+        <ProjectPostPicker clientId={clientId} selected={projectPost} onPostsLoaded={setAvailablePosts} />
         {projectPost && <div className="flex flex-wrap gap-4 text-sm">
           <Link className="text-emerald-700 underline" href={`/projects/${projectPost.projectId}`}>{projectPost.projectName}</Link>
           {projectPost.workspaceId && <Link className="text-emerald-700 underline"
@@ -1044,6 +1151,7 @@ function Workspace({ clientId, companyName, projectPost }: {
             </button>
           </div>
 
+          {destinationReady && targetContentId && <Link className={button} href={`/prompt-creator?contentId=${targetContentId}`}>Briefing da peça</Link>}
           <Link className={button} href="/prompt-creator?tab=EDITORIAL" title="Gerenciar Pilares e Linha Editorial">
             <BookOpen size={16} />
             Linha Editorial
@@ -1087,8 +1195,17 @@ function Workspace({ clientId, companyName, projectPost }: {
       {/* ========================================================================= */}
       {activeTab === "brainstorm" && (
         <div className="space-y-8">
+          <nav aria-label="Brainstorm" className="flex flex-wrap gap-2">
+            {([["discover", "Descobrir"], ["bank", "Banco de ideias"], ["rejected", "Rejeitadas"]] as const).map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={brainstormView === value}
+                className={brainstormView === value ? buttonPrimary : button}
+                onClick={() => { setBrainstormView(value); if (value === "rejected") setShowBlacklist(true); }}>
+                {label}
+              </button>
+            ))}
+          </nav>
           {/* SEÇÃO 1: VISÃO DE PILARES E ASSUNTOS DO CLIENTE */}
-          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">
+          <section hidden={brainstormView !== "discover"} className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold flex items-center gap-2 text-zinc-950">
@@ -1207,7 +1324,7 @@ function Workspace({ clientId, companyName, projectPost }: {
           </section>
 
           {/* SEÇÃO 2: GERADOR DE IDEIAS COM IA */}
-          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">
+          <section hidden={brainstormView !== "discover"} className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
                 <h2 className="text-lg font-bold flex items-center gap-2 text-zinc-950">
@@ -1220,6 +1337,17 @@ function Workspace({ clientId, companyName, projectPost }: {
               </div>
             </div>
 
+            <div role="group" aria-label="Fonte das ideias" className="flex flex-wrap gap-2">
+              {(Object.keys(brainstormModes) as BrainstormMode[]).map(value => (
+                <button key={value} type="button" disabled={generatingIdeas} aria-pressed={brainstormMode === value}
+                  className={brainstormMode === value ? buttonPrimary : button}
+                  onClick={() => {
+                    setBrainstormMode(value);
+                    setAiGeneratedIdeas([]);
+                    setMessage("");
+                  }}>{brainstormModes[value]}</button>
+              ))}
+            </div>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="md:col-span-2 space-y-3">
                 <div>
@@ -1228,6 +1356,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                   </label>
                   <textarea
                     rows={2}
+                    maxLength={1000}
                     className={control}
                     value={brainstormDirection}
                     onChange={(e) => setBrainstormDirection(e.target.value)}
@@ -1296,7 +1425,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                     className={buttonPrimary + " w-full py-2.5"}
                   >
                     <Sparkles size={16} className={generatingIdeas ? "animate-spin" : ""} />
-                    {generatingIdeas ? "Brainstormando temas..." : "Sugerir 5 Temas com IA"}
+                    {generatingIdeas ? "Consultando ideias..." : "Buscar ideias"}
                   </button>
                 </div>
               </div>
@@ -1308,7 +1437,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
                     <CheckCircle2 size={16} className="text-emerald-600" />
-                    Novas Ideias Sugeridas ({aiGeneratedIdeas.length}):
+                    Ideias da consulta ({aiGeneratedIdeas.length})
                   </h3>
                   <p className="text-xs text-zinc-500">
                     Escolha: <strong>Usar agora</strong> (vai para headlines), <strong>Guardar para a próxima</strong> (salva no mural) ou <strong>Rejeitar</strong> (lista negra).
@@ -1316,10 +1445,13 @@ function Workspace({ clientId, companyName, projectPost }: {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {aiGeneratedIdeas.map((idea, idx) => (
-                    <article key={idx} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-3 flex flex-col justify-between shadow-2xs">
+                  {aiGeneratedIdeas.map((idea) => (
+                    <article key={idea.id || idea.title} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-3 flex flex-col justify-between shadow-2xs">
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="rounded-md bg-white px-2 py-0.5 text-[10px] font-semibold text-zinc-700">
+                            {idea.is_new ? "Nova" : "Já salva"}
+                          </span>
                           {idea.team && (
                             <span
                               className={
@@ -1331,7 +1463,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                             </span>
                           )}
                           <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                            {idea.pillar_name}
+                            {idea.pillar_name || "Geral"}
                           </span>
                           <span className="rounded-md bg-zinc-200 px-2 py-0.5 text-[10px] font-medium text-zinc-700">
                             {idea.theme_name}
@@ -1341,6 +1473,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                           </span>
                         </div>
                         <h4 className="text-sm font-bold text-zinc-950 leading-snug">{idea.title}</h4>
+                        <BrainstormIdeaSource source={idea} />
                         <p className="text-xs text-zinc-600">
                           <strong className="text-zinc-800">Ângulo:</strong> {idea.angle}
                         </p>
@@ -1361,16 +1494,20 @@ function Workspace({ clientId, companyName, projectPost }: {
                           <Sparkles size={14} />
                           Usar essa ideia (Avançar para Headlines)
                         </button>
+                        {renderSuggestedPosts(idea)}
+                        {projectPost && <button type="button" className={button + " w-full"} disabled={convertingIdeaId === idea.id}
+                          onClick={() => handleUseIdeaNow(idea, true)}>Vincular ao post planejado</button>}
 
                         <div className="flex gap-2">
                           {/* 2. DEIXAR PARA A PRÓXIMA -> FICA SALVA NO SISTEMA */}
                           <button
                             onClick={() => handleSaveForLater(idea)}
+                            disabled={idea.status === "SAVED_FOR_LATER"}
                             className={button + " text-xs flex-1 py-1.5 text-zinc-700"}
                             title="Guardar esta ideia no mural para produzir no futuro"
                           >
                             <Bookmark size={14} className="text-emerald-700" />
-                            Guardar p/ próxima
+                            {idea.status === "SAVED_FOR_LATER" ? "Guardada" : "Guardar p/ próxima"}
                           </button>
 
                           {/* 3. REJEITAR -> VAI PARA A LISTA NEGRA */}
@@ -1392,7 +1529,33 @@ function Workspace({ clientId, companyName, projectPost }: {
           </section>
 
           {/* SEÇÃO 3: MURAL DE TEMAS & IDEIAS DOS PRÓXIMOS CONTEÚDOS */}
-          <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-5">
+          <section hidden={brainstormView !== "bank"} className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-5">
+            <aside aria-label="Curadoria semanal" className="space-y-3 rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-zinc-900">Curadoria semanal</h3>
+                <button type="button" className={button} disabled={refreshingReview} onClick={refreshWeeklyReview}>
+                  {refreshingReview ? "Atualizando…" : "Atualizar curadoria"}
+                </button>
+              </div>
+              <p className="text-xs text-zinc-600">
+                {weeklyReview?.tokensPerAdopted == null ? "Ainda sem dados de tokens por pauta aproveitada." :
+                  `${weeklyReview.tokensPerAdopted.toLocaleString("pt-BR")} tokens por pauta aproveitada em ${weeklyReview.adopted} vínculos medidos.`}
+              </p>
+              {(() => {
+                const suggestions = (weeklyReview?.recommendations || []).flatMap(({ ideaId, postId }) => {
+                  const idea = savedIdeas.find(item => item.id === ideaId && !item.content_id);
+                  const post = availablePosts.find(item => item.id === postId && item.availableForIdea);
+                  return idea && post ? [{ idea, post }] : [];
+                });
+                return suggestions.length ? <ul className="space-y-2">{suggestions.map(({ idea, post }) => (
+                  <li key={idea.id} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <div><strong>{idea.title}</strong><p className="text-zinc-600">{post.projectName} · {post.title} · {post.scheduledDate?.split("-").reverse().join("/")}</p></div>
+                    <button type="button" className={button} disabled={convertingIdeaId !== null}
+                      onClick={() => handleUseIdeaNow(idea, true, post.id)}>Vincular</button>
+                  </li>
+                ))}</ul> : <p className="text-xs text-zinc-600">Nenhum encaixe disponível para esta semana.</p>;
+              })()}
+            </aside>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold flex items-center gap-2 text-zinc-950">
@@ -1487,6 +1650,12 @@ function Workspace({ clientId, companyName, projectPost }: {
 
                         {/* TÍTULO / TEMA */}
                         <h3 className="text-base font-bold text-zinc-950 leading-snug">{idea.title}</h3>
+                        <BrainstormIdeaSource source={idea} />
+                        {idea.content_id && <Link className="text-xs font-medium text-emerald-800 underline"
+                          href={`/prompt-creator?contentId=${idea.content_id}`}>Abrir peça vinculada</Link>}
+                        {idea.post_status && <p className="text-xs text-zinc-600">
+                          {({ PLANNED: "Planejado", IN_CREATION: "Em criação", APPROVED: "Aprovado", SCHEDULED: "Agendado", PUBLISHED: "Publicado" } as Record<string, string>)[idea.post_status] || idea.post_status}
+                        </p>}
 
                         {/* ÂNGULO E DETALHES */}
                         <div className="space-y-1 text-xs text-zinc-600 bg-zinc-50 rounded-lg p-2.5">
@@ -1531,6 +1700,9 @@ function Workspace({ clientId, companyName, projectPost }: {
                           <Sparkles size={16} className={isConverting ? "animate-spin" : ""} />
                           {isConverting ? "Preparando headlines..." : "🎯 Usar essa ideia (Criar Headlines)"}
                         </button>
+                        {renderSuggestedPosts(idea)}
+                        {projectPost && !idea.content_id && <button type="button" className={button + " w-full"} disabled={isConverting}
+                          onClick={() => handleUseIdeaNow(idea, true)}>Vincular ao post planejado</button>}
 
                         <div className="flex items-center justify-between text-xs pt-1">
                           <button
@@ -1559,7 +1731,7 @@ function Workspace({ clientId, companyName, projectPost }: {
           </section>
 
           {/* SEÇÃO 4: LISTA NEGRA DE BRAINSTORM (IDEIAS REJEITADAS & APRENDIZADO DA IA) */}
-          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
+          <section hidden={brainstormView !== "rejected"} className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
             <button
               onClick={() => setShowBlacklist((v) => !v)}
               className="w-full flex items-center justify-between text-left cursor-pointer"
@@ -2125,15 +2297,20 @@ function Workspace({ clientId, companyName, projectPost }: {
       {/* ========================================================================= */}
       {/* ABA 4: REDAÇÃO COMPLETA DO CONTEÚDO (PASSO 4 DA SEQUÊNCIA)                */}
       {/* ========================================================================= */}
-      {activeTab === "content" && (
+      {needsProductionWorkspace && !destinationReady && (
+        <p role="status" className="rounded-xl border border-zinc-200 bg-white p-4 text-sm">
+          {workspaceId || contentId ? "Carregando a peça…" : "Selecione uma pauta no Brainstorm para abrir esta etapa."}
+        </p>
+      )}
+      {activeTab === "content" && destinationReady && (
         <ContentWriterPanel
           clientId={clientId}
           companyName={companyName}
           contentId={targetContentId}
-          headline={data?.workspace?.selected_headline || activeIdeaForHeadline?.title || ""}
+          headline={data?.workspace?.selected_headline || currentIdea?.title || ""}
           subheadline={data?.workspace?.selected_subheadline || ""}
-          angle={activeIdeaForHeadline?.angle || ""}
-          initialFormat={activeIdeaForHeadline?.format || brief.format || "Reels"}
+          angle={currentIdea?.angle || ""}
+          initialFormat={currentIdea?.format || brief.format || "Reels"}
           onAdvanceToImagePrompt={(contentData) => {
             setActiveContentData(contentData);
             setActiveTab("imagePrompt");
@@ -2145,15 +2322,15 @@ function Workspace({ clientId, companyName, projectPost }: {
       {/* ========================================================================= */}
       {/* ABA 5: PROMPT DE IMAGEM & UPLOAD DE ARTE (PASSO 5 DA SEQUÊNCIA)           */}
       {/* ========================================================================= */}
-      {activeTab === "imagePrompt" && (
+      {activeTab === "imagePrompt" && destinationReady && (
         <ImagePromptPanel
           clientId={clientId}
           companyName={companyName}
-          contentId={activeContentData?.contentId || targetContentId}
-          headline={data?.workspace?.selected_headline || activeIdeaForHeadline?.title || ""}
+          contentId={targetContentId}
+          headline={data?.workspace?.selected_headline || currentIdea?.title || ""}
           subheadline={data?.workspace?.selected_subheadline || ""}
-          format={activeContentData?.format || activeIdeaForHeadline?.format || brief.format || "Reels"}
-          textContent={activeContentData?.text || ""}
+          format={currentContent?.format || currentIdea?.format || brief.format || "Reels"}
+          textContent={currentContent?.text || ""}
           onAdvanceToSchedule={() => setActiveTab("schedule")}
           onBackToContent={() => setActiveTab("content")}
         />
@@ -2162,16 +2339,18 @@ function Workspace({ clientId, companyName, projectPost }: {
       {/* ========================================================================= */}
       {/* ABA 6: CALENDÁRIO & AGENDAMENTO (PASSO 6 DA SEQUÊNCIA)                     */}
       {/* ========================================================================= */}
-      {activeTab === "schedule" && (
+      {activeTab === "schedule" && destinationReady && (
         <SchedulePanel
           clientId={clientId}
           companyName={companyName}
-          contentId={activeContentData?.contentId || targetContentId}
-          headline={data?.workspace?.selected_headline || activeIdeaForHeadline?.title || "Conteúdo"}
-          format={activeContentData?.format || activeIdeaForHeadline?.format || brief.format || "Reels"}
+          contentId={targetContentId}
+          headline={data?.workspace?.selected_headline || currentIdea?.title || "Conteúdo"}
+          format={currentContent?.format || currentIdea?.format || brief.format || "Reels"}
           onFinish={() => {
             setMessage("Conteúdo agendado com sucesso no Calendário!");
-            router.push("/prompt-creator?tab=CALENDAR");
+            const next = new URLSearchParams({ tab: "CALENDAR" });
+            if (targetContentId) next.set("contentId", targetContentId);
+            router.push("/prompt-creator?" + next);
           }}
           onBackToImagePrompt={() => setActiveTab("imagePrompt")}
         />

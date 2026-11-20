@@ -133,7 +133,13 @@ function ContentStudioPageContent() {
   const { selectedCompany } = useCompany();
   const [activeTab, setActiveTabState] = useState<"STUDIO" | "CALENDAR" | "EDITORIAL">("STUDIO");
   useEffect(() => {const tab=searchParams.get("tab");setActiveTabState(tab==="CALENDAR"||tab==="EDITORIAL"?tab:"STUDIO");},[searchParams]);
-  const setActiveTab = (tab:"STUDIO"|"CALENDAR"|"EDITORIAL") => {setActiveTabState(tab);router.replace("/prompt-creator"+(tab==="STUDIO"?"":"?tab="+tab),{scroll:false});};
+  const setActiveTab = (tab:"STUDIO"|"CALENDAR"|"EDITORIAL") => {
+    setActiveTabState(tab);
+    const next = new URLSearchParams(searchParams.toString());
+    if (tab === "STUDIO") next.delete("tab");
+    else next.set("tab", tab);
+    router.replace(next.size ? "/prompt-creator?" + next : "/prompt-creator", { scroll: false });
+  };
   const [contentMode, setContentMode] = useState<"SOCIAL_MEDIA" | "ADS">("SOCIAL_MEDIA");
 
   // Dados carregados do sistema
@@ -157,13 +163,21 @@ function ContentStudioPageContent() {
   const [selectedThemeId,setSelectedThemeId]=useState("");
   const [generatingIdea,setGeneratingIdea]=useState(false);
   const [activeCalendarId,setActiveCalendarId]=useState("");
+  const previousRequestedContentId = useRef("");
+  const [openPiece, setOpenPiece] = useState<{ id: string; title: string; status: string; project_name?: string; project_id?: string; scheduled_date?: string } | null>(null);
+  const [savingPiece, setSavingPiece] = useState(false);
+  const pieceSaveLock = useRef(false);
+  const pieceVersion = useRef<string | null>(null);
+  const draftId = useRef<string | null>(null);
+  const requestedContentId = searchParams.get("contentId") || "";
+  const generationScope = useRef("");
+  const scopeKey = `${selectedClientId}:${requestedContentId}:${activeCalendarId}`;
+  useEffect(() => { generationScope.current = scopeKey; }, [scopeKey]);
   const importedContent=useRef("");
   const [piecePain,setPiecePain]=useState("");
   const [contentFunnel,setContentFunnel]=useState("");
   const [journeyStage,setJourneyStage]=useState("");
   const [pieceGoal,setPieceGoal]=useState("");
-  const currentContentCompany=useRef(selectedClientId);
-  useEffect(() => { currentContentCompany.current=selectedClientId; }, [selectedClientId]);
   const [selectedAudience, setSelectedAudience] = useState<string>("");
   const [selectedTone, setSelectedTone] = useState<string>("");
   const [customTone, setCustomTone] = useState<string>("");
@@ -268,6 +282,8 @@ function ContentStudioPageContent() {
     }
     setSelectedTone("");setSelectedCta("");setCustomTone("");setCustomCta("");
     setChosenHeadline("");setSelectedSubheadline("");setHeadlineBriefContext(null);setIdea("");setSelectedThemeId("");setAiOutput("");setActiveCalendarId("");importedContent.current="";setPiecePain("");setContentFunnel("");setJourneyStage("");setPieceGoal("");
+    pieceVersion.current = null;
+    draftId.current = null;
     loadClientData(selectedClientId);
   }, [selectedClientId]);
 
@@ -446,18 +462,35 @@ function ContentStudioPageContent() {
   useEffect(()=>{
     const contentId=searchParams.get("contentId");if(!contentId||loadingData||importedContent.current===contentId)return;
     const controller=new AbortController();
-    fetch("/api/content-studio/posts/"+contentId,{signal:controller.signal}).then(async response=>{const result=await response.json();if(!response.ok||!result.success)throw new Error(result.error||"Erro ao abrir pauta");const item=result.data;if(item.client_id!==selectedClientId)throw new Error("Esta pauta pertence a outra empresa. Selecione-a no cabeçalho.");const parsed=contentBriefSchema.safeParse(item.editorial_brief);if(parsed.success){const brief=parsed.data;setSelectedThemeId(brief.themeId);setPieceSpeaker(brief.speaker);setPieceVoice(brief.voice);setSelectedAudience(brief.audience);setContentFunnel(brief.funnel);setJourneyStage(brief.journey);setPieceGoal(brief.goal);setPiecePain(brief.pain);setCustomTone(brief.tone);setCustomCta(brief.cta);}const shared=item.headline_brief;if(shared){setSelectedThemeId(shared.themeId||'');setPieceSpeaker(shared.speaker||'');setPieceVoice(shared.voice||'');setSelectedAudience(shared.audience||'');setContentFunnel(shared.funnel||'');setJourneyStage(shared.journey||'');setPieceGoal(shared.goal||'');setPiecePain(shared.pain||'NOT_APPLICABLE');setCustomTone(shared.tone||'');setCustomCta(shared.cta||'');}setChosenHeadline(item.selected_headline || "");setSelectedSubheadline(item.selected_subheadline || "");setHeadlineBriefContext(item.headline_brief || null);setIdea(item.central_idea);setScheduledDate(item.scheduled_date?.slice(0,10)||scheduledDate);setScheduledTime(item.scheduled_time?.slice(0,5)||"18:00");const formats:Record<string,string>={"Reels":"REELS","Carrossel":"CAROUSEL","Post estático":item.selected_headline?"CAPTION":"HEADLINES","Stories":item.selected_headline?"CAPTION":"HEADLINES"};setFormat(formats[item.format]||item.format);setAiOutput(item.format==="Reels" ? item.selected_reels || "" : item.format==="Carrossel" ? item.selected_carousel || "" : item.selected_caption || "");setActiveCalendarId(item.id);importedContent.current=contentId;}).catch(error=>{if(error.name!=="AbortError")setNotification({message:error.message,type:"error"});});return()=>controller.abort();
+    fetch("/api/content-studio/posts/"+contentId,{signal:controller.signal}).then(async response=>{const result=await response.json();if(!response.ok||!result.success)throw new Error(result.error||"Erro ao abrir pauta");const item=result.data;if(item.client_id!==selectedClientId)throw new Error("Esta pauta pertence a outra empresa. Selecione-a no cabeçalho.");const parsed=contentBriefSchema.safeParse(item.editorial_brief);if(parsed.success){const brief=parsed.data;setSelectedThemeId(brief.themeId);setPieceSpeaker(brief.speaker);setPieceVoice(brief.voice);setSelectedAudience(brief.audience);setContentFunnel(brief.funnel);setJourneyStage(brief.journey);setPieceGoal(brief.goal);setPiecePain(brief.pain);setCustomTone(brief.tone);setCustomCta(brief.cta);}const shared=item.headline_brief;if(shared){setSelectedThemeId(shared.themeId||'');setPieceSpeaker(shared.speaker||'');setPieceVoice(shared.voice||'');setSelectedAudience(shared.audience||'');setContentFunnel(shared.funnel||'');setJourneyStage(shared.journey||'');setPieceGoal(shared.goal||'');setPiecePain(shared.pain||'NOT_APPLICABLE');setCustomTone(shared.tone||'');setCustomCta(shared.cta||'');}setChosenHeadline(item.selected_headline || "");setSelectedSubheadline(item.selected_subheadline || "");setHeadlineBriefContext(item.headline_brief || null);setIdea(item.central_idea);setScheduledDate(item.scheduled_date?.slice(0,10)||scheduledDate);setScheduledTime(item.scheduled_time?.slice(0,5)||"18:00");const formats:Record<string,string>={"Reels":"REELS","Carrossel":"CAROUSEL","Post estático":item.selected_headline?"CAPTION":"HEADLINES","Stories":item.selected_headline?"CAPTION":"HEADLINES"};setFormat(formats[item.format]||item.format);setAiOutput(item.format==="Reels" ? item.selected_reels || "" : item.format==="Carrossel" ? item.selected_carousel || "" : item.selected_caption || "");pieceVersion.current=item.edit_version;setOpenPiece(item);setActiveCalendarId(item.id);importedContent.current=contentId;}).catch(error=>{if(error.name!=="AbortError")setNotification({message:error.message,type:"error"});});return()=>controller.abort();
   },[searchParams,selectedClientId,loadingData]);
   const requireBrief=()=>{if(loadingData||!briefReady){setNotification({message:loadingData?"Aguarde o contexto da empresa carregar.":"Preencha: "+missingBrief.join(", ")+".",type:"error"});return false;}return true;};
+  useEffect(() => {
+    if (!requestedContentId && previousRequestedContentId.current) {
+      importedContent.current = "";
+      pieceVersion.current = null;
+      draftId.current = null;
+      setActiveCalendarId("");
+      setOpenPiece(null);
+      setAiOutput("");
+      setIdea("");
+      setChosenHeadline("");
+      setSelectedSubheadline("");
+      setHeadlineBriefContext(null);
+    }
+    previousRequestedContentId.current = requestedContentId;
+  }, [requestedContentId]);
 
   const generateCentralIdea = async () => {
     if(!requireBrief())return;
-    const scope=selectedClientId;setGeneratingIdea(true);setNotification(null);
-    try{const response=await fetch("/api/content-studio/ideas/suggest",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId:scope,count:1,editorialBrief,editorialLineId:selectedThemeId||undefined,currentIdea:idea,audience:selectedAudience,format})});const data=await response.json();if(scope!==currentContentCompany.current)return;if(!response.ok||!data.success||data.source!=="OPENROUTER")throw new Error(data.error||"A IA não confirmou a ideia.");setIdea(data.ideas[0]);}catch(error){if(scope===currentContentCompany.current)setNotification({message:error instanceof Error?error.message:"Erro ao gerar ideia",type:"error"});}finally{setGeneratingIdea(false);}
+    if (requestedContentId && requestedContentId !== activeCalendarId) return;
+    const scope=scopeKey;setGeneratingIdea(true);setNotification(null);
+    try{const response=await fetch("/api/content-studio/ideas/suggest",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId:selectedClientId,count:1,editorialBrief,editorialLineId:selectedThemeId||undefined,currentIdea:idea,audience:selectedAudience,format})});const data=await response.json();if(scope!==generationScope.current)return;if(!response.ok||!data.success||data.source!=="OPENROUTER")throw new Error(data.error||"A IA não confirmou a ideia.");setIdea(data.ideas[0]);}catch(error){if(scope===generationScope.current)setNotification({message:error instanceof Error?error.message:"Erro ao gerar ideia",type:"error"});}finally{setGeneratingIdea(false);}
   };
 
   const handleSuggestIdeasWithAi = async () => {
-    if (!selectedClientId || !requireBrief()) return;
+    if (!selectedClientId || !requireBrief() || (requestedContentId && requestedContentId !== activeCalendarId)) return;
+    const scope = scopeKey;
     setLoadingSuggestedIdeas(true);
     setAiSuggestedIdeas([]);
     setNotification(null);
@@ -468,14 +501,17 @@ function ContentStudioPageContent() {
         body: JSON.stringify({ clientId: selectedClientId, editorialBrief }),
       });
       const data = await res.json();
+      if (scope !== generationScope.current) return;
       if (!res.ok || data.success !== true || data.source !== "OPENROUTER") throw new Error(data.error || "A geração de ideias não foi confirmada.");
       if (data.ideas && data.ideas.length > 0) {
         setAiSuggestedIdeas(data.ideas);
-        setNotification({ message: "5 ideias estratégicas geradas pela IA!", type: "success" });
+        setNotification({ message: `${data.ideas.length} sugestões geradas pela IA.`, type: "success" });
       }
     } catch (e) {
       console.error(e);
-      setNotification({ message: e instanceof Error ? e.message : "Não foi possível gerar ideias pela IA.", type: "error" });
+      if (scope === generationScope.current) {
+        setNotification({ message: e instanceof Error ? e.message : "Não foi possível gerar ideias pela IA.", type: "error" });
+      }
     } finally {
       setLoadingSuggestedIdeas(false);
     }
@@ -566,7 +602,8 @@ function ContentStudioPageContent() {
   const handleGenerateAi = async (overrideFormat?: string, overridePayload?: Record<string, unknown>) => {
     if(!requireBrief())return;
     if(loadingData){setNotification({message:"Aguarde o contexto do cliente terminar de carregar.",type:"info"});return;}
-    const generatedFor=selectedClientId;
+    if (requestedContentId && requestedContentId !== activeCalendarId) return;
+    const generatedFor = scopeKey;
     setAiLoading(true);
     setAiOutput("");
     setNotification(null);
@@ -630,7 +667,7 @@ function ContentStudioPageContent() {
         throw new Error(data.error || "A geração pela IA não foi confirmada.");
       }
 
-      if(generatedFor!==currentContentCompany.current)return;
+      if(generatedFor!==generationScope.current)return;
       setAiOutput(data.result || "");
       if (data.notice) {
         setNotification({ message: data.notice, type: "info" });
@@ -639,7 +676,7 @@ function ContentStudioPageContent() {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Falha na chamada de IA.";
-      if(generatedFor===currentContentCompany.current)setNotification({ message: msg, type: "error" });
+      if(generatedFor===generationScope.current)setNotification({ message: msg, type: "error" });
     } finally {
       setAiLoading(false);
     }
@@ -671,12 +708,27 @@ function ContentStudioPageContent() {
   };
 
   // Salvar no Calendário do Cliente
+  const acceptSavedPiece = (item: NonNullable<typeof openPiece> & { edit_version?: string }, originalScope: string) => {
+    if (generationScope.current !== originalScope) return;
+    pieceVersion.current = item.edit_version ?? null;
+    importedContent.current = item.id;
+    setActiveCalendarId(item.id);
+    setOpenPiece(previous => previous?.id === item.id ? { ...previous, ...item } : item);
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("contentId", item.id);
+    router.replace("/prompt-creator?" + next, { scroll: false });
+  };
+
   const handleSaveToCalendar = async () => {
     if (!selectedClientId) {
       alert("Selecione um cliente primeiro.");
       return;
     }
 
+    if (pieceSaveLock.current || (requestedContentId && requestedContentId !== activeCalendarId)) return;
+    pieceSaveLock.current = true;
+    if (!activeCalendarId) draftId.current ??= crypto.randomUUID();
+    setSavingPiece(true);
     try {
       const clientName = selectedCompany.name;
       const res = await fetch(activeCalendarId ? "/api/content-studio/posts/"+activeCalendarId : "/api/content-studio/calendar", {
@@ -684,12 +736,15 @@ function ContentStudioPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: selectedClientId,
+          editVersion: activeCalendarId ? pieceVersion.current : undefined,
+          draftId: activeCalendarId ? undefined : draftId.current,
           editorialBrief,
           editorialLineId:selectedThemeId,
-          scheduledDate,
-          scheduledTime,
-          format: format === "REELS" ? "Reels" : format === "CAROUSEL" ? "Carrossel" : String(headlineBriefContext?.format || format),
-          status: "IN_CREATION",
+          ...(activeCalendarId ? {} : {
+            scheduledDate, scheduledTime,
+            format: format === "REELS" ? "Reels" : format === "CAROUSEL" ? "Carrossel" : format === "LANDING_PAGE" ? "Landing page" : "Post estático",
+            status: "IN_CREATION",
+          }),
           title: chosenHeadline || idea.slice(0, 80) || `Peça de ${format}`,
           centralIdea: idea,
           targetAudienceName: selectedAudience,
@@ -707,18 +762,23 @@ function ContentStudioPageContent() {
         }),
       });
 
-      if (res.ok) {
+      const result = await res.json();
+      if (generationScope.current !== scopeKey) return;
+      if (res.ok && (result.item || result.data)?.id) {
+        acceptSavedPiece(result.item || result.data, scopeKey);
         setNotification({
           message: `Conteúdo salvo com sucesso no Calendário de ${clientName}!`,
           type: "success",
         });
         loadClientData(selectedClientId);
       } else {
-        const d = await res.json();
-        alert(d.error || "Erro ao salvar no calendário.");
+        setNotification({ message: result.error || "Erro ao salvar no calendário.", type: "error" });
       }
     } catch (e) {
       alert("Erro ao salvar no calendário.");
+    } finally {
+      pieceSaveLock.current = false;
+      setSavingPiece(false);
     }
   };
 
@@ -729,20 +789,29 @@ function ContentStudioPageContent() {
       return;
     }
 
+    if (pieceSaveLock.current || (requestedContentId && requestedContentId !== activeCalendarId)) return;
+    pieceSaveLock.current = true;
+    if (!activeCalendarId) draftId.current ??= crypto.randomUUID();
+    setSavingPiece(true);
     try {
       const res = await fetch("/api/content-studio/posts"+(activeCalendarId?"/"+activeCalendarId:""), {
         method: activeCalendarId?"PUT":"POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: selectedClientId,
+          editVersion: activeCalendarId ? pieceVersion.current : undefined,
+          draftId: activeCalendarId ? undefined : draftId.current,
           editorialBrief,
           title: chosenHeadline || idea.slice(0, 80) || `Peça de ${format}`,
           centralIdea: idea,
-          format: format === "REELS" ? "Reels" : format === "CAROUSEL" ? "Carrossel" : String(headlineBriefContext?.format || format),
-          status: "PLANNED",
-          contentType: contentMode,
-          adStatus: "ACTIVE",
-          postTag: contentMode === "ADS" ? "Campanha Ads" : (format === "CAROUSEL" ? "Carrossel" : format === "REELS" ? "Reels" : "Feed 4:5"),
+          ...(activeCalendarId ? {} : {
+            format: format === "REELS" ? "Reels" : format === "CAROUSEL" ? "Carrossel" : format === "LANDING_PAGE" ? "Landing page" : "Post estático",
+            status: "PLANNED",
+            contentType: contentMode,
+            adStatus: "ACTIVE",
+            postTag: contentMode === "ADS" ? "Campanha Ads" : (format === "CAROUSEL" ? "Carrossel" : format === "REELS" ? "Reels" : "Feed 4:5"),
+            scheduledDate,
+          }),
           selectedHeadline: chosenHeadline || null,
           selectedCaption: format === "CAPTION" ? aiOutput : null,
           selectedReels: format === "REELS" ? aiOutput : null,
@@ -750,20 +819,25 @@ function ContentStudioPageContent() {
           promptUsed: promptText,
           toneOfVoice: customTone || selectedTone,
           callToAction: customCta || selectedCta,
-          scheduledDate,
         }),
       });
 
-      if (res.ok) {
+      const result = await res.json();
+      if (generationScope.current !== scopeKey) return;
+      if (res.ok && result.data?.id) {
+        acceptSavedPiece(result.data, scopeKey);
         setNotification({
-          message: contentMode === "ADS" ? "Criativo salvo com sucesso em Campanhas & Ads!" : "Publicação salva com sucesso no Feed do Cliente (4:5)!",
+          message: "Conteúdo salvo na peça atual.",
           type: "success",
         });
       } else {
-        alert("Erro ao salvar publicação.");
+        setNotification({ message: result.error || "Erro ao salvar publicação.", type: "error" });
       }
     } catch {
       alert("Falha ao salvar publicação.");
+    } finally {
+      pieceSaveLock.current = false;
+      setSavingPiece(false);
     }
   };
 
@@ -899,6 +973,30 @@ function ContentStudioPageContent() {
             </Link>
           </div>
         </div>
+
+        {activeTab === "STUDIO" && (
+          <aside aria-label="Contexto da peça" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3">
+            <div>
+              <p className="text-xs text-zinc-500">{selectedCompany.name}{openPiece?.id === activeCalendarId && openPiece?.project_name ? " · " + openPiece.project_name : ""}</p>
+              <p className="text-sm font-semibold text-zinc-950">{requestedContentId && requestedContentId !== activeCalendarId ? "Abrindo pauta…" : openPiece?.id === activeCalendarId ? openPiece.title : "Nova pauta"}</p>
+              {openPiece?.id === activeCalendarId && <p className="text-xs text-zinc-600">
+                {({ PLANNED: "Planejado", IN_CREATION: "Em criação", APPROVED: "Aprovado", SCHEDULED: "Agendado", PUBLISHED: "Publicado" } as Record<string, string>)[openPiece.status] || openPiece.status}
+                {openPiece.scheduled_date && " · " + openPiece.scheduled_date.slice(0, 10).split("-").reverse().join("/")}
+              </p>}
+            </div>
+            {activeCalendarId && (!requestedContentId || requestedContentId === activeCalendarId) && (
+              <nav aria-label="Etapas da peça" className="flex flex-wrap gap-2">
+                <span aria-current="step" className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">Briefing</span>
+                {([["headlines", "Headlines"], ["content", "Conteúdo"], ["imagePrompt", "Visual"], ["schedule", "Programação"]] as const).map(([tab, label]) => (
+                  <Link key={tab} href={"/prompt-creator/headlines?" + new URLSearchParams({
+                    [openPiece?.project_id ? "projectPostId" : "contentId"]: activeCalendarId,
+                    tab,
+                  })} className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50">{label}</Link>
+                ))}
+              </nav>
+            )}
+          </aside>
+        )}
 
         {/* Notificações / Alertas */}
         {notification && (
@@ -1933,6 +2031,7 @@ function ContentStudioPageContent() {
                       <button
                         type="button"
                         onClick={handleSaveToFeedOrAds}
+                        disabled={savingPiece || (!!requestedContentId && requestedContentId !== activeCalendarId)}
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
                       >
                         <ImageIcon className="w-3.5 h-3.5" />
@@ -1941,6 +2040,7 @@ function ContentStudioPageContent() {
                       <button
                         type="button"
                         onClick={handleSaveToCalendar}
+                        disabled={savingPiece || (!!requestedContentId && requestedContentId !== activeCalendarId)}
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
                       >
                         <Save className="w-3.5 h-3.5" />

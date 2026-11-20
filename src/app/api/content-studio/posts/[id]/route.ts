@@ -11,7 +11,9 @@ export async function GET(
   try {
     const { id } = await params;
     const res = await query(
-      `SELECT * FROM content_calendar_items WHERE id = $1`,
+      `SELECT c.*, c.xmin::text AS edit_version, p.name AS project_name
+       FROM content_calendar_items c LEFT JOIN projects p ON p.id = c.project_id
+       WHERE c.id = $1 AND c.archived_at IS NULL`,
       [id]
     );
     if (res.rows.length === 0) {
@@ -44,7 +46,7 @@ export async function PUT(
 
     const sql = `
       UPDATE content_calendar_items SET
-        title = COALESCE($1, title),
+        title = CASE WHEN project_id IS NULL THEN COALESCE($1, title) ELSE title END,
         central_idea = COALESCE($2, central_idea),
         selected_headline = COALESCE($3, selected_headline),
         headline_candidate_id = CASE WHEN $3::text IS NOT NULL AND selected_headline IS DISTINCT FROM $3 THEN NULL ELSE headline_candidate_id END,
@@ -52,14 +54,14 @@ export async function PUT(
         selected_caption = COALESCE($4, selected_caption),
         selected_reels = COALESCE($5, selected_reels),
         selected_carousel = COALESCE($6, selected_carousel),
-        content_type = COALESCE($7, content_type),
-        ad_status = COALESCE($8, ad_status),
+        content_type = CASE WHEN project_id IS NULL THEN COALESCE($7, content_type) ELSE content_type END,
+        ad_status = CASE WHEN project_id IS NULL THEN COALESCE($8, ad_status) ELSE ad_status END,
         image_url = COALESCE($9, image_url),
         post_tag = COALESCE($10, post_tag),
         format = COALESCE($11, format),
-        status = COALESCE($12, status),
-        scheduled_date = COALESCE($13, scheduled_date),
-        scheduled_time = COALESCE($17, scheduled_time),
+        status = CASE WHEN status = 'PUBLISHED' THEN status ELSE COALESCE($12, status) END,
+        scheduled_date = CASE WHEN status = 'PUBLISHED' THEN scheduled_date ELSE COALESCE($13, scheduled_date) END,
+        scheduled_time = CASE WHEN status = 'PUBLISHED' THEN scheduled_time ELSE COALESCE($17, scheduled_time) END,
         visual_prompt = COALESCE($18, visual_prompt),
         visual_format = COALESCE($19, visual_format),
         copy_site_lp = COALESCE($20, copy_site_lp),
@@ -67,16 +69,26 @@ export async function PUT(
         copy_google_ads = COALESCE($22, copy_google_ads),
         editorial_brief = COALESCE($15::jsonb, editorial_brief),
         headline_brief = CASE WHEN headline_brief IS NOT NULL THEN headline_brief || $16::jsonb ELSE headline_brief END,
-        headline_content_stale = CASE WHEN $4::text IS NOT NULL OR $5::text IS NOT NULL OR $6::text IS NOT NULL THEN false
+        headline_content_stale = CASE
           WHEN (headline_brief IS NOT NULL AND headline_brief IS DISTINCT FROM headline_brief || $16::jsonb OR $3::text IS NOT NULL AND selected_headline IS DISTINCT FROM $3)
-          AND (selected_caption IS NOT NULL OR selected_reels IS NOT NULL OR selected_carousel IS NOT NULL) THEN true ELSE headline_content_stale END,
+            AND (selected_caption IS NOT NULL OR selected_reels IS NOT NULL OR selected_carousel IS NOT NULL
+              OR $4::text IS NOT NULL OR $5::text IS NOT NULL OR $6::text IS NOT NULL) THEN true
+          WHEN $25::boolean AND ($4::text IS NOT NULL OR $5::text IS NOT NULL OR $6::text IS NOT NULL) THEN false
+          ELSE headline_content_stale END,
         updated_at = NOW()
-      WHERE id = $14
-      RETURNING *
+      WHERE id = $14 AND archived_at IS NULL AND ($23::uuid IS NULL OR client_id = $23)
+        AND ($24::text IS NULL OR xmin::text = $24)
+      RETURNING *, xmin::text AS edit_version
     `;
 
     const res = await withTransaction(async db=>{
-      await db.query('SELECT id FROM content_calendar_items WHERE id=$1 FOR UPDATE',[id]);
+      const locked = await db.query<{ status: string }>(
+        "SELECT status FROM content_calendar_items WHERE id=$1 AND ($2::uuid IS NULL OR client_id=$2) FOR UPDATE",
+        [id, body.clientId || null],
+      );
+      if (locked.rows[0]?.status === "PUBLISHED" && (body.scheduledDate || body.scheduledTime || (body.status && body.status !== "PUBLISHED"))) {
+        return null;
+      }
       const result=await db.query(sql, [
       body.title,
       body.centralIdea,
@@ -100,12 +112,19 @@ export async function PUT(
       body.copySiteLp || null,
       body.copyMetaAds || null,
       body.copyGoogleAds || null,
+      body.clientId || null,
+      body.editVersion || null,
+      body.confirmContentRevision === true,
     ]);
       if(result.rowCount&&Object.keys(sharedPatch).length)await db.query('UPDATE headline_workspaces SET brief=brief || $2::jsonb,revision=revision+1,updated_at=NOW() WHERE content_id=$1',[id,JSON.stringify(sharedPatch)]);
       return result;
     });
 
+    if (!res) return NextResponse.json({ success: false, error: "Uma publicação concluída não pode ser reagendada." }, { status: 409 });
     if (res.rows.length === 0) {
+      if (body.editVersion) {
+        return NextResponse.json({ success: false, error: "A peça foi alterada em outra tela ou está indisponível. Reabra antes de salvar." }, { status: 409 });
+      }
       return NextResponse.json({ success: false, error: "Post não encontrado." }, { status: 404 });
     }
 

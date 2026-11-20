@@ -69,12 +69,24 @@ export async function POST(request: NextRequest) {
     assertClientContext(clientContext);
     let storedHeadlineContext:Record<string,unknown>|null=null;
     if(body.contentId){
-      const stored=await query("SELECT headline_brief,selected_headline,selected_subheadline FROM content_calendar_items WHERE id=$1 AND client_id=$2",[body.contentId,clientContext.companyId]);
+      const stored=await query(
+        `SELECT c.headline_brief, c.editorial_brief, c.selected_headline, c.selected_subheadline,
+                reference.source_title, reference.source_url, reference.source_date
+         FROM content_calendar_items c
+         LEFT JOIN LATERAL (
+           SELECT i.source_title, i.source_url, i.source_date::text AS source_date
+           FROM content_brainstorm_ideas i
+           WHERE i.content_id = c.id AND i.client_id = c.client_id AND i.source_title IS NOT NULL
+           ORDER BY i.updated_at DESC LIMIT 1
+         ) reference ON true
+         WHERE c.id=$1 AND c.client_id=$2 AND c.archived_at IS NULL`,
+        [body.contentId,clientContext.companyId],
+      );
       if(!stored.rows[0])return NextResponse.json({error:"A peça não pertence ao cliente selecionado."},{status:400});
       storedHeadlineContext=stored.rows[0];
     }
     const storedBrief=storedHeadlineContext?.headline_brief as Record<string,unknown>|undefined;
-    const pieceBrief=resolveContentBrief(clientContext,body.editorialBrief,{piecePain:typeof storedBrief?.pain==='string'?storedBrief.pain:undefined});
+    const pieceBrief=resolveContentBrief(clientContext,body.editorialBrief ?? storedHeadlineContext?.editorial_brief,{piecePain:typeof storedBrief?.pain==='string'?storedBrief.pain:undefined});
     const clientName=String(clientContext.company.trade_name||clientContext.company.name);
     const audience=pieceBrief.audience,tone=pieceBrief.tone,cta=pieceBrief.cta;
     clientContext.currentContent={speaker:pieceBrief.speaker,audience:pieceBrief.audience,voice:pieceBrief.voice};

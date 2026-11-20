@@ -108,11 +108,11 @@ export async function POST(request: NextRequest) {
         captions_generated, selected_caption,
         reels_options, selected_reels,
         carousel_options, selected_carousel,
-        notes, editorial_brief
+        notes, editorial_brief, id
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
-      ) RETURNING *`,
+        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, COALESCE($23::uuid, gen_random_uuid())
+      ) ON CONFLICT (id) DO NOTHING RETURNING *, xmin::text AS edit_version`,
       [
         clientId,
         editorialLineId || null,
@@ -135,11 +135,17 @@ export async function POST(request: NextRequest) {
         JSON.stringify(carouselOptions || []),
         selectedCarousel || null,
         notes || null,
-        editorialBrief?JSON.stringify(editorialBrief):null
+        editorialBrief?JSON.stringify(editorialBrief):null,
+        body.draftId || null,
       ]
     );
 
-    return NextResponse.json({ item: res.rows[0] }, { status: 201 });
+    const item = res.rows[0] || (await query(
+      "SELECT *, xmin::text AS edit_version FROM content_calendar_items WHERE id=$1 AND client_id=$2 AND archived_at IS NULL",
+      [body.draftId, clientId],
+    )).rows[0];
+    if (!item) return NextResponse.json({ error: "Identificador da peça indisponível." }, { status: 409 });
+    return NextResponse.json({ item }, { status: res.rows.length ? 201 : 200 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao salvar item no calendário.";
     return NextResponse.json({ error: message }, { status: 500 });

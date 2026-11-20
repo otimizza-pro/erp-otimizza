@@ -15,8 +15,21 @@ beforeEach(()=>{sql.mockReset();auth.mockReset();loadContext.mockReset();auth.mo
 function expectValidBindings(){for(const [query,values] of sql.mock.calls){const indices=Array.from(String(query).matchAll(/\$(\d+)/g),match=>Number(match[1]));expect(values).toHaveLength(Math.max(...indices));}}
 describe("Content planning persistence",()=>{
  it("guards writes before touching the database",async()=>{auth.mockRejectedValue(new Error("unauthorized"));const response=await planCalendar(request({}));expect(response.status).toBe(401);expect(sql).not.toHaveBeenCalled();expect(loadContext).not.toHaveBeenCalled();});
- it("saves feed context with correctly bound SQL parameters",async()=>{sql.mockResolvedValue({rows:[{id:"saved"}]});expect((await savePost(request({clientId,title:"Post",editorialBrief:brief}))).status).toBe(200);expectValidBindings();expect(sql.mock.calls[0][1]).toHaveLength(19);});
- it("saves manual calendar item context with 22 bindings",async()=>{sql.mockResolvedValue({rows:[{id:"saved"}]});expect((await saveCalendarItem(request({clientId,...item}))).status).toBe(201);expectValidBindings();expect(sql.mock.calls[0][1]).toHaveLength(22);});
+ it("saves feed context with correctly bound SQL parameters",async()=>{sql.mockResolvedValue({rows:[{id:"saved"}]});expect((await savePost(request({clientId,title:"Post",editorialBrief:brief}))).status).toBe(200);expectValidBindings();expect(sql.mock.calls[0][1]).toHaveLength(20);});
+ it("saves manual calendar item context with correctly bound SQL parameters",async()=>{sql.mockResolvedValue({rows:[{id:"saved"}]});expect((await saveCalendarItem(request({clientId,...item}))).status).toBe(201);expectValidBindings();expect(sql.mock.calls[0][1]).toHaveLength(23);});
+ it("returns the same post when the first save is retried through another entry point",async()=>{
+   const draftId="33333333-3333-4333-8333-333333333333";
+   sql.mockResolvedValueOnce({rows:[{id:draftId,edit_version:"1"}]})
+      .mockResolvedValueOnce({rows:[]})
+      .mockResolvedValueOnce({rows:[{id:draftId,edit_version:"1"}]});
+   const first=await saveCalendarItem(request({clientId,draftId,...item}));
+   const retry=await savePost(request({clientId,draftId,...item}));
+   expect((await first.json()).item.id).toBe(draftId);
+   expect((await retry.json()).data.id).toBe(draftId);
+   expect(sql.mock.calls[1][0]).toContain("ON CONFLICT (id) DO NOTHING");
+   expect(sql.mock.calls[2][1]).toEqual([draftId,clientId]);
+   expectValidBindings();
+ });
  it("does not persist dates outside requested month",async()=>{const response=await planCalendar(request({action:"SAVE",clientId,month:"2026-12",items:[item]}));expect(response.status).toBe(400);expect(sql).not.toHaveBeenCalled();});
  it("adds planned items without changing existing posts",async()=>{sql.mockResolvedValueOnce({rows:[{id:clientId}]}).mockResolvedValueOnce({rows:[{id:themeId}]}).mockResolvedValueOnce({rows:[]}).mockResolvedValueOnce({rows:[]});const response=await planCalendar(request({action:"SAVE",clientId,month:"2026-11",items:[item]}));expect(await response.json()).toMatchObject({success:true,added:1});expectValidBindings();expect(sql.mock.calls.some(([q])=>/DELETE|UPDATE content_calendar_items/.test(q))).toBe(false);});
  it("does not duplicate same title on same date",async()=>{sql.mockResolvedValueOnce({rows:[{id:clientId}]}).mockResolvedValueOnce({rows:[{id:themeId}]}).mockResolvedValueOnce({rows:[{id:"existing"}]});const response=await planCalendar(request({action:"SAVE",clientId,month:"2026-11",items:[item]}));expect(await response.json()).toMatchObject({success:true,added:0});expect(sql.mock.calls.some(([q])=>q.startsWith("INSERT"))).toBe(false);});

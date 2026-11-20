@@ -3,6 +3,24 @@ import {describe,expect,it} from 'vitest';
 import {getDbPool} from '@/lib/db/pool';
 
 describe('Persistência do laboratório de headlines',()=>{
+ it('mantém versões aprovadas e limpa apenas o material revisado', async () => {
+  const db = await getDbPool().connect();
+  await db.query('BEGIN');
+  try {
+   const client = (await db.query("INSERT INTO clients(type,name) VALUES ('PJ','[TEST] Revisão') RETURNING id")).rows[0].id;
+   const { id } = (await db.query(
+    `INSERT INTO content_calendar_items (client_id,title,central_idea,format,selected_reels,selected_caption,visual_prompt,image_url)
+     VALUES ($1,'Pauta','Ideia','Reels','Roteiro aprovado','Legenda aprovada','Prompt aprovado','https://example.com/arte.png') RETURNING id`, [client],
+   )).rows[0];
+   let current = (await db.query("UPDATE content_calendar_items SET selected_headline = 'Nova headline' WHERE id=$1 RETURNING *", [id])).rows[0];
+   expect(current.selected_reels).toBe('Roteiro aprovado');
+   expect(current.stale_materials).toEqual(expect.arrayContaining(['selected_reels', 'selected_caption', 'visual_prompt', 'image_url']));
+   current = (await db.query("UPDATE content_calendar_items SET selected_reels = 'Roteiro revisado' WHERE id=$1 RETURNING *", [id])).rows[0];
+   expect(current.stale_materials).not.toContain('selected_reels');
+   expect(current.stale_materials).toContain('selected_caption');
+   expect(current.image_url).toBe('https://example.com/arte.png');
+  } finally { await db.query('ROLLBACK'); db.release(); }
+ });
  it('preserva tentativas, autoria, seleção e conteúdo na mesma pauta, com rollback',async()=>{
   const db=await getDbPool().connect();
   await db.query('BEGIN');

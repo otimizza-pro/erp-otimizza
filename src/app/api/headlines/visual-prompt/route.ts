@@ -14,6 +14,7 @@ const inputSchema = z.object({
   subheadline: z.string().max(2000).optional(),
   format: z.string().min(1).max(100),
   textContent: z.string().max(20000).optional(),
+  draftOnly: z.boolean().optional(),
   visualType: z.enum(["REELS_COVER", "CAROUSEL_CARDS", "FEED_IMAGE", "AD_CREATIVE"]).optional(),
 });
 
@@ -29,6 +30,18 @@ export async function POST(req: NextRequest) {
     const data = inputSchema.parse(body);
 
     const context = await loadAiClientContext(data.clientId);
+    let textContent = data.textContent;
+    if (data.contentId) {
+      const { rows: [post] } = await query(
+        `SELECT selected_reels, selected_carousel, selected_caption
+         FROM content_calendar_items WHERE id = $1 AND client_id = $2 AND archived_at IS NULL`,
+        [data.contentId, context.companyId],
+      );
+      if (!post) return NextResponse.json({ error: "Peça indisponível para este cliente." }, { status: 404 });
+      const format = data.format.toLowerCase();
+      textContent ||= (format.includes("reel") ? post.selected_reels :
+        /carrossel|carousel/.test(format) ? post.selected_carousel : post.selected_caption) || undefined;
+    }
 
     // Determina o tipo visual adequado
     let visualType = data.visualType;
@@ -106,7 +119,7 @@ Formato: ${data.format}
 Tipo Visual Alvo: ${visualType}
 Headline Escolhida: "${data.headline}"
 Subheadline: "${data.subheadline || ""}"
-Texto / Resumo do Conteúdo: "${data.textContent ? data.textContent.slice(0, 1500) : "Sem texto completo"}"
+Texto / Resumo do Conteúdo: "${textContent ? textContent.slice(0, 1500) : "Sem texto completo"}"
 
 Gere o prompt visual ultra detalhado agora em JSON.`;
 
@@ -134,14 +147,14 @@ Gere o prompt visual ultra detalhado agora em JSON.`;
       };
     }
 
-    // Se houver contentId, atualiza o visual_prompt no banco
-    if (data.contentId) {
-      await query(
+    if (data.contentId && !data.draftOnly) {
+      const saved = await query(
         `UPDATE content_calendar_items 
          SET visual_prompt = $1, visual_format = $2, updated_at = NOW() 
-         WHERE id = $3`,
-        [parsed.promptEnglish, visualType, data.contentId]
-      ).catch(() => {});
+         WHERE id = $3 AND client_id = $4 AND archived_at IS NULL`,
+        [parsed.promptEnglish, visualType, data.contentId, context.companyId]
+      );
+      if (!saved.rowCount) return NextResponse.json({ error: "A peça mudou antes de salvar o visual." }, { status: 409 });
     }
 
     return NextResponse.json({

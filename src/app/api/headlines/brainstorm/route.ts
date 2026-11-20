@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { z } from "zod";
 import * as brainstormService from "@/modules/headlines/brainstorm-service";
+import { buildWeeklyReview, getWeeklyReview } from "@/modules/headlines/brainstorm-weekly";
 
 export const maxDuration = 120;
-export const dynamic = "force-dynamic";
 
 const uuidSchema = z.string().uuid();
+const searchSchema = z.object({
+  clientId: uuidSchema,
+  mode: z.enum(["PILLARS", "NEWS", "TRENDS", "SEASONAL"]).default("PILLARS"),
+  pillarId: uuidSchema.optional(),
+  editorialLineId: uuidSchema.optional(),
+  direction: z.string().trim().max(1000).optional(),
+  format: z.enum(["Carrossel", "Reels", "Post estático", "Stories"]).optional(),
+  count: z.number().int().min(1).max(10).default(5),
+  team: z.enum(["A", "B", "BOTH"]).default("BOTH"),
+});
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,10 +38,11 @@ export async function GET(request: NextRequest) {
     const format = searchParams.get("format") || undefined;
     const status = searchParams.get("status") || undefined;
 
-    const [pillarsAndLines, ideas, rejectedIdeas] = await Promise.all([
+    const [pillarsAndLines, ideas, rejectedIdeas, weeklyReview] = await Promise.all([
       brainstormService.listPillarsAndLines(validClientId),
       brainstormService.listBrainstormIdeas(validClientId, { pillarId, format, status }),
       brainstormService.listRejectedIdeas(validClientId),
+      getWeeklyReview(validClientId),
     ]);
 
     return NextResponse.json({
@@ -39,6 +50,7 @@ export async function GET(request: NextRequest) {
       lines: pillarsAndLines.lines,
       ideas,
       rejectedIdeas,
+      weeklyReview,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao carregar dados do brainstorm.";
@@ -58,22 +70,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const action = body.action;
 
-    if (action === "GENERATE") {
+    if (action === "REFRESH_WEEKLY_REVIEW") {
       const clientId = uuidSchema.parse(body.clientId);
-      const ideas = await brainstormService.generateBrainstormIdeas({
-        clientId,
-        userId: user.id,
-        pillarId: body.pillarId || undefined,
-        editorialLineId: body.editorialLineId || undefined,
-        direction: body.direction || undefined,
-        count: body.count || 5,
-        team: body.team || "BOTH",
-      });
-      return NextResponse.json({ success: true, ideas });
+      await buildWeeklyReview(clientId);
+      return NextResponse.json({ success: true, weeklyReview: await getWeeklyReview(clientId) });
+    }
+
+    if (action === "GENERATE") {
+      const input = searchSchema.safeParse(body);
+      if (!input.success) return NextResponse.json({ error: "Confira os filtros do Brainstorm." }, { status: 400 });
+      const result = await brainstormService.searchBrainstormIdeas({ ...input.data, userId: user.id });
+      return NextResponse.json({ success: true, ...result });
     }
 
     if (action === "SAVE_FOR_LATER" || action === "SAVE_MANUAL") {
       const clientId = uuidSchema.parse(body.clientId);
+      if (action === "SAVE_FOR_LATER" && body.ideaId) {
+        const idea = await brainstormService.keepBrainstormIdea(clientId, uuidSchema.parse(body.ideaId));
+        return NextResponse.json({ success: true, idea });
+      }
       if (!body.title || !body.title.trim()) {
         return NextResponse.json({ error: "O título/tema do conteúdo é obrigatório." }, { status: 400 });
       }
@@ -170,7 +185,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    if (action === "USE_NOW" || action === "CONVERT_TO_HEADLINES") {
+    if (action === "USE_NOW" || action === "CONVERT_TO_HEADLINES" || action === "LINK_TO_POST") {
       const projectPost = body.projectPostId ? {
         id: uuidSchema.parse(body.projectPostId),
         clientId: uuidSchema.parse(body.clientId),
@@ -193,7 +208,7 @@ export async function POST(request: NextRequest) {
           status: "HEADLINES_IN_PROGRESS",
         };
 
-      const result = await brainstormService.convertIdeaToHeadlines(selection, user.id, projectPost);
+      const result = await brainstormService.convertIdeaToHeadlines(selection, user.id, projectPost, action === "LINK_TO_POST");
       return NextResponse.json({ success: true, ...result });
     }
 

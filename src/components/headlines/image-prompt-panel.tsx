@@ -64,6 +64,8 @@ export function ImagePromptPanel({
   const [recommendedAspect, setRecommendedAspect] = useState("4:5");
 
   const [imageUrl, setImageUrl] = useState("");
+  const [staleMaterials, setStaleMaterials] = useState<string[]>([]);
+  const [editVersion, setEditVersion] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [savingArt, setSavingArt] = useState(false);
@@ -79,6 +81,8 @@ export function ImagePromptPanel({
         if (!res.ok) return;
         const d = await res.json();
         if (d.data) {
+          setStaleMaterials(d.data.stale_materials || []);
+          setEditVersion(d.data.edit_version || "");
           if (d.data.image_url) setImageUrl(d.data.image_url);
           if (d.data.visual_prompt) setPromptEnglish(d.data.visual_prompt);
           if (d.data.visual_format) setVisualType(d.data.visual_format);
@@ -104,6 +108,7 @@ export function ImagePromptPanel({
           format,
           textContent,
           visualType,
+          draftOnly: true,
         }),
       });
 
@@ -140,10 +145,15 @@ export function ImagePromptPanel({
           imageUrl: imageUrl.trim() || null,
           visualPrompt: promptEnglish,
           visualFormat: visualType,
+          clientId,
+          editVersion,
         }),
       });
 
-      if (!res.ok) throw new Error("Erro ao salvar arte na peça.");
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Erro ao salvar arte na peça.");
+      setEditVersion(result.data.edit_version);
+      setStaleMaterials(result.data.stale_materials || []);
 
       setFeedback({ type: "success", text: "Arte salva com sucesso na peça!" });
       setTimeout(() => setFeedback(null), 3000);
@@ -176,16 +186,20 @@ export function ImagePromptPanel({
       if (!res.ok || !d.url) throw new Error(d.error || "Falha ao fazer upload da imagem.");
 
       setImageUrl(d.url);
-      setFeedback({ type: "success", text: "Upload realizado com sucesso!" });
 
       // Salva automaticamente na peça
       if (contentId) {
-        await fetch(`/api/content-studio/posts/${contentId}`, {
+        const linked = await fetch(`/api/content-studio/posts/${contentId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: d.url }),
+          body: JSON.stringify({ imageUrl: d.url, clientId, editVersion }),
         });
+        if (!linked.ok) throw new Error("A imagem foi enviada, mas o vínculo falhou. Salve o link exibido para tentar de novo.");
+        const result = await linked.json();
+        setEditVersion(result.data.edit_version);
+        setStaleMaterials(result.data.stale_materials || []);
       }
+      setFeedback({ type: "success", text: contentId ? "Imagem vinculada à peça." : "Imagem enviada." });
     } catch (err: unknown) {
       const error = err as Error;
       setFeedback({ type: "error", text: error.message || "Erro no upload da imagem." });
@@ -242,7 +256,7 @@ export function ImagePromptPanel({
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-50 transition cursor-pointer"
             >
               <Sparkles size={14} className={generating ? "animate-spin" : ""} />
-              {generating ? "Gerando Prompt..." : "Gerar Prompt Visual com IA"}
+              {generating ? "Gerando Prompt..." : staleMaterials.includes("visual_prompt") ? "Regenerar prompt visual" : "Gerar Prompt Visual com IA"}
             </button>
 
             <button
@@ -397,6 +411,7 @@ export function ImagePromptPanel({
             {/* Input URL */}
             <div>
               <label className="text-xs font-semibold text-zinc-700">URL da Imagem / Arte</label>
+              {staleMaterials.includes("image_url") && <p className="text-xs font-semibold text-amber-800">A imagem salva precisa de revisão.</p>}
               <div className="mt-1 flex gap-2">
                 <input
                   className={control}

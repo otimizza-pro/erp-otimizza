@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
+    { "path": "/api/headlines/brainstorm/weekly", "schedule": "0 11 * * 1" },
     { "path": "/api/documents/cleanup", "schedule": "0 6 * * *" },
     {
       "path": "/api/financial/recurrence/process",

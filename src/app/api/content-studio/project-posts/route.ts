@@ -18,6 +18,13 @@ export async function GET(request: Request) {
     const { rows } = await query(
       `SELECT c.id, c.client_id AS "clientId", COALESCE(NULLIF(cl.trade_name, ''), cl.name) AS "companyName",
               c.title, c.scheduled_date::text AS "scheduledDate", p.id AS "projectId", p.name AS "projectName",
+              c.format, c.status,
+              (NULLIF(btrim(c.central_idea), '') IS NOT NULL) AS "hasIdea",
+              (c.status = 'PLANNED'
+                AND NULLIF(btrim(c.central_idea), '') IS NULL
+                AND NOT EXISTS (SELECT 1 FROM headline_workspaces h WHERE h.content_id = c.id)
+                AND NOT EXISTS (SELECT 1 FROM content_brainstorm_ideas i WHERE i.content_id = c.id)
+              ) AS "availableForIdea",
               (SELECT h.id FROM headline_workspaces h WHERE h.content_id = c.id AND h.user_id = $2
                ORDER BY h.updated_at DESC LIMIT 1) AS "workspaceId"
        FROM content_calendar_items c

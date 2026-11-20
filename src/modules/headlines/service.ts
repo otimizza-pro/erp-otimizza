@@ -41,6 +41,7 @@ export async function saveBrief(id:string,user:string,raw:unknown,revision:numbe
  if(b.audience&&!allowed.includes(b.audience))throw new Error("Selecione um público cadastrado deste cliente.");
  if(b.themeId&&!context.editorialLines.some(t=>t.id===b.themeId))throw new Error("Tema de outro cliente.");
  await withTransaction(async db=>{
+  await db.query("SELECT id FROM content_calendar_items WHERE id=$1 FOR UPDATE", [w.content_id]);
   const updated=await db.query("UPDATE headline_workspaces SET brief=$3::jsonb,revision=revision+1,updated_at=NOW() WHERE id=$1 AND user_id=$2 AND revision=$4 RETURNING revision",[id,user,JSON.stringify(b),revision]);
   if(!updated.rowCount)throw new Error("Esta peça mudou em outra tela. Recarregue antes de salvar.");
   const editorial=b.themeId&&b.speaker&&b.voice&&b.audience&&b.goal&&b.tone&&b.cta?{themeId:b.themeId,speaker:b.speaker,voice:b.voice,audience:b.audience,funnel:b.funnel,journey:b.journey,goal:b.goal,pain:b.pain||"NOT_APPLICABLE",tone:b.tone,cta:b.cta}:null;

@@ -82,11 +82,11 @@ export async function POST(request: Request) {
         client_id, title, central_idea, format, status,
         content_type, ad_status, image_url, post_tag,
         selected_headline, selected_caption, selected_reels, selected_carousel,
-        prompt_used, tone_of_voice, call_to_action, scheduled_date, editorial_brief, editorial_line_id
+        prompt_used, tone_of_voice, call_to_action, scheduled_date, editorial_brief, editorial_line_id, id
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
-      )
-      RETURNING *
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, COALESCE($20::uuid, gen_random_uuid())
+      ) ON CONFLICT (id) DO NOTHING
+      RETURNING *, xmin::text AS edit_version
     `;
 
     const res = await query(sql, [
@@ -109,9 +109,15 @@ export async function POST(request: Request) {
       body.scheduledDate || new Date().toISOString().substring(0, 10),
       editorialBrief?JSON.stringify(editorialBrief):null,
       editorialBrief?.themeId||null,
+      body.draftId || null,
     ]);
 
-    return NextResponse.json({ success: true, data: res.rows[0] });
+    const data = res.rows[0] || (await query(
+      "SELECT *, xmin::text AS edit_version FROM content_calendar_items WHERE id=$1 AND client_id=$2 AND archived_at IS NULL",
+      [body.draftId, body.clientId],
+    )).rows[0];
+    if (!data) return NextResponse.json({ success: false, error: "Identificador da peça indisponível." }, { status: 409 });
+    return NextResponse.json({ success: true, data });
   } catch (error: unknown) {
     console.error("Erro ao salvar post:", error);
     return NextResponse.json(

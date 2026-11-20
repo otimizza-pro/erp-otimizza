@@ -12,9 +12,16 @@ export type PlannedProjectPost = {
   projectName: string;
   scheduledDate: string | null;
   workspaceId: string | null;
+  format?: string;
+  availableForIdea?: boolean;
+  hasIdea?: boolean;
 };
 
-export function ProjectPostPicker({ clientId, selected }: { clientId: string; selected?: PlannedProjectPost }) {
+export function ProjectPostPicker({ clientId, selected, onPostsLoaded }: {
+  clientId: string;
+  selected?: PlannedProjectPost;
+  onPostsLoaded?: (posts: PlannedProjectPost[]) => void;
+}) {
   const router = useRouter();
   const [result, setResult] = useState<{ clientId: string; posts: PlannedProjectPost[]; error?: string } | null>(null);
 
@@ -25,13 +32,16 @@ export function ProjectPostPicker({ clientId, selected }: { clientId: string; se
       .then(async response => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.error);
-        if (!controller.signal.aborted) setResult({ clientId, posts: body.posts });
+        if (!controller.signal.aborted) {
+          setResult({ clientId, posts: body.posts });
+          onPostsLoaded?.(body.posts);
+        }
       })
       .catch(reason => {
         if (!controller.signal.aborted) setResult({ clientId, posts: [], error: reason.message });
       });
     return () => controller.abort();
-  }, [clientId]);
+  }, [clientId, onPostsLoaded]);
 
   if (!clientId) return null;
   const current = result?.clientId === clientId ? result : null;

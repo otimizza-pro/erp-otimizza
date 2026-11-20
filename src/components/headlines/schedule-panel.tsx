@@ -57,6 +57,7 @@ export function SchedulePanel({
   });
   const [scheduledTime, setScheduledTime] = useState("18:00");
   const [status, setStatus] = useState<"SCHEDULED" | "PLANNED" | "APPROVED">("SCHEDULED");
+  const [published, setPublished] = useState(false);
   const [imageUrl, setImageUrl] = useState(initialImageUrl || "");
 
   const [saving, setSaving] = useState(false);
@@ -95,8 +96,9 @@ export function SchedulePanel({
           if (d.data.scheduled_time) setScheduledTime(d.data.scheduled_time.slice(0, 5));
           if (d.data.image_url) setImageUrl(d.data.image_url);
           if (d.data.status) {
+            setPublished(d.data.status === "PUBLISHED");
             setStatus(
-              d.data.status === "PLANNED" || d.data.status === "APPROVED" ? d.data.status : "SCHEDULED"
+              d.data.status === "APPROVED" || d.data.status === "SCHEDULED" ? d.data.status : "PLANNED"
             );
           }
         }
@@ -107,6 +109,7 @@ export function SchedulePanel({
 
   // Agendar post
   const handleSchedule = async () => {
+    if (published) return;
     if (!contentId) {
       setFeedback({ type: "error", text: "Nenhuma peça associada encontrada." });
       return;
@@ -119,13 +122,17 @@ export function SchedulePanel({
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          clientId,
           scheduledDate,
           scheduledTime: scheduledTime ? scheduledTime + ":00" : "18:00:00",
           status: chosenStatus,
         }),
       });
 
-      if (!res.ok) throw new Error("Erro ao agendar no calendário.");
+      if (!res.ok) {
+        const result = await res.json();
+        throw new Error(result.error || "Erro ao agendar no calendário.");
+      }
 
       setScheduledSuccess(true);
       setFeedback({ type: "success", text: "Publicação agendada no Calendário com sucesso!" });
@@ -183,7 +190,7 @@ export function SchedulePanel({
 
             <button
               type="button"
-              disabled={saving}
+              disabled={saving || published}
               onClick={handleSchedule}
               className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-50 transition cursor-pointer"
             >

@@ -508,11 +508,11 @@ export function ClientAudiencesManager({
                   Descrição / Perfil do Público
                 </label>
                 <textarea
-                  rows={2}
+                  rows={3}
                   placeholder="Quem são, qual o momento atual, tamanho da empresa ou rotina..."
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 min-h-[75px] resize-y leading-relaxed"
                 />
               </div>
 
@@ -535,11 +535,11 @@ export function ClientAudiencesManager({
                     Dores (1 por linha)
                   </label>
                   <textarea
-                    rows={4}
+                    rows={5}
                     placeholder="Pouco tempo&#10;Falta de clientes&#10;Incerteza nas vendas"
                     value={formPainPoints}
                     onChange={(e) => setFormPainPoints(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 min-h-[110px] resize-y leading-relaxed"
                   />
                 </div>
 
@@ -548,11 +548,11 @@ export function ClientAudiencesManager({
                     Desejos (1 por linha)
                   </label>
                   <textarea
-                    rows={4}
+                    rows={5}
                     placeholder="Escalar faturamento&#10;Ter previsibilidade&#10;Mais liberdade"
                     value={formDesires}
                     onChange={(e) => setFormDesires(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[110px] resize-y leading-relaxed"
                   />
                 </div>
 
@@ -561,11 +561,11 @@ export function ClientAudiencesManager({
                     Objeções (1 por linha)
                   </label>
                   <textarea
-                    rows={4}
+                    rows={5}
                     placeholder="Já me frustrei antes&#10;Acho caro&#10;Não tenho tempo"
                     value={formObjections}
                     onChange={(e) => setFormObjections(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[110px] resize-y leading-relaxed"
                   />
                 </div>
               </div>

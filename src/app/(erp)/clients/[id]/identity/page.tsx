@@ -9,7 +9,7 @@ import { CommercialDnaPanel } from "@/components/crm/commercial-dna";
 import { CommunicationProfileSchema, emptyCommunicationProfile } from "@/modules/clients/communication-profile";
 import { ClientAudiencesManager } from "@/components/clients/client-audiences-manager";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -64,9 +64,12 @@ export default function ClientIdentityPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
 
   // Form Fields
-  const [communicationProfile,setCommunicationProfile]=useState(emptyCommunicationProfile);
+  const [communicationProfile, setCommunicationProfile] = useState(emptyCommunicationProfile);
   const [valueProposition, setValueProposition] = useState("");
   const [marketNiche, setMarketNiche] = useState("");
   const [archetype, setArchetype] = useState("");
@@ -96,6 +99,60 @@ export default function ClientIdentityPage() {
   const [websiteUrl, setWebsiteUrl] = useState("");
   const [whatsappCta, setWhatsappCta] = useState("");
   const [notes, setNotes] = useState("");
+
+  const stateRef = useRef({
+    communicationProfile,
+    valueProposition,
+    marketNiche,
+    archetype,
+    selectedTones,
+    brandContext,
+    painPoints,
+    differentials,
+    forbiddenWords,
+    mandatoryTerms,
+    defaultCtas,
+    instagramHandle,
+    websiteUrl,
+    whatsappCta,
+    notes,
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      communicationProfile,
+      valueProposition,
+      marketNiche,
+      archetype,
+      selectedTones,
+      brandContext,
+      painPoints,
+      differentials,
+      forbiddenWords,
+      mandatoryTerms,
+      defaultCtas,
+      instagramHandle,
+      websiteUrl,
+      whatsappCta,
+      notes,
+    };
+  }, [
+    communicationProfile,
+    valueProposition,
+    marketNiche,
+    archetype,
+    selectedTones,
+    brandContext,
+    painPoints,
+    differentials,
+    forbiddenWords,
+    mandatoryTerms,
+    defaultCtas,
+    instagramHandle,
+    websiteUrl,
+    whatsappCta,
+    notes,
+  ]);
 
   useEffect(() => {
     async function loadData() {
@@ -142,51 +199,33 @@ export default function ClientIdentityPage() {
     }
   }, [id]);
 
-  const draftIdentity = {valueProposition,marketNiche,archetype,toneOfVoice:selectedTones,brandContext,targetAudiences,painPoints,differentials,forbiddenWords,mandatoryTerms,defaultCtas,notes,communicationProfile};
-  const aiButton = (field:IdentityAiField) => <IdentityAiButton clientId={id} field={field} draft={draftIdentity} onApply={value=>{
-    const asText=Array.isArray(value)?value.join("\n"):value;const asList=Array.isArray(value)?value:[value];
-    const setters={marketNiche:()=>setMarketNiche(asText),valueProposition:()=>setValueProposition(asText),brandContext:()=>setBrandContext(asText),archetype:()=>setArchetype(asText),toneOfVoice:()=>setSelectedTones(asList),targetAudiences:()=>setTargetAudiences(asList),painPoints:()=>setPainPoints(asList),differentials:()=>setDifferentials(asList),forbiddenWords:()=>setForbiddenWords(asList),mandatoryTerms:()=>setMandatoryTerms(asList),defaultCtas:()=>setDefaultCtas(asList),notes:()=>setNotes(asText),communicationDetails:()=>setCommunicationProfile({...communicationProfile,details:asText})};setters[field]();
-  }}/>;
-
-  const toggleTone = (tone: string) => {
-    if (selectedTones.includes(tone)) {
-      setSelectedTones(selectedTones.filter((t) => t !== tone));
+  const saveIdentity = async (silent = false) => {
+    if (!id) return;
+    if (silent) {
+      setAutoSaveState("saving");
     } else {
-      setSelectedTones([...selectedTones, tone]);
+      setSaving(true);
+      setFeedback(null);
     }
-  };
-
-  const handleAddCustomTone = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCustomTone.trim()) return;
-    if (!selectedTones.includes(newCustomTone.trim())) {
-      setSelectedTones([...selectedTones, newCustomTone.trim()]);
-    }
-    setNewCustomTone("");
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setFeedback(null);
 
     try {
+      const cur = stateRef.current;
       const payload = {
-        communicationProfile,
-        valueProposition,
-        marketNiche,
-        archetype,
-        toneOfVoice: selectedTones,
-        brandContext,
-        painPoints,
-        differentials,
-        forbiddenWords,
-        mandatoryTerms,
-        defaultCtas,
-        instagramHandle,
-        websiteUrl,
-        whatsappCta,
-        notes,
+        communicationProfile: cur.communicationProfile,
+        valueProposition: cur.valueProposition,
+        marketNiche: cur.marketNiche,
+        archetype: cur.archetype,
+        toneOfVoice: cur.selectedTones,
+        brandContext: cur.brandContext,
+        painPoints: cur.painPoints,
+        differentials: cur.differentials,
+        forbiddenWords: cur.forbiddenWords,
+        mandatoryTerms: cur.mandatoryTerms,
+        defaultCtas: cur.defaultCtas,
+        instagramHandle: cur.instagramHandle,
+        websiteUrl: cur.websiteUrl,
+        whatsappCta: cur.whatsappCta,
+        notes: cur.notes,
       };
 
       const res = await fetch(`/api/clients/${id}/identity`, {
@@ -196,17 +235,66 @@ export default function ClientIdentityPage() {
       });
 
       if (res.ok) {
-        setFeedback("Identidade do cliente salva com sucesso! Os novos conteúdos gerados já usarão este DNA.");
-        setTimeout(() => setFeedback(null), 4000);
-      } else {
+        setDirty(false);
+        const timeStr = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        setLastSavedTime(timeStr);
+        if (silent) {
+          setAutoSaveState("saved");
+          setTimeout(() => setAutoSaveState("idle"), 3500);
+        } else {
+          setFeedback("Identidade do cliente salva com sucesso! Os novos conteúdos gerados já usarão este DNA.");
+          setTimeout(() => setFeedback(null), 4000);
+        }
+      } else if (!silent) {
         alert("Erro ao salvar identidade.");
       }
     } catch (e) {
       console.error(e);
-      alert("Falha de conexão ao salvar.");
+      if (!silent) alert("Falha de conexão ao salvar.");
     } finally {
       setSaving(false);
+      if (silent) setAutoSaveState(curr => curr === "saving" ? "idle" : curr);
     }
+  };
+
+  const handleBlur = () => {
+    if (dirty && !saving) {
+      void saveIdentity(true);
+    }
+  };
+
+  const draftIdentity = {valueProposition,marketNiche,archetype,toneOfVoice:selectedTones,brandContext,targetAudiences,painPoints,differentials,forbiddenWords,mandatoryTerms,defaultCtas,notes,communicationProfile};
+  const aiButton = (field:IdentityAiField) => <IdentityAiButton clientId={id} field={field} draft={draftIdentity} onApply={value=>{
+    const asText=Array.isArray(value)?value.join("\n"):value;const asList=Array.isArray(value)?value:[value];
+    const setters={marketNiche:()=>setMarketNiche(asText),valueProposition:()=>setValueProposition(asText),brandContext:()=>setBrandContext(asText),archetype:()=>setArchetype(asText),toneOfVoice:()=>setSelectedTones(asList),targetAudiences:()=>setTargetAudiences(asList),painPoints:()=>setPainPoints(asList),differentials:()=>setDifferentials(asList),forbiddenWords:()=>setForbiddenWords(asList),mandatoryTerms:()=>setMandatoryTerms(asList),defaultCtas:()=>setDefaultCtas(asList),notes:()=>setNotes(asText),communicationDetails:()=>setCommunicationProfile({...communicationProfile,details:asText})};setters[field]();
+    setDirty(true);
+    setTimeout(() => { void saveIdentity(true); }, 150);
+  }}/>;
+
+  const toggleTone = (tone: string) => {
+    const nextTones = selectedTones.includes(tone)
+      ? selectedTones.filter((t) => t !== tone)
+      : [...selectedTones, tone];
+    setSelectedTones(nextTones);
+    setDirty(true);
+    setTimeout(() => { void saveIdentity(true); }, 150);
+  };
+
+  const handleAddCustomTone = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustomTone.trim()) return;
+    if (!selectedTones.includes(newCustomTone.trim())) {
+      const nextTones = [...selectedTones, newCustomTone.trim()];
+      setSelectedTones(nextTones);
+      setDirty(true);
+      setTimeout(() => { void saveIdentity(true); }, 150);
+    }
+    setNewCustomTone("");
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await saveIdentity(false);
   };
 
   if (loading) {
@@ -249,15 +337,35 @@ export default function ClientIdentityPage() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition shadow-2xs disabled:opacity-50 cursor-pointer self-start sm:self-auto"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? "Salvando..." : "Salvar Identidade"}
-          </button>
+          <div className="flex items-center gap-3 self-start sm:self-auto">
+            <div className="text-right">
+              {autoSaveState === "saving" && (
+                <span className="text-xs text-purple-600 font-medium animate-pulse flex items-center gap-1 justify-end">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Salvando...
+                </span>
+              )}
+              {autoSaveState === "saved" && (
+                <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 justify-end">
+                  <Check className="w-3.5 h-3.5" /> Salvo {lastSavedTime}
+                </span>
+              )}
+              {autoSaveState === "idle" && lastSavedTime && (
+                <span className="text-[11px] text-zinc-400 block">
+                  Salvo às {lastSavedTime}
+                </span>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => saveIdentity(false)}
+              disabled={saving}
+              className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition shadow-2xs disabled:opacity-50 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? "Salvando..." : "Salvar Identidade"}
+            </button>
+          </div>
         </div>
 
         {feedback && (
@@ -276,12 +384,25 @@ export default function ClientIdentityPage() {
           }}
         />
         <form onSubmit={handleSave} className="space-y-6">
-          <CommunicationProfileFields value={communicationProfile} onChange={setCommunicationProfile} detailsAction={aiButton("communicationDetails")}/>
+          <CommunicationProfileFields
+            value={communicationProfile}
+            onChange={(val) => {
+              setCommunicationProfile(val);
+              setDirty(true);
+            }}
+            onBlur={handleBlur}
+            detailsAction={aiButton("communicationDetails")}
+          />
           {/* 1. Proposta de Valor e Nicho */}
           <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4">
-            <h2 className="text-sm font-bold text-zinc-900 border-b border-zinc-100 pb-2">
-              1. Posicionamento, Nicho & Proposta de Valor
-            </h2>
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+              <h2 className="text-sm font-bold text-zinc-900">
+                1. Posicionamento, Nicho & Proposta de Valor
+              </h2>
+              <span className="text-[11px] text-zinc-400">
+                Salvo automaticamente ao clicar fora
+              </span>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -289,12 +410,16 @@ export default function ClientIdentityPage() {
                   Nicho de Mercado & Atuação
                 </label>
                 {aiButton("marketNiche")}
-                <input
-                  type="text"
+                <textarea
+                  rows={3}
                   placeholder="Ex: Clínicas Odontológicas de Alto Padrão, Assessoria Contábil..."
                   value={marketNiche}
-                  onChange={(e) => setMarketNiche(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  onChange={(e) => {
+                    setMarketNiche(e.target.value);
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
+                  className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 min-h-[85px] resize-y leading-relaxed text-zinc-900"
                 />
               </div>
 
@@ -303,12 +428,16 @@ export default function ClientIdentityPage() {
                   Promessa Central / Proposta de Valor
                 </label>
                 {aiButton("valueProposition")}
-                <input
-                  type="text"
+                <textarea
+                  rows={3}
                   placeholder="Ex: Aumentar o faturamento da clínica com pacientes particulares..."
                   value={valueProposition}
-                  onChange={(e) => setValueProposition(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  onChange={(e) => {
+                    setValueProposition(e.target.value);
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
+                  className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 min-h-[85px] resize-y leading-relaxed text-zinc-900"
                 />
               </div>
             </div>
@@ -317,13 +446,17 @@ export default function ClientIdentityPage() {
               <label className="text-xs font-semibold text-zinc-700 block mb-1">
                 Contexto, História e DNA da Marca (Usado pela IA na geração de textos)
               </label>
-                {aiButton("brandContext")}
+              {aiButton("brandContext")}
               <textarea
-                rows={3}
+                rows={6}
                 placeholder="Conte a história da empresa, valores centrais, modelo de entrega e como ela se diferencia..."
                 value={brandContext}
-                onChange={(e) => setBrandContext(e.target.value)}
-                className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                onChange={(e) => {
+                  setBrandContext(e.target.value);
+                  setDirty(true);
+                }}
+                onBlur={handleBlur}
+                className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 min-h-[140px] resize-y leading-relaxed text-zinc-900"
               />
             </div>
           </div>
@@ -344,7 +477,11 @@ export default function ClientIdentityPage() {
                 return (
                   <div
                     key={arch.id}
-                    onClick={() => setArchetype(arch.name)}
+                    onClick={() => {
+                      setArchetype(arch.name);
+                      setDirty(true);
+                      setTimeout(() => void saveIdentity(true), 100);
+                    }}
                     className={`p-3.5 rounded-xl border cursor-pointer transition flex flex-col justify-between ${
                       isSelected
                         ? "bg-purple-50/70 border-purple-400 ring-2 ring-purple-600/20"
@@ -554,8 +691,11 @@ export default function ClientIdentityPage() {
                     if (e.key === "Enter") {
                       e.preventDefault();
                       if (newForbidden.trim()) {
-                        setForbiddenWords([...forbiddenWords, newForbidden.trim()]);
+                        const next = [...forbiddenWords, newForbidden.trim()];
+                        setForbiddenWords(next);
                         setNewForbidden("");
+                        setDirty(true);
+                        setTimeout(() => void saveIdentity(true), 150);
                       }
                     }
                   }}
@@ -565,11 +705,14 @@ export default function ClientIdentityPage() {
                   type="button"
                   onClick={() => {
                     if (newForbidden.trim()) {
-                      setForbiddenWords([...forbiddenWords, newForbidden.trim()]);
+                      const next = [...forbiddenWords, newForbidden.trim()];
+                      setForbiddenWords(next);
                       setNewForbidden("");
+                      setDirty(true);
+                      setTimeout(() => void saveIdentity(true), 150);
                     }
                   }}
-                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200"
+                  className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-xl border border-rose-200 cursor-pointer"
                 >
                   + Proibir Palavra
                 </button>
@@ -589,8 +732,13 @@ export default function ClientIdentityPage() {
                     <span>{cta}</span>
                     <button
                       type="button"
-                      onClick={() => setDefaultCtas(defaultCtas.filter((_, i) => i !== idx))}
-                      className="hover:text-rose-600"
+                      onClick={() => {
+                        const next = defaultCtas.filter((_, i) => i !== idx);
+                        setDefaultCtas(next);
+                        setDirty(true);
+                        setTimeout(() => void saveIdentity(true), 150);
+                      }}
+                      className="hover:text-rose-600 cursor-pointer"
                     >
                       &times;
                     </button>
@@ -607,8 +755,11 @@ export default function ClientIdentityPage() {
                     if (e.key === "Enter") {
                       e.preventDefault();
                       if (newCta.trim()) {
-                        setDefaultCtas([...defaultCtas, newCta.trim()]);
+                        const next = [...defaultCtas, newCta.trim()];
+                        setDefaultCtas(next);
                         setNewCta("");
+                        setDirty(true);
+                        setTimeout(() => void saveIdentity(true), 150);
                       }
                     }
                   }}
@@ -618,11 +769,14 @@ export default function ClientIdentityPage() {
                   type="button"
                   onClick={() => {
                     if (newCta.trim()) {
-                      setDefaultCtas([...defaultCtas, newCta.trim()]);
+                      const next = [...defaultCtas, newCta.trim()];
+                      setDefaultCtas(next);
                       setNewCta("");
+                      setDirty(true);
+                      setTimeout(() => void saveIdentity(true), 150);
                     }
                   }}
-                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-xl border border-emerald-200"
+                  className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold rounded-xl border border-emerald-200 cursor-pointer"
                 >
                   + Adicionar CTA
                 </button>
@@ -632,9 +786,14 @@ export default function ClientIdentityPage() {
 
           {/* 6. Canais e Redes */}
           <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4">
-            <h2 className="text-sm font-bold text-zinc-900 border-b border-zinc-100 pb-2">
-              6. Redes e Links de Destino
-            </h2>
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+              <h2 className="text-sm font-bold text-zinc-900">
+                6. Redes e Links de Destino
+              </h2>
+              <span className="text-[11px] text-zinc-400">
+                Salvo automaticamente ao clicar fora
+              </span>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -646,8 +805,12 @@ export default function ClientIdentityPage() {
                   type="text"
                   placeholder="@perfil.cliente"
                   value={instagramHandle}
-                  onChange={(e) => setInstagramHandle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  onChange={(e) => {
+                    setInstagramHandle(e.target.value);
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
               </div>
 
@@ -660,8 +823,12 @@ export default function ClientIdentityPage() {
                   type="url"
                   placeholder="https://cliente.com.br"
                   value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  onChange={(e) => {
+                    setWebsiteUrl(e.target.value);
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
               </div>
 
@@ -674,14 +841,71 @@ export default function ClientIdentityPage() {
                   type="text"
                   placeholder="https://wa.me/55..."
                   value={whatsappCta}
-                  onChange={(e) => setWhatsappCta(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  onChange={(e) => {
+                    setWhatsappCta(e.target.value);
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
               </div>
             </div>
           </div>
 
-          <section className="rounded-2xl border border-zinc-200 bg-white p-6 space-y-5"><h2 className="text-sm font-bold text-zinc-900">Diferenciais e orientações complementares</h2>{([{field:"differentials",label:"Diferenciais comprovados",value:differentials.join("\n"),set:(text:string)=>setDifferentials(text.split("\n").filter(Boolean))},{field:"mandatoryTerms",label:"Termos obrigatórios",value:mandatoryTerms.join("\n"),set:(text:string)=>setMandatoryTerms(text.split("\n").filter(Boolean))},{field:"notes",label:"Observações editoriais",value:notes,set:setNotes}] as const).map(item=><div key={item.field}><label className="mb-2 block text-xs font-semibold text-zinc-700" htmlFor={item.field}>{item.label}</label>{aiButton(item.field)}<textarea id={item.field} rows={3} value={item.value} onChange={event=>item.set(event.target.value)} className="block w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs outline-none focus:bg-white focus:border-zinc-500"/></div>)}</section>
+          <section className="rounded-2xl border border-zinc-200 bg-white p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+              <h2 className="text-sm font-bold text-zinc-900">
+                Diferenciais e orientações complementares
+              </h2>
+              <span className="text-[11px] text-zinc-400">
+                Salvo automaticamente ao clicar fora
+              </span>
+            </div>
+            {(
+              [
+                {
+                  field: "differentials",
+                  label: "Diferenciais comprovados (um por linha)",
+                  placeholder: "Ex: Metodologia exclusiva, mais de 10 anos no mercado, suporte ágil...",
+                  value: differentials.join("\n"),
+                  set: (text: string) => setDifferentials(text.split("\n").filter(Boolean)),
+                },
+                {
+                  field: "mandatoryTerms",
+                  label: "Termos obrigatórios (um por linha)",
+                  placeholder: "Ex: Marca Registrada, CRM, Slogan oficial...",
+                  value: mandatoryTerms.join("\n"),
+                  set: (text: string) => setMandatoryTerms(text.split("\n").filter(Boolean)),
+                },
+                {
+                  field: "notes",
+                  label: "Observações editoriais e diretrizes gerais",
+                  placeholder: "Orientações sobre público, tom ou detalhes importantes de atendimento...",
+                  value: notes,
+                  set: setNotes,
+                },
+              ] as const
+            ).map((item) => (
+              <div key={item.field} className="space-y-1">
+                <label className="block text-xs font-semibold text-zinc-700" htmlFor={item.field}>
+                  {item.label}
+                </label>
+                {aiButton(item.field)}
+                <textarea
+                  id={item.field}
+                  rows={5}
+                  value={item.value}
+                  onChange={(event) => {
+                    item.set(event.target.value);
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
+                  placeholder={item.placeholder}
+                  className="block w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 text-xs font-normal leading-relaxed text-zinc-900 outline-none focus:bg-white focus:border-zinc-500 focus:ring-2 focus:ring-purple-600/20 min-h-[110px] resize-y"
+                />
+              </div>
+            ))}
+          </section>
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-200">
             <Link
               href={`/clients/${id}`}

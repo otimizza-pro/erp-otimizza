@@ -78,8 +78,17 @@ function NavigationSearchSync({onChange}:{onChange:(value:string)=>void}) {
 export function AppShell({ children, activeSection }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const isEmbedded = searchParams?.get("embedded") === "true";
+  const [isEmbedded, setIsEmbedded] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && (window.self !== window.top || window.location.search.includes("embedded=true"))) {
+        setIsEmbedded(true);
+      }
+    } catch {
+      setIsEmbedded(true);
+    }
+  }, []);
 
   if (isEmbedded) {
     return <main className="w-full min-h-screen bg-transparent p-2 sm:p-4">{children}</main>;

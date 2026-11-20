@@ -41,6 +41,11 @@ describe("Falhas de IA não viram sucesso local", () => {
     vi.mocked(fetch).mockResolvedValue(Response.json({ model: "test/actual", choices: [{ message: { content: "Completo" }, finish_reason: "stop" }] }));
     expect(await generateWithOpenRouter(request)).toEqual({ text: "Completo", model: "test/actual", source: "OPENROUTER", usage: null, providerRequestId: null });
   });
+  it("preserva custo de resposta truncada e envia esforço solicitado",async()=>{
+    vi.mocked(fetch).mockResolvedValue(Response.json({model:'test/actual',usage:{cost:0.02,completion_tokens:8000},choices:[{message:{content:'Incompleto'},finish_reason:'length'}]}));
+    await expect(generateWithOpenRouter({...request,reasoningEffort:'low',maxTokens:8000})).rejects.toMatchObject({code:'AI_TRUNCATED_RESPONSE',actualModel:'test/actual',usage:{cost:0.02}});
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body)).reasoning).toEqual({effort:'low',exclude:true});
+  });
   it("envia o teto de preço mesmo quando o modelo é substituído pela configuração", async () => {
     vi.mocked(fetch).mockResolvedValue(Response.json({ model: "test/actual", choices: [{ message: { content: "Completo" }, finish_reason: "stop" }] }));
     await generateWithOpenRouter(request);

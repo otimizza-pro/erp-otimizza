@@ -1,6 +1,8 @@
 import {z} from "zod";
 
 export class AiGenerationError extends Error {
+  usage: {prompt_tokens?:number;completion_tokens?:number;cost?:number}|null=null;
+  actualModel?:string;
   constructor(public code:string, message:string, public status=502){
     super(message);
     this.name="AiGenerationError";
@@ -89,6 +91,7 @@ export interface GenerateWithOpenRouterInput {
   temperature?: number;
   customApiKey?: string;
   timeoutMs?: number;
+  reasoningEffort?: "low" | "medium" | "high";
 }
 
 export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput){
@@ -109,6 +112,8 @@ export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput)
     tempConfig = { temperature: 0.7 };
   }
 
+  let responseUsage:AiGenerationError['usage']=null;
+  let responseModel:string|undefined;
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -124,6 +129,7 @@ export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput)
         messages: input.messages,
         provider: { max_price: { prompt: 2, completion: 10 } },
         ...tempConfig,
+        ...(input.reasoningEffort?{reasoning:{effort:input.reasoningEffort,exclude:true}}:{}),
         max_tokens: input.maxTokens ?? 6000
       })
     });
@@ -136,14 +142,17 @@ export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput)
       throw new AiGenerationError("AI_PROVIDER_ERROR","O OpenRouter não concluiu a solicitação. Tente novamente mais tarde.",502);
     }
 
-    const parsed = responseSchema.safeParse(await response.json());
+    const raw=await response.json();
+    const metadata=z.object({model:z.string().optional(),usage:z.object({prompt_tokens:z.number().optional(),completion_tokens:z.number().optional(),cost:z.number().optional()}).optional()}).safeParse(raw);
+    if(metadata.success){responseUsage=metadata.data.usage||null;responseModel=metadata.data.model;}
+    const parsed = responseSchema.safeParse(raw);
     if (!parsed.success) throw new AiGenerationError("AI_INVALID_RESPONSE","A IA retornou uma resposta vazia ou inválida. Nenhum conteúdo foi aceito.");
     const choice = parsed.data.choices[0];
     if (choice.finish_reason === "length") throw new AiGenerationError("AI_TRUNCATED_RESPONSE","A resposta da IA foi cortada pelo limite de tamanho. Reduza o pedido e tente novamente.");
     if (choice.finish_reason !== "stop") throw new AiGenerationError("AI_INCOMPLETE_RESPONSE","O provedor não confirmou a conclusão da geração. Nenhum conteúdo foi aceito.");
     return { text: choice.message.content, model: parsed.data.model || input.model, source: "OPENROUTER" as const, usage: parsed.data.usage || null, providerRequestId: parsed.data.id || null };
   } catch (error) {
-    if (error instanceof AiGenerationError) throw error;
+    if (error instanceof AiGenerationError) {error.usage=responseUsage;error.actualModel=responseModel;throw error;}
     if (controller.signal.aborted) throw new AiGenerationError("AI_TIMEOUT","A IA excedeu o tempo limite. Nenhum resultado foi confirmado; tente novamente.",504);
     throw new AiGenerationError("AI_CONNECTION_FAILED","Não foi possível receber uma resposta válida do OpenRouter. Confira a conexão e tente novamente.",503);
   } finally {

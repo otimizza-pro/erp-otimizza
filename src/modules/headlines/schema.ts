@@ -23,7 +23,8 @@ export function missingBrief(b:HeadlineBrief) {
   return [!b.audience&&"Público",!b.offer&&"Oferta/serviço",!b.goal&&"Objetivo",!b.pain&&!b.desire&&"Dor ou desejo",!b.bigIdea&&"Ideia central",!b.channel&&"Canal"].filter(Boolean) as string[];
 }
 const score=z.object({score:z.number().min(0).max(5),reason:z.string().max(500)});
-export const candidateSchema = z.object({headline:z.string().trim().min(1).max(2000),subheadline:z.string().trim().max(4000).default(""),structure:z.string().max(100),angle:z.string().max(100),triggers:z.array(z.string().max(100)).max(10),rationale:z.string().max(1200),evidence:z.array(z.string().max(500)).max(10).default([]),warnings:z.array(z.string().max(500)).max(10).default([]),scores:z.object({clarity:score,relevance:score,specificity:score,attention:score,congruence:score}).optional()});
+const optionalList=z.preprocess(value=>value==null?[]:typeof value==='string'?(value.trim()?[value]:[]):value,z.array(z.string().max(1000)).max(10));
+export const candidateSchema = z.object({headline:z.string().trim().min(1).max(2000),subheadline:z.string().trim().max(4000).default(""),structure:z.string().max(100),angle:z.string().max(100),triggers:z.array(z.string().max(100)).max(10),rationale:z.string().max(1200),evidence:optionalList,warnings:optionalList,scores:z.object({clarity:score,relevance:score,specificity:score,attention:score,congruence:score}).optional()});
 export type CandidateText = z.infer<typeof candidateSchema>;
 export function validateCandidates(raw:unknown,b:HeadlineBrief) {
   const values=z.array(candidateSchema).length(4).parse(raw);

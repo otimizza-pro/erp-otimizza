@@ -1,6 +1,6 @@
 import { query, withTransaction } from "@/lib/db/pool";
 import { loadAiClientContext } from "@/lib/ai/client-context";
-import { generateWithOpenRouter, contentModel, strategyModel, parseAiJson } from "@/lib/ai/openrouter";
+import { generateWithOpenRouter, AiGenerationError, contentModel, strategyModel, parseAiJson } from "@/lib/ai/openrouter";
 import { z } from "zod";
 import { briefSchema, defaults, missingBrief, validateCandidates, structures, angles, triggers, awareness, type HeadlineBrief } from "./schema";
 import { makeHeadlinePrompt, makeRunPrompt, editorialReview, headlineRules } from "./prompt";
@@ -99,7 +99,7 @@ export async function executeRun(id:string,user:string) {
  if(!claim.rowCount)return;
  const start=Date.now();let usage:unknown=null;let actual:string|null=null;
  try {
-  const generated=await generateWithOpenRouter({model:run.requested_model,maxTokens:4200,temperature:run.brief.creativity==="Conservadora"?0.3:run.brief.creativity==="Exploratória"?0.9:0.65,timeoutMs:80000,messages:[{role:"system",content:headlineRules},{role:"user",content:makeRunPrompt(run.prompt,run.mode,run.style_snapshot||run.style,run.rejection_snapshot)}]});
+  const generated=await generateWithOpenRouter({model:run.requested_model,maxTokens:8000,reasoningEffort:"low",temperature:run.brief.creativity==="Conservadora"?0.3:run.brief.creativity==="Exploratória"?0.9:0.65,timeoutMs:80000,messages:[{role:"system",content:headlineRules},{role:"user",content:makeRunPrompt(run.prompt,run.mode,run.style_snapshot||run.style,run.rejection_snapshot)}]});
   usage=generated.usage;actual=generated.model;
   const candidates=validateCandidates(JSON.parse(generated.text.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"").trim()),briefSchema.parse(run.brief));
   await withTransaction(async db=>{
@@ -110,7 +110,8 @@ export async function executeRun(id:string,user:string) {
    await db.query("UPDATE headline_runs SET status='SUCCESS',actual_model=$2,usage=$3::jsonb,duration_ms=$4,finished_at=NOW() WHERE id=$1",[id,actual,JSON.stringify(usage),Date.now()-start]);
   });
  }catch(error) {
-  await query("UPDATE headline_runs SET status='ERROR',actual_model=$2,usage=$3::jsonb,duration_ms=$4,error=$5,finished_at=NOW() WHERE id=$1",[id,actual,JSON.stringify(usage),Date.now()-start,error instanceof Error?error.message:"Falha na geração"]);
+  if(error instanceof AiGenerationError){usage=error.usage||usage;actual=error.actualModel||actual;}
+  await query("UPDATE headline_runs SET status='ERROR',actual_model=$2,usage=$3::jsonb,duration_ms=$4,error=$5,finished_at=NOW() WHERE id=$1",[id,actual,JSON.stringify(usage),Date.now()-start,error instanceof z.ZodError?"A IA não respeitou a estrutura solicitada. Tente novamente esta execução.":error instanceof SyntaxError?"A IA não entregou JSON válido. Tente novamente esta execução.":error instanceof Error?error.message:"Falha na geração"]);
  }
 }
 export async function retryRun(id:string,user:string) {

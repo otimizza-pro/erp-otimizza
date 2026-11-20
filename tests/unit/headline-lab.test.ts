@@ -3,7 +3,7 @@ const {sql,generate,context,auth}=vi.hoisted(()=>({sql:vi.fn(),generate:vi.fn(),
 vi.mock("@/lib/db/pool",()=>({query:sql,withTransaction:(fn:(db:unknown)=>unknown)=>fn({query:sql})}));
 vi.mock("@/lib/ai/client-context",()=>({loadAiClientContext:context}));
 vi.mock("@/lib/auth/require-auth",()=>({requireAdminUser:auth}));
-vi.mock("@/lib/ai/openrouter",()=>({generateWithOpenRouter:generate,contentModel:()=>"content-model",strategyModel:()=>"strategy-model",parseAiJson:(text:string,schema:{parse:(v:unknown)=>unknown})=>schema.parse(JSON.parse(text))}));
+vi.mock("@/lib/ai/openrouter",()=>({AiGenerationError:class extends Error {},generateWithOpenRouter:generate,contentModel:()=>"content-model",strategyModel:()=>"strategy-model",parseAiJson:(text:string,schema:{parse:(v:unknown)=>unknown})=>schema.parse(JSON.parse(text))}));
 import {blankBrief,briefSchema,missingBrief,validateCandidates} from "@/modules/headlines/schema";
 import {makeHeadlinePrompt,makeRunPrompt,editorialReview} from "@/modules/headlines/prompt";
 import {teamModels,executeRun,feedback,createHuman,styleContext,selectCandidate,measurements} from "@/modules/headlines/service";
@@ -13,6 +13,7 @@ const b=briefSchema.parse({audience:"Pacientes",offer:"Edição de vídeos",goal
 const options=Array.from({length:4},(_,i)=>({headline:`Uma explicação concreta ${i}`,subheadline:"Entenda como funciona",structure:"Afirmação direta",angle:"Benefício",triggers:[],rationale:"Relaciona a oferta ao público"}));
 beforeEach(()=>{vi.clearAllMocks();auth.mockResolvedValue({id:user});});
 describe("Laboratório de headlines",()=>{
+ it("normaliza metadados textuais sem aceitar candidatos incompletos",()=>{const raw=options.map(o=>({...o,evidence:'Fonte informada no briefing',warnings:''}));expect(validateCandidates(raw,b)[0].evidence).toEqual(['Fonte informada no briefing']);expect(validateCandidates(raw,b)[0].warnings).toEqual([]);});
  it("aceita briefing parcial para brainstorm, mas exige dados básicos para gerar",()=>{expect(briefSchema.parse({})).toEqual(blankBrief);expect(missingBrief(blankBrief)).toContain("Dor ou desejo");expect(missingBrief(b)).toEqual([]);});
  it("exige quatro opções distintas e subheadline em estático",()=>{expect(validateCandidates(options,b)).toHaveLength(4);expect(()=>validateCandidates(options.slice(1),b)).toThrow();expect(()=>validateCandidates([options[0],options[0],options[2],options[3]],b)).toThrow(/repetiu/);expect(()=>validateCandidates(options.map(v=>({...v,subheadline:""})),b)).toThrow(/subheadline/);});
  it("respeita limite de caracteres e sinaliza evidência ausente",()=>{expect(()=>validateCandidates(options,{...b,maxCharacters:10})).toThrow(/limite/);const parsed=validateCandidates(options,b)[0];expect(editorialReview(parsed,b).warnings.join()).toContain("Número sem evidência");});

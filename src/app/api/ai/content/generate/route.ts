@@ -1,7 +1,7 @@
 export const maxDuration=120;
 import {resolveContentBrief,contentBriefPrompt} from "@/modules/clients/content-brief";
 import {loadAiClientContext,assertClientContext,clientContextPrompt} from "@/lib/ai/client-context";
-import { generateWithOpenRouter, contentModel, aiFailure } from "@/lib/ai/openrouter";
+import { generateWithOpenRouter, contentModel, aiFailure, CONTENT_TEMPERATURE, GLOBAL_HUMANIZATION_RULES } from "@/lib/ai/openrouter";
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
@@ -98,12 +98,20 @@ export async function POST(request: NextRequest) {
 
     let systemInstructions = `Você é o Diretor Criativo e Redator Sênior da assessoria de marketing Otimizza.
 Você cria conteúdos para a empresa identificada no contexto, usando seu público real, sua oferta e sua identidade. A Otimizza é a assessoria responsável, não necessariamente a marca anunciada.
+Se houver o bloco [DNA_DA_CAMPANHA] no briefing ou contexto, utilize prioritariamente esse resumo enxuto (Público-alvo, Dor Principal, Desejo Principal, Mecanismo Único, 3 Objeções e Tom de Voz) para direcionar a peça.
 
 DIRETRIZES INEGOCIÁVEIS DA OTIMIZZA:
-1. Respeite o tom cadastrado e o público da peça. Use clareza e precisão, sem impor linguagem corporativa a pacientes, consumidores ou outros públicos. Nunca use jargões vazios ("revolucionário", "mergulhe", "no mundo dinâmico de hoje", "transforme de uma vez por todas").
+1. Respeite o tom cadastrado e o público da peça. Use clareza e precisão, sem impor linguagem corporativa a pacientes, consumidores ou outros públicos.
 2. Parta do tema, objetivo e etapa da jornada. Quando uma dor for selecionada, trabalhe essa dor; quando não se aplicar, não force problemas artificiais.
 3. Não use travessões longos excessivos nem clichês de autoajuda corporativa.
-4. Linguagem em português do Brasil impecável e natural.`;
+4. Linguagem em português do Brasil impecável e natural.
+
+REGRA CRÍTICA DE CRIAÇÃO NARRATIVA (NUNCA FATIAR DE INÍCIO):
+- Nunca gere roteiros de Reels ou legendas já "fatiados" em frases curtas de impacto desde a primeira linha.
+- Sempre construa primeiro o FIO CONDUTOR / HISTÓRIA CORRIDA (como uma conversa real e envolvente entre duas pessoas que se entendem).
+- Somente após estabelecer a narrativa completa e fluida com começo, meio e fim, faça a decupagem nos tempos de vídeo (ex: 00s–04s, 04s–15s, etc.), garantindo conexão emocional, ritmo de fala natural e autenticidade.
+
+${GLOBAL_HUMANIZATION_RULES}`;
 
     if (strategicContext) {
       systemInstructions += `\n\nBASE DE CONHECIMENTO DA OTIMIZZA (Use como guia de estilo e critérios):\n${strategicContext}`;
@@ -123,7 +131,7 @@ PÚBLICO-ALVO: ${audience}
 TOM: ${tone || "Direto e didático"}
 IDEIA BASE: ${centralIdea}
 
-Entregue uma lista numerada de 1 a 10 com variações que mantenham o gancho forte, curiosidade ou quebra de crença.`;
+Entregue uma lista numerada de 1 a 10 com variações que mantenham o gancho forte, curiosidade ou quebra de crença. Sem clichês de IA.`;
     } else if (!userPrompt || !userPrompt.trim()) {
       if (format === "REELS") {
         userPrompt = `Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de roteiro para vídeo/Reels do Instagram (máximo 60 segundos cada) com base na headline e tema:
@@ -134,19 +142,17 @@ PÚBLICO-ALVO: ${audience}
 TOM DE VOZ: ${tone || "Direto e didático"}
 CTA FINAL: ${cta || "Iniciar conversa no WhatsApp"}
 
-Formate com clareza:
+OBEDIÊNCIA À REGRA CRÍTICA DE ROTEIRO (ETAPAS OBRIGATÓRIAS POR OPÇÃO):
+Passo 1: Escreva primeiro o [FIO CONDUTOR / HISTÓRIA CORRIDA] — o texto contínuo como uma conversa real, fluida e empática entre duas pessoas, sem cortes artificiais ou frases soltas.
+Passo 2: Só depois apresente a [DECUPAGEM POR TEMPOS DO VÍDEO]:
+- 00s–04s (Gancho visual/falado): quebra de padrão e retenção imediata
+- 04s–15s (Conexão e Dor): diálogo direto sobre o problema real
+- 15s–45s (Desenvolvimento & Mecanismo Único): explicação prática e quebra de objeção
+- 45s–60s (Fechamento & CTA): chamada natural para a ação
 
 === OPÇÃO 1: ÂNGULO DIRETO / CONFRONTACIONAL RESPEITOSO ===
-[Duração estimada: 45s]
-- Gancho (0s-5s): Fala de impacto e texto na tela
-- Desenvolvimento (5s-35s): Raciocínio, exemplo concreto e quebra de crença
-- Fechamento & CTA (35s-45s): Chamada para ação clara
 
-=== OPÇÃO 2: ÂNGULO NARRATIVO / DIAGNÓSTICO DE BASTIDORES ===
-[Duração estimada: 50s]
-- Gancho (0s-5s): Fala de impacto e texto na tela
-- Desenvolvimento (5s-40s): História ou cena cotidiana de empresa
-- Fechamento & CTA (40s-50s): Chamada para ação clara`;
+=== OPÇÃO 2: ÂNGULO NARRATIVO / DIAGNÓSTICO DE BASTIDORES ===`;
       } else if (format === "CAROUSEL") {
         userPrompt = `Crie DUAS OPÇÕES DISTINTAS E COMPLETAS de estrutura de carrossel para o Instagram (7 a 9 slides cada) com base na headline e tema:
 
@@ -156,7 +162,7 @@ PÚBLICO-ALVO: ${audience}
 TOM DE VOZ: ${tone || "Direto e didático"}
 CTA FINAL: ${cta || "Salvar este post e mandar no WhatsApp"}
 
-Formate cada opção slide a slide:
+Formate cada opção slide a slide com linguagem humana e natural:
 === OPÇÃO 1: ESTRUTURA PROBLEMA -> EXPLICAÇÃO -> AÇÃO PRÁTICA ===
 - Slide 1 (Capa): Título + Subtítulo curto
 - Slide 2 a Slide N-1: Progressão lógica do argumento (máx 30 palavras por slide)
@@ -175,15 +181,23 @@ PÚBLICO: ${audience}
 TOM: ${tone || "Direto e didático"}
 CTA: ${cta || "Iniciar conversa no WhatsApp"}
 
-Estrutura da legenda:
-1. Gancho inicial reforçando a headline nos primeiros 2 segundos de leitura.
-2. Desenvolvimento com 2 a 3 parágrafos curtos explicando a tese com clareza.
-3. Fechamento objetivo direcionando para a ação (CTA).
-4. Forneça também 1 alternativa de parágrafo de abertura.`;
+METODOLOGIA OBRIGATÓRIA:
+1. Primeiro redija a ideia como um raciocínio contínuo e humano (história corrida de uma conversa franca), sem jargões corporativos ou fórmulas de teleprompter.
+2. Em seguida estruture a legenda final:
+   - Gancho inicial que dialoga com a headline (primeiras 2 linhas antes do botão "mais").
+   - Desenvolvimento com 2 a 3 parágrafos bem conectados e fáceis de ler.
+   - Fechamento com chamada para ação clara.
+   - 1 parágrafo alternativo de abertura para testes.`;
       }
     }
 
-    const generated = await generateWithOpenRouter({model:contentModel(),customApiKey,messages:[{role:"system",content:systemInstructions},{role:"user",content:userPrompt}],maxTokens:8000});
+    const generated = await generateWithOpenRouter({
+      model: contentModel(),
+      temperature: CONTENT_TEMPERATURE,
+      customApiKey,
+      messages: [{ role: "system", content: systemInstructions }, { role: "user", content: userPrompt }],
+      maxTokens: 8000
+    });
     return NextResponse.json({success:true,result:generated.text,modelUsed:generated.model,source:generated.source,contextUsed:{companyId:clientContext.companyId,sources:clientContext.sources}});
   } catch(error:unknown){const failure=aiFailure(error);return NextResponse.json(failure.body,{status:failure.status});}
 }

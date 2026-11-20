@@ -3,7 +3,7 @@ import {NextResponse} from "next/server";
 import {z} from "zod";
 import {requireAdminUser} from "@/lib/auth/require-auth";
 import {loadAiClientContext,assertClientContext,clientContextPrompt} from "@/lib/ai/client-context";
-import {generateWithOpenRouter,strategyModel,parseAiJson,aiFailure} from "@/lib/ai/openrouter";
+import {generateWithOpenRouter,strategyModel,parseAiJson,aiFailure,STRATEGY_TEMPERATURE} from "@/lib/ai/openrouter";
 import {withTransaction} from "@/lib/db/pool";
 const lineSchema=z.object({pillar_name:z.string().trim().min(1).max(255),theme:z.string().trim().min(1).max(255),objective:z.string().trim().min(1).max(1500),preferred_formats:z.array(z.string().min(1)).min(1).max(4),frequency_per_month:z.number().int().min(1).max(31),notes:z.string().max(2000).default("")});
 const linesSchema=z.array(lineSchema).min(1).max(24);
@@ -19,7 +19,15 @@ export async function POST(request:Request){
    return NextResponse.json({success:true,added:result});
   }
   const context=await loadAiClientContext(data.clientId);assertClientContext(context);
-  const result=await generateWithOpenRouter({model:strategyModel(),maxTokens:7000,messages:[{role:"system",content:'Você é estrategista editorial. Organize pilares amplos em temas recorrentes; não confunda tema com pauta de post. '+(data.pillar?'Gere 3 novos temas do pilar informado, preservando seu nome exatamente.':'Gere 4 pilares específicos ao negócio, com 3 temas recorrentes em cada pilar (12 registros).')+' Cada tema deve ter objetivo e orientação próprios. Não invente diferenciais, pesquisas ou resultados. Evite repetir os temas já cadastrados no contexto. Retorne somente array JSON: [{"pillar_name":"pilar","theme":"tema recorrente","objective":"objetivo","preferred_formats":["REELS","CAROUSEL"],"frequency_per_month":1,"notes":"orientação"}]. Português brasileiro.'},{role:"user",content:clientContextPrompt(context)+(data.pillar?"\nPilar selecionado: "+data.pillar:"")}]});
+  const result=await generateWithOpenRouter({
+    model:strategyModel(),
+    temperature:STRATEGY_TEMPERATURE,
+    maxTokens:7000,
+    messages:[
+      {role:"system",content:'Você é estrategista editorial sênior. Mantenha raciocínio lógico rigoroso, estruturação estritamente fiel ao briefing e zero alucinação. Organize pilares amplos em temas recorrentes; não confunda tema com pauta de post. '+(data.pillar?'Gere 3 novos temas do pilar informado, preservando seu nome exatamente.':'Gere 4 pilares específicos ao negócio, com 3 temas recorrentes em cada pilar (12 registros).')+' Cada tema deve ter objetivo e orientação próprios. No campo notes do tema principal, inclua o bloco sintetizado [DNA_DA_CAMPANHA] (Público-alvo, Dor Principal, Desejo Principal, Mecanismo Único, 3 Objeções e Tom de Voz). Não invente diferenciais, pesquisas ou resultados. Evite repetir os temas já cadastrados no contexto. Retorne somente array JSON: [{"pillar_name":"pilar","theme":"tema recorrente","objective":"objetivo","preferred_formats":["REELS","CAROUSEL"],"frequency_per_month":1,"notes":"orientação"}]. Português brasileiro.'},
+      {role:"user",content:clientContextPrompt(context)+(data.pillar?"\nPilar selecionado: "+data.pillar:"")}
+    ]
+  });
   const lines=parseAiJson(result.text,linesSchema);
   if(data.pillar&&lines.some(l=>l.pillar_name!==data.pillar))throw new Error("A IA alterou o pilar solicitado. Tente novamente.");
   return NextResponse.json({success:true,source:result.source,model:result.model,lines});

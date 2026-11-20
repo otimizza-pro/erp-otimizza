@@ -19,6 +19,7 @@ export const briefSchema = z.object({
 });
 export type HeadlineBrief = z.infer<typeof briefSchema>;
 export const blankBrief = briefSchema.parse({});
+export function sameBrief(left:unknown,right:unknown){return JSON.stringify(briefSchema.parse(left))===JSON.stringify(briefSchema.parse(right));}
 export function missingBrief(b:HeadlineBrief) {
   return [!b.audience&&"Público",!b.offer&&"Oferta/serviço",!b.goal&&"Objetivo",!b.pain&&!b.desire&&"Dor ou desejo",!b.bigIdea&&"Ideia central",!b.channel&&"Canal"].filter(Boolean) as string[];
 }

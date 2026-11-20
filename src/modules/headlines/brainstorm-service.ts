@@ -17,7 +17,8 @@ export interface BrainstormIdea {
   pain_or_desire: string;
   goal: string;
   rationale: string;
-  status: "IDEA" | "HEADLINES_IN_PROGRESS" | "HEADLINE_CHOSEN" | "IN_CREATION" | "DONE" | "ARCHIVED";
+  status: "IDEA" | "SAVED_FOR_LATER" | "REJECTED" | "HEADLINES_IN_PROGRESS" | "HEADLINE_CHOSEN" | "IN_CREATION" | "DONE" | "ARCHIVED";
+  rejection_reason?: string;
   workspace_id: string | null;
   content_id: string | null;
   created_at: string;
@@ -63,7 +64,7 @@ export async function listPillarsAndLines(clientId: string): Promise<{
 
 export async function listBrainstormIdeas(
   clientId: string,
-  filters?: { pillarId?: string; format?: string; status?: string }
+  filters?: { pillarId?: string; format?: string; status?: string; includeRejected?: boolean }
 ): Promise<BrainstormIdea[]> {
   const conditions: string[] = ["client_id = $1"];
   const params: unknown[] = [clientId];
@@ -79,6 +80,8 @@ export async function listBrainstormIdeas(
   if (filters?.status && filters.status !== "ALL") {
     params.push(filters.status);
     conditions.push(`status = $${params.length}`);
+  } else if (!filters?.includeRejected) {
+    conditions.push(`status != 'REJECTED'`);
   }
 
   const sql = `
@@ -88,6 +91,16 @@ export async function listBrainstormIdeas(
   `;
 
   const res = await query(sql, params);
+  return res.rows as BrainstormIdea[];
+}
+
+export async function listRejectedIdeas(clientId: string): Promise<BrainstormIdea[]> {
+  const res = await query(
+    `SELECT * FROM content_brainstorm_ideas
+     WHERE client_id = $1 AND status = 'REJECTED'
+     ORDER BY updated_at DESC`,
+    [clientId]
+  );
   return res.rows as BrainstormIdea[];
 }
 
@@ -114,14 +127,32 @@ export async function generateBrainstormIdeas(input: {
   const count = Math.min(Math.max(input.count || 5, 1), 10);
   const context = await loadAiClientContext(input.clientId);
 
-  // Pilares e linhas editoriais disponíveis
+  // 1. Pilares e linhas editoriais disponíveis
   const { pillars, lines } = await listPillarsAndLines(input.clientId);
 
-  // Conteúdos recentes para evitar repetições
+  // 2. Conteúdos recentes para evitar repetições
   const recentPosts = await query(
     `SELECT title, central_idea FROM content_calendar_items 
      WHERE client_id = $1 AND archived_at IS NULL 
      ORDER BY created_at DESC LIMIT 25`,
+    [input.clientId]
+  );
+
+  // 3. Ideias aprovadas e guardadas (estilo positivo)
+  const approvedIdeas = await query(
+    `SELECT title, angle, format, pillar_name, theme_name 
+     FROM content_brainstorm_ideas 
+     WHERE client_id = $1 AND status IN ('SAVED_FOR_LATER', 'HEADLINES_IN_PROGRESS', 'HEADLINE_CHOSEN', 'IN_CREATION', 'DONE') 
+     ORDER BY updated_at DESC LIMIT 15`,
+    [input.clientId]
+  );
+
+  // 4. Lista negra de ideias rejeitadas (anti-exemplos obrigatórios)
+  const rejectedIdeas = await query(
+    `SELECT title, angle, format, pillar_name, theme_name, rejection_reason 
+     FROM content_brainstorm_ideas 
+     WHERE client_id = $1 AND status = 'REJECTED' 
+     ORDER BY updated_at DESC LIMIT 25`,
     [input.clientId]
   );
 
@@ -139,7 +170,10 @@ DIRETRIZES FUNDAMENTAIS:
 3. Use os públicos-alvo, dores e desejos reais cadastrados no DNA do cliente. Não invente públicos ou dados irreais.
 4. DIVERSIFIQUE os formatos (Carrossel, Reels, Post estático, Stories) e ângulos (ex: "Erro comum", "Passo a passo", "Mito desmentido", "Estudo de caso", "Checklist", "Visão de bastidores").
 5. EVITE REPETIÇÕES com os conteúdos já produzidos recentemente.
-6. Retorne SOMENTE um array JSON com exatamente ${count} objetos. Cada objeto deve conter:
+6. APRENDIZADO CONTÍNUO COM FEEDBACK DO CLIENTE:
+   - Se houver exemplos de ideias que o cliente aprovou/guardou, use-os como referência de profundidade, vocabulário e preferências temáticas.
+   - SE HOUVER LISTA NEGRA DE IDEIAS REJEITADAS: É TERMINANTEMENTE PROIBIDO sugerir temas parecidos, abordar os mesmos assuntos descartados ou usar os mesmos ângulos reprovados.
+7. Retorne SOMENTE um array JSON com exatamente ${count} objetos. Cada objeto deve conter:
    - title: Tema/ideia central concreta e instigante do próximo conteúdo (ex: "Os 3 erros silenciosos no controle de caixa que drenam o lucro da loja")
    - pillar_name: Nome do pilar estratégico correspondente
    - theme_name: Nome do assunto/linha editorial correspondente
@@ -175,6 +209,19 @@ DIRETRIZES FUNDAMENTAIS:
       direcionamento_do_usuario: input.direction || "Gere as melhores ideias estratégicas para o momento atual",
     },
     ultimos_conteudos_publicados: recentPosts.rows.map((r) => r.title || r.central_idea),
+    historico_ideias_aprovadas_estilo: approvedIdeas.rows.map((r) => ({
+      tema: r.title,
+      pilar: r.pillar_name,
+      assunto: r.theme_name,
+      angulo: r.angle,
+      formato: r.format,
+    })),
+    lista_negra_ideias_rejeitadas_PROIBIDAS: rejectedIdeas.rows.map((r) => ({
+      tema_reprovado: r.title,
+      pilar: r.pillar_name,
+      angulo: r.angle,
+      motivo: r.rejection_reason || "Rejeitado pelo cliente",
+    })),
   });
 
   const response = await generateWithOpenRouter({
@@ -189,7 +236,6 @@ DIRETRIZES FUNDAMENTAIS:
 
   const parsed = parseAiJson(response.text, z.array(aiIdeaSchema));
 
-  // Tenta mapear ids de pilar e linha editorial correspondentes
   return parsed.map((idea) => {
     const matchedPillar = pillars.find(
       (p) => p.name.toLowerCase().trim() === idea.pillar_name.toLowerCase().trim()
@@ -223,13 +269,17 @@ export async function saveBrainstormIdea(input: {
   painOrDesire?: string;
   goal?: string;
   rationale?: string;
+  status?: BrainstormIdea["status"];
+  rejectionReason?: string;
 }): Promise<BrainstormIdea> {
+  const statusToUse = input.status || "SAVED_FOR_LATER";
+
   const res = await query(
     `INSERT INTO content_brainstorm_ideas (
       client_id, pillar_id, editorial_line_id, pillar_name, theme_name,
       title, angle, format, target_audience, pain_or_desire, goal, rationale,
-      status, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'IDEA', $13)
+      status, rejection_reason, created_by
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     RETURNING *`,
     [
       input.clientId,
@@ -244,6 +294,8 @@ export async function saveBrainstormIdea(input: {
       input.painOrDesire || "",
       input.goal || "",
       input.rationale || "",
+      statusToUse,
+      input.rejectionReason || "",
       input.userId,
     ]
   );
@@ -251,43 +303,22 @@ export async function saveBrainstormIdea(input: {
   return res.rows[0] as BrainstormIdea;
 }
 
-export async function saveMultipleBrainstormIdeas(
-  clientId: string,
-  userId: string,
-  ideas: Array<{
-    title: string;
-    pillar_id?: string | null;
-    editorial_line_id?: string | null;
-    pillar_name?: string;
-    theme_name?: string;
-    angle?: string;
-    format?: string;
-    target_audience?: string;
-    pain_or_desire?: string;
-    goal?: string;
-    rationale?: string;
-  }>
-): Promise<BrainstormIdea[]> {
-  const saved: BrainstormIdea[] = [];
-  for (const idea of ideas) {
-    const item = await saveBrainstormIdea({
-      clientId,
-      userId,
-      title: idea.title,
-      pillarId: idea.pillar_id,
-      editorialLineId: idea.editorial_line_id,
-      pillarName: idea.pillar_name,
-      themeName: idea.theme_name,
-      angle: idea.angle,
-      format: idea.format,
-      targetAudience: idea.target_audience,
-      painOrDesire: idea.pain_or_desire,
-      goal: idea.goal,
-      rationale: idea.rationale,
-    });
-    saved.push(item);
-  }
-  return saved;
+export async function rejectBrainstormIdea(ideaId: string, reason?: string): Promise<void> {
+  await query(
+    `UPDATE content_brainstorm_ideas 
+     SET status = 'REJECTED', rejection_reason = $2, updated_at = NOW() 
+     WHERE id = $1`,
+    [ideaId, reason || "Rejeitado no brainstorm"]
+  );
+}
+
+export async function restoreBrainstormIdea(ideaId: string): Promise<void> {
+  await query(
+    `UPDATE content_brainstorm_ideas 
+     SET status = 'SAVED_FOR_LATER', rejection_reason = '', updated_at = NOW() 
+     WHERE id = $1`,
+    [ideaId]
+  );
 }
 
 export async function deleteBrainstormIdea(ideaId: string): Promise<void> {
@@ -374,7 +405,6 @@ export async function convertIdeaToHeadlines(
 
     if (existingWs.rowCount) {
       workspaceId = existingWs.rows[0].id;
-      // Atualiza o brief com a ideia caso ainda não tenha sido customizado
       await db.query(
         `UPDATE headline_workspaces SET brief = brief || $2::jsonb, updated_at = NOW() WHERE id = $1`,
         [workspaceId, JSON.stringify(initialBrief)]

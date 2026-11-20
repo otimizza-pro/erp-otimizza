@@ -78,6 +78,12 @@ function NavigationSearchSync({onChange}:{onChange:(value:string)=>void}) {
 export function AppShell({ children, activeSection }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isEmbedded = searchParams?.get("embedded") === "true";
+
+  if (isEmbedded) {
+    return <main className="w-full min-h-screen bg-transparent p-2 sm:p-4">{children}</main>;
+  }
 
   // Estados de layout
   const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile drawer

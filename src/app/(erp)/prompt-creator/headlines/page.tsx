@@ -26,6 +26,12 @@ import {
   Compass,
   CheckCircle2,
   BookOpen,
+  Bookmark,
+  Ban,
+  RotateCcw,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 const control = "mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition";
@@ -46,7 +52,8 @@ interface SavedIdea {
   pain_or_desire: string;
   goal: string;
   rationale: string;
-  status: "IDEA" | "HEADLINES_IN_PROGRESS" | "HEADLINE_CHOSEN" | "IN_CREATION" | "DONE" | "ARCHIVED";
+  status: "IDEA" | "SAVED_FOR_LATER" | "REJECTED" | "HEADLINES_IN_PROGRESS" | "HEADLINE_CHOSEN" | "IN_CREATION" | "DONE" | "ARCHIVED";
+  rejection_reason?: string;
   workspace_id: string | null;
   content_id: string | null;
   created_at: string;
@@ -243,13 +250,17 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
   const workspaceId = params.get("workspaceId");
   const contentId = params.get("contentId");
 
-  // Navegação entre abas: "brainstorm" ou "headlines"
-  const [activeTab, setActiveTab] = useState<"brainstorm" | "headlines">(workspaceId || contentId ? "headlines" : "brainstorm");
+  // Sequência Criativa de 3 Passos: "brainstorm" | "headlines" | "studio"
+  const [activeTab, setActiveTab] = useState<"brainstorm" | "headlines" | "studio">(
+    workspaceId || contentId ? "headlines" : "brainstorm"
+  );
 
   // Estado do Brainstorm de Conteúdo
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [editorialLines, setEditorialLines] = useState<EditorialLine[]>([]);
   const [savedIdeas, setSavedIdeas] = useState<SavedIdea[]>([]);
+  const [rejectedIdeas, setRejectedIdeas] = useState<SavedIdea[]>([]);
+  const [showBlacklist, setShowBlacklist] = useState(false);
   const [loadingBrainstorm, setLoadingBrainstorm] = useState(false);
   const [selectedPillarId, setSelectedPillarId] = useState<string>("");
   const [selectedLineId, setSelectedLineId] = useState<string>("");
@@ -298,7 +309,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
   const mounted = useRef(true);
   const initialized = useRef("");
 
-  // 1. Carrega dados do Brainstorm (Pilares, Linhas e Ideias Salvas)
+  // 1. Carrega dados do Brainstorm (Pilares, Linhas, Ideias e Lista Negra)
   const loadBrainstormData = async () => {
     setLoadingBrainstorm(true);
     try {
@@ -308,6 +319,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       setPillars(d.pillars || []);
       setEditorialLines(d.lines || []);
       setSavedIdeas(d.ideas || []);
+      setRejectedIdeas(d.rejectedIdeas || []);
     } catch (e: any) {
       setError(e.message || "Falha ao carregar brainstorm.");
     } finally {
@@ -560,11 +572,15 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
     await perform(async () => {
       await api("", { action: "SELECT", id: c.id });
       await refresh();
-      setMessage("Headline escolhida e inserida na criação de conteúdo.");
+      setMessage("Headline escolhida e inserida na criação de conteúdo!");
     });
   }
 
-  // AÇÕES DO BRAINSTORM
+  // =========================================================================
+  // AÇÕES DO BRAINSTORM (USAR AGORA, DEIXAR PARA A PRÓXIMA, REJEITAR)
+  // =========================================================================
+
+  // 1. Gerar Ideias com IA
   async function handleGenerateAiIdeas() {
     setGeneratingIdeas(true);
     setError("");
@@ -585,7 +601,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       const d = await res.json();
       if (!res.ok || !d.success) throw new Error(d.error || "Erro ao gerar ideias de conteúdo.");
       setAiGeneratedIdeas(d.ideas || []);
-      setMessage("5 ideias de conteúdo geradas com base nos pilares da empresa! Revise e salve no seu mural.");
+      setMessage("5 ideias de conteúdo geradas! Você pode Usar Agora, Guardar para a Próxima ou Rejeitar.");
     } catch (e: any) {
       setError(e.message || "Falha na geração de ideias.");
     } finally {
@@ -593,13 +609,54 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
     }
   }
 
-  async function handleSaveSingleIdea(idea: any) {
+  // 2. Ação A: Usar essa ideia (Avança imediatamente para Headlines)
+  async function handleUseIdeaNow(idea: any) {
+    setError("");
+    setMessage("");
     try {
       const res = await fetch("/api/headlines/brainstorm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "SAVE_MANUAL",
+          action: "USE_NOW",
+          clientId,
+          ideaId: idea.id || undefined,
+          title: idea.title,
+          pillarId: idea.pillar_id || null,
+          editorialLineId: idea.editorial_line_id || null,
+          pillarName: idea.pillar_name || "",
+          themeName: idea.theme_name || "",
+          angle: idea.angle || "",
+          format: idea.format || "Carrossel",
+          targetAudience: idea.target_audience || "",
+          painOrDesire: idea.pain_or_desire || "",
+          goal: idea.goal || "",
+          rationale: idea.rationale || "",
+        }),
+      });
+      const d = await res.json();
+      if (!res.ok || !d.success) throw new Error(d.error || "Erro ao avançar com a ideia.");
+      
+      // Remove da lista temporária de sugestões
+      setAiGeneratedIdeas((prev) => prev.filter((i) => i.title !== idea.title));
+      setActiveIdeaForHeadline(idea);
+      setActiveTab("headlines");
+      router.push(`/prompt-creator/headlines?workspaceId=${d.workspaceId}`);
+      setMessage(`Ideia selecionada! Configure e gere as headlines no Passo 2.`);
+      await loadBrainstormData();
+    } catch (e: any) {
+      setError(e.message || "Erro ao avançar para headlines.");
+    }
+  }
+
+  // 3. Ação B: Deixar para a próxima (Salva no mural para aparecer no pilar/assunto)
+  async function handleSaveForLater(idea: any) {
+    try {
+      const res = await fetch("/api/headlines/brainstorm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SAVE_FOR_LATER",
           clientId,
           title: idea.title,
           pillarId: idea.pillar_id || null,
@@ -615,37 +672,67 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
         }),
       });
       const d = await res.json();
-      if (!res.ok || !d.success) throw new Error(d.error || "Erro ao salvar ideia.");
-      setMessage(`Ideia "${idea.title.slice(0, 40)}..." salva no mural!`);
+      if (!res.ok || !d.success) throw new Error(d.error || "Erro ao salvar para a próxima.");
       setAiGeneratedIdeas((prev) => prev.filter((i) => i.title !== idea.title));
+      setMessage(`Ideia guardada no mural para a próxima! Ela ficará disponível no pilar selecionado.`);
       await loadBrainstormData();
     } catch (e: any) {
-      setError(e.message || "Erro ao salvar.");
+      setError(e.message || "Erro ao guardar ideia.");
     }
   }
 
-  async function handleSaveAllGeneratedIdeas() {
-    if (!aiGeneratedIdeas.length) return;
+  // 4. Ação C: Rejeitar (Move para a Lista Negra de Brainstorm)
+  async function handleRejectIdea(idea: any, customReason?: string) {
     try {
+      const reason = customReason || "Rejeitado no brainstorm";
       const res = await fetch("/api/headlines/brainstorm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "SAVE_MULTIPLE",
+          action: "REJECT",
           clientId,
-          ideas: aiGeneratedIdeas,
+          ideaId: idea.id || undefined,
+          title: idea.title,
+          pillarId: idea.pillar_id || null,
+          editorialLineId: idea.editorial_line_id || null,
+          pillarName: idea.pillar_name || "",
+          themeName: idea.theme_name || "",
+          angle: idea.angle || "",
+          format: idea.format || "Carrossel",
+          targetAudience: idea.target_audience || "",
+          painOrDesire: idea.pain_or_desire || "",
+          goal: idea.goal || "",
+          rationale: idea.rationale || "",
+          reason,
         }),
       });
       const d = await res.json();
-      if (!res.ok || !d.success) throw new Error(d.error || "Erro ao salvar ideias.");
-      setMessage(`${aiGeneratedIdeas.length} ideias foram salvas no seu mural!`);
-      setAiGeneratedIdeas([]);
+      if (!res.ok || !d.success) throw new Error(d.error || "Erro ao rejeitar ideia.");
+      setAiGeneratedIdeas((prev) => prev.filter((i) => i.title !== idea.title));
+      setMessage(`Ideia movida para a lista negra. A IA aprenderá a não sugerir temas semelhantes.`);
       await loadBrainstormData();
     } catch (e: any) {
-      setError(e.message || "Erro ao salvar ideias.");
+      setError(e.message || "Erro ao rejeitar ideia.");
     }
   }
 
+  // 5. Restaurar ideia rejeitada da lista negra
+  async function handleRestoreIdea(ideaId: string) {
+    try {
+      const res = await fetch("/api/headlines/brainstorm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "RESTORE", ideaId }),
+      });
+      if (!res.ok) throw new Error("Erro ao restaurar ideia.");
+      setMessage("Ideia restaurada para o mural de temas com sucesso!");
+      await loadBrainstormData();
+    } catch (e: any) {
+      setError(e.message || "Erro ao restaurar.");
+    }
+  }
+
+  // 6. Salvar ideia manual
   async function handleSaveManualIdea(e: React.FormEvent) {
     e.preventDefault();
     if (!manualTitle.trim()) {
@@ -660,7 +747,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "SAVE_MANUAL",
+          action: "SAVE_FOR_LATER",
           clientId,
           title: manualTitle.trim(),
           pillarId: selectedPillarId || null,
@@ -677,7 +764,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       });
       const d = await res.json();
       if (!res.ok || !d.success) throw new Error(d.error || "Erro ao cadastrar ideia.");
-      setMessage("Ideia cadastrada com sucesso!");
+      setMessage("Ideia guardada com sucesso no mural!");
       setShowManualModal(false);
       setManualTitle("");
       setManualPain("");
@@ -690,7 +777,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
   }
 
   async function handleDeleteIdea(ideaId: string) {
-    if (!confirm("Deseja realmente excluir esta ideia de conteúdo?")) return;
+    if (!confirm("Deseja realmente excluir esta ideia de conteúdo definitivamente?")) return;
     try {
       const res = await fetch("/api/headlines/brainstorm", {
         method: "POST",
@@ -699,32 +786,10 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       });
       if (!res.ok) throw new Error("Erro ao excluir ideia.");
       setSavedIdeas((prev) => prev.filter((i) => i.id !== ideaId));
-      setMessage("Ideia removida do mural.");
+      setRejectedIdeas((prev) => prev.filter((i) => i.id !== ideaId));
+      setMessage("Ideia removida definitivamente.");
     } catch (e: any) {
       setError(e.message || "Erro ao excluir.");
-    }
-  }
-
-  async function handleConvertToHeadlines(idea: SavedIdea) {
-    setConvertingIdeaId(idea.id);
-    setError("");
-    setMessage("");
-    try {
-      const res = await fetch("/api/headlines/brainstorm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "CONVERT_TO_HEADLINES", ideaId: idea.id }),
-      });
-      const d = await res.json();
-      if (!res.ok || !d.success) throw new Error(d.error || "Erro ao avançar para criação de headlines.");
-      setActiveIdeaForHeadline(idea);
-      setActiveTab("headlines");
-      router.push(`/prompt-creator/headlines?workspaceId=${d.workspaceId}`);
-      setMessage(`Peça configurada para a ideia: "${idea.title}". Gere e refine as headlines abaixo!`);
-    } catch (e: any) {
-      setError(e.message || "Falha ao converter ideia para headlines.");
-    } finally {
-      setConvertingIdeaId(null);
     }
   }
 
@@ -732,6 +797,8 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
   const roundRuns = data?.runs.filter((r) => r.round_id === activeRound) || [];
   const roundCandidates = data?.candidates.filter((c) => c.round_id === activeRound) || [];
   const preview = context ? makeHeadlinePrompt(brief, context) : "Carregando o contexto do cliente...";
+
+  const targetContentId = data?.workspace?.content_id || contentId || activeIdeaForHeadline?.content_id || null;
 
   const select = (key: keyof HeadlineBrief, label: string, options: { value: string; label: string }[]) => (
     <label className="text-xs font-semibold text-zinc-700">
@@ -768,7 +835,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
     </fieldset>
   );
 
-  // Ideias filtradas para exibição no mural
+  // Ideias filtradas para exibição no mural ativo
   const filteredIdeas = savedIdeas.filter((idea) => {
     if (filterPillar !== "ALL" && idea.pillar_id !== filterPillar) return false;
     if (filterFormat !== "ALL" && idea.format !== filterFormat) return false;
@@ -777,7 +844,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
 
   return (
     <main className="mx-auto max-w-[1800px] space-y-6 p-4 md:p-8 text-zinc-900">
-      {/* CABEÇALHO PRINCIPAL COM CONTEXTO DA EMPRESA E ABAS */}
+      {/* CABEÇALHO PRINCIPAL COM CONTEXTO DA EMPRESA E ABAS DE SEQUÊNCIA CRIATIVA */}
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 pb-6">
         <div>
           <div className="flex items-center gap-2">
@@ -787,19 +854,25 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
             </span>
           </div>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-zinc-950">
-            {activeTab === "brainstorm" ? "Brainstorm de Conteúdo" : "Laboratório de Headlines"}
+            {activeTab === "brainstorm"
+              ? "Brainstorm de Conteúdo"
+              : activeTab === "headlines"
+              ? "Laboratório de Headlines"
+              : "Estúdio Criativo"}
           </h1>
           <p className="mt-1 text-sm text-zinc-500 max-w-3xl">
             {activeTab === "brainstorm"
               ? "Defina os temas e ideias dos próximos conteúdos com base nos pilares estratégicos e assuntos cadastrados antes de criar as headlines."
-              : "Desdobre suas ideias de conteúdo em headlines de alto impacto com os times de IA, avalie opções e envie diretamente para o estúdio criativo."}
+              : activeTab === "headlines"
+              ? "Desdobre suas ideias de conteúdo em headlines de alto impacto com os times de IA, avalie opções e envie diretamente para o estúdio criativo."
+              : "Redija o conteúdo completo (roteiro de Reels, Carrossel, Post ou Legenda) da pauta selecionada."}
           </p>
         </div>
 
-        {/* NAVEGAÇÃO DE FLUXO & ATALHOS */}
+        {/* NAVEGAÇÃO DE FLUXO SEQUENCIAL (3 PASSOS) & ATALHOS */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* BOTÕES DE ABA */}
-          <div className="inline-flex rounded-xl bg-zinc-100 p-1 border border-zinc-200">
+          {/* MENU DAS 3 SEQUÊNCIAS DE CRIAÇÃO */}
+          <div className="inline-flex rounded-xl bg-zinc-100 p-1 border border-zinc-200 shadow-2xs">
             <button
               onClick={() => setActiveTab("brainstorm")}
               className={
@@ -825,14 +898,21 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               <Sparkles size={16} className={activeTab === "headlines" ? "text-emerald-600" : ""} />
               2. Headlines
             </button>
+            <button
+              onClick={() => setActiveTab("studio")}
+              className={
+                "inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition cursor-pointer " +
+                (activeTab === "studio" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
+              }
+            >
+              <ArrowRight size={16} className={activeTab === "studio" ? "text-indigo-600" : ""} />
+              3. Estúdio Criativo
+            </button>
           </div>
 
           <Link className={button} href="/prompt-creator?tab=EDITORIAL" title="Gerenciar Pilares e Linha Editorial">
             <BookOpen size={16} />
             Linha Editorial
-          </Link>
-          <Link className={button} href="/prompt-creator" title="Abrir Estúdio Criativo">
-            Estúdio Criativo
           </Link>
           <Link className={button} href="/prompt-creator/headlines/bi" title="BI de Performance e Modelos">
             <BarChart3 size={16} />
@@ -988,7 +1068,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                   Brainstorm Inteligente com IA
                 </h2>
                 <p className="text-xs text-zinc-500">
-                  Gere sugestões de temas e pautas concretas para os próximos conteúdos, alinhadas aos pilares, dores e públicos do cliente.
+                  Gere sugestões de temas e pautas concretas para os próximos conteúdos, alinhadas aos pilares, dores e preferências históricas do cliente.
                 </p>
               </div>
             </div>
@@ -1035,7 +1115,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
               </div>
             </div>
 
-            {/* SUGESTÕES GERADAS PELA IA */}
+            {/* SUGESTÕES GERADAS PELA IA COM OS 3 CAMPOS (USAR AGORA, GUARDAR PARA A PRÓXIMA, REJEITAR) */}
             {aiGeneratedIdeas.length > 0 && (
               <div className="pt-4 border-t border-zinc-200 space-y-4">
                 <div className="flex items-center justify-between">
@@ -1043,9 +1123,9 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                     <CheckCircle2 size={16} className="text-emerald-600" />
                     Novas Ideias Sugeridas ({aiGeneratedIdeas.length}):
                   </h3>
-                  <button onClick={handleSaveAllGeneratedIdeas} className={buttonPrimary + " text-xs py-1.5"}>
-                    Salvar todas no mural
-                  </button>
+                  <p className="text-xs text-zinc-500">
+                    Escolha: <strong>Usar agora</strong> (vai para headlines), <strong>Guardar para a próxima</strong> (salva no mural) ou <strong>Rejeitar</strong> (lista negra).
+                  </p>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -1073,14 +1153,39 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                         <p className="text-[11px] text-zinc-500 italic leading-relaxed">{idea.rationale}</p>
                       </div>
 
-                      <div className="pt-2 border-t border-zinc-200 flex gap-2">
+                      {/* OS 3 CAMPOS SOLICITADOS PELO USUÁRIO */}
+                      <div className="pt-3 border-t border-zinc-200 space-y-2">
+                        {/* 1. USAR AGORA -> AVANÇA PARA HEADLINES */}
                         <button
-                          onClick={() => handleSaveSingleIdea(idea)}
-                          className={buttonPrimary + " text-xs w-full py-1.5"}
+                          onClick={() => handleUseIdeaNow(idea)}
+                          className={buttonPrimary + " text-xs w-full py-2"}
+                          title="Usar esta ideia agora e avançar para o Laboratório de Headlines"
                         >
-                          <Plus size={14} />
-                          Salvar no Mural
+                          <Sparkles size={14} />
+                          Usar essa ideia (Avançar para Headlines)
                         </button>
+
+                        <div className="flex gap-2">
+                          {/* 2. DEIXAR PARA A PRÓXIMA -> FICA SALVA NO SISTEMA */}
+                          <button
+                            onClick={() => handleSaveForLater(idea)}
+                            className={button + " text-xs flex-1 py-1.5 text-zinc-700"}
+                            title="Guardar esta ideia no mural para produzir no futuro"
+                          >
+                            <Bookmark size={14} className="text-emerald-700" />
+                            Guardar p/ próxima
+                          </button>
+
+                          {/* 3. REJEITAR -> VAI PARA A LISTA NEGRA */}
+                          <button
+                            onClick={() => handleRejectIdea(idea)}
+                            className={button + " text-xs py-1.5 text-rose-700 border-rose-200 hover:bg-rose-50"}
+                            title="Rejeitar ideia e adicionar à lista negra para a IA nunca mais sugerir parecida"
+                          >
+                            <Ban size={14} />
+                            Rejeitar
+                          </button>
+                        </div>
                       </div>
                     </article>
                   ))}
@@ -1089,16 +1194,16 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
             )}
           </section>
 
-          {/* SEÇÃO 3: MURAL DE IDEIAS / TEMAS DOS PRÓXIMOS CONTEÚDOS */}
+          {/* SEÇÃO 3: MURAL DE TEMAS & IDEIAS DOS PRÓXIMOS CONTEÚDOS */}
           <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold flex items-center gap-2 text-zinc-950">
                   <Lightbulb size={20} className="text-amber-500" />
-                  Mural de Temas & Ideias dos Próximos Conteúdos ({filteredIdeas.length})
+                  Mural de Temas Guardados para os Próximos Conteúdos ({filteredIdeas.length})
                 </h2>
                 <p className="text-xs text-zinc-500">
-                  Aqui ficam organizadas as ideias do cliente. Para qualquer ideia, clique em <strong>"Criar Headlines"</strong> para avançar para o laboratório criativo.
+                  Ideias guardadas no sistema por pilar e tema. Quando estiver pronto para produzir, clique em <strong>"Usar essa ideia"</strong> para gerar as headlines.
                 </p>
               </div>
 
@@ -1133,9 +1238,9 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
             {filteredIdeas.length === 0 ? (
               <div className="rounded-xl border border-dashed border-zinc-300 p-8 text-center space-y-3">
                 <Lightbulb size={32} className="mx-auto text-zinc-400" />
-                <h3 className="text-base font-bold text-zinc-800">Nenhuma ideia no mural ainda</h3>
+                <h3 className="text-base font-bold text-zinc-800">Nenhuma ideia guardada para este filtro</h3>
                 <p className="text-xs text-zinc-500 max-w-md mx-auto">
-                  Use o <strong>Brainstorm Inteligente com IA</strong> acima ou clique em <strong>"+ Nova Ideia Manual"</strong> para definir os temas dos próximos conteúdos da {companyName}.
+                  Use o <strong>Brainstorm com IA</strong> acima ou clique em <strong>"+ Nova Ideia Manual"</strong> para definir os temas dos próximos conteúdos da {companyName}.
                 </p>
               </div>
             ) : (
@@ -1197,34 +1302,33 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                         )}
                       </div>
 
-                      {/* AÇÃO PRINCIPAL: CRIAR HEADLINES */}
+                      {/* AÇÕES DA IDEIA NO MURAL */}
                       <div className="pt-3 border-t border-zinc-100 space-y-2">
+                        {/* BOTÃO PRINCIPAL: USAR ESSA IDEIA */}
                         <button
-                          onClick={() => handleConvertToHeadlines(idea)}
+                          onClick={() => handleUseIdeaNow(idea)}
                           disabled={isConverting}
                           className={buttonPrimary + " w-full py-2"}
-                          title="Desdobrar esta ideia em headlines com times de IA"
+                          title="Usar esta ideia e avançar para o Passo 2: Headlines"
                         >
                           <Sparkles size={16} className={isConverting ? "animate-spin" : ""} />
-                          {isConverting ? "Preparando headlines..." : "🎯 Criar Headlines"}
+                          {isConverting ? "Preparando headlines..." : "🎯 Usar essa ideia (Criar Headlines)"}
                         </button>
 
                         <div className="flex items-center justify-between text-xs pt-1">
-                          {idea.content_id ? (
-                            <Link
-                              href={`/prompt-creator?contentId=${idea.content_id}`}
-                              className="text-emerald-700 hover:underline font-semibold text-[11px]"
-                            >
-                              Abrir no Estúdio →
-                            </Link>
-                          ) : (
-                            <span className="text-[11px] text-zinc-400">Pauta ainda não criada</span>
-                          )}
+                          <button
+                            onClick={() => handleRejectIdea(idea)}
+                            className="text-zinc-500 hover:text-rose-700 text-xs flex items-center gap-1 cursor-pointer"
+                            title="Mover para a lista negra"
+                          >
+                            <Ban size={13} />
+                            Rejeitar p/ lista negra
+                          </button>
 
                           <button
                             onClick={() => handleDeleteIdea(idea.id)}
                             className="text-zinc-400 hover:text-rose-600 transition p-1 cursor-pointer"
-                            title="Excluir ideia"
+                            title="Excluir ideia definitivamente"
                           >
                             <Trash2 size={15} />
                           </button>
@@ -1233,6 +1337,76 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                     </article>
                   );
                 })}
+              </div>
+            )}
+          </section>
+
+          {/* SEÇÃO 4: LISTA NEGRA DE BRAINSTORM (IDEIAS REJEITADAS & APRENDIZADO DA IA) */}
+          <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
+            <button
+              onClick={() => setShowBlacklist((v) => !v)}
+              className="w-full flex items-center justify-between text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Ban size={18} className="text-rose-600" />
+                <h3 className="font-bold text-sm text-zinc-950">
+                  Lista Negra de Ideias Rejeitadas ({rejectedIdeas.length})
+                </h3>
+                <span className="text-xs text-zinc-500 hidden sm:inline">
+                  — A IA lê estes temas e é proibida de sugerir abordagens parecidas
+                </span>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-zinc-500 font-semibold">
+                {showBlacklist ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </button>
+
+            {showBlacklist && (
+              <div className="pt-3 border-t border-zinc-100 space-y-3">
+                <p className="text-xs text-zinc-500">
+                  Todas as ideias rejeitadas abaixo são enviadas como <strong>Lista Negra</strong> no prompt de brainstorm. Se mudou de ideia, clique em <strong>Restaurar</strong> para trazê-la de volta ao mural ativo.
+                </p>
+
+                {rejectedIdeas.length === 0 ? (
+                  <p className="text-xs text-zinc-400 italic py-2">Nenhuma ideia na lista negra no momento.</p>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                    {rejectedIdeas.map((idea) => (
+                      <article key={idea.id} className="rounded-xl border border-rose-200 bg-rose-50/40 p-3 space-y-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="rounded bg-rose-100 text-rose-800 px-2 py-0.5 text-[10px] font-bold">
+                            Rejeitada
+                          </span>
+                          <span className="text-[10px] text-zinc-500">
+                            {idea.pillar_name || "Geral"}
+                          </span>
+                        </div>
+                        <p className="font-bold text-zinc-900 leading-snug">{idea.title}</p>
+                        {idea.rejection_reason && (
+                          <p className="text-[11px] text-zinc-600">
+                            <strong>Motivo:</strong> {idea.rejection_reason}
+                          </p>
+                        )}
+                        <div className="pt-2 border-t border-rose-100 flex items-center justify-between">
+                          <button
+                            onClick={() => handleRestoreIdea(idea.id)}
+                            className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:underline cursor-pointer"
+                          >
+                            <RotateCcw size={12} />
+                            Restaurar para o Mural
+                          </button>
+                          <button
+                            onClick={() => handleDeleteIdea(idea.id)}
+                            className="text-zinc-400 hover:text-rose-600 p-1 cursor-pointer"
+                            title="Excluir definitivamente"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>
@@ -1344,7 +1518,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                       Cancelar
                     </button>
                     <button type="submit" className={buttonPrimary}>
-                      Salvar Ideia
+                      Guardar para a Próxima
                     </button>
                   </div>
                 </form>
@@ -1355,23 +1529,33 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
       )}
 
       {/* ========================================================================= */}
-      {/* ABA 2: LABORATÓRIO DE HEADLINES (DESDOBRAMENTO CRIATIVO DA IDEIA)           */}
+      {/* ABA 2: LABORATÓRIO DE HEADLINES (PASSO 2 DA SEQUÊNCIA)                    */}
       {/* ========================================================================= */}
       {activeTab === "headlines" && (
         <div className="space-y-6">
-          {/* BANNER DE VOLTA AO BRAINSTORM */}
+          {/* BANNER DE NAVEGAÇÃO ENTRE OS PASSOS */}
           <div className="flex items-center justify-between bg-zinc-100 rounded-xl p-3 border border-zinc-200 shadow-2xs">
             <button
               onClick={() => setActiveTab("brainstorm")}
               className="inline-flex items-center gap-2 text-xs font-bold text-zinc-700 hover:text-zinc-950 transition cursor-pointer"
             >
               <ArrowLeft size={16} />
-              Voltar ao Brainstorm de Conteúdo
+              ← Voltar ao Passo 1: Brainstorm
             </button>
+
             {activeIdeaForHeadline && (
               <span className="text-xs text-emerald-800 font-semibold bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg">
-                📌 Criando headlines para: "{activeIdeaForHeadline.title}"
+                📌 Pauta Ativa: "{activeIdeaForHeadline.title}"
               </span>
+            )}
+
+            {targetContentId && (
+              <button
+                onClick={() => setActiveTab("studio")}
+                className="inline-flex items-center gap-2 text-xs font-bold text-indigo-700 hover:text-indigo-950 transition cursor-pointer"
+              >
+                Avançar para Passo 3: Estúdio Criativo →
+              </button>
             )}
           </div>
 
@@ -1379,7 +1563,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
             <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs">
               <h2 className="font-bold text-base text-zinc-950">Peças com Headlines deste cliente</h2>
               <p className="mt-1 text-xs text-zinc-500">
-                Selecione uma peça abaixo ou volte para o <strong>Brainstorm</strong> para escolher uma ideia e desdobrá-la em headlines.
+                Selecione uma peça abaixo ou volte para o <strong>Passo 1: Brainstorm</strong> para escolher uma ideia e desdobrá-la em headlines.
               </p>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
                 {list.map((v) => (
@@ -1687,7 +1871,7 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                 </section>
               )}
 
-              {/* HEADLINE ESCOLHIDA */}
+              {/* HEADLINE ESCOLHIDA -> AVANÇAR PARA PASSO 3: ESTÚDIO CRIATIVO */}
               {data.workspace.headline_candidate_id && (
                 <section className="space-y-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-6 shadow-2xs">
                   <div>
@@ -1701,12 +1885,12 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                   </div>
 
                   <div className="pt-2 flex flex-wrap items-center gap-3">
-                    <Link
+                    <button
+                      onClick={() => setActiveTab("studio")}
                       className={buttonPrimary + " py-2.5 px-6 text-sm"}
-                      href={"/prompt-creator?contentId=" + data.workspace.content_id}
                     >
-                      Avançar para criar conteúdo no Estúdio Criativo →
-                    </Link>
+                      Avançar para Passo 3: Estúdio Criativo →
+                    </button>
                     <button onClick={() => setActiveTab("brainstorm")} className={button}>
                       Voltar ao Brainstorm
                     </button>
@@ -1714,6 +1898,92 @@ function Workspace({ clientId, companyName }: { clientId: string; companyName: s
                 </section>
               )}
             </>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ABA 3: ESTÚDIO CRIATIVO (PASSO 3 DA SEQUÊNCIA - REDAÇÃO DO CONTEÚDO)       */}
+      {/* ========================================================================= */}
+      {activeTab === "studio" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between bg-zinc-100 rounded-xl p-3 border border-zinc-200 shadow-2xs">
+            <button
+              onClick={() => setActiveTab("headlines")}
+              className="inline-flex items-center gap-2 text-xs font-bold text-zinc-700 hover:text-zinc-950 transition cursor-pointer"
+            >
+              <ArrowLeft size={16} />
+              ← Voltar ao Passo 2: Headlines
+            </button>
+
+            {targetContentId ? (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-indigo-900 font-bold bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-lg">
+                  🚀 Passo 3: Redação Completa no Estúdio Criativo
+                </span>
+                <Link
+                  href={`/prompt-creator?contentId=${targetContentId}`}
+                  target="_blank"
+                  className={button + " !py-1 !text-xs text-zinc-700"}
+                  title="Abrir em aba cheia"
+                >
+                  <ExternalLink size={13} />
+                  Abrir em nova aba
+                </Link>
+              </div>
+            ) : (
+              <span className="text-xs text-zinc-500 font-semibold">
+                Nenhuma peça ativa selecionada
+              </span>
+            )}
+          </div>
+
+          {targetContentId ? (
+            <div className="rounded-2xl border border-zinc-200 overflow-hidden shadow-2xs bg-white">
+              <iframe
+                src={`/prompt-creator?contentId=${targetContentId}&embedded=true`}
+                className="w-full min-h-[1100px] border-0"
+                title="Estúdio Criativo Integrado"
+              />
+            </div>
+          ) : (
+            <section className="rounded-2xl border border-zinc-200 bg-white p-8 text-center space-y-4 shadow-2xs">
+              <Sparkles size={36} className="mx-auto text-zinc-400" />
+              <h2 className="text-lg font-bold text-zinc-950">Selecione uma peça para abrir o Estúdio Criativo</h2>
+              <p className="text-xs text-zinc-500 max-w-lg mx-auto">
+                No fluxo de criação sequencial, primeiro você define a ideia no <strong>Passo 1: Brainstorm</strong>, depois gera e escolhe a headline no <strong>Passo 2: Headlines</strong>, e por fim redige o roteiro de reels, carrossel ou post aqui no <strong>Passo 3: Estúdio Criativo</strong>.
+              </p>
+              <div className="flex justify-center gap-3 pt-2">
+                <button onClick={() => setActiveTab("brainstorm")} className={buttonPrimary}>
+                  <Lightbulb size={16} />
+                  Ir para Passo 1: Brainstorm
+                </button>
+                <button onClick={() => setActiveTab("headlines")} className={button}>
+                  <Sparkles size={16} />
+                  Ir para Passo 2: Headlines
+                </button>
+              </div>
+
+              {list.length > 0 && (
+                <div className="pt-6 border-t border-zinc-100 max-w-2xl mx-auto text-left">
+                  <h4 className="text-xs font-bold text-zinc-700 uppercase tracking-wider mb-3">
+                    Ou selecione uma peça recente deste cliente:
+                  </h4>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {list.slice(0, 6).map((item) => (
+                      <Link
+                        key={item.id}
+                        href={`/prompt-creator?contentId=${item.id}`}
+                        className="rounded-xl border border-zinc-200 p-3 text-xs hover:border-zinc-300 hover:bg-zinc-50 transition flex items-center justify-between"
+                      >
+                        <span className="font-semibold text-zinc-900 truncate">{item.title}</span>
+                        <span className="text-[10px] text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded">{item.format}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </section>
           )}
         </div>
       )}

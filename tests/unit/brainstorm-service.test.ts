@@ -60,6 +60,8 @@ import {
   listBrainstormIdeas,
   generateBrainstormIdeas,
   saveBrainstormIdea,
+  rejectBrainstormIdea,
+  restoreBrainstormIdea,
   convertIdeaToHeadlines,
 } from "@/modules/headlines/brainstorm-service";
 
@@ -82,13 +84,15 @@ describe("Brainstorm Service", () => {
     expect(result.lines[0].theme).toBe("Gestão Financeira");
   });
 
-  it("generates brainstorm ideas aligned with pillars and themes", async () => {
+  it("generates brainstorm ideas feeding approved and rejected history into the prompt", async () => {
     (query as any)
-      .mockResolvedValueOnce({ rows: [{ id: "p-1", name: "Educativo" }] })
+      .mockResolvedValueOnce({ rows: [{ id: "p-1", name: "Educativo" }] }) // pillars
       .mockResolvedValueOnce({
         rows: [{ id: "l-1", pillar_id: "p-1", pillar_name: "Educativo", theme: "Gestão Financeira" }],
-      })
-      .mockResolvedValueOnce({ rows: [] }); // recent posts
+      }) // lines
+      .mockResolvedValueOnce({ rows: [] }) // recent posts
+      .mockResolvedValueOnce({ rows: [{ title: "Ideia Aprovada Anterior" }] }) // approved ideas
+      .mockResolvedValueOnce({ rows: [{ title: "Ideia Rejeitada Proibida", rejection_reason: "Muito rasa" }] }); // rejected ideas blacklist
 
     const ideas = await generateBrainstormIdeas({
       clientId: "client-123",
@@ -102,14 +106,14 @@ describe("Brainstorm Service", () => {
     expect(ideas[0].theme_name).toBe("Gestão Financeira");
   });
 
-  it("saves a brainstorm idea", async () => {
+  it("saves a brainstorm idea with SAVED_FOR_LATER status", async () => {
     (query as any).mockResolvedValueOnce({
       rows: [
         {
           id: "idea-1",
           client_id: "client-123",
           title: "Como precificar serviços",
-          status: "IDEA",
+          status: "SAVED_FOR_LATER",
         },
       ],
     });
@@ -120,10 +124,32 @@ describe("Brainstorm Service", () => {
       title: "Como precificar serviços",
       pillarName: "Educativo",
       themeName: "Precificação",
+      status: "SAVED_FOR_LATER",
     });
 
     expect(saved.id).toBe("idea-1");
     expect(saved.title).toBe("Como precificar serviços");
+    expect(saved.status).toBe("SAVED_FOR_LATER");
+  });
+
+  it("rejects an idea and stores rejection reason for blacklist learning", async () => {
+    (query as any).mockResolvedValueOnce({ rowCount: 1 });
+
+    await rejectBrainstormIdea("idea-1", "Tema muito clichê");
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE content_brainstorm_ideas"),
+      ["idea-1", "Tema muito clichê"]
+    );
+  });
+
+  it("restores a rejected idea back to the mural", async () => {
+    (query as any).mockResolvedValueOnce({ rowCount: 1 });
+
+    await restoreBrainstormIdea("idea-1");
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining("UPDATE content_brainstorm_ideas"),
+      ["idea-1"]
+    );
   });
 
   it("converts a brainstorm idea to headlines workflow", async () => {
@@ -131,7 +157,6 @@ describe("Brainstorm Service", () => {
       const mockDb = {
         query: vi.fn(),
       };
-      // 1. Idea select
       mockDb.query.mockResolvedValueOnce({
         rowCount: 1,
         rows: [
@@ -146,20 +171,16 @@ describe("Brainstorm Service", () => {
           },
         ],
       });
-      // 2. Insert content_calendar_items
       mockDb.query.mockResolvedValueOnce({
         rows: [{ id: "content-1" }],
       });
-      // 3. Existing workspace check
       mockDb.query.mockResolvedValueOnce({
         rowCount: 0,
         rows: [],
       });
-      // 4. Insert headline_workspaces
       mockDb.query.mockResolvedValueOnce({
         rows: [{ id: "workspace-1" }],
       });
-      // 5. Update idea
       mockDb.query.mockResolvedValueOnce({
         rowCount: 1,
       });

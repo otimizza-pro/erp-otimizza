@@ -28,15 +28,17 @@ export async function GET(request: NextRequest) {
     const format = searchParams.get("format") || undefined;
     const status = searchParams.get("status") || undefined;
 
-    const [pillarsAndLines, ideas] = await Promise.all([
+    const [pillarsAndLines, ideas, rejectedIdeas] = await Promise.all([
       brainstormService.listPillarsAndLines(validClientId),
       brainstormService.listBrainstormIdeas(validClientId, { pillarId, format, status }),
+      brainstormService.listRejectedIdeas(validClientId),
     ]);
 
     return NextResponse.json({
       pillars: pillarsAndLines.pillars,
       lines: pillarsAndLines.lines,
       ideas,
+      rejectedIdeas,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao carregar dados do brainstorm.";
@@ -69,7 +71,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, ideas });
     }
 
-    if (action === "SAVE_MANUAL") {
+    if (action === "SAVE_FOR_LATER" || action === "SAVE_MANUAL") {
       const clientId = uuidSchema.parse(body.clientId);
       if (!body.title || !body.title.trim()) {
         return NextResponse.json({ error: "O título/tema do conteúdo é obrigatório." }, { status: 400 });
@@ -89,6 +91,7 @@ export async function POST(request: NextRequest) {
         painOrDesire: body.painOrDesire || "",
         goal: body.goal || "",
         rationale: body.rationale || "",
+        status: "SAVED_FOR_LATER",
       });
       return NextResponse.json({ success: true, idea });
     }
@@ -100,8 +103,63 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Nenhuma ideia para salvar." }, { status: 400 });
       }
 
-      const saved = await brainstormService.saveMultipleBrainstormIdeas(clientId, user.id, ideasList);
+      const saved = [];
+      for (const idea of ideasList) {
+        const item = await brainstormService.saveBrainstormIdea({
+          clientId,
+          userId: user.id,
+          title: idea.title,
+          pillarId: idea.pillar_id,
+          editorialLineId: idea.editorial_line_id,
+          pillarName: idea.pillar_name,
+          themeName: idea.theme_name,
+          angle: idea.angle,
+          format: idea.format,
+          targetAudience: idea.target_audience,
+          painOrDesire: idea.pain_or_desire,
+          goal: idea.goal,
+          rationale: idea.rationale,
+          status: "SAVED_FOR_LATER",
+        });
+        saved.push(item);
+      }
       return NextResponse.json({ success: true, saved });
+    }
+
+    if (action === "REJECT") {
+      const clientId = uuidSchema.parse(body.clientId);
+      let ideaId = body.ideaId ? uuidSchema.parse(body.ideaId) : null;
+
+      // Se a ideia foi rejeitada direto da geração da IA (ainda não salva no banco), cria como rejeitada
+      if (!ideaId) {
+        const created = await brainstormService.saveBrainstormIdea({
+          clientId,
+          userId: user.id,
+          title: body.title,
+          pillarId: body.pillarId || null,
+          editorialLineId: body.editorialLineId || null,
+          pillarName: body.pillarName || "",
+          themeName: body.themeName || "",
+          angle: body.angle || "",
+          format: body.format || "Carrossel",
+          targetAudience: body.targetAudience || "",
+          painOrDesire: body.painOrDesire || "",
+          goal: body.goal || "",
+          rationale: body.rationale || "",
+          status: "REJECTED",
+          rejectionReason: body.reason || "Rejeitado pelo usuário",
+        });
+        return NextResponse.json({ success: true, idea: created });
+      }
+
+      await brainstormService.rejectBrainstormIdea(ideaId, body.reason);
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === "RESTORE") {
+      const ideaId = uuidSchema.parse(body.ideaId);
+      await brainstormService.restoreBrainstormIdea(ideaId);
+      return NextResponse.json({ success: true });
     }
 
     if (action === "DELETE") {
@@ -110,10 +168,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    if (action === "CONVERT_TO_HEADLINES") {
-      const ideaId = uuidSchema.parse(body.ideaId);
+    if (action === "USE_NOW" || action === "CONVERT_TO_HEADLINES") {
+      let ideaId = body.ideaId ? uuidSchema.parse(body.ideaId) : null;
+
+      // Se for ideia direta da IA ainda não persistida, salva primeiro
+      if (!ideaId) {
+        const clientId = uuidSchema.parse(body.clientId);
+        const saved = await brainstormService.saveBrainstormIdea({
+          clientId,
+          userId: user.id,
+          title: body.title,
+          pillarId: body.pillarId || null,
+          editorialLineId: body.editorialLineId || null,
+          pillarName: body.pillarName || "",
+          themeName: body.themeName || "",
+          angle: body.angle || "",
+          format: body.format || "Carrossel",
+          targetAudience: body.targetAudience || "",
+          painOrDesire: body.painOrDesire || "",
+          goal: body.goal || "",
+          rationale: body.rationale || "",
+          status: "HEADLINES_IN_PROGRESS",
+        });
+        ideaId = saved.id;
+      }
+
       const result = await brainstormService.convertIdeaToHeadlines(ideaId, user.id);
-      return NextResponse.json({ success: true, ...result });
+      return NextResponse.json({ success: true, ...result, ideaId });
     }
 
     return NextResponse.json({ error: "Ação não reconhecida." }, { status: 400 });

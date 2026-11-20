@@ -39,7 +39,7 @@ describe("Falhas de IA não viram sucesso local", () => {
   });
   it("retorna conteúdo e o modelo real apenas após uma resposta válida", async () => {
     vi.mocked(fetch).mockResolvedValue(Response.json({ model: "test/actual", choices: [{ message: { content: "Completo" }, finish_reason: "stop" }] }));
-    expect(await generateWithOpenRouter(request)).toEqual({ text: "Completo", model: "test/actual", source: "OPENROUTER" });
+    expect(await generateWithOpenRouter(request)).toEqual({ text: "Completo", model: "test/actual", source: "OPENROUTER", usage: null, providerRequestId: null });
   });
   it("envia o teto de preço mesmo quando o modelo é substituído pela configuração", async () => {
     vi.mocked(fetch).mockResolvedValue(Response.json({ model: "test/actual", choices: [{ message: { content: "Completo" }, finish_reason: "stop" }] }));

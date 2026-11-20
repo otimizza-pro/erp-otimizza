@@ -41,6 +41,7 @@ export async function PUT(
         title = COALESCE($1, title),
         central_idea = COALESCE($2, central_idea),
         selected_headline = COALESCE($3, selected_headline),
+        headline_candidate_id = CASE WHEN $3::text IS NOT NULL AND selected_headline IS DISTINCT FROM $3 THEN NULL ELSE headline_candidate_id END,
         selected_caption = COALESCE($4, selected_caption),
         selected_reels = COALESCE($5, selected_reels),
         selected_carousel = COALESCE($6, selected_carousel),
@@ -96,8 +97,8 @@ export async function DELETE(
   try { await requireAdminUser(); } catch { return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401}); }
   try {
     const { id } = await params;
-    await query(`DELETE FROM content_calendar_items WHERE id = $1`, [id]);
-    return NextResponse.json({ success: true, message: "Post excluído com sucesso." });
+    await query(`UPDATE content_calendar_items SET archived_at=NOW(),updated_at=NOW() WHERE id = $1`, [id]);
+    return NextResponse.json({ success: true, message: "Post arquivado. Histórico de criação e avaliações preservado." });
   } catch (error: unknown) {
     console.error("Erro ao excluir post:", error);
     return NextResponse.json(

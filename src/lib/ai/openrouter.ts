@@ -73,6 +73,8 @@ export function aiFailure(error:unknown){
 }
 
 const responseSchema = z.object({
+  id: z.string().optional(),
+  usage: z.object({prompt_tokens:z.number().optional(),completion_tokens:z.number().optional(),cost:z.number().optional()}).optional(),
   model: z.string().optional(),
   choices: z.array(z.object({
     message: z.object({content: z.string().trim().min(1)}),
@@ -139,7 +141,7 @@ export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput)
     const choice = parsed.data.choices[0];
     if (choice.finish_reason === "length") throw new AiGenerationError("AI_TRUNCATED_RESPONSE","A resposta da IA foi cortada pelo limite de tamanho. Reduza o pedido e tente novamente.");
     if (choice.finish_reason !== "stop") throw new AiGenerationError("AI_INCOMPLETE_RESPONSE","O provedor não confirmou a conclusão da geração. Nenhum conteúdo foi aceito.");
-    return { text: choice.message.content, model: parsed.data.model || input.model, source: "OPENROUTER" as const };
+    return { text: choice.message.content, model: parsed.data.model || input.model, source: "OPENROUTER" as const, usage: parsed.data.usage || null, providerRequestId: parsed.data.id || null };
   } catch (error) {
     if (error instanceof AiGenerationError) throw error;
     if (controller.signal.aborted) throw new AiGenerationError("AI_TIMEOUT","A IA excedeu o tempo limite. Nenhum resultado foi confirmado; tente novamente.",504);

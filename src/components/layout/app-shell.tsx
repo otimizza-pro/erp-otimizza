@@ -152,6 +152,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       { id: "projects_list", label: "Projetos em andamento", href: "/projects", icon: Briefcase },
     ] },
     { id: "content_studio", title: "Social Media", icon: Sparkles, section: "PRODUÇÃO", items: [
+        { id: "headline_lab", label: "Laboratório de Headlines", href: "/prompt-creator/headlines", icon: Sparkles },
       { id: "prompt_creator", label: "Estúdio Criativo", href: "/prompt-creator", icon: Sparkles },
       { id: "editorial", label: "Linha Editorial", href: "/prompt-creator?tab=EDITORIAL", icon: Sparkles },
       { id: "calendar", label: "Calendário de Conteúdo", href: "/prompt-creator?tab=CALENDAR", icon: Sparkles },
@@ -178,6 +179,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       { id: "cost_centers", label: "Centros de custo", href: "/financial/cost-centers", icon: DollarSign },
     ] },
     { id: "reports", title: "Relatórios & BI", icon: BarChart3, section: "ADMINISTRATIVO", items: [
+        { id: "headline_bi", label: "BI de Headlines e IAs", href: "/prompt-creator/headlines/bi", icon: BarChart3 },
       { id: "reports_comm", label: "Indicadores comerciais", href: "/reports?tab=commercial", icon: BarChart3 },
       { id: "reports_fin", label: "Indicadores financeiros", href: "/reports?tab=financial", icon: BarChart3 },
       { id: "delivery", label: "Indicadores de Entrega", href: "/reports/delivery", icon: BarChart3 },

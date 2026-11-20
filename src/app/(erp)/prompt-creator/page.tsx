@@ -244,6 +244,8 @@ function ContentStudioPageContent() {
   const [parsedHeadlines, setParsedHeadlines] = useState<string[]>([]);
   const [favoriteHeadlines, setFavoriteHeadlines] = useState<string[]>([]);
   const [chosenHeadline, setChosenHeadline] = useState<string>("");
+  const [selectedSubheadline,setSelectedSubheadline]=useState("");
+  const [headlineBriefContext,setHeadlineBriefContext]=useState<Record<string,unknown>|null>(null);
   const [nextStepModalOpen, setNextStepModalOpen] = useState(false);
 
   // 1. Carregar lista de clientes ao montar
@@ -264,7 +266,7 @@ function ContentStudioPageContent() {
       return;
     }
     setSelectedTone("");setSelectedCta("");setCustomTone("");setCustomCta("");
-    setIdea("");setSelectedThemeId("");setAiOutput("");setActiveCalendarId("");importedContent.current="";setPiecePain("");setContentFunnel("");setJourneyStage("");setPieceGoal("");
+    setChosenHeadline("");setSelectedSubheadline("");setHeadlineBriefContext(null);setIdea("");setSelectedThemeId("");setAiOutput("");setActiveCalendarId("");importedContent.current="";setPiecePain("");setContentFunnel("");setJourneyStage("");setPieceGoal("");
     loadClientData(selectedClientId);
   }, [selectedClientId]);
 
@@ -443,7 +445,7 @@ function ContentStudioPageContent() {
   useEffect(()=>{
     const contentId=searchParams.get("contentId");if(!contentId||loadingData||importedContent.current===contentId)return;
     const controller=new AbortController();
-    fetch("/api/content-studio/posts/"+contentId,{signal:controller.signal}).then(async response=>{const result=await response.json();if(!response.ok||!result.success)throw new Error(result.error||"Erro ao abrir pauta");const item=result.data;if(item.client_id!==selectedClientId)throw new Error("Esta pauta pertence a outra empresa. Selecione-a no cabeçalho.");const parsed=contentBriefSchema.safeParse(item.editorial_brief);if(parsed.success){const brief=parsed.data;setSelectedThemeId(brief.themeId);setPieceSpeaker(brief.speaker);setPieceVoice(brief.voice);setSelectedAudience(brief.audience);setContentFunnel(brief.funnel);setJourneyStage(brief.journey);setPieceGoal(brief.goal);setPiecePain(brief.pain);setCustomTone(brief.tone);setCustomCta(brief.cta);}setIdea(item.central_idea);setScheduledDate(item.scheduled_date?.slice(0,10)||scheduledDate);setScheduledTime(item.scheduled_time?.slice(0,5)||"18:00");const formats:Record<string,string>={"Reels":"REELS","Carrossel":"CAROUSEL","Post estático":"HEADLINES","Stories":"HEADLINES"};setFormat(formats[item.format]||item.format);setActiveCalendarId(item.id);importedContent.current=contentId;}).catch(error=>{if(error.name!=="AbortError")setNotification({message:error.message,type:"error"});});return()=>controller.abort();
+    fetch("/api/content-studio/posts/"+contentId,{signal:controller.signal}).then(async response=>{const result=await response.json();if(!response.ok||!result.success)throw new Error(result.error||"Erro ao abrir pauta");const item=result.data;if(item.client_id!==selectedClientId)throw new Error("Esta pauta pertence a outra empresa. Selecione-a no cabeçalho.");const parsed=contentBriefSchema.safeParse(item.editorial_brief);if(parsed.success){const brief=parsed.data;setSelectedThemeId(brief.themeId);setPieceSpeaker(brief.speaker);setPieceVoice(brief.voice);setSelectedAudience(brief.audience);setContentFunnel(brief.funnel);setJourneyStage(brief.journey);setPieceGoal(brief.goal);setPiecePain(brief.pain);setCustomTone(brief.tone);setCustomCta(brief.cta);}setChosenHeadline(item.selected_headline || "");setSelectedSubheadline(item.selected_subheadline || "");setHeadlineBriefContext(item.headline_brief || null);setIdea(item.central_idea);setScheduledDate(item.scheduled_date?.slice(0,10)||scheduledDate);setScheduledTime(item.scheduled_time?.slice(0,5)||"18:00");const formats:Record<string,string>={"Reels":"REELS","Carrossel":"CAROUSEL","Post estático":item.selected_headline?"CAPTION":"HEADLINES","Stories":item.selected_headline?"CAPTION":"HEADLINES"};setFormat(formats[item.format]||item.format);setAiOutput(item.format==="Reels" ? item.selected_reels || "" : item.format==="Carrossel" ? item.selected_carousel || "" : item.selected_caption || "");setActiveCalendarId(item.id);importedContent.current=contentId;}).catch(error=>{if(error.name!=="AbortError")setNotification({message:error.message,type:"error"});});return()=>controller.abort();
   },[searchParams,selectedClientId,loadingData]);
   const requireBrief=()=>{if(loadingData||!briefReady){setNotification({message:loadingData?"Aguarde o contexto da empresa carregar.":"Preencha: "+missingBrief.join(", ")+".",type:"error"});return false;}return true;};
 
@@ -501,6 +503,8 @@ function ContentStudioPageContent() {
 
     if (chosenHeadline.trim()) {
       lines.push(`HEADLINE ESCOLHIDA:\n"${chosenHeadline.trim()}"`);
+      if(selectedSubheadline)lines.push("SUBHEADLINE ESCOLHIDA: "+selectedSubheadline);
+      if(headlineBriefContext)lines.push("BRIEFING COMPARTILHADO DA PEÇA: "+JSON.stringify(headlineBriefContext));
     }
 
     lines.push("");
@@ -609,6 +613,7 @@ function ContentStudioPageContent() {
           clientName,
           centralIdea: idea,
           selectedHeadline: chosenHeadline,
+          contentId: activeCalendarId || undefined,
           favoriteHeadlines,
           audience: selectedAudience,
           tone: toneToUse,
@@ -673,8 +678,8 @@ function ContentStudioPageContent() {
 
     try {
       const clientName = selectedCompany.name;
-      const res = await fetch("/api/content-studio/calendar", {
-        method: "POST",
+      const res = await fetch(activeCalendarId ? "/api/content-studio/posts/"+activeCalendarId : "/api/content-studio/calendar", {
+        method: activeCalendarId ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           clientId: selectedClientId,
@@ -682,7 +687,7 @@ function ContentStudioPageContent() {
           editorialLineId:selectedThemeId,
           scheduledDate,
           scheduledTime,
-          format,
+          format: format === "REELS" ? "Reels" : format === "CAROUSEL" ? "Carrossel" : String(headlineBriefContext?.format || format),
           status: "IN_CREATION",
           title: chosenHeadline || idea.slice(0, 80) || `Peça de ${format}`,
           centralIdea: idea,
@@ -732,7 +737,7 @@ function ContentStudioPageContent() {
           editorialBrief,
           title: chosenHeadline || idea.slice(0, 80) || `Peça de ${format}`,
           centralIdea: idea,
-          format,
+          format: format === "REELS" ? "Reels" : format === "CAROUSEL" ? "Carrossel" : String(headlineBriefContext?.format || format),
           status: "PLANNED",
           contentType: contentMode,
           adStatus: "ACTIVE",

@@ -1,0 +1,40 @@
+import {beforeEach,describe,expect,it,vi} from "vitest";
+const {sql,generate,context,auth}=vi.hoisted(()=>({sql:vi.fn(),generate:vi.fn(),context:vi.fn(),auth:vi.fn()}));
+vi.mock("@/lib/db/pool",()=>({query:sql,withTransaction:(fn:(db:unknown)=>unknown)=>fn({query:sql})}));
+vi.mock("@/lib/ai/client-context",()=>({loadAiClientContext:context}));
+vi.mock("@/lib/auth/require-auth",()=>({requireAdminUser:auth}));
+vi.mock("@/lib/ai/openrouter",()=>({generateWithOpenRouter:generate,contentModel:()=>"content-model",strategyModel:()=>"strategy-model",parseAiJson:(text:string,schema:{parse:(v:unknown)=>unknown})=>schema.parse(JSON.parse(text))}));
+import {blankBrief,briefSchema,missingBrief,validateCandidates} from "@/modules/headlines/schema";
+import {makeHeadlinePrompt,makeRunPrompt,editorialReview} from "@/modules/headlines/prompt";
+import {teamModels,executeRun,feedback,createHuman,styleContext,selectCandidate,measurements} from "@/modules/headlines/service";
+import {POST} from "@/app/api/headlines/route";
+const clientId="11111111-1111-4111-8111-111111111111",id="22222222-2222-4222-8222-222222222222",user="user-one";
+const b=briefSchema.parse({audience:"Pacientes",offer:"Edição de vídeos",goal:"Explicar serviço",desire:"Explicações claras",bigIdea:"Como preparar os vídeos"});
+const options=Array.from({length:4},(_,i)=>({headline:`Uma explicação concreta ${i}`,subheadline:"Entenda como funciona",structure:"Afirmação direta",angle:"Benefício",triggers:[],rationale:"Relaciona a oferta ao público"}));
+beforeEach(()=>{vi.clearAllMocks();auth.mockResolvedValue({id:user});});
+describe("Laboratório de headlines",()=>{
+ it("aceita briefing parcial para brainstorm, mas exige dados básicos para gerar",()=>{expect(briefSchema.parse({})).toEqual(blankBrief);expect(missingBrief(blankBrief)).toContain("Dor ou desejo");expect(missingBrief(b)).toEqual([]);});
+ it("exige quatro opções distintas e subheadline em estático",()=>{expect(validateCandidates(options,b)).toHaveLength(4);expect(()=>validateCandidates(options.slice(1),b)).toThrow();expect(()=>validateCandidates([options[0],options[0],options[2],options[3]],b)).toThrow(/repetiu/);expect(()=>validateCandidates(options.map(v=>({...v,subheadline:""})),b)).toThrow(/subheadline/);});
+ it("respeita limite de caracteres e sinaliza evidência ausente",()=>{expect(()=>validateCandidates(options,{...b,maxCharacters:10})).toThrow(/limite/);const parsed=validateCandidates(options,b)[0];expect(editorialReview(parsed,b).warnings.join()).toContain("Número sem evidência");});
+ it("usa modelos de ambiente por posição, mantendo os oito slots",()=>{vi.stubEnv("OPENROUTER_HEADLINE_TEAM_A_2_MODEL","custom/model");expect(teamModels().A).toHaveLength(4);expect(teamModels().B).toHaveLength(4);expect(teamModels().A[1].model).toBe("custom/model");vi.unstubAllEnvs();});
+ it("mantém histórico de estilo fora da modalidade só prompt",()=>{const base=makeHeadlinePrompt(b,{brand:"Clínica"});const style={positive:["EXEMPLO EXCLUSIVO DO CLIENTE"]};expect(makeRunPrompt(base,"PROMPT",style,[])).not.toContain("EXEMPLO EXCLUSIVO");expect(makeRunPrompt(base,"STYLE",style,[])).toContain("EXEMPLO EXCLUSIVO");expect(makeRunPrompt(base,"PROMPT",style,[{headline:"Não repetir"}])).toContain("Não repetir");});
+ it("persiste somente as quatro opções válidas e o modelo efetivo",async()=>{
+  sql.mockImplementation((statement:string)=>Promise.resolve({rowCount:1,rows:statement.startsWith('SELECT x.*')?[{id,round_id:id,requested_model:'requested',mode:'PROMPT',brief:b,prompt:'base',style:{},rejection_snapshot:[]}]:[{id}]}));
+  generate.mockResolvedValue({text:JSON.stringify(options),model:'actual',usage:{cost:0.01}});
+  await executeRun(id,user);
+  expect(sql.mock.calls.filter(([s])=>s.startsWith('INSERT INTO headline_candidates'))).toHaveLength(4);
+  const completion=sql.mock.calls.find(([s])=>s.includes("status='SUCCESS'"));expect(completion?.[1][1]).toBe('actual');
+ });
+ it("falha isoladamente sem persistir resposta incompleta",async()=>{
+  sql.mockImplementation((s:string)=>Promise.resolve({rowCount:1,rows:s.startsWith('SELECT x.*')?[{id,round_id:id,requested_model:'bad',mode:'STYLE',brief:b,prompt:'base',style:{},rejection_snapshot:[]}]:[{id}]}));
+  generate.mockResolvedValue({text:JSON.stringify(options.slice(0,2)),model:'bad',usage:{cost:0.02}});await executeRun(id,user);
+  expect(sql.mock.calls.some(([s])=>s.startsWith('INSERT INTO headline_candidates'))).toBe(false);expect(sql.mock.calls.some(([s])=>s.includes("status='ERROR'"))).toBe(true);
+ });
+ it("não executa duas vezes uma solicitação já em andamento",async()=>{sql.mockResolvedValueOnce({rows:[{id}]}).mockResolvedValueOnce({rowCount:0,rows:[]});await executeRun(id,user);expect(generate).not.toHaveBeenCalled();});
+ it("neutro é uma avaliação removida e fica auditado",async()=>{sql.mockResolvedValue({rows:[{id,rating:-1}],rowCount:1});await feedback(id,user,0,'');expect(sql.mock.calls[1][1]).toEqual([id,0,'']);expect(JSON.parse(sql.mock.calls[2][1][2])).toMatchObject({previous:-1,rating:0});});
+ it("isola exemplos por cliente, usuário e formato",async()=>{sql.mockResolvedValue({rows:[]});await styleContext(clientId,user,'Reels');for(const [,args] of sql.mock.calls)expect(args).toEqual([clientId,user,'Reels']);});
+ it("autoria própria entra como positiva sem execução atribuída à IA",async()=>{sql.mockResolvedValueOnce({rows:[{brief:b}]}).mockResolvedValueOnce({rows:[{id}]}).mockResolvedValueOnce({rows:[]});expect(await createHuman(id,user,'Minha frase','Meu apoio',[])).toBe(id);expect(sql.mock.calls[1][0]).toContain("'HUMAN',1");expect(sql.mock.calls[1][0]).not.toContain('run_id');});
+ it("escolha atualiza a mesma peça e conserva conteúdo existente",async()=>{sql.mockResolvedValueOnce({rows:[{id,brief:b,content_id:clientId,headline:'Escolhida',subheadline:'Apoio'}]}).mockResolvedValueOnce({rows:[{headline_candidate_id:null}]}).mockResolvedValue({rows:[]});await selectCandidate(id,user);const update=sql.mock.calls[2];expect(update[1]).toHaveLength(11);expect(update[0]).toContain('headline_content_stale');expect(update[0]).not.toContain('selected_reels=');expect(sql.mock.calls.some(([s])=>s.startsWith('INSERT INTO content_calendar_items'))).toBe(false);});
+ it("impede métricas inconsistentes antes de gravar",async()=>{await expect(measurements(id,user,{from:'2026-11-01',to:'2026-11-02',impressions:1,clicks:2,leads:0,sales:0,spend:0,source:'Relatório real'})).rejects.toThrow();expect(sql).not.toHaveBeenCalled();});
+ it("protege operações da API sem autenticação",async()=>{auth.mockRejectedValue(new Error('UNAUTHORIZED'));const result=await POST(new Request('http://localhost/api/headlines',{method:'POST',body:JSON.stringify({action:'RUN',id})}));expect(result.status).toBe(401);expect(sql).not.toHaveBeenCalled();});
+});

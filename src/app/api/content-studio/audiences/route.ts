@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { clientId, name, description, demographics, painPoints, desires, objections, isDefault } = body;
+    const { clientId, name, description, demographics, painPoints, desires, objections, digitalBehavior, isDefault } = body;
 
     if (!clientId || !name?.trim()) {
       return NextResponse.json({ error: "Cliente e Nome do público são obrigatórios." }, { status: 400 });
@@ -51,8 +51,8 @@ export async function POST(request: NextRequest) {
 
     const res = await query(
       `INSERT INTO client_audiences (
-        client_id, name, description, demographics, pain_points, desires, objections, is_default
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        client_id, name, description, demographics, pain_points, desires, objections, digital_behavior, is_default
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *`,
       [
         clientId,
@@ -62,6 +62,7 @@ export async function POST(request: NextRequest) {
         painPoints || [],
         desires || [],
         objections || [],
+        digitalBehavior?.trim() || null,
         Boolean(isDefault)
       ]
     );
@@ -82,7 +83,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, name, description, demographics, painPoints, desires, objections, isDefault, clientId } = body;
+    const { id, name, description, demographics, painPoints, desires, objections, digitalBehavior, isDefault, clientId } = body;
 
     if (!id || !name?.trim()) {
       return NextResponse.json({ error: "ID e Nome são obrigatórios." }, { status: 400 });
@@ -100,9 +101,10 @@ export async function PUT(request: NextRequest) {
         pain_points = $4,
         desires = $5,
         objections = $6,
-        is_default = $7,
+        digital_behavior = $7,
+        is_default = $8,
         updated_at = now()
-      WHERE id = $8
+      WHERE id = $9
       RETURNING *`,
       [
         name.trim(),
@@ -111,6 +113,7 @@ export async function PUT(request: NextRequest) {
         painPoints || [],
         desires || [],
         objections || [],
+        digitalBehavior?.trim() || null,
         Boolean(isDefault),
         id
       ]

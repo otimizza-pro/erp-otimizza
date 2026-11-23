@@ -20,6 +20,7 @@ import {
   ShieldAlert,
   Flame,
   Heart,
+  Globe,
 } from "lucide-react";
 import { AudienceAiPlanner } from "@/components/content-studio/audience-ai-planner";
 
@@ -32,6 +33,7 @@ export interface ClientAudienceItem {
   pain_points: string[];
   desires: string[];
   objections: string[];
+  digital_behavior?: string | null;
   is_default: boolean;
   archived_at: string | null;
 }
@@ -57,47 +59,64 @@ export function ClientAudiencesManager({
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Form inputs
+  // Form inputs (4 Pilares)
   const [formName, setFormName] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formDemographics, setFormDemographics] = useState("");
   const [formPainPoints, setFormPainPoints] = useState("");
   const [formDesires, setFormDesires] = useState("");
   const [formObjections, setFormObjections] = useState("");
+  const [formDigitalBehavior, setFormDigitalBehavior] = useState("");
   const [formIsDefault, setFormIsDefault] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   const onAudiencesChangeRef = useRef(onAudiencesChange);
-  const listRequest = useRef(0);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   useEffect(() => {
     onAudiencesChangeRef.current = onAudiencesChange;
   }, [onAudiencesChange]);
 
   const loadAudiences = useCallback(async () => {
-    if (!clientId) return;
-    const request = ++listRequest.current;
+    if (!clientId) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/content-studio/audiences?clientId=${encodeURIComponent(clientId)}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("Erro ao carregar públicos do cliente.");
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || "Erro ao carregar públicos do cliente.");
+      }
       const data = await res.json();
       const list: ClientAudienceItem[] = data.audiences || [];
-      if (request !== listRequest.current) return;
-      setAudiences(list);
-      onAudiencesChangeRef.current?.(list);
+      if (isMountedRef.current) {
+        setAudiences(list);
+        onAudiencesChangeRef.current?.(list);
+      }
     } catch (err) {
-      if (request !== listRequest.current) return;
-      console.error(err);
-      setError(err instanceof Error ? err.message : "Falha ao carregar públicos.");
+      if (isMountedRef.current) {
+        console.error(err);
+        setError(err instanceof Error ? err.message : "Falha ao carregar públicos.");
+      }
     } finally {
-      if (request === listRequest.current) setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [clientId]);
 
   useEffect(() => {
-    loadAudiences();
-    return () => { listRequest.current++; };
+    void loadAudiences();
   }, [loadAudiences]);
 
   const openCreateModal = () => {
@@ -108,6 +127,7 @@ export function ClientAudiencesManager({
     setFormPainPoints("");
     setFormDesires("");
     setFormObjections("");
+    setFormDigitalBehavior("");
     setFormIsDefault(audiences.length === 0);
     setFormError(null);
     setModalOpen(true);
@@ -121,6 +141,7 @@ export function ClientAudiencesManager({
     setFormPainPoints((aud.pain_points || []).join("\n"));
     setFormDesires((aud.desires || []).join("\n"));
     setFormObjections((aud.objections || []).join("\n"));
+    setFormDigitalBehavior(aud.digital_behavior || "");
     setFormIsDefault(Boolean(aud.is_default));
     setFormError(null);
     setModalOpen(true);
@@ -163,6 +184,7 @@ export function ClientAudiencesManager({
         painPoints,
         desires,
         objections,
+        digitalBehavior: formDigitalBehavior.trim() || null,
         isDefault: formIsDefault,
       };
 
@@ -227,6 +249,7 @@ export function ClientAudiencesManager({
           painPoints: aud.pain_points,
           desires: aud.desires,
           objections: aud.objections,
+          digitalBehavior: aud.digital_behavior,
           isDefault: true,
         }),
       });
@@ -465,6 +488,18 @@ export function ClientAudiencesManager({
                         </div>
                       </div>
                     )}
+
+                    {/* Pilar 4: Comportamento no Digital */}
+                    {aud.digital_behavior && (
+                      <div className="space-y-1 pt-1.5 border-t border-zinc-100">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700 flex items-center gap-1">
+                          <Globe className="w-2.5 h-2.5" /> Comportamento no Digital (Meta & Google Ads)
+                        </span>
+                        <p className="text-[11px] text-zinc-600 bg-blue-50/60 p-2 rounded-xl border border-blue-100/80 leading-relaxed line-clamp-2">
+                          {aud.digital_behavior}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -473,7 +508,7 @@ export function ClientAudiencesManager({
         </div>
       )}
 
-      {/* Modal Criar / Editar Público */}
+      {/* Modal Criar / Editar Público com os 4 Pilares */}
       {modalOpen && createPortal(
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div
@@ -486,10 +521,10 @@ export function ClientAudiencesManager({
               <div>
                 <h3 id="modal-audience-title" className="text-sm font-bold text-zinc-950 flex items-center gap-1.5">
                   <Target className="w-4 h-4 text-purple-600" />
-                  {editingAudience ? "Editar Público-Alvo" : "Cadastrar Novo Público-Alvo"}
+                  {editingAudience ? "Editar Público-Alvo (4 Pilares)" : "Cadastrar Novo Público-Alvo (4 Pilares)"}
                 </h3>
                 <p className="text-xs text-zinc-500">
-                  Defina características, dores e objeções deste segmento para nortear a IA.
+                  Estrutura completa em 4 pilares pronta para Tráfego Pago e linha editorial de Social Media.
                 </p>
               </div>
               <button
@@ -508,6 +543,7 @@ export function ClientAudiencesManager({
             )}
 
             <form onSubmit={handleSaveForm} className="space-y-4">
+              {/* Identificação Geral */}
               <div>
                 <label className="text-xs font-semibold text-zinc-800 block mb-1">
                   Nome do Público *
@@ -515,78 +551,111 @@ export function ClientAudiencesManager({
                 <input
                   type="text"
                   required
-                  placeholder="Ex: Empresários PME, Profissionais Liberais, Médicos..."
+                  placeholder="Ex: Reabilitação, Postural, Atletas..."
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-zinc-800 block mb-1">
-                  Descrição / Perfil do Público
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder="Quem são, qual o momento atual, tamanho da empresa ou rotina..."
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 min-h-[75px] resize-y leading-relaxed"
-                />
+              {/* Pilar 1: Dados Demográficos (Quem são) */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
+                <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-slate-600" />
+                  1. Dados Demográficos & Perfil (Quem são)
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                      Idade, Gênero e Localização (Raio de atuação)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: 35 a 65 anos, homens e mulheres, raio de 3 a 5 km, classe A/B..."
+                      value={formDemographics}
+                      onChange={(e) => setFormDemographics(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-zinc-700 block mb-1">
+                      Ocupação / Rotina / Momento
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: Profissionais de escritório, pessoas com dor crônica, praticantes de corrida..."
+                      value={formDescription}
+                      onChange={(e) => setFormDescription(e.target.value)}
+                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-zinc-800 block mb-1">
-                  Perfil Demográfico (Opcional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: 30 a 55 anos, decisores de compra, todo o Brasil..."
-                  value={formDemographics}
-                  onChange={(e) => setFormDemographics(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600"
-                />
-              </div>
-
+              {/* Pilares 2 e 3: Dores e Desejos */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-amber-800 block mb-1">
-                    Dores (1 por linha)
+                <div className="p-3.5 rounded-xl bg-amber-50/50 border border-amber-200/80 space-y-1.5">
+                  <label className="text-xs font-bold text-amber-900 block flex items-center gap-1">
+                    <Flame className="w-3.5 h-3.5 text-amber-600" />
+                    2. Dores e Problemas
                   </label>
+                  <span className="text-[10px] text-amber-700 block">Dores físicas e impacto na rotina (1 por linha)</span>
                   <textarea
-                    rows={7}
-                    placeholder="Pouco tempo&#10;Falta de clientes&#10;Incerteza nas vendas"
+                    rows={6}
+                    placeholder="Dor física latente (hérnia, dores articulares)&#10;Impacto na rotina diária&#10;Insegurança ao se movimentar"
                     value={formPainPoints}
                     onChange={(e) => setFormPainPoints(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 min-h-[150px] resize-y leading-relaxed"
+                    className="w-full px-3 py-2 text-xs bg-white border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 min-h-[130px] resize-y leading-relaxed"
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-emerald-800 block mb-1">
-                    Desejos (1 por linha)
+                <div className="p-3.5 rounded-xl bg-emerald-50/50 border border-emerald-200/80 space-y-1.5">
+                  <label className="text-xs font-bold text-emerald-900 block flex items-center gap-1">
+                    <Heart className="w-3.5 h-3.5 text-emerald-600" />
+                    3. Desejos e Objetivos
                   </label>
+                  <span className="text-[10px] text-emerald-700 block">Objetivo primário e transformação (1 por linha)</span>
                   <textarea
-                    rows={7}
-                    placeholder="Escalar faturamento&#10;Ter previsibilidade&#10;Mais liberdade"
+                    rows={6}
+                    placeholder="Viver sem dor e recuperar mobilidade&#10;Mais disposição e leveza no corpo&#10;Autonomia para atividades cotidianas"
                     value={formDesires}
                     onChange={(e) => setFormDesires(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[150px] resize-y leading-relaxed"
+                    className="w-full px-3 py-2 text-xs bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[130px] resize-y leading-relaxed"
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-purple-800 block mb-1">
-                    Objeções (1 por linha)
+                <div className="p-3.5 rounded-xl bg-purple-50/50 border border-purple-200/80 space-y-1.5">
+                  <label className="text-xs font-bold text-purple-900 block flex items-center gap-1">
+                    <ShieldAlert className="w-3.5 h-3.5 text-purple-600" />
+                    Medos e Objeções
                   </label>
+                  <span className="text-[10px] text-purple-700 block">Travas e receios do cliente (1 por linha)</span>
                   <textarea
-                    rows={7}
-                    placeholder="Já me frustrei antes&#10;Acho caro&#10;Não tenho tempo"
+                    rows={6}
+                    placeholder="Já me frustrei antes&#10;Medo de piorar a lesão&#10;Acho que não tenho tempo"
                     value={formObjections}
                     onChange={(e) => setFormObjections(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[150px] resize-y leading-relaxed"
+                    className="w-full px-3 py-2 text-xs bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[130px] resize-y leading-relaxed"
                   />
                 </div>
+              </div>
+
+              {/* Pilar 4: Comportamento no Digital */}
+              <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200/80 space-y-2">
+                <span className="text-[11px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-blue-600" />
+                  4. Comportamento e Interesses no Digital (Como alcançar)
+                </span>
+                <p className="text-[11px] text-blue-800/80 leading-relaxed">
+                  Interesses para segmentação no Meta Ads e termos que esse público digita na busca do Google ou Google Meu Negócio.
+                </p>
+                <textarea
+                  rows={3}
+                  placeholder="Ex: Interesses Meta: Fisioterapia, Pilates, Saúde e Bem-Estar. Palavras-chave Google: fisioterapia perto de mim, alívio de dor na coluna, studio de pilates..."
+                  value={formDigitalBehavior}
+                  onChange={(e) => setFormDigitalBehavior(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[70px] resize-y leading-relaxed"
+                />
               </div>
 
               <div className="pt-2 border-t border-zinc-100 flex items-center justify-between">

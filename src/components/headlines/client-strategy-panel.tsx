@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { InstagramIcon as Instagram } from "@/components/ui/instagram";
+import { ClientAudiencesManager } from "@/components/clients/client-audiences-manager";
 import {
   COMMUNICATION_OPTIONS,
   CommunicationProfile,
@@ -669,79 +670,32 @@ export function ClientStrategyPanel({
 
       {/* CONTEÚDO DA SUB-ABA 2: PÚBLICOS & DORES */}
       {subTab === "audiences" && (
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Públicos-Alvo Cadastrados */}
-          <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
-            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
-              <Target size={18} className="text-emerald-600" />
-              Públicos-Alvo & Personas
-            </h3>
-            <p className="text-xs text-zinc-500">
-              Esses perfis de público alimentam automaticamente o campo de público no Brainstorm e no Briefing das Headlines.
-            </p>
+        <div className="space-y-6">
+          {/* Gerenciador Completo de Públicos Estruturados em 4 Pilares */}
+          <ClientAudiencesManager
+            clientId={clientId}
+            clientName={companyName}
+            onAudiencesChange={(auds) => {
+              setTargetAudiences(auds.map((a) => a.name));
+            }}
+          />
+
+          {/* Dores e Objeções Globais do Negócio (Transversais) */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">
+            <div>
+              <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
+                <AlertCircle size={16} className="text-amber-600" />
+                Dores e Objeções Globais do Negócio
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                Frustrações transversais a todos os públicos que o conteúdo geral e a autoridade da marca ajudam a sanar.
+              </p>
+            </div>
 
             <div className="flex gap-2">
               <input
                 className={control}
-                placeholder="Ex: Diretores Financeiros de PMEs, Médicos com consultório próprio..."
-                value={newAudience}
-                onChange={(e) => setNewAudience(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addItem(setTargetAudiences, newAudience, () => setNewAudience(""));
-                  }
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => addItem(setTargetAudiences, newAudience, () => setNewAudience(""))}
-                className="mt-1 inline-flex items-center gap-1 rounded-xl bg-zinc-900 px-3 text-xs font-bold text-white hover:bg-zinc-800 transition"
-              >
-                <Plus size={14} />
-                Adicionar
-              </button>
-            </div>
-
-            <div className="space-y-2 mt-3">
-              {targetAudiences.map((aud) => (
-                <div
-                  key={aud}
-                  className="flex items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 text-sm text-zinc-800"
-                >
-                  <div className="flex items-center gap-2 font-medium">
-                    <Target size={14} className="text-emerald-600" />
-                    {aud}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(setTargetAudiences, aud)}
-                    className="text-zinc-400 hover:text-rose-600 transition"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-              {targetAudiences.length === 0 && (
-                <p className="text-xs text-zinc-400 italic">Nenhum público cadastrado ainda.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Dores & Necessidades */}
-          <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
-            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
-              <AlertCircle size={18} className="text-amber-600" />
-              Principais Dores, Problemas e Necessidades
-            </h3>
-            <p className="text-xs text-zinc-500">
-              Quais são as frustrações que o cliente vive diariamente e que seu conteúdo promete ajudar a resolver?
-            </p>
-
-            <div className="flex gap-2">
-              <input
-                className={control}
-                placeholder="Ex: Falta de tempo para atrair clientes, Gastos descontrolados com anúncios..."
+                placeholder="Ex: Falta de tempo para cuidar da saúde, frustração com academias convencionais..."
                 value={newPain}
                 onChange={(e) => setNewPain(e.target.value)}
                 onKeyDown={(e) => {
@@ -754,34 +708,32 @@ export function ClientStrategyPanel({
               <button
                 type="button"
                 onClick={() => addItem(setPainPoints, newPain, () => setNewPain(""))}
-                className="mt-1 inline-flex items-center gap-1 rounded-xl bg-zinc-900 px-3 text-xs font-bold text-white hover:bg-zinc-800 transition"
+                className="inline-flex items-center gap-1 rounded-xl bg-zinc-900 px-3 text-xs font-bold text-white hover:bg-zinc-800 transition"
               >
                 <Plus size={14} />
                 Adicionar
               </button>
             </div>
 
-            <div className="space-y-2 mt-3">
+            <div className="flex flex-wrap gap-2 pt-2">
               {painPoints.map((pain) => (
-                <div
+                <span
                   key={pain}
-                  className="flex items-center justify-between rounded-xl border border-amber-200/60 bg-amber-50/50 p-3 text-sm text-zinc-800"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-200/60 bg-amber-50/50 text-xs font-medium text-amber-900"
                 >
-                  <div className="flex items-center gap-2 font-medium">
-                    <span className="h-2 w-2 rounded-full bg-amber-500" />
-                    {pain}
-                  </div>
+                  <span className="h-2 w-2 rounded-full bg-amber-500" />
+                  {pain}
                   <button
                     type="button"
                     onClick={() => removeItem(setPainPoints, pain)}
-                    className="text-zinc-400 hover:text-rose-600 transition"
+                    className="ml-1 text-zinc-400 hover:text-rose-600 transition"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={12} />
                   </button>
-                </div>
+                </span>
               ))}
               {painPoints.length === 0 && (
-                <p className="text-xs text-zinc-400 italic">Nenhuma dor cadastrada ainda.</p>
+                <p className="text-xs text-zinc-400 italic">Nenhuma dor global cadastrada ainda.</p>
               )}
             </div>
           </div>

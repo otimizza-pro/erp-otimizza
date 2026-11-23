@@ -641,7 +641,7 @@ export default function PublicBriefingPage({
                     }
                   }}
                   placeholder="Ex: Pessoas com dores posturais no home office..."
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
                 />
                 <button
                   type="button"
@@ -733,7 +733,7 @@ export default function PublicBriefingPage({
                     }
                   }}
                   placeholder="Ex: Avaliação biomecânica computadorizada exclusiva..."
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
                 />
                 <button
                   type="button"
@@ -918,7 +918,7 @@ export default function PublicBriefingPage({
                 value={competitorsText}
                 onChange={(e) => setCompetitorsText(e.target.value)}
                 placeholder="@perfil.exemplo, @clinica.referencia, canais no youtube ou links de referência..."
-                className={`w-full p-4 rounded-2xl border text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition ${
+                className={`w-full p-4 rounded-2xl border text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition ${
                   noCompetitorReferences
                     ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
                     : "bg-white text-slate-800 border-slate-200 focus:border-emerald-500"
@@ -991,7 +991,7 @@ export default function PublicBriefingPage({
                     value={igUsername.replace("@", "")}
                     onChange={(e) => setIgUsername(e.target.value)}
                     placeholder="nomedasuamarca"
-                    className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                    className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:bg-slate-100 disabled:text-slate-400"
                   />
                 </div>
               </div>
@@ -1007,7 +1007,7 @@ export default function PublicBriefingPage({
                     value={igPassword}
                     onChange={(e) => setIgPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                    className="w-full pl-4 pr-12 py-2.5 rounded-xl border border-slate-200 text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white disabled:bg-slate-100 disabled:text-slate-400"
                   />
                   <button
                     type="button"

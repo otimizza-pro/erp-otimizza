@@ -43,6 +43,14 @@ import {
 } from "@/modules/projects/types";
 import { DocumentAttachmentSection } from "@/components/documents/document-attachment-section";
 import { TaskExecutionModal } from "@/components/projects/task-execution-modal";
+import {
+  ActiveTimerRecord,
+  TaskCardTimer,
+  ProjectActiveTimerHeaderPill,
+  ProjectTimesTabWidget,
+  StartTimerModal,
+  StopTimerModal,
+} from "@/components/projects/project-timer-widget";
 
 function formatDateBR(dateStr?: string | null): string {
   if (!dateStr) return "-";
@@ -93,6 +101,33 @@ export default function ProjectWorkspacePage({
 
   const [newChecklistText, setNewChecklistText] = useState<Record<string, string>>({});
 
+  // Estados do Cronômetro / Apontamento de Horas em Tempo Real
+  const [activeTimers, setActiveTimers] = useState<ActiveTimerRecord[]>([]);
+  const [timerFeedback, setTimerFeedback] = useState<string | null>(null);
+  const [isStartTimerModalOpen, setIsStartTimerModalOpen] = useState<boolean>(false);
+  const [stoppingTimer, setStoppingTimer] = useState<ActiveTimerRecord | null>(null);
+
+  const loadActiveTimers = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/projects/${id}/timers`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.timers)) {
+        setActiveTimers(json.timers);
+      }
+    } catch (err) {
+      console.error("Erro ao carregar timers ativos:", err);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveTimers((prev) =>
+        prev.map((t) => (t.isRunning ? { ...t, currentSeconds: t.currentSeconds + 1 } : t))
+      );
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   const loadProject = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -105,12 +140,14 @@ export default function ProjectWorkspacePage({
       const timeRes = await fetch(`/api/projects/${id}/time-entries`);
       const timeJson = await timeRes.json();
       if (timeJson.success) setTimeEntries(timeJson.data);
+
+      await loadActiveTimers();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erro ao carregar projeto.");
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, loadActiveTimers]);
 
   useEffect(() => {
     loadProject();
@@ -146,6 +183,100 @@ export default function ProjectWorkspacePage({
     } catch (err) {
       console.error("Erro ao excluir projeto:", err);
       alert("Erro ao excluir projeto.");
+    }
+  };
+
+  // Funções do Cronômetro de Horas
+  const handleStartTimer = async (taskId?: string, desc?: string) => {
+    try {
+      const res = await fetch(`/api/projects/${id}/timers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "START",
+          taskId: taskId || undefined,
+          description: desc || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Erro ao iniciar cronômetro");
+      await loadActiveTimers();
+      setTimerFeedback("⏱️ Cronômetro iniciado!");
+      setTimeout(() => setTimerFeedback(null), 3000);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao iniciar cronômetro.");
+      throw err;
+    }
+  };
+
+  const handlePauseTimer = async (timerId: string) => {
+    try {
+      const res = await fetch(`/api/projects/${id}/timers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "PAUSE", timerId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Erro ao pausar cronômetro");
+      await loadActiveTimers();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao pausar cronômetro.");
+    }
+  };
+
+  const handleResumeTimer = async (timerId: string) => {
+    try {
+      const res = await fetch(`/api/projects/${id}/timers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "RESUME", timerId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Erro ao retomar cronômetro");
+      await loadActiveTimers();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao retomar cronômetro.");
+    }
+  };
+
+  const handleConfirmStopTimer = async (timer: ActiveTimerRecord, finalDescription: string) => {
+    try {
+      const res = await fetch(`/api/projects/${id}/timers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "STOP",
+          timerId: timer.id,
+          description: finalDescription.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Erro ao finalizar cronômetro");
+      setStoppingTimer(null);
+      await loadActiveTimers();
+      await loadProject();
+      setTimerFeedback(`🎉 ${json.message || "Apontamento registrado com sucesso!"}`);
+      setTimeout(() => setTimerFeedback(null), 4000);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao finalizar cronômetro.");
+      throw err;
+    }
+  };
+
+  const handleDiscardTimer = async (timerId: string) => {
+    if (!confirm("Tem certeza que deseja descartar este cronômetro? O tempo percorrido não será salvo.")) return;
+    try {
+      const res = await fetch(`/api/projects/${id}/timers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "DISCARD", timerId }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || "Erro ao descartar cronômetro");
+      if (stoppingTimer?.id === timerId) setStoppingTimer(null);
+      await loadActiveTimers();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Erro ao descartar cronômetro.");
     }
   };
 
@@ -340,12 +471,21 @@ export default function ProjectWorkspacePage({
               </button>
             )}
 
+            <ProjectActiveTimerHeaderPill
+              activeTimers={activeTimers}
+              onPause={handlePauseTimer}
+              onResume={handleResumeTimer}
+              onOpenStop={setStoppingTimer}
+              onOpenStart={() => setIsStartTimerModalOpen(true)}
+            />
+
             <button
               onClick={() => setIsTimeModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 shadow-2xs transition-colors"
+              title="Apontar horas retroativas manualmente"
             >
-              <Clock className="w-3.5 h-3.5 text-indigo-600" />
-              Apontar Horas
+              <Clock className="w-3.5 h-3.5 text-slate-500" />
+              Lançar Manual
             </button>
             <button
               onClick={() => setIsTaskModalOpen(true)}
@@ -633,6 +773,15 @@ export default function ProjectWorkspacePage({
                               <span>Prazo: {formatDateBR(t.dueDate)}</span>
                               <span>{t.actualHours || 0}h / {t.estimatedHours || 0}h</span>
                             </div>
+
+                            <TaskCardTimer
+                              task={t}
+                              activeTimers={activeTimers}
+                              onStart={handleStartTimer}
+                              onPause={handlePauseTimer}
+                              onResume={handleResumeTimer}
+                              onOpenStop={setStoppingTimer}
+                            />
                           </div>
                         );
                       })}
@@ -668,9 +817,18 @@ export default function ProjectWorkspacePage({
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-950 text-white rounded-lg text-xs font-semibold hover:bg-zinc-800 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
-                Novo Apontamento
+                Novo Apontamento Manual
               </button>
             </div>
+
+            <ProjectTimesTabWidget
+              activeTimers={activeTimers}
+              onPause={handlePauseTimer}
+              onResume={handleResumeTimer}
+              onOpenStop={setStoppingTimer}
+              onDiscard={handleDiscardTimer}
+              onOpenStart={() => setIsStartTimerModalOpen(true)}
+            />
 
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
@@ -992,6 +1150,21 @@ export default function ProjectWorkspacePage({
           isOpen={!!selectedTaskForModal}
           onClose={() => setSelectedTaskForModal(null)}
           onTaskUpdated={loadProject}
+        />
+
+        {/* Modais de Controle do Cronômetro de Horas */}
+        <StartTimerModal
+          isOpen={isStartTimerModalOpen}
+          onClose={() => setIsStartTimerModalOpen(false)}
+          tasks={allTasks}
+          onStart={handleStartTimer}
+        />
+
+        <StopTimerModal
+          timer={stoppingTimer}
+          onClose={() => setStoppingTimer(null)}
+          onConfirmStop={handleConfirmStopTimer}
+          onDiscard={handleDiscardTimer}
         />
       </div>
     </>

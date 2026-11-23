@@ -279,10 +279,11 @@ DIRETRIZES FUNDAMENTAIS:
 
   const response = await generateWithOpenRouter({
     model: strategyModel(),
-    maxTokens: Math.max(1200, count * 450),
+    maxTokens: Math.max(2000, count * 900),
+    reasoningEffort: "low",
     temperature: 0.7,
     messages: [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: systemPrompt + "\nUse uma frase curta por campo descritivo e entregue apenas o JSON solicitado." },
       { role: "user", content: userContent },
     ],
   });

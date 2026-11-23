@@ -301,16 +301,19 @@ export default function ClientIdentityPage() {
       ? selectedTones.filter((t) => t !== tone)
       : [...selectedTones, tone];
     setSelectedTones(nextTones);
+    stateRef.current.selectedTones = nextTones;
     setDirty(true);
     setTimeout(() => { void saveIdentity(true); }, 150);
   };
 
   const handleAddCustomTone = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCustomTone.trim()) return;
-    if (!selectedTones.includes(newCustomTone.trim())) {
-      const nextTones = [...selectedTones, newCustomTone.trim()];
+    const trimmed = newCustomTone.trim();
+    if (!trimmed) return;
+    if (!selectedTones.includes(trimmed)) {
+      const nextTones = [...selectedTones, trimmed];
       setSelectedTones(nextTones);
+      stateRef.current.selectedTones = nextTones;
       setDirty(true);
       setTimeout(() => { void saveIdentity(true); }, 150);
     }
@@ -660,34 +663,36 @@ export default function ClientIdentityPage() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-              {PRESET_TONES.map((tone) => {
+              {Array.from(new Set([...PRESET_TONES, ...selectedTones])).map((tone) => {
                 const isChecked = selectedTones.includes(tone);
+                const isCustom = !PRESET_TONES.includes(tone);
 
                 return (
-                  <label
+                  <button
                     key={tone}
+                    type="button"
+                    aria-pressed={isChecked}
                     onClick={() => toggleTone(tone)}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs cursor-pointer select-none transition ${isChecked
-                      ? "bg-zinc-900 text-white border-zinc-900 font-semibold shadow-2xs"
-                      : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
+                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-xs cursor-pointer select-none transition text-left ${isChecked
+                      ? "bg-zinc-900 text-white border-zinc-900 font-semibold shadow-2xs ring-1 ring-zinc-900"
+                      : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300"
                       }`}
                   >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => { }}
-                      className="sr-only"
-                    />
                     <div
-                      className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${isChecked
+                      className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border transition-colors ${isChecked
                         ? "bg-white text-zinc-900 border-white"
                         : "border-zinc-300 bg-white"
                         }`}
                     >
                       {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                     </div>
-                    <span>{tone}</span>
-                  </label>
+                    <span className="flex-1">{tone}</span>
+                    {isCustom && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-normal ${isChecked ? "bg-zinc-800 text-zinc-200" : "bg-zinc-200 text-zinc-600"}`}>
+                        Personalizado
+                      </span>
+                    )}
+                  </button>
                 );
               })}
             </div>

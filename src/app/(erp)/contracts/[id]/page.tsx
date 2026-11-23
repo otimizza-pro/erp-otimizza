@@ -4,6 +4,7 @@ import { BillingSetup } from "@/components/contracts/billing-setup";
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { isOnboardingTemplate } from "@/modules/projects/editorial-template";
 import Link from "next/link";
 
 import {
@@ -1090,7 +1091,7 @@ export default function ContractDetailsPage() {
                     className="w-full px-3 py-1.5 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">Selecione um Modelo...</option>
-                    {projectTemplates.map((t) => (
+                    {projectTemplates.filter(t => !isOnboardingTemplate(t.code)).map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name} ({t.estimatedHours}h)
                       </option>

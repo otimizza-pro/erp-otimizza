@@ -52,6 +52,11 @@ interface BriefingSessionData {
   credentialsSaved?: boolean;
 }
 
+function formatCleanText(text?: string | null): string {
+  if (!text) return "";
+  return text.replace(/\*\*/g, "").replace(/\*/g, "");
+}
+
 export default function PublicBriefingPage({
   params,
 }: {
@@ -311,7 +316,7 @@ export default function PublicBriefingPage({
                     : "bg-emerald-600 text-white rounded-tr-xs"
                 }`}
               >
-                <div className="whitespace-pre-wrap">{msg.text}</div>
+                <div className="whitespace-pre-wrap">{formatCleanText(msg.text)}</div>
               </div>
 
               {/* Bloco de Sugestão com Botões Interativos (Aprovar, Ajustar, Outra Opção) */}
@@ -323,7 +328,7 @@ export default function PublicBriefingPage({
                   </div>
 
                   <p className="text-xs text-slate-200 italic bg-slate-900/60 p-2.5 rounded-xl border border-emerald-500/20">
-                    &ldquo;{msg.suggestedData.value}&rdquo;
+                    &ldquo;{formatCleanText(msg.suggestedData.value)}&rdquo;
                   </p>
 
                   <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -446,7 +451,7 @@ export default function PublicBriefingPage({
                       }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-emerald-300 font-semibold text-xs rounded-xl transition shadow-xs"
                     >
-                      {opt.label}
+                      {formatCleanText(opt.label)}
                     </button>
                   ))}
                 </div>

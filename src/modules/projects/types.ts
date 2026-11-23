@@ -21,6 +21,8 @@ export interface ProjectRecord {
   contractNumber?: string | null;
   contractVersionId: string | null;
   templateId: string | null;
+  templateCode?: string | null;
+  hasEditorialPlan?: boolean;
   templateName?: string | null;
   competency: string | null; // YYYY-MM
   status: ProjectStatus;

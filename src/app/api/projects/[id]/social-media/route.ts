@@ -1,3 +1,4 @@
+import { isEditorialTemplate, isOnboardingTemplate } from "@/modules/projects/editorial-template";
 import { z } from "zod";
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { query, withTransaction } from "@/lib/db/pool";
@@ -44,14 +45,18 @@ export async function POST(request: Request, { params }: RouteContext) {
     const { id } = await params;
     const data = input.data;
     await withTransaction(async db => {
-      const project = (await db.query<{ id: string; clientId: string; company: string; startMonth: string }>(
-        `SELECT p.id, p.client_id AS "clientId", to_char(p.start_date, 'YYYY-MM') AS "startMonth",
+      const project = (await db.query<{ id: string; clientId: string; company: string; code: string | null; name: string | null; legacyPlan: boolean; startMonth: string }>(
+        `SELECT t.code, t.name, (p.project_type='RECURRING' AND EXISTS(SELECT 1 FROM project_social_media_plans plan WHERE plan.project_id=p.id)) AS "legacyPlan", p.id, p.client_id AS "clientId", to_char(p.start_date, 'YYYY-MM') AS "startMonth",
                 COALESCE(NULLIF(c.trade_name, ''), c.name) AS company
          FROM projects p JOIN clients c ON c.id = p.client_id
+         LEFT JOIN project_templates t ON t.id=p.template_id
          WHERE p.id = $1 AND p.archived_at IS NULL FOR UPDATE OF p`,
         [id],
       )).rows[0];
       if (!project) throw new Error("Selecione um projeto ativo vinculado a uma empresa.");
+
+      if (!isEditorialTemplate(project.code, project.name) && !(project.legacyPlan && !isOnboardingTemplate(project.code)))
+        throw new Error("O planejamento de publicações exige um projeto de entrega editorial.");
 
       if (data.action === "SAVE") {
         await saveSocialMediaSchedule(db, id, data.schedule);

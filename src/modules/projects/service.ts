@@ -1,3 +1,4 @@
+import { isEditorialTemplate, isOnboardingTemplate } from "@/modules/projects/editorial-template";
 import { query, withTransaction } from "@/lib/db/pool";
 import { createSocialMediaMonth, saveSocialMediaSchedule } from "./social-media-planning";
 import {
@@ -183,7 +184,8 @@ export async function listProjects(filters: ListProjectsFilter = {}): Promise<Pr
 
 export async function getProjectById(id: string,includeArchived=false): Promise<ProjectRecord | null> {
   const prjSql = `
-    SELECT 
+    SELECT tmpl.code AS "templateCode",
+      EXISTS(SELECT 1 FROM project_social_media_plans plan WHERE plan.project_id=p.id) AS "hasEditorialPlan",
       p.id,
       p.project_number as "projectNumber",
       p.name,
@@ -301,6 +303,15 @@ export async function createProject(
         serviceTemplates = (await client.query<{id:string}>(`SELECT DISTINCT s.onboarding_template_id AS id FROM contract_items ci JOIN services s ON s.id=ci.service_id WHERE ci.contract_version_id=$1 AND s.onboarding_template_id IS NOT NULL`,[contract.version_id])).rows.map(r=>r.id);
         if (!serviceTemplates.length) throw new Error("Nenhum modelo de onboarding associado aos serviços.");
       }
+    }
+    if (validated.socialMediaSchedule || validated.projectType === "RECURRING") {
+      const template = validated.templateId
+        ? (await client.query<{code: string; name: string}>("SELECT code, name FROM project_templates WHERE id=$1", [validated.templateId])).rows[0]
+        : null;
+      if ((validated.useServiceOnboarding || isOnboardingTemplate(template?.code)) && validated.projectType === "RECURRING")
+        throw new Error("O onboarding deve ser criado como projeto avulso.");
+      if (validated.socialMediaSchedule && (validated.useServiceOnboarding || !isEditorialTemplate(template?.code, template?.name)))
+        throw new Error("Selecione um modelo de entrega editorial para planejar publicações.");
     }
     // 1. Inserir projeto
     const prjSql = `
@@ -775,6 +786,8 @@ export async function saveContractRecurrenceSettings(
   input: ConfigureContractRecurrenceInput
 ): Promise<ContractRecurringSettingsRecord> {
   const validated = ConfigureContractRecurrenceSchema.parse(input);
+  if (validated.isEnabled && isOnboardingTemplate((await getProjectTemplateById(validated.templateId))?.code))
+    throw new Error("Escolha um modelo de entrega para a recorrência.");
 
   const sql = `
     INSERT INTO contract_project_recurring_settings (

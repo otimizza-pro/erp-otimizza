@@ -1,5 +1,6 @@
 "use client";
 
+import { isEditorialTemplate, isOnboardingTemplate } from "@/modules/projects/editorial-template";
 import { useCompany } from "@/lib/context/company-context";
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 
@@ -239,11 +240,10 @@ function NewProjectFormContent() {
 
   const isSocialMediaTemplate = useMemo(() => {
     if (!templateId) return false;
-    const tmpl = templates.find((t) => t.id === templateId) || (templateDetail as unknown as ProjectTemplateRecord);
+    const tmpl = templates.find((t) => t.id === templateId);
     if (!tmpl) return false;
-    const combined = `${tmpl.code || ""} ${tmpl.name || ""} ${tmpl.description || ""}`.toLowerCase();
-    return /social|editorial|grava|conte[uú]do|post/i.test(combined);
-  }, [templateId, templateDetail, templates]);
+    return isEditorialTemplate(tmpl.code, tmpl.name);
+  }, [templateId, templates]);
 
   useEffect(() => {
     setPlanSocialMedia(isSocialMediaTemplate);
@@ -258,7 +258,7 @@ function NewProjectFormContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (planSocialMedia && !socialMediaSchedule.weekdays.length) {
+    if (isSocialMediaTemplate && planSocialMedia && !socialMediaSchedule.weekdays.length) {
       setError("Selecione pelo menos um dia de publicação.");
       return;
     }
@@ -271,7 +271,7 @@ function NewProjectFormContent() {
         description: description || null,
         projectType,
         clientId: (projectType === "INTERNAL" ? (clientId || INTERNAL_COMPANY_ID) : clientId) || null,
-        socialMediaSchedule: planSocialMedia ? socialMediaSchedule : undefined,
+        socialMediaSchedule: isSocialMediaTemplate && planSocialMedia ? socialMediaSchedule : undefined,
         contractId: contractId || null,
         useServiceOnboarding: searchParams.get("onboarding") === "1" && !templateId,
         templateId: templateId || null,
@@ -344,9 +344,11 @@ function NewProjectFormContent() {
               </label>
               <select
                 value={projectType}
+                disabled={searchParams.get("onboarding") === "1"}
                 onChange={(e) => {
                   const val = e.target.value as ProjectType;
                   setProjectType(val);
+                  if (val === "RECURRING" && isOnboardingTemplate(templates.find(t => t.id === templateId)?.code)) handleTemplateChange("");
                   if (val === "INTERNAL") {
                     setClientId(INTERNAL_COMPANY_ID);
                     setContractId("");
@@ -371,7 +373,7 @@ function NewProjectFormContent() {
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">{searchParams.get("onboarding") === "1" ? "Onboarding dos serviços deste contrato" : "Nenhum (Começar com etapas padrão)"}</option>
-                {templates.map((t) => (
+                {templates.filter(t => searchParams.get("onboarding") === "1" ? isOnboardingTemplate(t.code) : projectType !== "RECURRING" || !isOnboardingTemplate(t.code)).map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name} ({t.estimatedHours}h - {t.estimatedDays} dias)
                   </option>

@@ -5,8 +5,9 @@ import {z} from "zod";
 import {query,withTransaction} from "@/lib/db/pool";
 import {requireAdminUser} from "@/lib/auth/require-auth";
 import {generateWithOpenRouter,strategyModel,parseAiJson,aiFailure,STRATEGY_TEMPERATURE,STRATEGY_CAMPAIGN_DNA_INSTRUCTION} from "@/lib/ai/openrouter";
+import {normalizeFrequencyLevel} from "@/modules/clients/content-settings";
 export const dynamic="force-dynamic";
-const pillarsSchema=z.array(z.object({pillar_name:z.string().trim().min(1).max(255),theme:z.string().trim().min(1).max(255),objective:z.string().trim().min(1),preferred_formats:z.array(z.string().min(1)).min(1),frequency_per_month:z.number().int().min(1).max(100),notes:z.string().default("")})).length(4);
+const pillarsSchema=z.array(z.object({pillar_name:z.string().trim().min(1).max(255),theme:z.string().trim().min(1).max(255),objective:z.string().trim().min(1),preferred_formats:z.array(z.string().min(1)).min(1),frequency_per_month:z.union([z.enum(["Alta","Média","Baixa"]),z.string(),z.number()]).transform(normalizeFrequencyLevel).default("Média"),notes:z.string().default("")})).length(4);
 export async function POST(request:NextRequest){
  try{await requireAdminUser();}catch{return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401});}
  const body=z.object({clientId:z.string().uuid()}).safeParse(await request.json().catch(()=>null));

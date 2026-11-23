@@ -1,7 +1,7 @@
 "use client";
 import {useState} from "react";
 import {Sparkles,Plus,RefreshCw} from "lucide-react";
-interface Line{id?:string;pillar_name:string;theme:string;objective:string;preferred_formats:string[];frequency_per_month:number;notes:string;}
+interface Line{id?:string;pillar_name:string;theme:string;objective:string;preferred_formats:string[];frequency_per_month:string|number;notes:string;}
 export function EditorialPlanner({clientId,companyName,lines,onSaved,onUse,onManual}:{clientId:string;companyName:string;lines:Line[];onSaved:()=>void;onUse:(idea:string)=>void;onManual:()=>void}){
  const [draft,setDraft]=useState<Line[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
  async function run(action:"GENERATE"|"SAVE",pillar?:string){setBusy(true);setError("");setMessage("");if(action==="GENERATE")setDraft([]);try{const response=await fetch("/api/content-studio/editorial-plan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId,action,pillar,lines:action==="SAVE"?draft:undefined})});const data=await response.json();if(!response.ok||!data.success||(action==="GENERATE"&&data.source!=="OPENROUTER"))throw new Error(data.error||"Não foi possível concluir a ação.");if(action==="GENERATE")setDraft(data.lines);else{setDraft([]);setMessage(data.added+" temas adicionados. Duplicados foram preservados sem repetir.");onSaved();}}catch(error){setError(error instanceof Error?error.message:"Erro no planejamento");}finally{setBusy(false);}}

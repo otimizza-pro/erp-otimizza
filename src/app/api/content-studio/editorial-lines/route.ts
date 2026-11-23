@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
+import { normalizeFrequencyLevel } from "@/modules/clients/content-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
         objective?.trim() || null,
         targetAudienceId || null,
         preferredFormats || ["Reels", "Carrossel", "Post estático"],
-        frequencyPerMonth || 4,
+        normalizeFrequencyLevel(frequencyPerMonth),
         notes?.trim() || null
       ]
     );
@@ -108,7 +109,7 @@ export async function PUT(request: NextRequest) {
         objective?.trim() || null,
         targetAudienceId || null,
         preferredFormats || ["Reels", "Carrossel", "Post estático"],
-        frequencyPerMonth || 4,
+        normalizeFrequencyLevel(frequencyPerMonth),
         notes?.trim() || null,
         id
       ]

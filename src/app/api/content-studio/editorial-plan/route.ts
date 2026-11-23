@@ -5,7 +5,8 @@ import {requireAdminUser} from "@/lib/auth/require-auth";
 import {loadAiClientContext,assertClientContext,clientContextPrompt} from "@/lib/ai/client-context";
 import {generateWithOpenRouter,strategyModel,parseAiJson,aiFailure,STRATEGY_TEMPERATURE} from "@/lib/ai/openrouter";
 import {withTransaction} from "@/lib/db/pool";
-const lineSchema=z.object({pillar_name:z.string().trim().min(1).max(255),theme:z.string().trim().min(1).max(255),objective:z.string().trim().min(1).max(1500),preferred_formats:z.array(z.string().min(1)).min(1).max(4),frequency_per_month:z.number().int().min(1).max(31),notes:z.string().max(2000).default("")});
+import {normalizeFrequencyLevel} from "@/modules/clients/content-settings";
+const lineSchema=z.object({pillar_name:z.string().trim().min(1).max(255),theme:z.string().trim().min(1).max(255),objective:z.string().trim().min(1).max(1500),preferred_formats:z.array(z.string().min(1)).min(1).max(4),frequency_per_month:z.union([z.enum(["Alta","Média","Baixa"]),z.string(),z.number()]).transform(normalizeFrequencyLevel).default("Média"),notes:z.string().max(2000).default("")});
 const linesSchema=z.array(lineSchema).min(1).max(24);
 export async function POST(request:Request){
  try{await requireAdminUser();}catch{return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401});}

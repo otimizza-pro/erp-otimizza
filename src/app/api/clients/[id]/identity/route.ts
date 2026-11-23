@@ -17,10 +17,25 @@ export async function GET(
       [id]
     );
 
-    const audiences=await query("SELECT name FROM client_audiences WHERE client_id=$1 AND archived_at IS NULL ORDER BY is_default DESC,name",[id]);
-    const targetAudiences=audiences.rows.map(row=>String(row.name));
+    const audiences = await query("SELECT name FROM client_audiences WHERE client_id=$1 AND archived_at IS NULL ORDER BY is_default DESC,name",[id]);
+    const targetAudiences = audiences.rows.map(row=>String(row.name));
+
+    // Verificar se há Instagram ou Site registrado em sessões de briefing do cliente
+    let sessionInstagram = "";
+    let sessionWebsite = "";
+    const sessionRes = await query<{ instagram_url: string | null; website_url: string | null }>(
+      `SELECT instagram_url, website_url FROM client_briefing_sessions 
+       WHERE client_id = $1 AND (instagram_url IS NOT NULL OR website_url IS NOT NULL) 
+       ORDER BY updated_at DESC LIMIT 1`,
+      [id]
+    );
+    if (sessionRes.rows.length > 0) {
+      sessionInstagram = sessionRes.rows[0].instagram_url || "";
+      sessionWebsite = sessionRes.rows[0].website_url || "";
+    }
+
     if (res.rows.length === 0) {
-      // Retornar estrutura padrão vazia
+      // Retornar estrutura padrão vazia com fallback do briefing
       return NextResponse.json({
         clientId: id,
         communicationProfile:emptyCommunicationProfile,
@@ -36,8 +51,8 @@ export async function GET(
         forbiddenWords: [],
         mandatoryTerms: [],
         defaultCtas: [],
-        instagramHandle: "",
-        websiteUrl: "",
+        instagramHandle: sessionInstagram,
+        websiteUrl: sessionWebsite,
         whatsappCta: "",
         notes: "",
         formatGuidelines: { reelsStandard: "", headlinesStandard: "", carouselStandard: "" },
@@ -45,6 +60,21 @@ export async function GET(
     }
 
     const row = res.rows[0];
+    const instagramHandle = row.instagram_handle || sessionInstagram;
+    const websiteUrl = row.website_url || sessionWebsite;
+
+    // Se o DNA não tinha o Instagram ou Site mas a sessão do briefing tinha, auto-sincronizar no banco
+    if ((!row.instagram_handle && sessionInstagram) || (!row.website_url && sessionWebsite)) {
+      await query(
+        `UPDATE client_identities 
+         SET instagram_handle = COALESCE(NULLIF(instagram_handle, ''), $2),
+             website_url = COALESCE(NULLIF(website_url, ''), $3),
+             updated_at = NOW()
+         WHERE client_id = $1`,
+        [id, sessionInstagram || null, sessionWebsite || null]
+      );
+    }
+
     return NextResponse.json({
       id: row.id,
       clientId: row.client_id,
@@ -61,8 +91,8 @@ export async function GET(
       forbiddenWords: row.forbidden_words || [],
       mandatoryTerms: row.mandatory_terms || [],
       defaultCtas: row.default_ctas || [],
-      instagramHandle: row.instagram_handle || "",
-      websiteUrl: row.website_url || "",
+      instagramHandle,
+      websiteUrl,
       whatsappCta: row.whatsapp_cta || "",
       notes: row.notes || "",
       formatGuidelines: row.format_guidelines || { reelsStandard: "", headlinesStandard: "", carouselStandard: "" },
@@ -144,6 +174,17 @@ export async function PUT(
       JSON.stringify(body.formatGuidelines || {}),
       ]);
     });
+
+    if (body.instagramHandle || body.websiteUrl) {
+      await query(
+        `UPDATE client_briefing_sessions 
+         SET instagram_url = COALESCE(NULLIF($2, ''), instagram_url),
+             website_url = COALESCE(NULLIF($3, ''), website_url),
+             updated_at = NOW()
+         WHERE client_id = $1`,
+        [id, body.instagramHandle || null, body.websiteUrl || null]
+      );
+    }
 
     return NextResponse.json({ success: true, data: res.rows[0] });
   } catch (error: unknown) {

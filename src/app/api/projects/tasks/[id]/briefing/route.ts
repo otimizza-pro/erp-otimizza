@@ -225,17 +225,19 @@ export async function POST(
       );
       session = insertRes.rows[0];
 
-      if (taskRes.rows[0].client_id && (category || servicesOffered)) {
+      if (taskRes.rows[0].client_id) {
         await query(
           `
-          INSERT INTO public.client_identities (client_id, market_niche, value_proposition, updated_at)
-          VALUES ($1, $2, $3, NOW())
+          INSERT INTO public.client_identities (client_id, market_niche, value_proposition, instagram_handle, website_url, updated_at)
+          VALUES ($1, $2, $3, $4, $5, NOW())
           ON CONFLICT (client_id) DO UPDATE SET
             market_niche = COALESCE(EXCLUDED.market_niche, client_identities.market_niche),
             value_proposition = COALESCE(EXCLUDED.value_proposition, client_identities.value_proposition),
+            instagram_handle = COALESCE(NULLIF(EXCLUDED.instagram_handle, ''), client_identities.instagram_handle),
+            website_url = COALESCE(NULLIF(EXCLUDED.website_url, ''), client_identities.website_url),
             updated_at = NOW()
           `,
-          [taskRes.rows[0].client_id, category || null, servicesOffered || null]
+          [taskRes.rows[0].client_id, category || null, servicesOffered || null, instagramUrl || null, websiteUrl || null]
         );
       }
     } else {
@@ -273,17 +275,19 @@ export async function POST(
       );
       session = updateRes.rows[0];
 
-      if (session.client_id && (category || servicesOffered)) {
+      if (session.client_id) {
         await query(
           `
-          INSERT INTO public.client_identities (client_id, market_niche, value_proposition, updated_at)
-          VALUES ($1, $2, $3, NOW())
+          INSERT INTO public.client_identities (client_id, market_niche, value_proposition, instagram_handle, website_url, updated_at)
+          VALUES ($1, $2, $3, $4, $5, NOW())
           ON CONFLICT (client_id) DO UPDATE SET
             market_niche = COALESCE(EXCLUDED.market_niche, client_identities.market_niche),
             value_proposition = COALESCE(EXCLUDED.value_proposition, client_identities.value_proposition),
+            instagram_handle = COALESCE(NULLIF(EXCLUDED.instagram_handle, ''), client_identities.instagram_handle),
+            website_url = COALESCE(NULLIF(EXCLUDED.website_url, ''), client_identities.website_url),
             updated_at = NOW()
           `,
-          [session.client_id, category || null, servicesOffered || null]
+          [session.client_id, category || null, servicesOffered || null, instagramUrl || null, websiteUrl || null]
         );
       }
     }

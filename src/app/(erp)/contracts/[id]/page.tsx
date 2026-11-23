@@ -1025,6 +1025,22 @@ export default function ContractDetailsPage() {
               </div>
             )}
 
+            {contract.status === "ACTIVE" && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-6">
+                <div>
+                  <h3 className="text-base font-bold text-zinc-900">Projeto avulso</h3>
+                  <p className="text-xs text-zinc-500">Crie um onboarding ou outra entrega única vinculada a este contrato.</p>
+                </div>
+                <Link
+                  href={`/projects/new?clientId=${contract.clientId}&contractId=${contract.id}`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-950 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
+                >
+                  <Plus className="h-4 w-4" />
+                  Criar projeto avulso
+                </Link>
+              </div>
+            )}
+
             {/* Configuração de Recorrência Operacional */}
             <div className="bg-white p-6 rounded-xl border border-zinc-200/80 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-4">
@@ -1045,7 +1061,7 @@ export default function ContractDetailsPage() {
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-950 text-white rounded-lg text-xs font-semibold hover:bg-zinc-800 transition-colors shadow-xs disabled:opacity-50"
                   >
                     <Plus className="w-4 h-4" />
-                    {generatingProject ? "Processando..." : "Gerar Projeto Desta Competência"}
+                    {generatingProject ? "Processando..." : "Gerar projeto mensal desta competência"}
                   </button>
                 )}
               </div>

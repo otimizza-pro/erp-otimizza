@@ -436,6 +436,9 @@ export default function ReportsHubPage() {
 
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Seletor de Modo de Visualização */}
+            <a href="/reports/client-results" className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold hover:bg-zinc-50">
+              Resultado dos Clientes
+            </a>
             <div className="flex items-center p-1 bg-zinc-100 rounded-xl border border-zinc-200/80 text-xs">
               <button
                 type="button"

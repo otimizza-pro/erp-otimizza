@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 import { randomBytes } from "node:crypto";
 import { requireAdminUser } from "@/lib/auth/require-auth";
+import { formatContactFirstName } from "@/modules/clients/contact-name";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +24,10 @@ export async function GET(
       project_name: string;
       trade_name: string | null;
       client_name: string | null;
+      client_type: string | null;
       client_website: string | null;
       client_instagram: string | null;
+      contact_person_name: string | null;
     }>(
       `
       SELECT 
@@ -36,8 +39,16 @@ export async function GET(
         p.name as project_name,
         c.trade_name,
         c.name as client_name,
+        c.type as client_type,
         ci.website_url as client_website,
-        ci.instagram_handle as client_instagram
+        ci.instagram_handle as client_instagram,
+        (
+          SELECT cc.name 
+          FROM public.client_contacts cc 
+          WHERE cc.client_id = c.id 
+          ORDER BY cc.is_primary DESC, cc.created_at ASC 
+          LIMIT 1
+        ) as contact_person_name
       FROM public.project_tasks t
       JOIN public.projects p ON p.id = t.project_id
       LEFT JOIN public.clients c ON c.id = p.client_id
@@ -65,7 +76,8 @@ export async function GET(
     if (!session) {
       const token = randomBytes(16).toString("hex");
       const companyName = task.trade_name || task.client_name || task.project_name || "Sua Empresa";
-      const contactName = task.client_name || "Parceiro";
+      const rawContact = task.contact_person_name || (task.client_type === "PF" ? task.client_name : "") || "Parceiro";
+      const contactName = formatContactFirstName(rawContact, companyName);
       const websiteUrl = task.client_website || "";
       const instagramUrl = task.client_instagram ? `https://instagram.com/${task.client_instagram.replace("@", "")}` : "";
 
@@ -107,8 +119,11 @@ export async function GET(
       if (!session.company_name || session.company_name === "Sua Empresa") {
         session.company_name = task.trade_name || task.client_name || task.project_name || "Sua Empresa";
       }
-      if (!session.contact_name) {
-        session.contact_name = task.client_name || "Parceiro";
+      if (!session.contact_name || session.contact_name === "Parceiro" || session.contact_name === session.company_name) {
+        const rawContact = task.contact_person_name || (task.client_type === "PF" ? task.client_name : "") || "Parceiro";
+        session.contact_name = formatContactFirstName(rawContact, session.company_name);
+      } else {
+        session.contact_name = formatContactFirstName(session.contact_name, session.company_name);
       }
       if (!session.website_url && task.client_website) {
         session.website_url = task.client_website;
@@ -214,7 +229,7 @@ export async function POST(
           taskId,
           taskRes.rows[0].client_id,
           companyName || "Empresa",
-          contactName || "Cliente",
+          formatContactFirstName(contactName, companyName),
           websiteUrl || null,
           mapsUrl || null,
           instagramUrl || null,
@@ -263,7 +278,7 @@ export async function POST(
         `,
         [
           companyName,
-          contactName,
+          contactName ? formatContactFirstName(contactName, companyName) : null,
           websiteUrl || null,
           mapsUrl || null,
           instagramUrl || null,

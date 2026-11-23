@@ -191,7 +191,8 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       { id: "cost_centers", label: "Centros de custo", href: "/financial/cost-centers", icon: DollarSign },
     ] },
     { id: "reports", title: "Relatórios & BI", icon: BarChart3, section: "ADMINISTRATIVO", items: [
-        { id: "headline_bi", label: "BI de Headlines e IAs", href: "/prompt-creator/headlines/bi", icon: BarChart3 },
+      { id: "client_results", label: "Resultado dos Clientes", href: "/reports/client-results", icon: BarChart3 },
+      { id: "headline_bi", label: "BI de Headlines e IAs", href: "/prompt-creator/headlines/bi", icon: BarChart3 },
       { id: "reports_comm", label: "Indicadores comerciais", href: "/reports?tab=commercial", icon: BarChart3 },
       { id: "reports_fin", label: "Indicadores financeiros", href: "/reports?tab=financial", icon: BarChart3 },
       { id: "delivery", label: "Indicadores de Entrega", href: "/reports/delivery", icon: BarChart3 },

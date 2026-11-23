@@ -23,15 +23,19 @@ export async function GET(
     // Verificar se há Instagram ou Site registrado em sessões de briefing do cliente
     let sessionInstagram = "";
     let sessionWebsite = "";
-    const sessionRes = await query<{ instagram_url: string | null; website_url: string | null }>(
-      `SELECT instagram_url, website_url FROM client_briefing_sessions 
-       WHERE client_id = $1 AND (instagram_url IS NOT NULL OR website_url IS NOT NULL) 
-       ORDER BY updated_at DESC LIMIT 1`,
-      [id]
-    );
-    if (sessionRes.rows.length > 0) {
-      sessionInstagram = sessionRes.rows[0].instagram_url || "";
-      sessionWebsite = sessionRes.rows[0].website_url || "";
+    try {
+      const sessionRes = await query<{ instagram_url: string | null; website_url: string | null }>(
+        `SELECT instagram_url, website_url FROM client_briefing_sessions 
+         WHERE client_id = $1 AND (instagram_url IS NOT NULL OR website_url IS NOT NULL) 
+         ORDER BY updated_at DESC LIMIT 1`,
+        [id]
+      );
+      if (sessionRes?.rows && sessionRes.rows.length > 0) {
+        sessionInstagram = sessionRes.rows[0].instagram_url || "";
+        sessionWebsite = sessionRes.rows[0].website_url || "";
+      }
+    } catch {
+      // Falha não impeditiva se briefing não estiver disponível
     }
 
     if (res.rows.length === 0) {

@@ -5,6 +5,7 @@ import { encryptPassword } from "@/modules/passwords/crypto";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { generateWithOpenRouter, strategyModel, parseAiJson } from "@/lib/ai/openrouter";
+import { formatContactFirstName } from "@/modules/clients/contact-name";
 
 const messageSchema = z.object({
   action: z.enum(["MESSAGE", "DONT_KNOW", "DECISION", "SUBMIT_CREDENTIALS", "SKIP_CREDENTIALS", "PAUSE"]),
@@ -129,6 +130,7 @@ INFORMAÇÕES REAIS DO CLIENTE:
 - Pilar em foco agora: ${currentStep}
 
 DIRETRIZES DA PERSONALIDADE DA EDIVÂNIA:
+- NUNCA chame a pessoa pelo nome da empresa (ex: NUNCA diga "Que maravilha, ${company}!" ou "Olá, ${company}"). Chame SEMPRE pelo primeiro nome da pessoa (${contact}).
 - ZERO jargões técnicos de marketing! NUNCA use termos como "ICP", "Persona", "Arquétipo", "Ganchos de retenção", "Linha editorial", etc.
 - Converse como uma pessoa amigável tomando um café com ${contact}. Seja empática, atenciosa e estimulante.
 - EXEMPLOS DO NICHO OBRIGATÓRIOS: Utilize SEMPRE a categoria da empresa (${category}) e o que ela vende (${servicesOffered}) para formular as perguntas com situações do cotidiano deles!
@@ -221,7 +223,7 @@ function getConversationalFallback(
   if (isDontKnow) {
     const suggestion = getSmartSuggestionForStep(currentStep, company, category, servicesOffered);
     return {
-      replyText: `Sem problemas, ${contact}! Preparei uma sugestão pensada no dia a dia da ${company} com ${category || "seus clientes"}:\n\n"${suggestion.text}"\n\nEssa linha combina com a sua realidade ou você gostaria de ajustar?`,
+      replyText: `Sem problemas, ${contact}! Preparei uma sugestão inicial (Exemplo genérico) pensada no dia a dia da ${company} com ${category || "seus clientes"}:\n\n"${suggestion.text}"\n\nEssa linha combina com a sua realidade ou você gostaria de ajustar?`,
       extractedUpdates: {},
       currentTopic: currentStep as "targetAudience" | "differentials" | "toneOfVoice" | "competitors",
       isCredentialStep: false,
@@ -308,12 +310,19 @@ export async function GET(
     const res = await query(
       `
       SELECT 
-        id, token, project_id, task_id, client_id,
-        company_name, contact_name, website_url, maps_url, instagram_url,
-        initial_notes, competitor_notes, conversation_history, extracted_identity,
-        status, progress_percent, credentials_saved, completed_at, created_at
-      FROM public.client_briefing_sessions
-      WHERE token = $1
+        s.id, s.token, s.project_id, s.task_id, s.client_id,
+        s.company_name, s.contact_name, s.website_url, s.maps_url, s.instagram_url,
+        s.initial_notes, s.competitor_notes, s.conversation_history, s.extracted_identity,
+        s.status, s.progress_percent, s.credentials_saved, s.completed_at, s.created_at,
+        (
+          SELECT cc.name 
+          FROM public.client_contacts cc 
+          WHERE cc.client_id = COALESCE(s.client_id, (SELECT p.client_id FROM public.project_tasks pt JOIN public.projects p ON p.id = pt.project_id WHERE pt.id = s.task_id))
+          ORDER BY cc.is_primary DESC, cc.created_at ASC 
+          LIMIT 1
+        ) as contact_person_name
+      FROM public.client_briefing_sessions s
+      WHERE s.token = $1
       LIMIT 1
       `,
       [token]
@@ -346,10 +355,11 @@ export async function GET(
     }));
 
     if (history.length === 0) {
+      const displayContact = formatContactFirstName(row.contact_person_name || row.contact_name, row.company_name);
       const introMsg: ChatMessage = {
         id: "msg_intro",
         sender: "assistant",
-        text: `Olá, ${row.contact_name}! 👋 Sou a Edivânia, estrategista de comunicação aqui da Otimizza.\n\nA nossa equipe preparou o contexto inicial da ${row.company_name} e estou aqui para conversarmos de forma tranquila e descomplicada sobre a sua marca e os conteúdos para suas redes sociais.\n\nFique super à vontade: não é um teste e nem um questionário técnico! Se em algum momento você quiser sugestões ou preferir responder depois, basta me avisar.\n\nPodemos começar agora?`,
+        text: `Olá, ${displayContact}! 👋 Sou a Edivânia, estrategista de comunicação aqui da Otimizza.\n\nA nossa equipe preparou o contexto inicial da ${row.company_name} e estou aqui para conversarmos de forma tranquila e descomplicada sobre a sua marca e os conteúdos para suas redes sociais.\n\nFique super à vontade: não é um teste e nem um questionário técnico! Se em algum momento você quiser sugestões ou preferir responder depois, basta me avisar.\n\nPodemos começar agora?`,
         options: [
           { label: "🚀 Sim, vamos começar!", value: "START", action: "APPROVE" },
           { label: "Como vai funcionar?", value: "EXPLAIN", action: "EXPLAIN" },
@@ -415,7 +425,20 @@ export async function POST(
     } = body;
 
     const res = await query(
-      `SELECT * FROM public.client_briefing_sessions WHERE token = $1 LIMIT 1`,
+      `
+      SELECT 
+        s.*,
+        (
+          SELECT cc.name 
+          FROM public.client_contacts cc 
+          WHERE cc.client_id = COALESCE(s.client_id, (SELECT p.client_id FROM public.project_tasks pt JOIN public.projects p ON p.id = pt.project_id WHERE pt.id = s.task_id))
+          ORDER BY cc.is_primary DESC, cc.created_at ASC 
+          LIMIT 1
+        ) as contact_person_name
+      FROM public.client_briefing_sessions s 
+      WHERE s.token = $1 
+      LIMIT 1
+      `,
       [token]
     );
 
@@ -447,7 +470,7 @@ export async function POST(
     }
 
     const company = session.company_name || "sua empresa";
-    const contact = session.contact_name || "Parceiro";
+    const contact = formatContactFirstName(session.contact_person_name || session.contact_name, company);
     const notes = session.initial_notes || "";
     const category = String(extracted.marketNiche || "");
     const servicesOffered = String(extracted.valueProposition || "");

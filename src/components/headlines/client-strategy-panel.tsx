@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import {
   Building2,
@@ -79,6 +79,7 @@ interface ClientStrategyPanelProps {
   pillars: Pillar[];
   editorialLines: EditorialLine[];
   onAdvanceToBrainstorm: () => void;
+  onStrategySaved?: () => void;
 }
 
 export function ClientStrategyPanel({
@@ -87,10 +88,14 @@ export function ClientStrategyPanel({
   pillars,
   editorialLines,
   onAdvanceToBrainstorm,
+  onStrategySaved,
 }: ClientStrategyPanelProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [autoSaveState, setAutoSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
 
   // Campos de Estratégia e DNA
   const [brandContext, setBrandContext] = useState("");
@@ -139,6 +144,50 @@ export function ClientStrategyPanel({
 
   // Sub-aba ativa dentro da Estratégia
   const [subTab, setSubTab] = useState<"dna" | "audiences" | "voice" | "formatStandards" | "channels" | "editorial">("dna");
+
+  const stateRef = useRef({
+    brandContext,
+    marketNiche,
+    valueProposition,
+    archetype,
+    secondaryArchetype,
+    selectedTones,
+    targetAudiences,
+    painPoints,
+    differentials,
+    forbiddenWords,
+    mandatoryTerms,
+    defaultCtas,
+    instagramHandle,
+    websiteUrl,
+    whatsappCta,
+    notes,
+    formatGuidelines,
+    communicationProfile,
+  });
+
+  useEffect(() => {
+    stateRef.current = {
+      brandContext,
+      marketNiche,
+      valueProposition,
+      archetype,
+      secondaryArchetype,
+      selectedTones,
+      targetAudiences,
+      painPoints,
+      differentials,
+      forbiddenWords,
+      mandatoryTerms,
+      defaultCtas,
+      instagramHandle,
+      websiteUrl,
+      whatsappCta,
+      notes,
+      formatGuidelines,
+      communicationProfile,
+    };
+  });
 
   // Carregar dados de identidade/estratégia do cliente
   const loadStrategyData = async () => {
@@ -248,30 +297,35 @@ export function ClientStrategyPanel({
   }, [clientId]);
 
   // Salvar estratégia
-  const handleSave = async () => {
+  const handleSave = async (silent = false) => {
     if (!clientId) return;
-    setSaving(true);
-    setFeedback(null);
+    if (silent) {
+      setAutoSaveState("saving");
+    } else {
+      setSaving(true);
+      setFeedback(null);
+    }
     try {
+      const cur = stateRef.current;
       const body = {
-        brandContext,
-        marketNiche,
-        valueProposition,
-        archetype,
-        secondaryArchetype,
-        toneOfVoice: selectedTones,
-        targetAudiences,
-        painPoints,
-        differentials,
-        forbiddenWords,
-        mandatoryTerms,
-        defaultCtas,
-        instagramHandle,
-        websiteUrl,
-        whatsappCta,
-        notes,
-        formatGuidelines,
-        communicationProfile,
+        brandContext: cur.brandContext,
+        marketNiche: cur.marketNiche,
+        valueProposition: cur.valueProposition,
+        archetype: cur.archetype,
+        secondaryArchetype: cur.secondaryArchetype,
+        toneOfVoice: cur.selectedTones,
+        targetAudiences: cur.targetAudiences,
+        painPoints: cur.painPoints,
+        differentials: cur.differentials,
+        forbiddenWords: cur.forbiddenWords,
+        mandatoryTerms: cur.mandatoryTerms,
+        defaultCtas: cur.defaultCtas,
+        instagramHandle: cur.instagramHandle,
+        websiteUrl: cur.websiteUrl,
+        whatsappCta: cur.whatsappCta,
+        notes: cur.notes,
+        formatGuidelines: cur.formatGuidelines,
+        communicationProfile: cur.communicationProfile,
       };
 
       const res = await fetch(`/api/clients/${clientId}/identity`, {
@@ -285,32 +339,76 @@ export function ClientStrategyPanel({
         throw new Error(errData.error || "Erro ao salvar alterações de estratégia.");
       }
 
-      setFeedback({ type: "success", text: "Estratégia e DNA salvos com sucesso!" });
-      setTimeout(() => setFeedback(null), 4000);
+      setDirty(false);
+      const timeStr = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      setLastSavedTime(timeStr);
+      if (silent) {
+        setAutoSaveState("saved");
+        setTimeout(() => setAutoSaveState((curr) => (curr === "saved" ? "idle" : curr)), 3000);
+      } else {
+        setFeedback({ type: "success", text: "Estratégia e DNA salvos com sucesso!" });
+        setTimeout(() => setFeedback(null), 4000);
+      }
+      onStrategySaved?.();
     } catch (e: unknown) {
       const err = e as Error;
-      setFeedback({ type: "error", text: err.message || "Erro ao salvar estratégia." });
+      if (silent) {
+        setAutoSaveState("idle");
+      } else {
+        setFeedback({ type: "error", text: err.message || "Erro ao salvar estratégia." });
+      }
     } finally {
       setSaving(false);
     }
   };
 
-  // Helpers para adicionar itens em arrays
+  const handleBlur = () => {
+    if (dirty && !saving) {
+      void handleSave(true);
+    }
+  };
+
+  const scheduleAutoSave = () => {
+    setDirty(true);
+    setTimeout(() => {
+      void handleSave(true);
+    }, 200);
+  };
+
+  const handleAdvance = async () => {
+    if (dirty || saving) {
+      await handleSave(true);
+    }
+    onAdvanceToBrainstorm();
+  };
+
+  // Helpers para adicionar itens em arrays com auto-save
   const addItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string, clear: () => void) => {
     const trimmed = val.trim();
     if (!trimmed) return;
-    setter((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    setter((prev) => {
+      if (prev.includes(trimmed)) return prev;
+      const updated = [...prev, trimmed];
+      scheduleAutoSave();
+      return updated;
+    });
     clear();
   };
 
   const removeItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, val: string) => {
-    setter((prev) => prev.filter((item) => item !== val));
+    setter((prev) => {
+      const updated = prev.filter((item) => item !== val);
+      scheduleAutoSave();
+      return updated;
+    });
   };
 
   const toggleTone = (tone: string) => {
-    setSelectedTones((prev) =>
-      prev.includes(tone) ? prev.filter((t) => t !== tone) : [...prev, tone]
-    );
+    setSelectedTones((prev) => {
+      const updated = prev.includes(tone) ? prev.filter((t) => t !== tone) : [...prev, tone];
+      scheduleAutoSave();
+      return updated;
+    });
   };
 
   const toggleProfileField = (
@@ -322,6 +420,7 @@ export function ClientStrategyPanel({
       const updated = current.includes(value)
         ? current.filter((v) => v !== value)
         : [...current, value];
+      scheduleAutoSave();
       return { ...prev, [field]: updated };
     });
   };
@@ -356,6 +455,24 @@ export function ClientStrategyPanel({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {autoSaveState === "saving" && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-zinc-100 text-[11px] text-zinc-600 font-medium">
+              <RefreshCw className="h-3 w-3 animate-spin text-emerald-600" />
+              Salvando alterações...
+            </span>
+          )}
+          {autoSaveState === "saved" && (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 text-[11px] text-emerald-700 font-medium border border-emerald-200/60">
+              <Check className="h-3.5 w-3.5 text-emerald-600" />
+              {lastSavedTime ? `Salvo às ${lastSavedTime}` : "Salvo"}
+            </span>
+          )}
+          {autoSaveState === "idle" && lastSavedTime && !feedback && (
+            <span className="text-[11px] text-zinc-400">
+              Salvo às {lastSavedTime}
+            </span>
+          )}
+
           {feedback && (
             <div
               className={
@@ -373,7 +490,7 @@ export function ClientStrategyPanel({
           <button
             type="button"
             disabled={saving}
-            onClick={handleSave}
+            onClick={() => handleSave(false)}
             className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-xs hover:bg-emerald-700 disabled:opacity-50 transition cursor-pointer"
           >
             {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save size={16} />}
@@ -382,7 +499,7 @@ export function ClientStrategyPanel({
 
           <button
             type="button"
-            onClick={onAdvanceToBrainstorm}
+            onClick={handleAdvance}
             className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-bold text-white shadow-xs hover:bg-zinc-800 transition cursor-pointer"
           >
             Avançar para Brainstorm & Ideias
@@ -519,7 +636,11 @@ export function ClientStrategyPanel({
                 className={control}
                 placeholder="Ex: Clínicas Odontológicas Premium, Consultoria Tributária B2B..."
                 value={marketNiche}
-                onChange={(e) => setMarketNiche(e.target.value)}
+                onChange={(e) => {
+                  setMarketNiche(e.target.value);
+                  setDirty(true);
+                }}
+                onBlur={handleBlur}
               />
             </div>
 
@@ -540,7 +661,11 @@ export function ClientStrategyPanel({
                 className={`${control} min-h-[90px]`}
                 placeholder="O que a sua empresa entrega que ninguém mais entrega? Qual é a promessa transformadora?"
                 value={valueProposition}
-                onChange={(e) => setValueProposition(e.target.value)}
+                onChange={(e) => {
+                  setValueProposition(e.target.value);
+                  setDirty(true);
+                }}
+                onBlur={handleBlur}
               />
             </div>
 
@@ -561,7 +686,11 @@ export function ClientStrategyPanel({
                 className={`${control} min-h-[110px]`}
                 placeholder="Resumo executivo do negócio, histórico dos fundadores, reputação e momento atual da empresa..."
                 value={brandContext}
-                onChange={(e) => setBrandContext(e.target.value)}
+                onChange={(e) => {
+                  setBrandContext(e.target.value);
+                  setDirty(true);
+                }}
+                onBlur={handleBlur}
               />
             </div>
           </div>
@@ -579,7 +708,11 @@ export function ClientStrategyPanel({
                 <select
                   className={control}
                   value={archetype}
-                  onChange={(e) => setArchetype(e.target.value)}
+                  onChange={(e) => {
+                    setArchetype(e.target.value);
+                    setDirty(true);
+                    scheduleAutoSave();
+                  }}
                 >
                   <option value="">Selecione o Arquétipo</option>
                   {ARCHETYPES.map((a) => (
@@ -600,7 +733,11 @@ export function ClientStrategyPanel({
                 <select
                   className={control}
                   value={secondaryArchetype}
-                  onChange={(e) => setSecondaryArchetype(e.target.value)}
+                  onChange={(e) => {
+                    setSecondaryArchetype(e.target.value);
+                    setDirty(true);
+                    scheduleAutoSave();
+                  }}
                 >
                   <option value="">Nenhum / Opcional</option>
                   {ARCHETYPES.map((a) => (
@@ -1048,9 +1185,11 @@ export function ClientStrategyPanel({
                   className={`${control} min-h-[140px] text-xs`}
                   placeholder="Ex: Vídeos de até 45s, gancho direto nos primeiros 3s sem vinheta, falas divididas com textos na tela dinâmicos, CTA para comentar palavra-chave..."
                   value={formatGuidelines.reelsStandard}
-                  onChange={(e) =>
-                    setFormatGuidelines((prev) => ({ ...prev, reelsStandard: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setFormatGuidelines((prev) => ({ ...prev, reelsStandard: e.target.value }));
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
                 />
               </div>
 
@@ -1067,9 +1206,11 @@ export function ClientStrategyPanel({
                   className={`${control} min-h-[140px] text-xs`}
                   placeholder="Ex: Títulos diretos de até 8 palavras, priorizar quebra de objeção ou erro comum, sem sensacionalismo vazio, sempre acompanhar subtítulo explicativo com dados..."
                   value={formatGuidelines.headlinesStandard}
-                  onChange={(e) =>
-                    setFormatGuidelines((prev) => ({ ...prev, headlinesStandard: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setFormatGuidelines((prev) => ({ ...prev, headlinesStandard: e.target.value }));
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
                 />
               </div>
 
@@ -1086,9 +1227,11 @@ export function ClientStrategyPanel({
                   className={`${control} min-h-[140px] text-xs`}
                   placeholder="Ex: Entre 5 e 7 slides, capa com headline grande e contraste alto, máximo de 35 palavras por slide, slide final com resumo acionável e chamada para salvar..."
                   value={formatGuidelines.carouselStandard}
-                  onChange={(e) =>
-                    setFormatGuidelines((prev) => ({ ...prev, carouselStandard: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    setFormatGuidelines((prev) => ({ ...prev, carouselStandard: e.target.value }));
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
                 />
               </div>
             </div>
@@ -1114,7 +1257,11 @@ export function ClientStrategyPanel({
                 className={control}
                 placeholder="@otimizzagrowth"
                 value={instagramHandle}
-                onChange={(e) => setInstagramHandle(e.target.value)}
+                onChange={(e) => {
+                  setInstagramHandle(e.target.value);
+                  setDirty(true);
+                }}
+                onBlur={handleBlur}
               />
             </div>
 
@@ -1127,7 +1274,11 @@ export function ClientStrategyPanel({
                 className={control}
                 placeholder="https://otimizza.com.br"
                 value={websiteUrl}
-                onChange={(e) => setWebsiteUrl(e.target.value)}
+                onChange={(e) => {
+                  setWebsiteUrl(e.target.value);
+                  setDirty(true);
+                }}
+                onBlur={handleBlur}
               />
             </div>
 
@@ -1140,7 +1291,11 @@ export function ClientStrategyPanel({
                 className={control}
                 placeholder="Ex: +55 (11) 99999-9999 ou link de atendimento"
                 value={whatsappCta}
-                onChange={(e) => setWhatsappCta(e.target.value)}
+                onChange={(e) => {
+                  setWhatsappCta(e.target.value);
+                  setDirty(true);
+                }}
+                onBlur={handleBlur}
               />
             </div>
           </div>
@@ -1158,7 +1313,11 @@ export function ClientStrategyPanel({
               className={`${control} min-h-[160px]`}
               placeholder="Ex: O cliente prefere conteúdos técnicos sem exageros emocionais. Sempre reforçar a autoridade médica e citar o CRM nos finais de posts..."
               value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              onChange={(e) => {
+                setNotes(e.target.value);
+                setDirty(true);
+              }}
+              onBlur={handleBlur}
             />
           </div>
         </div>
@@ -1263,7 +1422,7 @@ export function ClientStrategyPanel({
 
         <button
           type="button"
-          onClick={onAdvanceToBrainstorm}
+          onClick={handleAdvance}
           className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer"
         >
           Ir para o Passo 2: Brainstorm & Ideias

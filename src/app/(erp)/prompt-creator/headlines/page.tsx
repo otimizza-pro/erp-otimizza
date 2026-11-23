@@ -374,6 +374,21 @@ function Workspace({ clientId, companyName, projectPost }: {
   const [selectedPillarId, setSelectedPillarId] = useState<string>("");
   const [selectedLineId, setSelectedLineId] = useState<string>("");
   const [brainstormDirection, setBrainstormDirection] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && clientId) {
+      const saved = localStorage.getItem(`otimizza_brainstorm_dir_${clientId}`);
+      if (saved) setBrainstormDirection(saved);
+      else setBrainstormDirection("");
+    }
+  }, [clientId]);
+
+  const handleDirectionChange = (val: string) => {
+    setBrainstormDirection(val);
+    if (typeof window !== "undefined" && clientId) {
+      localStorage.setItem(`otimizza_brainstorm_dir_${clientId}`, val);
+    }
+  };
   const [brainstormMode, setBrainstormMode] = useState<BrainstormMode>("PILLARS");
   const [brainstormView, setBrainstormView] = useState<"discover" | "bank" | "rejected">("discover");
   const [brainstormFormat, setBrainstormFormat] = useState("Todos");
@@ -1189,6 +1204,18 @@ function Workspace({ clientId, companyName, projectPost }: {
           pillars={pillars}
           editorialLines={editorialLines}
           onAdvanceToBrainstorm={() => setActiveTab("brainstorm")}
+          onStrategySaved={async () => {
+            await loadBrainstormData();
+            try {
+              const res = await fetch("/api/headlines?action=context&clientId=" + clientId);
+              if (res.ok) {
+                const c = await res.json();
+                if (c && !c.error) setContext(c);
+              }
+            } catch (err) {
+              console.warn("Falha ao recarregar contexto após salvar estratégia:", err);
+            }
+          }}
         />
       )}
 
@@ -1361,7 +1388,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                     maxLength={1000}
                     className={control}
                     value={brainstormDirection}
-                    onChange={(e) => setBrainstormDirection(e.target.value)}
+                    onChange={(e) => handleDirectionChange(e.target.value)}
                     placeholder="Ex: Foco em quebrar objeções sobre preço, dúvidas mais comuns de clientes novos, campanha de fim de ano, bastidores da equipe..."
                   />
                 </div>

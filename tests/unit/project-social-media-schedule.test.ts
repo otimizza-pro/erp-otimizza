@@ -21,4 +21,18 @@ describe("Planejamento mensal de social media", () => {
       .toThrow("Este mês tem 4 datas");
     expect(socialMediaScheduleSchema.safeParse({ postsPerMonth: 4, weekdays: [1, 1] }).success).toBe(false);
   });
+
+  it("permite e prioriza datas customizadas selecionadas manualmente no calendário", () => {
+    const customSchedule = {
+      postsPerMonth: 3,
+      weekdays: [1, 3, 5],
+      customDates: ["2027-01-05", "2027-01-12", "2027-01-20"],
+    };
+    expect(socialMediaScheduleSchema.safeParse(customSchedule).success).toBe(true);
+    expect(projectPostSlots("2027-01", customSchedule, "Cliente X")).toEqual([
+      { date: "2027-01-05", title: "Post Cliente X Jan #01", number: 1 },
+      { date: "2027-01-12", title: "Post Cliente X Jan #02", number: 2 },
+      { date: "2027-01-20", title: "Post Cliente X Jan #03", number: 3 },
+    ]);
+  });
 });

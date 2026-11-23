@@ -324,15 +324,39 @@ function NewProjectFormContent() {
 
         {/* Formulário */}
         <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-6">
-          <section className="space-y-3 rounded-lg border border-slate-200 p-4">
-            <label className="flex items-center gap-2 text-sm font-semibold">
-              <input type="checkbox" checked={planSocialMedia} onChange={event => setPlanSocialMedia(event.target.checked)} />
-              Planejar conteúdo de Social Media
-            </label>
-            {planSocialMedia && <>
-              <p className="text-sm text-slate-600">Os posts do primeiro mês serão criados no calendário com base no mês de início do projeto.</p>
-              <SocialMediaScheduleFields value={socialMediaSchedule} onChange={setSocialMediaSchedule} />
-            </>}
+          <section className="space-y-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/40 via-white to-slate-50/50 p-5 shadow-xs">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2.5 text-sm font-bold text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={planSocialMedia}
+                  onChange={event => setPlanSocialMedia(event.target.checked)}
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                />
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-indigo-600" />
+                  Planejar conteúdo de Social Media
+                </span>
+              </label>
+              {planSocialMedia && (
+                <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-semibold">
+                  Ativo
+                </span>
+              )}
+            </div>
+
+            {planSocialMedia && (
+              <div className="space-y-4 pt-1 border-t border-indigo-100/70">
+                <p className="text-xs text-slate-600">
+                  Defina a quantidade de posts e clique nas datas desejadas no calendário para planejar a grade de publicações. Os posts serão automaticamente registrados no Calendário Editorial do cliente a partir do início do projeto.
+                </p>
+                <SocialMediaScheduleFields
+                  value={socialMediaSchedule}
+                  onChange={setSocialMediaSchedule}
+                  baseDate={startDate}
+                />
+              </div>
+            )}
           </section>
           {/* Tipo de Projeto e Modelo */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

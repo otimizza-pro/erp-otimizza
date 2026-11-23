@@ -5,6 +5,7 @@ export const socialMediaScheduleSchema = z.object({
   postsPerMonth: z.number().int().min(1).max(31),
   weekdays: z.array(z.number().int().min(0).max(6)).min(1).max(7)
     .refine(days => new Set(days).size === days.length),
+  customDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
 });
 
 export type SocialMediaSchedule = z.infer<typeof socialMediaScheduleSchema>;
@@ -18,6 +19,19 @@ export function nextProjectMonth(month: string) {
 
 export function projectPostSlots(month: string, schedule: SocialMediaSchedule, company: string) {
   const [year, number] = projectMonthSchema.parse(month).split("-").map(Number);
+
+  if (schedule.customDates && schedule.customDates.length > 0) {
+    const sortedDates = Array.from(new Set(schedule.customDates)).sort();
+    return sortedDates.map((dateStr, index) => {
+      const suffix = ` ${monthNames[number - 1]} #${String(index + 1).padStart(2, "0")}`;
+      return {
+        date: dateStr,
+        title: `Post ${company.slice(0, 255 - 5 - suffix.length)}${suffix}`,
+        number: index + 1,
+      };
+    });
+  }
+
   const lastDay = new Date(Date.UTC(year, number, 0)).getUTCDate();
   const dates = Array.from({ length: lastDay }, (_, index) => new Date(Date.UTC(year, number - 1, index + 1)))
     .filter(date => schedule.weekdays.includes(date.getUTCDay()));

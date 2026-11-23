@@ -7,7 +7,7 @@ import { z } from "zod";
 import { generateWithOpenRouter, strategyModel, parseAiJson } from "@/lib/ai/openrouter";
 
 const messageSchema = z.object({
-  action: z.enum(["MESSAGE", "DONT_KNOW", "DECISION", "SUBMIT_CREDENTIALS", "SKIP_CREDENTIALS"]),
+  action: z.enum(["MESSAGE", "DONT_KNOW", "DECISION", "SUBMIT_CREDENTIALS", "SKIP_CREDENTIALS", "PAUSE"]),
   message: z.string().max(6000).optional(),
   decision: z.enum(["APPROVE", "ADJUST", "RETRY"]).optional(),
   suggestedField: z.enum(["targetAudience", "differentials", "toneOfVoice", "competitors"]).optional(),
@@ -33,9 +33,23 @@ interface ChatMessage {
     value: string;
   };
   isCredentialStep?: boolean;
+  slider?: {
+    id: string;
+    field: string;
+    title: string;
+    leftLabel: string;
+    rightLabel: string;
+    defaultValue: number;
+  };
+  multiSelect?: {
+    id: string;
+    field: string;
+    title: string;
+    options: string[];
+  };
 }
 
-const sofiaAiSchema = z.object({
+const edivaniaAiSchema = z.object({
   replyText: z.string().min(1),
   extractedUpdates: z.object({
     targetAudience: z.string().optional(),
@@ -55,6 +69,20 @@ const sofiaAiSchema = z.object({
     field: z.string(),
     value: z.string(),
   }).optional(),
+  slider: z.object({
+    id: z.string(),
+    field: z.string(),
+    title: z.string(),
+    leftLabel: z.string(),
+    rightLabel: z.string(),
+    defaultValue: z.number().default(50),
+  }).optional(),
+  multiSelect: z.object({
+    id: z.string(),
+    field: z.string(),
+    title: z.string(),
+    options: z.array(z.string()),
+  }).optional(),
 });
 
 function stripAsterisks(text: string): string {
@@ -62,10 +90,12 @@ function stripAsterisks(text: string): string {
   return text.replace(/\*\*/g, "").replace(/\*/g, "");
 }
 
-async function callSofiaAi({
+async function callEdivaniaAi({
   company,
   contact,
   notes,
+  category,
+  servicesOffered,
   history,
   extracted,
   userMessage,
@@ -74,81 +104,79 @@ async function callSofiaAi({
   company: string;
   contact: string;
   notes: string;
+  category: string;
+  servicesOffered: string;
   history: ChatMessage[];
   extracted: Record<string, unknown>;
   userMessage: string;
   isDontKnow?: boolean;
-}): Promise<z.infer<typeof sofiaAiSchema>> {
+}): Promise<z.infer<typeof edivaniaAiSchema>> {
   const currentStep = getCurrentStepFromHistory(extracted);
 
   const formattedHistory = history.slice(-12).map((m) => {
-    const role = m.sender === "user" ? contact : "Sofia";
+    const role = m.sender === "user" ? contact : "Edivânia";
     return `${role}: ${stripAsterisks(m.text)}`;
   }).join("\n");
 
-  const systemPrompt = `Você é a Sofia, consultora e estrategista sênior de inteligência da Otimizza Growth.
-Você está conduzindo uma conversa de onboarding amigável, inteligente e consultiva com ${contact}, representante da empresa ${company}.
+  const systemPrompt = `Você é a Edivânia, estrategista de comunicação e posicionamento da Otimizza Growth.
+Você está conduzindo uma conversa de onboarding amigável, acolhedora, tranquila e muito humana com ${contact}, da empresa ${company}.
 
-OBJETIVO DO BRIEFING:
-Mapear de forma conversacional os 4 pilares essenciais da ${company} para estruturação da estratégia de redes sociais:
-1. targetAudience (Público-alvo: quem é o cliente ideal, dores, necessidades, perfis - se tiver mais de um público, acolha e anote todos!)
-2. differentials (Diferenciais: o que torna a empresa a melhor escolha, qualidade, autoridade, diferenciais concretos)
-3. toneOfVoice (Tom de voz: como a marca deve soar nas redes, postura e linguagem)
-4. competitors (Concorrentes e perfis de referência que admiram ou acompanham)
+INFORMAÇÕES REAIS DO CLIENTE:
+- Categoria / Nicho de Atuação: ${category || "Não informado"}
+- O que ele vende / Serviços principais: ${servicesOffered || "Não informado"}
+- Notas e Contexto Estratégico Prévio: ${notes || "Nenhum detalhe adicional informado"}
+- Mapeamento atual: ${JSON.stringify(extracted)}
+- Pilar em foco agora: ${currentStep}
 
-DADOS INICIAIS DA EMPRESA:
-- Empresa: ${company}
-- Contato: ${contact}
-- Notas e Contexto Inicial: ${notes || "Não informado"}
-- Estado atual do mapeamento: ${JSON.stringify(extracted)}
-- Pilar atual em foco: ${currentStep}
-
-REGRAS DE CONVERSAÇÃO E INTELIGÊNCIA:
-- Você é uma pessoa real conversando ao vivo. NUNCA soe como um formulário burocrático ou script mecânico.
-- Preste atenção no que a pessoa diz e reaja com inteligência ao conteúdo dela antes de fazer a próxima pergunta.
-- Se a pessoa disser que tem mais públicos ou que faltou algo (ex: "eu só disse um público, mas tem mais"), NUNCA mude de assunto! Acolha com entusiasmo, valide o que ela já disse e pergunte quais são os outros públicos.
-- Se o usuário responder de forma curta ou pedir sugestão (isDontKnow = ${isDontKnow}), forneça 2 a 3 sugestões inteligentes e específicas para o nicho da ${company}, com uma sugestão em suggestedData e opções em options.
-- Quando um pilar estiver bem mapeado, faça um breve fechamento natural de 1 frase e faça a transição suave para o próximo pilar.
-- Faça apenas UMA pergunta por vez para manter a conversa dinâmica e agradável.
-- Quando os 4 pilares estiverem cobertos com dados consistentes, parabenize a pessoa, faça um resumo de 2 frases dos pilares acordados e convide para a etapa de credenciais do Instagram (definindo isCredentialStep: true).
+DIRETRIZES DA PERSONALIDADE DA EDIVÂNIA:
+- ZERO jargões técnicos de marketing! NUNCA use termos como "ICP", "Persona", "Arquétipo", "Ganchos de retenção", "Linha editorial", etc.
+- Converse como uma pessoa amigável tomando um café com ${contact}. Seja empática, atenciosa e estimulante.
+- EXEMPLOS DO NICHO OBRIGATÓRIOS: Utilize SEMPRE a categoria da empresa (${category}) e o que ela vende (${servicesOffered}) para formular as perguntas com situações do cotidiano deles!
+- Sobre tom de voz: pergunte de forma humana: "No dia a dia com seus clientes, como você prefere conversar nas redes sociais? De um jeito mais didático e explicativo, tirando dúvidas passo a passo, ou de um jeito mais leve, acolhedor e descontraído?".
+- Ofereça entre 4 e 6 opções práticas e claras em "options", adaptadas para o nicho real do cliente.
+- Ao tratar de tom de voz ou estilo, você pode incluir um campo "slider" para o cliente escolher o equilíbrio entre duas pontas (ex: Técnico <-> Acolhedor).
+- Se o usuário disser que tem mais públicos ou quiser complementar (ex: "eu só disse um público, mas tem mais"), acolha com carinho: "Com certeza, me conta sobre os outros públicos também!".
+- Faça APENAS UMA pergunta por vez para não cansar o cliente.
+- Quando todos os 4 pilares estiverem cobertos com dados consistentes, parabenize a pessoa, resuma de forma calorosa e apresente a etapa de credenciais do Instagram (marcando isCredentialStep: true).
 
 REGRA RIGOROSA DE FORMATAÇÃO (INVIOLÁVEL):
 - NUNCA USE ASTERISCOS DUPLOS (**) EM NENHUM LUGAR DO TEXTO.
-- Não use ** para títulos, não use ** para nomes de empresas, não use ** para perguntas ou destaques.
+- Não use ** para títulos, perguntas ou nomes.
 - Use texto puro com boa pontuação, quebras de linha e emojis moderados e simpáticos (1 a 2 por mensagem).
 
 FORMATO DE RESPOSTA OBRIGATÓRIO (JSON):
 {
-  "replyText": "Texto caloroso, inteligente e conversacional da Sofia (SEM NENHUM ASTERISCO **)",
+  "replyText": "Texto caloroso, amigável e conversacional da Edivânia (SEM ASTERISCOS **)",
   "extractedUpdates": {
-    "targetAudience": "resumo cumulativo dos públicos identificados até agora (ou omitir se nada novo)",
-    "differentials": "resumo cumulativo dos diferenciais identificados (ou omitir se nada novo)",
+    "targetAudience": "resumo cumulativo dos públicos identificados até agora",
+    "differentials": "resumo cumulativo dos diferenciais identificados",
     "toneOfVoice": ["diretrizes do tom de voz se identificadas"],
-    "competitors": "concorrentes ou referências identificados (ou omitir se nada novo)"
+    "competitors": "concorrentes ou referências identificados"
   },
   "currentTopic": "targetAudience" | "differentials" | "toneOfVoice" | "competitors" | "credentials" | "completed",
   "isCredentialStep": boolean,
   "options": [
     { "label": "Texto do botão rápido (sem **)", "value": "Texto do valor" }
   ],
-  "suggestedData": { "field": "campo", "value": "sugestão caso seja o momento de sugerir" }
+  "suggestedData": { "field": "campo", "value": "sugestão caso seja o momento de sugerir" },
+  "slider": { "id": "tom_equilibrio", "field": "toneOfVoice", "title": "Equilíbrio de tom", "leftLabel": "Didático & Técnico", "rightLabel": "Acolhedor & Próximo", "defaultValue": 50 }
 }`;
 
   try {
     const aiRes = await generateWithOpenRouter({
       model: strategyModel(),
-      temperature: 0.6,
-      maxTokens: 1200,
+      temperature: 0.65,
+      maxTokens: 1400,
       messages: [
         { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: `Histórico recente da conversa:\n${formattedHistory}\n\nÚltima mensagem do usuário (${contact}): "${userMessage}"\n${isDontKnow ? "[Atenção: O usuário solicitou sugestões para este tópico]" : ""}`,
+          content: `Histórico recente da conversa:\n${formattedHistory}\n\nÚltima mensagem do usuário (${contact}): "${userMessage}"\n${isDontKnow ? "[Atenção: O usuário solicitou sugestões práticas ou exemplos para este ponto]" : ""}`,
         },
       ],
     });
 
-    const parsed = parseAiJson(aiRes.text, sofiaAiSchema);
+    const parsed = parseAiJson(aiRes.text, edivaniaAiSchema);
     parsed.replyText = stripAsterisks(parsed.replyText);
     if (parsed.options) {
       parsed.options = parsed.options.map((opt) => ({
@@ -162,8 +190,8 @@ FORMATO DE RESPOSTA OBRIGATÓRIO (JSON):
     }
     return parsed;
   } catch (err) {
-    console.warn("Sofia AI fallback ativado:", err instanceof Error ? err.message : err);
-    return getConversationalFallback(userMessage, currentStep, company, contact, extracted, isDontKnow);
+    console.warn("Edivânia AI fallback acionado:", err instanceof Error ? err.message : err);
+    return getConversationalFallback(userMessage, currentStep, company, contact, category, servicesOffered, isDontKnow);
   }
 }
 
@@ -172,12 +200,12 @@ function getConversationalFallback(
   currentStep: string,
   company: string,
   contact: string,
-  extracted: Record<string, unknown>,
+  category: string,
+  servicesOffered: string,
   isDontKnow: boolean
-): z.infer<typeof sofiaAiSchema> {
+): z.infer<typeof edivaniaAiSchema> {
   const msgLower = userMessage.toLowerCase();
 
-  // Caso o usuário diga que tem mais ou queira complementar
   if (msgLower.includes("tem mais") || msgLower.includes("outro público") || msgLower.includes("mais de um") || msgLower.includes("só disse um")) {
     return {
       replyText: `Perfeito, ${contact}! Te entendo perfeitamente. Pode me contar quais são os outros públicos que você atende, assim anotamos todos aqui no perfil da ${company}.`,
@@ -191,9 +219,9 @@ function getConversationalFallback(
   }
 
   if (isDontKnow) {
-    const suggestion = getSmartSuggestionForStep(currentStep, company, "");
+    const suggestion = getSmartSuggestionForStep(currentStep, company, category, servicesOffered);
     return {
-      replyText: `Sem problemas, ${contact}! Preparei uma sugestão pensada no perfil da ${company}:\n\n"${suggestion.text}"\n\nEssa linha faz sentido para você ou gostaria de ajustar?`,
+      replyText: `Sem problemas, ${contact}! Preparei uma sugestão pensada no dia a dia da ${company} com ${category || "seus clientes"}:\n\n"${suggestion.text}"\n\nEssa linha combina com a sua realidade ou você gostaria de ajustar?`,
       extractedUpdates: {},
       currentTopic: currentStep as "targetAudience" | "differentials" | "toneOfVoice" | "competitors",
       isCredentialStep: false,
@@ -202,8 +230,8 @@ function getConversationalFallback(
         value: suggestion.text,
       },
       options: [
-        { label: "👍 Aprovar esta sugestão", value: "APPROVE", action: "APPROVE" },
-        { label: "✏️ Vou personalizar", value: "CUSTOM", action: "ADJUST" },
+        { label: "👍 Combina com a gente!", value: "APPROVE", action: "APPROVE" },
+        { label: "✏️ Quero ajustar", value: "CUSTOM", action: "ADJUST" },
         { label: "🔄 Ver outra opção", value: "RETRY", action: "RETRY" },
       ],
     };
@@ -211,46 +239,56 @@ function getConversationalFallback(
 
   if (currentStep === "targetAudience") {
     return {
-      replyText: `Excelente, anotei os detalhes sobre o público-alvo da ${company}!\n\nAgora me conta: Qual é o principal diferencial da ${company}? O que faz os clientes escolherem vocês em vez de qualquer outra opção no mercado?`,
+      replyText: `Excelente, anotei os detalhes sobre quem vocês atendem na ${company}!\n\nAgora me conta: o que faz as pessoas escolherem a ${company} e confiarem no seu trabalho? Pode ser o atendimento acolhedor, a pontualidade, a metodologia ou a qualidade do que você entrega.`,
       extractedUpdates: { targetAudience: userMessage },
       currentTopic: "differentials",
       isCredentialStep: false,
       options: [
-        { label: "🤷‍♂️ Me dê sugestões de diferenciais", value: "DONT_KNOW_DIFF", action: "DONT_KNOW" },
+        { label: "Atendimento próximo e dedicado", value: "Atendimento próximo e dedicado" },
+        { label: "Pontualidade e cumprimento de prazos", value: "Pontualidade e cumprimento de prazos" },
+        { label: "Metodologia comprovada e sem enrolação", value: "Metodologia comprovada e sem enrolação" },
+        { label: "💡 Me dê sugestões pro meu nicho", value: "DONT_KNOW_DIFF", action: "DONT_KNOW" },
       ],
     };
   }
 
   if (currentStep === "differentials") {
     return {
-      replyText: `Muito bom! Esse diferencial nos dá um posicionamento forte para conteúdos de autoridade e credibilidade.\n\nE sobre o Tom de Voz da ${company} nas redes, como você quer que a marca se comunique?`,
+      replyText: `Muito bom! Esse diferencial mostra muita credibilidade.\n\nE sobre o jeito de conversar nas redes sociais: como você gosta que a ${company} soe para quem acompanha você? Mais didático e explicativo, ou mais leve, acolhedor e próximo?`,
       extractedUpdates: { differentials: userMessage },
       currentTopic: "toneOfVoice",
       isCredentialStep: false,
       options: [
-        { label: "Especialista & Direto", value: "TONE_EXPERT", action: "APPROVE", payload: "Direto, técnico e de autoridade" },
-        { label: "Próximo & Acolhedor", value: "TONE_FRIENDLY", action: "APPROVE", payload: "Acessível, empático e caloroso" },
-        { label: "Elegante & Premium", value: "TONE_PREMIUM", action: "APPROVE", payload: "Sofisticado e exclusivo" },
-        { label: "🤷‍♂️ Me sugira o melhor tom", value: "DONT_KNOW_TONE", action: "DONT_KNOW" },
+        { label: "Didático e Explicativo", value: "Didático, claro e explicativo" },
+        { label: "Acolhedor e Próximo", value: "Acolhedor, humano e empático" },
+        { label: "Elegante e Sofisticado", value: "Elegante, exclusivo e cuidadoso" },
+        { label: "Descontraído e Leve", value: "Descontraído, direto e bem-humorado" },
       ],
+      slider: {
+        id: "slider_tom",
+        field: "toneOfVoice",
+        title: "Equilíbrio do seu jeito de falar",
+        leftLabel: "Didático & Clínico",
+        rightLabel: "Acolhedor & Próximo",
+        defaultValue: 50,
+      },
     };
   }
 
   if (currentStep === "toneOfVoice") {
     return {
-      replyText: `Tom de voz alinhado! Isso garante que todas as postagens falem com a postura certa.\n\nVocê tem perfis de concorrentes ou marcas de referência que admira ou acompanha no Instagram? Se tiver, me envie o @ ou o nome deles.`,
+      replyText: `Estilo de comunicação registrado! Isso ajuda a manter todas as postagens com a sua personalidade.\n\nVocê tem marcas ou perfis no Instagram que admira ou acompanha para inspiração? Se lembrar de algum @ ou nome, pode me mandar!`,
       extractedUpdates: { toneOfVoice: [userMessage] },
       currentTopic: "competitors",
       isCredentialStep: false,
       options: [
-        { label: "🤷‍♂️ Não tenho referências agora", value: "NO_COMP", action: "APPROVE", payload: "Sem referências diretas informadas" },
+        { label: "Não tenho nenhuma referência em mente", value: "NO_COMP", action: "APPROVE", payload: "Sem referências diretas informadas" },
       ],
     };
   }
 
-  // Finalização e Credenciais
   return {
-    replyText: `Perfeito, ${contact}! Já mapeamos todos os pilares estratégicos da ${company} com clareza.\n\nPara que a equipe da Otimizza possa configurar seu perfil e agendar as publicações com agilidade, você pode registrar o usuário e senha do Instagram no cofre seguro abaixo (criptografia AES-256).\n\nSe preferir, pode enviar depois pelo nosso canal de atendimento no WhatsApp!`,
+    replyText: `Maravilha, ${contact}! Mapeamos com muito cuidado a essência e o posicionamento da ${company}.\n\nPara que a equipe da Otimizza possa cuidar das publicações e configurar tudo com agilidade, você pode registrar o usuário e a senha do Instagram no cofre seguro abaixo (criptografia AES-256).\n\nOu, se preferir, pode enviar depois pelo WhatsApp para a nossa equipe!`,
     extractedUpdates: { competitors: userMessage },
     currentTopic: "credentials",
     isCredentialStep: true,
@@ -296,7 +334,7 @@ export async function GET(
       history = [];
     }
 
-    // Sanitiza histórico antigo para nunca exibir asteriscos
+    // Sanitiza histórico para tema claro e sem asteriscos
     history = history.map((msg) => ({
       ...msg,
       text: stripAsterisks(msg.text),
@@ -311,9 +349,9 @@ export async function GET(
       const introMsg: ChatMessage = {
         id: "msg_intro",
         sender: "assistant",
-        text: `Olá, ${row.contact_name}! 👋 Sou a Sofia, especialista em estratégia da Otimizza.\n\nA equipe da Otimizza já me passou o contexto inicial da ${row.company_name} e estou aqui para conversarmos sobre o posicionamento e as redes sociais da sua marca.\n\n💡 Dica importante: Este briefing foi desenhado para ser uma conversa rápida e direta. Se em algum momento você não souber uma resposta, basta clicar em "Não sei" ou pedir uma sugestão — eu mesma crio opções para você aprovar!\n\nPodemos iniciar agora?`,
+        text: `Olá, ${row.contact_name}! 👋 Sou a Edivânia, estrategista de comunicação aqui da Otimizza.\n\nA nossa equipe preparou o contexto inicial da ${row.company_name} e estou aqui para conversarmos de forma tranquila e descomplicada sobre a sua marca e os conteúdos para suas redes sociais.\n\nFique super à vontade: não é um teste e nem um questionário técnico! Se em algum momento você quiser sugestões ou preferir responder depois, basta me avisar.\n\nPodemos começar agora?`,
         options: [
-          { label: "🚀 Sim, vamos iniciar!", value: "START", action: "APPROVE" },
+          { label: "🚀 Sim, vamos começar!", value: "START", action: "APPROVE" },
           { label: "Como vai funcionar?", value: "EXPLAIN", action: "EXPLAIN" },
         ],
         timestamp: new Date().toISOString(),
@@ -321,11 +359,11 @@ export async function GET(
       history.push(introMsg);
 
       await query(
-        `UPDATE public.client_briefing_sessions SET conversation_history = $1, status = 'IN_PROGRESS', progress_percent = 20 WHERE id = $2`,
+        `UPDATE public.client_briefing_sessions SET conversation_history = $1, status = 'IN_PROGRESS', progress_percent = 15 WHERE id = $2`,
         [JSON.stringify(history), row.id]
       );
       row.conversation_history = history;
-      row.progress_percent = 20;
+      row.progress_percent = 15;
     }
 
     return NextResponse.json({
@@ -343,7 +381,7 @@ export async function GET(
         conversationHistory: history,
         extractedIdentity: row.extracted_identity || {},
         status: row.status,
-        progressPercent: row.progress_percent || 20,
+        progressPercent: row.progress_percent || 15,
         credentialsSaved: row.credentials_saved,
         completedAt: row.completed_at,
       },
@@ -411,11 +449,27 @@ export async function POST(
     const company = session.company_name || "sua empresa";
     const contact = session.contact_name || "Parceiro";
     const notes = session.initial_notes || "";
-    let progress = Number(session.progress_percent) || 20;
+    const category = String(extracted.marketNiche || "");
+    const servicesOffered = String(extracted.valueProposition || "");
+    let progress = Number(session.progress_percent) || 15;
     const now = new Date().toISOString();
 
-    // 1. TRATAMENTO DE CREDENCIAIS
-    if (action === "SUBMIT_CREDENTIALS") {
+    // 1. TRATAMENTO DE PAUSA (RESPONDER DEPOIS)
+    if (action === "PAUSE") {
+      history.push({
+        id: `usr_${Date.now()}`,
+        sender: "user",
+        text: "Gostaria de responder depois / continuar mais tarde.",
+        timestamp: now,
+      });
+
+      history.push({
+        id: `ast_${Date.now()}`,
+        sender: "assistant",
+        text: `Fique super tranquilo(a), ${contact}! Suas respostas já estão salvas com segurança no nosso sistema.\n\nQuando você quiser retomar a conversa, basta abrir este mesmo link no seu computador ou celular que continuaremos exatamente de onde paramos. Até breve! 😊`,
+        timestamp: now,
+      });
+    } else if (action === "SUBMIT_CREDENTIALS") {
       const username = credentials?.username?.trim();
       const password = credentials?.password?.trim();
 
@@ -473,7 +527,7 @@ export async function POST(
       history.push({
         id: `ast_${Date.now()}`,
         sender: "assistant",
-        text: `Excelente! Seus dados de acesso foram recebidos com segurança e criptografados no cofre da Otimizza.\n\nCom isso, finalizamos nosso briefing com sucesso! Todas as informações estratégicas da ${company} foram salvas e entregues para a nossa equipe iniciar os trabalhos.`,
+        text: `Excelente! Seus dados de acesso foram recebidos com segurança e salvos no cofre da Otimizza.\n\nCom isso, finalizamos nosso papo com muito sucesso! Todas as orientações estratégicas da ${company} foram organizadas e entregues para a equipe iniciar as criações.`,
         timestamp: now,
         options: [
           { label: "🎉 Finalizar e Entregar para a Otimizza", value: "FINALIZE", action: "APPROVE" },
@@ -485,14 +539,14 @@ export async function POST(
       history.push({
         id: `usr_${Date.now()}`,
         sender: "user",
-        text: "Prefiro enviar os acessos diretamente pelo canal de atendimento da Otimizza.",
+        text: "Prefiro enviar os acessos diretamente pelo WhatsApp da Otimizza.",
         timestamp: now,
       });
 
       history.push({
         id: `ast_${Date.now()}`,
         sender: "assistant",
-        text: `Sem problema nenhum! Você pode combinar o envio dos acessos com a nossa equipe no momento que for mais conveniente.\n\nCom isso, já temos tudo o que precisamos para dar a largada na estratégia da ${company}!`,
+        text: `Sem problema nenhum! Você pode combinar o envio dos acessos diretamente com a nossa equipe no momento que for mais conveniente.\n\nCom isso, já temos tudo o que precisamos para dar a largada na estratégia da ${company}!`,
         timestamp: now,
         options: [
           { label: "🎉 Finalizar e Entregar para a Otimizza", value: "FINALIZE", action: "APPROVE" },
@@ -511,14 +565,15 @@ export async function POST(
           timestamp: now,
         });
 
-        // Chama a IA para fazer a transição inteligente para o próximo ponto
-        const aiResponse = await callSofiaAi({
+        const aiResponse = await callEdivaniaAi({
           company,
           contact,
           notes,
+          category,
+          servicesOffered,
           history,
           extracted,
-          userMessage: `Aprovei a sugestão de ${suggestedField}: "${suggestedValue}"`,
+          userMessage: `Aprovei a opção de ${suggestedField}: "${suggestedValue}"`,
         });
 
         if (aiResponse.extractedUpdates) {
@@ -532,20 +587,22 @@ export async function POST(
           options: aiResponse.options,
           suggestedData: aiResponse.suggestedData,
           isCredentialStep: aiResponse.isCredentialStep,
+          slider: aiResponse.slider,
+          multiSelect: aiResponse.multiSelect,
           timestamp: now,
         });
       } else if (decision === "RETRY" && suggestedField) {
-        const altSuggestion = getAlternativeSuggestion(suggestedField, company, notes);
+        const altSuggestion = getAlternativeSuggestion(suggestedField, company, category, servicesOffered);
         history.push({
           id: `ast_${Date.now()}`,
           sender: "assistant",
-          text: `Sem problemas! Aqui está outra proposta com um ângulo diferente:\n\n"${altSuggestion}"\n\nO que acha desta?`,
+          text: `Sem problemas! Aqui está outra ideia com um olhar diferente:\n\n"${altSuggestion}"\n\nEssa proposta combina mais com o seu dia a dia?`,
           suggestedData: {
             field: suggestedField,
             value: altSuggestion,
           },
           options: [
-            { label: "👍 Aprovar esta sugestão", value: "APPROVE", action: "APPROVE" },
+            { label: "👍 Essa combina mais!", value: "APPROVE", action: "APPROVE" },
             { label: "✏️ Vou digitar eu mesmo", value: "CUSTOM", action: "ADJUST" },
             { label: "🔄 Ver outra opção", value: "RETRY", action: "RETRY" },
           ],
@@ -556,17 +613,19 @@ export async function POST(
       history.push({
         id: `usr_${Date.now()}`,
         sender: "user",
-        text: "Não sei responder com certeza, pode me sugerir uma boa opção?",
+        text: "Pode me sugerir algumas opções pro meu nicho?",
         timestamp: now,
       });
 
-      const aiResponse = await callSofiaAi({
+      const aiResponse = await callEdivaniaAi({
         company,
         contact,
         notes,
+        category,
+        servicesOffered,
         history,
         extracted,
-        userMessage: "Não sei o que responder agora, me dê sugestões personalizadas para a minha empresa.",
+        userMessage: "Pode me dar exemplos e sugestões práticas para a minha empresa?",
         isDontKnow: true,
       });
 
@@ -577,6 +636,8 @@ export async function POST(
         options: aiResponse.options,
         suggestedData: aiResponse.suggestedData,
         isCredentialStep: aiResponse.isCredentialStep,
+        slider: aiResponse.slider,
+        multiSelect: aiResponse.multiSelect,
         timestamp: now,
       });
     } else if (action === "MESSAGE") {
@@ -599,17 +660,22 @@ export async function POST(
         history.push({
           id: `ast_${Date.now()}`,
           sender: "assistant",
-          text: `Maravilha, ${contact}! Vamos direto ao ponto. 🚀\n\nPrimeira pergunta: Quem é o cliente ideal da ${company}?\nMe conta quem costuma comprar ou contratar vocês, e quais são os principais perfis ou públicos que vocês atendem. Se tiver mais de um público, pode me falar todos!`,
+          text: `Que maravilha, ${contact}! Vamos lá. ☕\n\nPara começar da forma mais prática possível: pensando no dia a dia da ${company}${category ? ` com ${category}` : ""}, quem costuma procurar os seus serviços? Me conta quem são os seus principais tipos de clientes. Se tiver mais de um perfil ou público, pode me falar todos!`,
           options: [
-            { label: "🤷‍♂️ Não sei ao certo, me sugira!", value: "DONT_KNOW_AUDIENCE", action: "DONT_KNOW" },
+            { label: "Clientes que buscam qualidade acima do preço", value: "Clientes que valorizam qualidade e confiança" },
+            { label: "Pessoas com necessidades imediatas", value: "Pessoas com demandas pontuais e urgentes" },
+            { label: "Famílias e moradores locais da região", value: "Moradores locais e famílias da região" },
+            { label: "💡 Me dê exemplos pro meu nicho", value: "DONT_KNOW_AUDIENCE", action: "DONT_KNOW" },
           ],
           timestamp: now,
         });
       } else {
-        const aiResponse = await callSofiaAi({
+        const aiResponse = await callEdivaniaAi({
           company,
           contact,
           notes,
+          category,
+          servicesOffered,
           history,
           extracted,
           userMessage: userText,
@@ -626,12 +692,14 @@ export async function POST(
           options: aiResponse.options,
           suggestedData: aiResponse.suggestedData,
           isCredentialStep: aiResponse.isCredentialStep,
+          slider: aiResponse.slider,
+          multiSelect: aiResponse.multiSelect,
           timestamp: now,
         });
       }
     }
 
-    // Atualização de progresso
+    // Progresso
     const isCompleted = progress >= 100 || (action === "DECISION" && decision === "APPROVE" && suggestedValue === "FINALIZE");
     const answered = ["targetAudience", "differentials", "toneOfVoice", "competitors"].filter((field) => {
       const value = extracted[field];
@@ -643,7 +711,7 @@ export async function POST(
     }
 
     if (!isCompleted) {
-      progress = session.credentials_saved || action === "SKIP_CREDENTIALS" ? 98 : Math.max(25, Math.round((answered / 4) * 90));
+      progress = session.credentials_saved || action === "SKIP_CREDENTIALS" ? 98 : Math.max(15, Math.round((answered / 4) * 90));
     } else {
       progress = 100;
     }
@@ -705,49 +773,43 @@ function getCurrentStepFromHistory(extracted: Record<string, unknown>): string {
   return "targetAudience";
 }
 
-function getSmartSuggestionForStep(step: string, company: string, notes: string): { field: string; text: string } {
+function getSmartSuggestionForStep(step: string, company: string, category: string, servicesOffered: string): { field: string; text: string } {
   if (step === "targetAudience") {
-    if (notes.toLowerCase().includes("b2b") || notes.toLowerCase().includes("empresa")) {
-      return {
-        field: "targetAudience",
-        text: `Empresários, diretores e tomadores de decisão que buscam eficiência, previsibilidade e soluções comprovadas para seus negócios.`,
-      };
-    }
     return {
       field: "targetAudience",
-      text: `Consumidores e decisores qualificados que valorizam atendimento ágil, transparência e confiança acima do menor preço.`,
+      text: `Pessoas e famílias que valorizam um atendimento de confiança e personalizado para ${category || servicesOffered || "suas necessidades"}.`,
     };
   }
 
   if (step === "differentials") {
     return {
       field: "differentials",
-      text: `Atendimento consultivo e próximo, cumprimento rigoroso de prazos e foco absoluto em entregar resultados reais para o cliente.`,
+      text: `Atendimento consultivo e próximo, cumprimento rigoroso de prazos e cuidado genuíno em cada etapa do atendimento.`,
     };
   }
 
   if (step === "toneOfVoice") {
     return {
       field: "toneOfVoice",
-      text: `Direto e didático: comunicamos com clareza técnica e autoridade, sem enrolação ou jargões vazios.`,
+      text: `Acolhedor e didático: explicamos com clareza e empatia, transmitindo tranquilidade e confiança sem jargões complicados.`,
     };
   }
 
   return {
     field: "competitors",
-    text: `Foco em posicionamento próprio e superior, tornando a concorrência irrelevante através de autoridade e proximidade.`,
+    text: `Posicionamento próprio e autêntico, destacando a proximidade humana e o cuidado da ${company}.`,
   };
 }
 
-function getAlternativeSuggestion(field: string, _company: string, _notes: string): string {
+function getAlternativeSuggestion(field: string, _company: string, category: string, servicesOffered: string): string {
   if (field === "targetAudience") {
-    return `Profissionais liberais e empresas em fase de crescimento que precisam delegar demandas operacionais para focar na estratégia.`;
+    return `Clientes que buscam uma solução completa com tranquilidade, sem dor de cabeça e com suporte direto.`;
   }
   if (field === "differentials") {
-    return `Metodologia estruturada, suporte humanizado de alta resposta e garantia de qualidade em cada etapa da entrega.`;
+    return `Atenção aos mínimos detalhes, metodologia própria e suporte rápido para esclarecer qualquer dúvida.`;
   }
   if (field === "toneOfVoice") {
-    return `Enérgico e persuasivo: foco no crescimento e na superação dos desafios diários do cliente.`;
+    return `Descontraído e humano: linguagem leve, acessível e focada em resolver o problema do cliente com simpatia.`;
   }
-  return `Referências que trabalham com conteúdo educativo e didático com alta retenção visual.`;
+  return `Referências que trabalham com conteúdo acolhedor e visual limpo nas redes.`;
 }

@@ -2528,7 +2528,7 @@ export default function LeadDetailPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-zinc-950 text-sm">
-                      Histórico do Onboarding com IA (Sofia)
+                      Histórico do Onboarding com IA (Edivânia)
                     </h3>
                     <p className="text-[11px] text-zinc-500">
                       Empresa: {onboardingSession.company_name} • Contato: {onboardingSession.contact_name}
@@ -2554,7 +2554,7 @@ export default function LeadDetailPage() {
                         className={`flex flex-col ${isAssistant ? "items-start" : "items-end"}`}
                       >
                         <span className="text-[10px] text-zinc-400 mb-0.5 px-1 font-semibold">
-                          {isAssistant ? "Sofia (Otimizza)" : onboardingSession.contact_name}
+                          {isAssistant ? "Edivânia (Otimizza)" : onboardingSession.contact_name}
                         </span>
                         <div
                           className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed ${

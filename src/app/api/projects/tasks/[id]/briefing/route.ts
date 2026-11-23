@@ -72,10 +72,10 @@ export async function GET(
       const initialMessage = {
         id: "msg_intro",
         sender: "assistant",
-        text: `Olá, ${contactName}! 👋 Sou a Sofia, assistente do briefing aqui na Otimizza.\n\nA equipe da Otimizza preparou este briefing sobre a ${companyName}. Estou aqui para guiar você na construção da estratégia e do conteúdo para suas redes sociais.\n\n💡 Dica importante: Se em algum momento você não souber uma resposta, basta me dizer "Não sei" ou pedir uma sugestão! Eu mesma crio opções para você aprovar ou ajustar com 1 clique.\n\nVamos começar?`,
+        text: `Olá, ${contactName}! 👋 Sou a Edivânia, estrategista de comunicação aqui da Otimizza.\n\nA nossa equipe preparou este briefing sobre a ${companyName}. Estou aqui para bater um papo leve e descontraído com você sobre o posicionamento e o conteúdo das suas redes sociais.\n\nFique super tranquilo: não é um questionário técnico! Se em algum momento você quiser sugestões ou quiser responder depois, basta me avisar.\n\nPodemos começar agora?`,
         options: [
-          { label: "🚀 Vamos lá!", value: "START", action: "APPROVE" },
-          { label: "Quero saber como funciona", value: "EXPLAIN", action: "EXPLAIN" },
+          { label: "🚀 Sim, vamos começar!", value: "START", action: "APPROVE" },
+          { label: "Como vai funcionar?", value: "EXPLAIN", action: "EXPLAIN" },
         ],
         timestamp: new Date().toISOString(),
       };
@@ -128,11 +128,19 @@ export async function GET(
       clientIdentity = idRes.rows[0] || null;
     }
 
+    const ext = typeof session?.extracted_identity === "string" 
+      ? JSON.parse(session.extracted_identity) 
+      : (session?.extracted_identity || {});
+    const category = ext.marketNiche || clientIdentity?.market_niche || "";
+    const servicesOffered = ext.valueProposition || clientIdentity?.value_proposition || "";
+
     return NextResponse.json({
       success: true,
       task,
       session,
       clientIdentity,
+      category,
+      servicesOffered,
       publicUrl: session ? `/briefing/${session.token}` : "",
     });
   } catch (err: unknown) {
@@ -162,7 +170,15 @@ export async function POST(
       initialNotes,
       competitorNotes,
       extractedIdentity,
+      category,
+      servicesOffered,
     } = body;
+
+    const mergedExt = {
+      ...(extractedIdentity || {}),
+      ...(category ? { marketNiche: category } : {}),
+      ...(servicesOffered ? { valueProposition: servicesOffered } : {}),
+    };
 
     // Verificar se existe a sessão
     const sessionRes = await query(
@@ -204,10 +220,24 @@ export async function POST(
           instagramUrl || null,
           initialNotes || null,
           competitorNotes || null,
-          extractedIdentity ? JSON.stringify(extractedIdentity) : "{}",
+          JSON.stringify(mergedExt),
         ]
       );
       session = insertRes.rows[0];
+
+      if (taskRes.rows[0].client_id && (category || servicesOffered)) {
+        await query(
+          `
+          INSERT INTO public.client_identities (client_id, market_niche, value_proposition, updated_at)
+          VALUES ($1, $2, $3, NOW())
+          ON CONFLICT (client_id) DO UPDATE SET
+            market_niche = COALESCE(EXCLUDED.market_niche, client_identities.market_niche),
+            value_proposition = COALESCE(EXCLUDED.value_proposition, client_identities.value_proposition),
+            updated_at = NOW()
+          `,
+          [taskRes.rows[0].client_id, category || null, servicesOffered || null]
+        );
+      }
     } else {
       // Atualizar campos pré-preenchidos pela equipe e identidade estratégica
       const updateRes = await query(
@@ -237,11 +267,25 @@ export async function POST(
           instagramUrl || null,
           initialNotes || null,
           competitorNotes || null,
-          extractedIdentity ? JSON.stringify(extractedIdentity) : null,
+          Object.keys(mergedExt).length > 0 ? JSON.stringify(mergedExt) : null,
           session.id,
         ]
       );
       session = updateRes.rows[0];
+
+      if (session.client_id && (category || servicesOffered)) {
+        await query(
+          `
+          INSERT INTO public.client_identities (client_id, market_niche, value_proposition, updated_at)
+          VALUES ($1, $2, $3, NOW())
+          ON CONFLICT (client_id) DO UPDATE SET
+            market_niche = COALESCE(EXCLUDED.market_niche, client_identities.market_niche),
+            value_proposition = COALESCE(EXCLUDED.value_proposition, client_identities.value_proposition),
+            updated_at = NOW()
+          `,
+          [session.client_id, category || null, servicesOffered || null]
+        );
+      }
     }
 
     return NextResponse.json({

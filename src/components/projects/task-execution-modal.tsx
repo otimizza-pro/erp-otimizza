@@ -26,6 +26,7 @@ import {
   Sliders,
   Send,
   Edit2,
+  RotateCcw,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { ProjectRecord, ProjectTaskRecord, TaskStatus, ProjectPriority } from "@/modules/projects/types";
@@ -78,6 +79,9 @@ export function TaskExecutionModal({
   const [instagramUrl, setInstagramUrl] = useState<string>("");
   const [initialNotes, setInitialNotes] = useState<string>("");
   const [competitorNotes, setCompetitorNotes] = useState<string>("");
+  const [category, setCategory] = useState<string>("");
+  const [servicesOffered, setServicesOffered] = useState<string>("");
+  const [resettingChat, setResettingChat] = useState<boolean>(false);
 
   // Audit competitors state
   const [auditing, setAuditing] = useState<boolean>(false);
@@ -121,6 +125,10 @@ export function TaskExecutionModal({
 
         const ext = json.session.extracted_identity || {};
         const clientExt = json.clientIdentity || {};
+
+        setCategory(json.category || ext.marketNiche || clientExt.market_niche || "");
+        setServicesOffered(json.servicesOffered || ext.valueProposition || clientExt.value_proposition || "");
+
         setBriefingToneOfVoice(
           Array.isArray(ext.toneOfVoice)
             ? ext.toneOfVoice.join(", ")
@@ -168,6 +176,8 @@ export function TaskExecutionModal({
   const isStrategyTask = titleLower.includes("estratégia") || titleLower.includes("pilares");
   const isCalendarTask = titleLower.includes("calendário") || titleLower.includes("editorial");
 
+  const isLinkUnlocked = !!(category.trim() && servicesOffered.trim());
+
   const briefingUrl = briefingSession?.token
     ? typeof window !== "undefined"
       ? `${window.location.origin}/briefing/${briefingSession.token}`
@@ -189,12 +199,15 @@ export function TaskExecutionModal({
           instagramUrl,
           initialNotes,
           competitorNotes,
+          category,
+          servicesOffered,
         }),
       });
       const json = await res.json();
       if (json.success) {
         setBriefingSession(json.session);
-        setBriefingFeedback("Dados prévios salvos! O link do briefing está pronto para envio.");
+        setBriefingFeedback("Dados prévios salvos! As informações de nicho foram registradas.");
+        setTimeout(() => setBriefingFeedback(null), 4000);
       } else {
         setBriefingFeedback("Erro ao salvar dados prévios.");
       }
@@ -202,6 +215,28 @@ export function TaskExecutionModal({
       setBriefingFeedback("Erro na comunicação com o servidor.");
     } finally {
       setLoadingBriefing(false);
+    }
+  };
+
+  const handleResetBriefing = async () => {
+    if (!confirm("Deseja realmente reiniciar o chat da Edivânia para este cliente? Todo o histórico de conversa do briefing voltará ao início.")) return;
+    setResettingChat(true);
+    setBriefingFeedback(null);
+    try {
+      const res = await fetch(`/api/projects/tasks/${task.id}/briefing/reset`, { method: "POST" });
+      const json = await res.json();
+      if (json.success) {
+        setBriefingSession(json.session);
+        setBriefingFeedback("Chat da Edivânia reiniciado com sucesso! A conversa foi resetada para o início.");
+        loadBriefingSession();
+        setTimeout(() => setBriefingFeedback(null), 4000);
+      } else {
+        setBriefingFeedback(json.error || "Erro ao resetar chat.");
+      }
+    } catch {
+      setBriefingFeedback("Erro na comunicação com o servidor.");
+    } finally {
+      setResettingChat(false);
     }
   };
 
@@ -416,19 +451,19 @@ export function TaskExecutionModal({
               {isBriefingTask && (
                 <div className="space-y-6">
                   {/* Shareable Link Card */}
-                  <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-500/30 rounded-2xl p-4.5 space-y-3">
+                  <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-3 shadow-hourline">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-emerald-800 text-sm font-bold">
-                        <Sparkles className="w-4 h-4 text-emerald-600" />
-                        <span>Link Personalizado do Briefing Interativo com IA</span>
+                      <div className="flex items-center gap-2 text-zinc-950 text-sm font-semibold">
+                        <Sparkles className="w-4 h-4 text-zinc-700" />
+                        <span>Link Personalizado do Briefing com IA (Edivânia)</span>
                       </div>
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                        className={`text-[10px] font-medium px-2 py-0.5 rounded border ${
                           briefingSession?.status === "COMPLETED"
-                            ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-300"
                             : briefingSession?.status === "IN_PROGRESS"
-                            ? "bg-amber-100 text-amber-800 border-amber-300"
-                            : "bg-slate-100 text-slate-700 border-slate-300"
+                            ? "bg-amber-50 text-amber-800 border-amber-300"
+                            : "bg-zinc-100 text-zinc-700 border-zinc-300"
                         }`}
                       >
                         {briefingSession?.status === "COMPLETED"
@@ -439,95 +474,177 @@ export function TaskExecutionModal({
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      Envie este link para o cliente abrir no celular via WhatsApp. A <strong>Sofia (IA da Otimizza)</strong>{" "}
-                      vai guiar o cliente em uma conversa amigável com botões rápidos de aprovação.
+                    <p className="text-xs text-zinc-600 leading-relaxed">
+                      Envie este link para o cliente abrir no celular via WhatsApp. A <strong>Edivânia (IA Estrategista da Otimizza)</strong>{" "}
+                      vai guiar o cliente em uma conversa tranquila, com exemplos reais adaptados ao nicho dele e botões rápidos.
                     </p>
+
+                    {!isLinkUnlocked && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5 text-xs text-amber-900">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold block">Link Bloqueado: Preenchimento do Nicho Obrigatório</span>
+                          <span className="text-[11px] text-amber-800">
+                            Para liberar o link e garantir que a Edivânia converse com exemplos práticos do negócio, preencha a <strong>Categoria</strong> e <strong>O que ele vende / Serviços Principais</strong> no formulário abaixo e clique em &quot;Salvar Informações Prévias&quot;.
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
                       <input
                         type="text"
                         readOnly
                         value={
-                          loadingBriefing
+                          !isLinkUnlocked
+                            ? "🔒 Preencha a Categoria e O que ele vende abaixo para liberar o link"
+                            : loadingBriefing
                             ? "Gerando link exclusivo..."
-                            : briefingUrl || "Clique em 'Salvar Dados' abaixo para gerar o link"
+                            : briefingUrl || "Clique em 'Salvar Informações Prévias' abaixo para gerar o link"
                         }
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-700 select-all"
+                        className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 text-xs font-mono text-zinc-700 select-all"
                       />
 
-                      <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                      <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 flex-wrap">
                         <button
                           type="button"
                           onClick={handleCopyLink}
-                          disabled={!briefingUrl}
-                          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition"
+                          disabled={!briefingUrl || !isLinkUnlocked}
+                          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-40 text-white rounded-lg text-xs font-medium transition"
                         >
                           {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                           {copiedLink ? "Copiado!" : "Copiar"}
                         </button>
 
                         <a
-                          href={`https://wa.me/?text=${encodeURIComponent(
-                            `Olá ${contactName || ""}! Aqui está seu link exclusivo de onboarding da Otimizza: ${briefingUrl}\n\nA Sofia, nossa especialista de IA, já está te esperando para montarmos o briefing das suas redes sociais com toda agilidade!`
-                          )}`}
-                          target="_blank"
+                          href={isLinkUnlocked ? `https://wa.me/?text=${encodeURIComponent(
+                            `Olá ${contactName || ""}! Aqui está seu link exclusivo de onboarding da Otimizza: ${briefingUrl}\n\nA Edivânia, nossa estrategista de IA, já está te esperando para batermos um papo tranquilo sobre o posicionamento e os conteúdos das suas redes sociais!`
+                          )}` : "#"}
+                          onClick={(e) => {
+                            if (!isLinkUnlocked) {
+                              e.preventDefault();
+                              alert("Preencha a Categoria e O que ele vende abaixo para liberar o envio pelo WhatsApp.");
+                            }
+                          }}
+                          target={isLinkUnlocked ? "_blank" : undefined}
                           rel="noreferrer"
-                          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition"
+                          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-white rounded-lg text-xs font-medium transition ${
+                            isLinkUnlocked ? "bg-emerald-600 hover:bg-emerald-700" : "bg-emerald-600/40 cursor-not-allowed"
+                          }`}
                         >
                           <WhatsAppIcon className="w-3.5 h-3.5" />
                           WhatsApp
                         </a>
 
                         <a
-                          href={briefingUrl}
-                          target="_blank"
+                          href={isLinkUnlocked ? briefingUrl : "#"}
+                          onClick={(e) => {
+                            if (!isLinkUnlocked) {
+                              e.preventDefault();
+                              alert("Preencha a Categoria e O que ele vende abaixo para abrir o chat.");
+                            }
+                          }}
+                          target={isLinkUnlocked ? "_blank" : undefined}
                           rel="noreferrer"
-                          className="p-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl transition"
+                          className={`p-2 border border-zinc-200 rounded-lg transition ${
+                            isLinkUnlocked ? "hover:bg-zinc-50 text-zinc-700" : "text-zinc-300 cursor-not-allowed"
+                          }`}
                           title="Abrir e Testar Briefing"
                         >
                           <ExternalLink className="w-4 h-4" />
                         </a>
+
+                        <button
+                          type="button"
+                          onClick={handleResetBriefing}
+                          disabled={resettingChat || !briefingSession}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-2 bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-xs font-medium transition disabled:opacity-40"
+                          title="Reiniciar chat da Edivânia e limpar histórico para recomeçar do zero"
+                        >
+                          <RotateCcw className={`w-3.5 h-3.5 ${resettingChat ? "animate-spin" : ""}`} />
+                          Resetar Chat
+                        </button>
                       </div>
                     </div>
                   </div>
 
                   {/* Informações prévias pelo Valdemar */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4.5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wide">
+                  <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-4 shadow-hourline">
+                    <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
+                      <h4 className="font-semibold text-zinc-950 text-xs">
                         1. Informações Base do Cliente (Cadastro & Presença Digital)
                       </h4>
-                      <span className="text-[11px] text-slate-500">
+                      <span className="text-[11px] text-zinc-400">
                         Base cadastral permanente da empresa no ERP
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      {/* DADOS DE NICHO OBRIGATÓRIOS PARA LIBERAÇÃO DO LINK */}
+                      <div className="sm:col-span-2 p-3 bg-zinc-50/80 border border-zinc-200 rounded-lg space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-950">
+                            <Sparkles className="w-3.5 h-3.5 text-zinc-700" />
+                            <span>Contexto do Negócio para Personalização da Edivânia</span>
+                          </div>
+                          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            Obrigatórios para liberar o link
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block font-medium text-zinc-700 mb-1">
+                              Categoria / Nicho de Atuação *
+                            </label>
+                            <input
+                              type="text"
+                              value={category}
+                              onChange={(e) => setCategory(e.target.value)}
+                              placeholder="Ex: Fisioterapia e Reabilitação, Marcenaria de Alto Padrão..."
+                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500 font-medium"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-medium text-zinc-700 mb-1">
+                              O que ele vende / Serviços Principais *
+                            </label>
+                            <input
+                              type="text"
+                              value={servicesOffered}
+                              onChange={(e) => setServicesOffered(e.target.value)}
+                              placeholder="Ex: Sessões individuais de fisioterapia, tratamento de dor na coluna..."
+                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500 font-medium"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
                       <div>
-                        <label className="block font-semibold text-slate-700 mb-1">Nome da Empresa</label>
+                        <label className="block font-medium text-zinc-700 mb-1">Nome da Empresa</label>
                         <input
                           type="text"
                           value={companyName}
                           onChange={(e) => setCompanyName(e.target.value)}
                           placeholder="Ex: RS Artigos para Móveis"
-                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500 font-medium"
                         />
                       </div>
 
                       <div>
-                        <label className="block font-semibold text-slate-700 mb-1">Nome do Contato / Decisor</label>
+                        <label className="block font-medium text-zinc-700 mb-1">Nome do Contato / Decisor</label>
                         <input
                           type="text"
                           value={contactName}
                           onChange={(e) => setContactName(e.target.value)}
                           placeholder="Ex: Sérgio"
-                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500 font-medium"
                         />
                       </div>
 
                       <div>
-                        <label className="block font-semibold text-slate-700 mb-1">Link do Site</label>
+                        <label className="block font-medium text-zinc-700 mb-1">Link do Site</label>
                         <input
                           type="text"
                           value={websiteUrl}
@@ -595,7 +712,7 @@ export function TaskExecutionModal({
                     </div>
                   </div>
 
-                  {/* Informações Coletadas pela Sofia (IA) organizadas por Domínio */}
+                  {/* Informações Coletadas pela Edivânia (IA) organizadas por Domínio */}
                   <div className="space-y-4">
                     {/* 2. DIRETRIZES PARA HEADLINES & COPYWRITING (EDITÁVEL) */}
                     <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-3 shadow-hourline">

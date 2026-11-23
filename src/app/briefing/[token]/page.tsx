@@ -9,12 +9,13 @@ import {
   EyeOff,
   CheckCircle2,
   RefreshCw,
-  HelpCircle,
   ThumbsUp,
   Sliders,
   ShieldCheck,
   Check,
-  Zap,
+  Clock,
+  ExternalLink,
+  ChevronRight,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 
@@ -23,6 +24,15 @@ interface ChatOption {
   value: string;
   action?: "APPROVE" | "DONT_KNOW" | "ADJUST" | "RETRY" | "EXPLAIN" | "NEXT";
   payload?: unknown;
+}
+
+interface ChatSlider {
+  id: string;
+  field: string;
+  title: string;
+  leftLabel: string;
+  rightLabel: string;
+  defaultValue: number;
 }
 
 interface ChatMessage {
@@ -35,6 +45,7 @@ interface ChatMessage {
     field: string;
     value: string;
   };
+  slider?: ChatSlider;
   isCredentialStep?: boolean;
 }
 
@@ -57,6 +68,14 @@ function formatCleanText(text?: string | null): string {
   return text.replace(/\*\*/g, "").replace(/\*/g, "");
 }
 
+function getGamifiedStage(percent: number): { step: number; name: string } {
+  if (percent >= 95) return { step: 5, name: "Conexão e Entrega Final 🚀" };
+  if (percent >= 75) return { step: 4, name: "Inspirações e Referências 💡" };
+  if (percent >= 50) return { step: 3, name: "Seu Estilo de Falar 🎙️" };
+  if (percent >= 30) return { step: 2, name: "Seus Diferenciais Reais ⭐" };
+  return { step: 1, name: "Quem você atende 🎯" };
+}
+
 export default function PublicBriefingPage({
   params,
 }: {
@@ -66,11 +85,14 @@ export default function PublicBriefingPage({
 
   const [session, setSession] = useState<BriefingSessionData | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [progress, setProgress] = useState<number>(20);
+  const [progress, setProgress] = useState<number>(15);
   const [inputVal, setInputVal] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [sending, setSending] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Slider interativo
+  const [sliderVal, setSliderVal] = useState<number>(50);
 
   // Credenciais
   const [igUser, setIgUser] = useState<string>("");
@@ -87,7 +109,6 @@ export default function PublicBriefingPage({
     scrollToBottom();
   }, [messages, sending]);
 
-  // Carregar sessão inicial
   useEffect(() => {
     async function loadSession() {
       setLoading(true);
@@ -98,7 +119,7 @@ export default function PublicBriefingPage({
 
         setSession(json.data);
         setMessages(json.data.conversationHistory || []);
-        setProgress(json.data.progressPercent || 20);
+        setProgress(json.data.progressPercent || 15);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Erro ao carregar o briefing.");
       } finally {
@@ -109,7 +130,6 @@ export default function PublicBriefingPage({
     loadSession();
   }, [token]);
 
-  // Enviar mensagem de texto normal
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend || inputVal).trim();
     if (!text || sending) return;
@@ -139,7 +159,28 @@ export default function PublicBriefingPage({
     }
   };
 
-  // Clicar em "Não sei / Me sugira"
+  const handlePauseSession = async () => {
+    if (sending) return;
+    setSending(true);
+
+    try {
+      const res = await fetch(`/api/briefing/${token}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "PAUSE" }),
+      });
+
+      const json = await res.json();
+      if (json.success && json.data) {
+        setMessages(json.data.conversationHistory);
+      }
+    } catch (err) {
+      console.error("Erro ao pausar sessão:", err);
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleDontKnow = async () => {
     if (sending) return;
     setSending(true);
@@ -157,13 +198,12 @@ export default function PublicBriefingPage({
         setProgress(json.data.progressPercent);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao solicitar sugestão:", err);
     } finally {
       setSending(false);
     }
   };
 
-  // Decisão sobre uma sugestão (Aprovar, Ajustar, Outra Opção)
   const handleDecision = async (
     decision: "APPROVE" | "ADJUST" | "RETRY",
     field?: string,
@@ -199,7 +239,6 @@ export default function PublicBriefingPage({
     }
   };
 
-  // Enviar credenciais de rede social
   const handleSubmitCredentials = async (skip = false) => {
     setSending(true);
     try {
@@ -231,23 +270,23 @@ export default function PublicBriefingPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-4">
-        <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mb-4">
-          <RefreshCw className="w-6 h-6 text-emerald-400 animate-spin" />
+      <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center text-zinc-900 p-4">
+        <div className="w-12 h-12 rounded-xl bg-white border border-zinc-200 shadow-sm flex items-center justify-center mb-4">
+          <RefreshCw className="w-5 h-5 text-zinc-700 animate-spin" />
         </div>
-        <h2 className="text-lg font-bold">Iniciando seu Briefing...</h2>
-        <p className="text-xs text-slate-400 mt-1">Conectando com a Sofia (IA da Otimizza)</p>
+        <h2 className="text-base font-semibold text-zinc-900">Iniciando conversa com Edivânia...</h2>
+        <p className="text-xs text-zinc-500 mt-1">Estrategista de comunicação da Otimizza</p>
       </div>
     );
   }
 
   if (error || !session) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white p-6 text-center">
-        <div className="bg-rose-500/10 border border-rose-500/30 p-6 rounded-2xl max-w-sm">
-          <h2 className="text-base font-bold text-rose-400 mb-2">Link Indisponível</h2>
-          <p className="text-xs text-slate-300">
-            {error || "Este link de briefing não foi encontrado ou expirou. Fale com a equipe da Otimizza."}
+      <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center text-zinc-900 p-6 text-center">
+        <div className="bg-white border border-zinc-200 p-6 rounded-2xl max-w-sm shadow-sm">
+          <h2 className="text-base font-bold text-zinc-900 mb-2">Link não disponível</h2>
+          <p className="text-xs text-zinc-600">
+            {error || "Este link de briefing não foi encontrado ou já foi concluído. Fale com a equipe da Otimizza."}
           </p>
         </div>
       </div>
@@ -255,285 +294,342 @@ export default function PublicBriefingPage({
   }
 
   const isCompleted = progress >= 100 || session.status === "COMPLETED";
+  const stage = getGamifiedStage(progress);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col max-w-lg mx-auto shadow-2xl relative">
-      {/* Top Header & Sticky Progress */}
-      <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 p-3.5">
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2.5">
-            <div className="relative">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-md">
-                <div className="w-full h-full bg-slate-900 rounded-full flex items-center justify-center">
-                  <Sparkles className="w-4 h-4 text-emerald-400" />
+    <div className="min-h-screen bg-zinc-100/80 text-zinc-900 flex flex-col items-center justify-start sm:p-4">
+      {/* Container Principal Estilo Card Profissional */}
+      <div className="w-full max-w-xl bg-white border-x sm:border border-zinc-200 sm:rounded-2xl shadow-sm flex flex-col h-screen sm:h-[92vh] overflow-hidden relative">
+        {/* Header Profissional Claro */}
+        <header className="bg-white border-b border-zinc-200 px-4 py-3 shrink-0 z-20">
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="w-10 h-10 rounded-xl bg-zinc-900 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                  E
                 </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
               </div>
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-slate-900 rounded-full" />
+
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="font-semibold text-sm text-zinc-950">Edivânia</h1>
+                  <span className="text-[10px] font-medium bg-zinc-100 text-zinc-700 px-1.5 py-0.5 rounded border border-zinc-200">
+                    Estrategista Otimizza
+                  </span>
+                </div>
+                <p className="text-xs text-zinc-500 truncate max-w-[220px]">
+                  Briefing: <strong className="text-zinc-800 font-medium">{session.companyName}</strong>
+                </p>
+              </div>
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm text-white">Sofia</span>
-                <span className="text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/30">
-                  Otimizza IA
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 truncate max-w-[200px]">
-                Briefing: <strong className="text-slate-200">{session.companyName}</strong>
-              </p>
+
+            <div className="text-right">
+              <span className="text-xs font-mono font-bold text-zinc-900 tabular-nums">{progress}%</span>
+              <span className="text-[11px] text-zinc-400 block">Concluído</span>
             </div>
           </div>
 
-          <div className="text-right">
-            <span className="text-xs font-mono font-bold text-emerald-400">{progress}%</span>
-            <span className="text-[10px] text-slate-400 block">Concluído</span>
-          </div>
-        </div>
-
-        {/* Gamified Accelerated Progress Bar */}
-        <div className="w-full bg-slate-800/80 rounded-full h-2 overflow-hidden relative">
-          <div
-            className="bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 h-full rounded-full transition-all duration-700 ease-out shadow-sm"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </header>
-
-      {/* Chat Messages Feed */}
-      <main className="flex-1 p-4 space-y-4 overflow-y-auto pb-32">
-        {messages.map((msg) => {
-          const isAssistant = msg.sender === "assistant";
-
-          return (
-            <div
-              key={msg.id}
-              className={`flex flex-col ${isAssistant ? "items-start" : "items-end"} space-y-2`}
-            >
-              {/* Balão de Mensagem */}
+          {/* Barra de Progresso Gamificada & Nível */}
+          <div className="space-y-1 pt-1">
+            <div className="flex items-center justify-between text-[11px] font-medium text-zinc-500">
+              <span>Etapa {stage.step} de 5</span>
+              <span className="text-zinc-700 font-semibold">{stage.name}</span>
+            </div>
+            <div className="w-full bg-zinc-100 rounded-full h-1.5 overflow-hidden">
               <div
-                className={`max-w-[88%] rounded-2xl p-3.5 text-xs sm:text-sm leading-relaxed shadow-sm ${
-                  isAssistant
-                    ? "bg-slate-900 border border-slate-800 text-slate-200 rounded-tl-xs"
-                    : "bg-emerald-600 text-white rounded-tr-xs"
-                }`}
+                className="bg-zinc-900 h-full rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          </div>
+        </header>
+
+        {/* Feed de Mensagens */}
+        <main className="flex-1 p-4 space-y-4 overflow-y-auto bg-zinc-50/50 pb-28">
+          {messages.map((msg) => {
+            const isAssistant = msg.sender === "assistant";
+
+            return (
+              <div
+                key={msg.id}
+                className={`flex flex-col ${isAssistant ? "items-start" : "items-end"} space-y-2`}
               >
-                <div className="whitespace-pre-wrap">{formatCleanText(msg.text)}</div>
-              </div>
-
-              {/* Bloco de Sugestão com Botões Interativos (Aprovar, Ajustar, Outra Opção) */}
-              {msg.suggestedData && (
-                <div className="w-full max-w-[95%] bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-3.5 space-y-2.5">
-                  <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-semibold">
-                    <Zap className="w-3.5 h-3.5" />
-                    <span>Sugestão Estratégica da Sofia:</span>
-                  </div>
-
-                  <p className="text-xs text-slate-200 italic bg-slate-900/60 p-2.5 rounded-xl border border-emerald-500/20">
-                    &ldquo;{formatCleanText(msg.suggestedData.value)}&rdquo;
-                  </p>
-
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <button
-                      onClick={() =>
-                        handleDecision("APPROVE", msg.suggestedData?.field, msg.suggestedData?.value)
-                      }
-                      className="flex-1 min-w-[120px] inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl text-xs transition shadow-sm"
-                    >
-                      <ThumbsUp className="w-3.5 h-3.5" />
-                      Aprovar esta
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        handleDecision("ADJUST", msg.suggestedData?.field, msg.suggestedData?.value)
-                      }
-                      className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs border border-slate-700 transition"
-                    >
-                      <Sliders className="w-3.5 h-3.5" />
-                      Ajustar
-                    </button>
-
-                    <button
-                      onClick={() =>
-                        handleDecision("RETRY", msg.suggestedData?.field, msg.suggestedData?.value)
-                      }
-                      className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-800/80 hover:bg-slate-700 text-slate-400 font-medium rounded-xl text-xs transition"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Outra
-                    </button>
-                  </div>
+                {/* Balão de Mensagem */}
+                <div
+                  className={`max-w-[88%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed shadow-2xs ${
+                    isAssistant
+                      ? "bg-white border border-zinc-200 text-zinc-900 rounded-tl-xs"
+                      : "bg-zinc-950 text-white rounded-tr-xs"
+                  }`}
+                >
+                  <div className="whitespace-pre-wrap">{formatCleanText(msg.text)}</div>
                 </div>
-              )}
 
-              {/* Bloco de Coleta Segura de Senha do Instagram */}
-              {msg.isCredentialStep && !session.credentialsSaved && (
-                <div className="w-full max-w-[95%] bg-slate-900/95 border border-slate-700/80 rounded-2xl p-4 space-y-3 shadow-lg">
-                  <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                    <span>Cofre Criptografado Otimizza (AES-256)</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400">
-                    Seus acessos serão armazenados com chave de alta segurança no ERP da assessoria.
-                  </p>
+                {/* Slider Interativo de Tom de Voz / Estilo */}
+                {msg.slider && (
+                  <div className="w-full max-w-[95%] bg-white border border-zinc-200 rounded-xl p-4 space-y-3 shadow-2xs">
+                    <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+                      <span className="text-xs font-semibold text-zinc-950">{msg.slider.title}</span>
+                      <span className="text-[11px] font-medium text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
+                        {sliderVal < 40
+                          ? `Mais ${msg.slider.leftLabel}`
+                          : sliderVal > 60
+                          ? `Mais ${msg.slider.rightLabel}`
+                          : "Equilíbrio entre ambos"}
+                      </span>
+                    </div>
 
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-[10px] text-slate-400 block mb-0.5">Usuário ou E-mail do Instagram</label>
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between text-[11px] font-medium text-zinc-600">
+                        <span>{msg.slider.leftLabel}</span>
+                        <span>{msg.slider.rightLabel}</span>
+                      </div>
                       <input
-                        type="text"
-                        placeholder="@seuperfil"
-                        value={igUser}
-                        onChange={(e) => setIgUser(e.target.value)}
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={sliderVal}
+                        onChange={(e) => setSliderVal(Number(e.target.value))}
+                        className="w-full accent-zinc-900 cursor-pointer h-2 bg-zinc-200 rounded-lg"
                       />
                     </div>
 
-                    <div>
-                      <label className="text-[10px] text-slate-400 block mb-0.5">Senha</label>
-                      <div className="relative">
-                        <input
-                          type={showPass ? "text" : "password"}
-                          placeholder="••••••••"
-                          value={igPass}
-                          onChange={(e) => setIgPass(e.target.value)}
-                          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 pr-9"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPass(!showPass)}
-                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-200"
-                        >
-                          {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const styleChoice =
+                          sliderVal < 40
+                            ? `Preferência de estilo: mais ${msg.slider?.leftLabel}`
+                            : sliderVal > 60
+                            ? `Preferência de estilo: mais ${msg.slider?.rightLabel}`
+                            : `Preferência de estilo: equilíbrio natural entre ${msg.slider?.leftLabel} e ${msg.slider?.rightLabel}`;
+                        handleSendMessage(styleChoice);
+                      }}
+                      className="w-full py-2 bg-zinc-950 hover:bg-zinc-800 text-white font-medium text-xs rounded-lg transition"
+                    >
+                      Confirmar este estilo
+                    </button>
+                  </div>
+                )}
+
+                {/* Sugestão de Aprovação com 1 Clique */}
+                {msg.suggestedData && (
+                  <div className="w-full max-w-[95%] bg-white border border-zinc-200 rounded-xl p-3.5 space-y-2.5 shadow-2xs">
+                    <div className="flex items-center gap-1.5 text-zinc-900 text-xs font-semibold">
+                      <Sparkles className="w-3.5 h-3.5 text-zinc-700" />
+                      <span>Sugestão da Edivânia para o seu nicho:</span>
+                    </div>
+
+                    <p className="text-xs text-zinc-800 bg-zinc-50 p-2.5 rounded-lg border border-zinc-200 leading-relaxed">
+                      &ldquo;{formatCleanText(msg.suggestedData.value)}&rdquo;
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <button
+                        onClick={() =>
+                          handleDecision("APPROVE", msg.suggestedData?.field, msg.suggestedData?.value)
+                        }
+                        className="flex-1 min-w-[130px] inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-zinc-950 hover:bg-zinc-800 text-white font-medium rounded-lg text-xs transition"
+                      >
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                        Gostei, usar esta!
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          handleDecision("ADJUST", msg.suggestedData?.field, msg.suggestedData?.value)
+                        }
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-zinc-50 text-zinc-700 font-medium rounded-lg text-xs border border-zinc-200 transition"
+                      >
+                        <Sliders className="w-3.5 h-3.5 text-zinc-500" />
+                        Personalizar
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          handleDecision("RETRY", msg.suggestedData?.field, msg.suggestedData?.value)
+                        }
+                        className="inline-flex items-center justify-center gap-1.5 px-2.5 py-2 bg-white hover:bg-zinc-50 text-zinc-600 font-medium rounded-lg text-xs border border-zinc-200 transition"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5 text-zinc-500" />
+                        Outra opção
+                      </button>
                     </div>
                   </div>
+                )}
 
-                  <div className="pt-2 flex flex-col gap-2">
-                    <button
-                      onClick={() => handleSubmitCredentials(false)}
-                      disabled={!igUser || !igPass}
-                      className="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-40 text-slate-950 font-bold rounded-xl text-xs transition"
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      Salvar Acesso com Segurança
-                    </button>
+                {/* Coleta Segura de Senha do Instagram */}
+                {msg.isCredentialStep && !session.credentialsSaved && (
+                  <div className="w-full max-w-[95%] bg-white border border-zinc-200 rounded-xl p-4 space-y-3 shadow-2xs">
+                    <div className="flex items-center gap-2 text-zinc-900 text-xs font-semibold">
+                      <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                      <span>Cofre Criptografado Otimizza (AES-256)</span>
+                    </div>
+                    <p className="text-xs text-zinc-500">
+                      Seus acessos serão armazenados com criptografia de ponta a ponta no servidor seguro da assessoria.
+                    </p>
 
-                    <button
-                      onClick={() => handleSubmitCredentials(true)}
-                      className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 text-slate-400 hover:text-slate-200 text-xs font-semibold transition"
-                    >
-                      <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-400" />
-                      Prefiro enviar depois pelo WhatsApp
-                    </button>
+                    <div className="space-y-2">
+                      <div>
+                        <label className="text-[11px] text-zinc-600 block mb-1 font-medium">Usuário ou E-mail do Instagram</label>
+                        <input
+                          type="text"
+                          placeholder="@seuperfil"
+                          value={igUser}
+                          onChange={(e) => setIgUser(e.target.value)}
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:bg-white focus:outline-none focus:border-zinc-400"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] text-zinc-600 block mb-1 font-medium">Senha</label>
+                        <div className="relative">
+                          <input
+                            type={showPass ? "text" : "password"}
+                            placeholder="••••••••"
+                            value={igPass}
+                            onChange={(e) => setIgPass(e.target.value)}
+                            className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 text-xs text-zinc-900 placeholder-zinc-400 focus:bg-white focus:outline-none focus:border-zinc-400 pr-9"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPass(!showPass)}
+                            className="absolute right-2.5 top-2.5 text-zinc-400 hover:text-zinc-600"
+                          >
+                            {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex flex-col gap-2">
+                      <button
+                        onClick={() => handleSubmitCredentials(false)}
+                        disabled={!igUser || !igPass}
+                        className="w-full inline-flex items-center justify-center gap-2 py-2 px-4 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-40 text-white font-medium rounded-lg text-xs transition"
+                      >
+                        <Lock className="w-3.5 h-3.5" />
+                        Salvar Acesso no Cofre
+                      </button>
+
+                      <button
+                        onClick={() => handleSubmitCredentials(true)}
+                        className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-3 text-zinc-600 hover:text-zinc-900 text-xs font-medium transition"
+                      >
+                        <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
+                        Prefiro enviar depois pelo WhatsApp
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Botões Rápidos de Opções */}
-              {msg.options && msg.options.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {msg.options.map((opt, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        if (opt.action === "DONT_KNOW") {
-                          handleDontKnow();
-                        } else if (opt.action === "APPROVE" && opt.payload) {
-                          handleSendMessage(String(opt.payload));
-                        } else if (opt.value === "WHATSAPP") {
-                          handleSubmitCredentials(true);
-                        } else if (opt.value === "FINALIZE") {
-                          handleDecision("APPROVE", "completion", "FINALIZE");
-                        } else {
-                          handleSendMessage(opt.label);
-                        }
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800/90 hover:bg-slate-700/90 border border-slate-700 text-emerald-300 font-semibold text-xs rounded-xl transition shadow-xs"
-                    >
-                      {formatCleanText(opt.label)}
-                    </button>
-                  ))}
-                </div>
-              )}
+                {/* Opções Rápidas (Chips / Múltipla Escolha) */}
+                {msg.options && msg.options.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {msg.options.map((opt, i) => (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          if (opt.action === "DONT_KNOW") {
+                            handleDontKnow();
+                          } else if (opt.action === "APPROVE" && opt.payload) {
+                            handleSendMessage(String(opt.payload));
+                          } else if (opt.value === "WHATSAPP") {
+                            handleSubmitCredentials(true);
+                          } else if (opt.value === "FINALIZE") {
+                            handleDecision("APPROVE", "completion", "FINALIZE");
+                          } else {
+                            handleSendMessage(opt.label);
+                          }
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-zinc-50 border border-zinc-200 text-zinc-800 font-medium text-xs rounded-lg transition shadow-2xs active:scale-[0.98]"
+                      >
+                        {formatCleanText(opt.label)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {sending && (
+            <div className="flex items-center gap-2 text-xs text-zinc-500 bg-white p-2.5 rounded-xl border border-zinc-200 shadow-2xs max-w-[200px]">
+              <RefreshCw className="w-3.5 h-3.5 text-zinc-700 animate-spin" />
+              <span>Edivânia está digitando...</span>
             </div>
-          );
-        })}
+          )}
 
-        {sending && (
-          <div className="flex items-center gap-2 text-xs text-slate-400 italic bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/60 max-w-[200px]">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-spin" />
-            <span>Sofia está digitando...</span>
-          </div>
-        )}
-
-        {isCompleted && (
-          <div className="bg-emerald-950/40 border border-emerald-500/40 rounded-2xl p-5 text-center space-y-3 mt-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
-              <Check className="w-6 h-6 stroke-[3]" />
+          {isCompleted && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center space-y-3 mt-4">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 border border-emerald-200 flex items-center justify-center mx-auto text-emerald-700">
+                <Check className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <h3 className="font-semibold text-zinc-950 text-sm">Briefing Entregue com Sucesso!</h3>
+              <p className="text-xs text-zinc-600 leading-relaxed">
+                As orientações estratégicas da <strong>{session.companyName}</strong> já foram sincronizadas
+                diretamente no sistema da Otimizza. Nossa equipe já tem tudo o que precisa para iniciar a criação dos conteúdos.
+              </p>
+              <a
+                href={`https://wa.me/?text=Ol%C3%A1%20equipe%20Otimizza!%20Acabei%20de%20finalizar%20o%20briefing%20de%20redes%20sociais%20da%20${encodeURIComponent(session.companyName)}.%20Podemos%20avan%C3%A7ar!`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-xs transition"
+              >
+                <WhatsAppIcon className="w-4 h-4" />
+                Avisar conclusão no WhatsApp
+              </a>
             </div>
-            <h3 className="font-bold text-white text-base">Briefing Entregue com Sucesso!</h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              As diretrizes estratégicas da <strong>{session.companyName}</strong> já foram sincronizadas
-              diretamente no sistema da Otimizza. A equipe da Otimizza dará os próximos passos.
-            </p>
-            <a
-              href={`https://wa.me/?text=Ol%C3%A1%20equipe%20Otimizza!%20Acabei%20de%20finalizar%20o%20briefing%20de%20redes%20sociais%20da%20${encodeURIComponent(session.companyName)}.%20Podemos%20avan%C3%A7ar!`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-xl text-xs transition"
-            >
-              <WhatsAppIcon className="w-4 h-4" />
-              Compartilhar conclusão no WhatsApp
-            </a>
-          </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </main>
+
+        {/* Rodapé Fixo Profissional */}
+        {!isCompleted && (
+          <footer className="bg-white border-t border-zinc-200 p-3 shrink-0 z-20">
+            <div className="flex items-center gap-2">
+              {/* Botão de Pausa: 'Responder depois' */}
+              <button
+                type="button"
+                onClick={handlePauseSession}
+                title="Salvar respostas com segurança e continuar em outro momento"
+                className="h-10 px-3 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 border border-zinc-200 rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0 transition"
+              >
+                <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                <span className="hidden sm:inline">Responder depois</span>
+                <span className="sm:hidden">Pausar</span>
+              </button>
+
+              {/* Input de Texto */}
+              <input
+                type="text"
+                placeholder="Digite sua resposta..."
+                value={inputVal}
+                onChange={(e) => setInputVal(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }
+                }}
+                className="flex-1 h-10 bg-zinc-50 border border-zinc-200 rounded-lg px-3.5 text-xs text-zinc-900 placeholder-zinc-400 focus:bg-white focus:outline-none focus:border-zinc-400 transition"
+              />
+
+              {/* Botão Enviar */}
+              <button
+                type="button"
+                onClick={() => handleSendMessage()}
+                disabled={!inputVal.trim() || sending}
+                className="h-10 w-10 flex items-center justify-center bg-zinc-950 hover:bg-zinc-800 disabled:opacity-30 text-white rounded-lg shrink-0 transition shadow-xs"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </footer>
         )}
-
-        <div ref={messagesEndRef} />
-      </main>
-
-      {/* Sticky Bottom Bar (Input + Botão 'Não sei') */}
-      {!isCompleted && (
-        <footer className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-slate-900/95 backdrop-blur-md border-t border-slate-800 p-3 z-30">
-          <div className="flex items-center gap-2">
-            {/* Botão de Socorro: "Não sei responder" */}
-            <button
-              type="button"
-              onClick={handleDontKnow}
-              title="Clique se não souber o que responder e Sofia te dará sugestões personalizadas"
-              className="px-2.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 shrink-0 transition"
-            >
-              <HelpCircle className="w-4 h-4 text-emerald-400" />
-              <span className="hidden sm:inline">Não sei</span>
-            </button>
-
-            {/* Input de Texto */}
-            <input
-              type="text"
-              placeholder="Digite sua resposta..."
-              value={inputVal}
-              onChange={(e) => setInputVal(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleSendMessage();
-                }
-              }}
-              className="flex-1 bg-slate-800/90 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition"
-            />
-
-            {/* Botão Enviar */}
-            <button
-              type="button"
-              onClick={() => handleSendMessage()}
-              disabled={!inputVal.trim() || sending}
-              className="p-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-30 text-slate-950 rounded-xl shrink-0 transition shadow-sm"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </div>
-        </footer>
-      )}
+      </div>
     </div>
   );
 }

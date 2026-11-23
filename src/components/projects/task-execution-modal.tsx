@@ -601,12 +601,12 @@ export function TaskExecutionModal({
                             <label className="block font-medium text-zinc-700 mb-1">
                               Categoria / Nicho de Atuação *
                             </label>
-                            <input
-                              type="text"
+                            <textarea
+                              rows={3}
                               value={category}
                               onChange={(e) => setCategory(e.target.value)}
                               placeholder="Ex: Fisioterapia e Reabilitação, Marcenaria de Alto Padrão..."
-                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500 font-medium"
+                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500 font-medium leading-relaxed resize-y min-h-[72px]"
                             />
                           </div>
 
@@ -614,12 +614,12 @@ export function TaskExecutionModal({
                             <label className="block font-medium text-zinc-700 mb-1">
                               O que ele vende / Serviços Principais *
                             </label>
-                            <input
-                              type="text"
+                            <textarea
+                              rows={3}
                               value={servicesOffered}
                               onChange={(e) => setServicesOffered(e.target.value)}
                               placeholder="Ex: Sessões individuais de fisioterapia, tratamento de dor na coluna..."
-                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500 font-medium"
+                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500 font-medium leading-relaxed resize-y min-h-[72px]"
                             />
                           </div>
                         </div>

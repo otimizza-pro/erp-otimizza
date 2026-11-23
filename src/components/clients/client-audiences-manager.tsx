@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Users,
   Plus,
@@ -66,24 +66,29 @@ export function ClientAudiencesManager({
   const [formIsDefault, setFormIsDefault] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const onAudiencesChangeRef = useRef(onAudiencesChange);
+  useEffect(() => {
+    onAudiencesChangeRef.current = onAudiencesChange;
+  }, [onAudiencesChange]);
+
   const loadAudiences = useCallback(async () => {
     if (!clientId) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/content-studio/audiences?clientId=${clientId}`);
+      const res = await fetch(`/api/content-studio/audiences?clientId=${encodeURIComponent(clientId)}`);
       if (!res.ok) throw new Error("Erro ao carregar públicos do cliente.");
       const data = await res.json();
       const list: ClientAudienceItem[] = data.audiences || [];
       setAudiences(list);
-      onAudiencesChange?.(list);
+      onAudiencesChangeRef.current?.(list);
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : "Falha ao carregar públicos.");
     } finally {
       setLoading(false);
     }
-  }, [clientId, onAudiencesChange]);
+  }, [clientId]);
 
   useEffect(() => {
     loadAudiences();

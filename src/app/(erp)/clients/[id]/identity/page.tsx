@@ -7,9 +7,9 @@ import type { IdentityAiField } from "@/modules/clients/identity-ai";
 import { CommunicationProfileFields } from "@/components/clients/communication-profile";
 import { CommercialDnaPanel } from "@/components/crm/commercial-dna";
 import { CommunicationProfileSchema, emptyCommunicationProfile } from "@/modules/clients/communication-profile";
-import { ClientAudiencesManager } from "@/components/clients/client-audiences-manager";
+import { ClientAudiencesManager, type ClientAudienceItem } from "@/components/clients/client-audiences-manager";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -292,6 +292,16 @@ export default function ClientIdentityPage() {
     setDirty(true);
     setTimeout(() => { void saveIdentity(true); }, 150);
   };
+
+  const handleAudiencesChange = useCallback((list: ClientAudienceItem[]) => {
+    const names = list.map((a) => a.name);
+    setTargetAudiences((prev) => {
+      if (prev.length === names.length && prev.every((n, i) => n === names[i])) {
+        return prev;
+      }
+      return names;
+    });
+  }, []);
 
   const draftIdentity = { valueProposition, marketNiche, archetype, secondaryArchetype, toneOfVoice: selectedTones, brandContext, targetAudiences, painPoints, differentials, forbiddenWords, mandatoryTerms, defaultCtas, notes, communicationProfile };
   const aiButton = (field: IdentityAiField) => <IdentityAiButton clientId={id} field={field} draft={draftIdentity} onApply={(val) => handleApplyAi(field, val)} />;
@@ -740,9 +750,7 @@ export default function ClientIdentityPage() {
             <ClientAudiencesManager
               clientId={id}
               clientName={clientName}
-              onAudiencesChange={(list) => {
-                setTargetAudiences(list.map((a) => a.name));
-              }}
+              onAudiencesChange={handleAudiencesChange}
             />
 
             {/* Dores Globais do Cliente */}

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
+import { getClientDnaContext } from "@/modules/clients/dna-briefing-sync";
+import { formatContactFirstName } from "@/modules/clients/contact-name";
 
 export const dynamic = "force-dynamic";
 
@@ -45,10 +47,22 @@ export async function POST(
     }
 
     const session = sessionRes.rows[0];
-    const companyName = session.company_name || task.trade_name || task.client_name || "sua empresa";
-    const contactName = session.contact_name || "Parceiro";
 
-    // Preservar categoria e o que vende nas notas e extracted_identity
+    let dnaContext = null;
+    const clientId = session.client_id || task.client_id;
+    if (clientId) {
+      try {
+        dnaContext = await getClientDnaContext(clientId);
+      } catch (dnaErr) {
+        console.warn("Aviso ao carregar DNA no reset do briefing:", dnaErr);
+      }
+    }
+
+    const companyName = session.company_name || task.trade_name || task.client_name || dnaContext?.companyName || "sua empresa";
+    const rawContact = session.contact_name || dnaContext?.contactName || "Parceiro";
+    const contactName = formatContactFirstName(rawContact, companyName);
+
+    // Preservar categoria e o que vende ou re-hidratar do DNA
     let ext: Record<string, unknown> = {};
     try {
       ext = typeof session.extracted_identity === "string" ? JSON.parse(session.extracted_identity) : (session.extracted_identity || {});
@@ -56,9 +70,13 @@ export async function POST(
       ext = {};
     }
 
-    const preservedExt: Record<string, unknown> = {};
-    if (ext.marketNiche) preservedExt.marketNiche = ext.marketNiche;
-    if (ext.valueProposition) preservedExt.valueProposition = ext.valueProposition;
+    const preservedExt: Record<string, unknown> = {
+      ...(dnaContext?.initialExtractedIdentity || {}),
+      ...(ext.marketNiche ? { marketNiche: ext.marketNiche } : {}),
+      ...(ext.valueProposition ? { valueProposition: ext.valueProposition } : {}),
+    };
+
+    const initialNotes = session.initial_notes || dnaContext?.compiledInitialNotes || "";
 
     const initialMessage = {
       id: "msg_intro",
@@ -77,15 +95,16 @@ export async function POST(
       SET 
         conversation_history = $1,
         extracted_identity = $2,
+        initial_notes = COALESCE(NULLIF(initial_notes, ''), $3),
         status = 'IN_PROGRESS',
         progress_percent = 15,
         credentials_saved = false,
         completed_at = NULL,
         updated_at = NOW()
-      WHERE id = $3
+      WHERE id = $4
       RETURNING *
       `,
-      [JSON.stringify([initialMessage]), JSON.stringify(preservedExt), session.id]
+      [JSON.stringify([initialMessage]), JSON.stringify(preservedExt), initialNotes, session.id]
     );
 
     return NextResponse.json({

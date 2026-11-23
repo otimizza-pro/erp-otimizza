@@ -125,21 +125,25 @@ export function TaskExecutionModal({
 
         const ext = json.session.extracted_identity || {};
         const clientExt = json.clientIdentity || {};
+        const audiencesList = Array.isArray(json.audiences) ? json.audiences : [];
 
         setCategory(json.category || ext.marketNiche || clientExt.market_niche || "");
         setServicesOffered(json.servicesOffered || ext.valueProposition || clientExt.value_proposition || "");
 
         setBriefingToneOfVoice(
-          Array.isArray(ext.toneOfVoice)
+          Array.isArray(ext.toneOfVoice) && ext.toneOfVoice.length > 0
             ? ext.toneOfVoice.join(", ")
-            : (ext.toneOfVoice || (Array.isArray(clientExt.tone_of_voice) ? clientExt.tone_of_voice.join(", ") : "Direto, especialista e focado em resultados reais"))
+            : (Array.isArray(clientExt.tone_of_voice) && clientExt.tone_of_voice.length > 0
+                ? clientExt.tone_of_voice.join(", ")
+                : (ext.toneOfVoice || "Direto, especialista e focado em resultados reais"))
         );
         setBriefingDifferentials(
-          ext.differentials || (Array.isArray(clientExt.differentials) ? clientExt.differentials.join(", ") : "")
+          ext.differentials || (Array.isArray(clientExt.differentials) ? clientExt.differentials.join("\n") : "")
         );
-        setBriefingTargetAudience(
-          ext.targetAudience || (Array.isArray(clientExt.target_audiences) ? clientExt.target_audiences.join(", ") : "")
-        );
+        const audienceSummary = audiencesList.length > 0
+          ? audiencesList.map((a: { name: string; description?: string }) => `${a.name}${a.description ? `: ${a.description}` : ""}`).join("\n")
+          : (ext.targetAudience || (Array.isArray(clientExt.target_audiences) ? clientExt.target_audiences.join("\n") : ""));
+        setBriefingTargetAudience(audienceSummary);
         setBriefingCompetitors(
           ext.competitors || json.session.competitor_notes || ""
         );

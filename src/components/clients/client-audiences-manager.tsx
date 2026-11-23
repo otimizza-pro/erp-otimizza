@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Users,
   Plus,
@@ -67,31 +68,36 @@ export function ClientAudiencesManager({
   const [formError, setFormError] = useState<string | null>(null);
 
   const onAudiencesChangeRef = useRef(onAudiencesChange);
+  const listRequest = useRef(0);
   useEffect(() => {
     onAudiencesChangeRef.current = onAudiencesChange;
   }, [onAudiencesChange]);
 
   const loadAudiences = useCallback(async () => {
     if (!clientId) return;
+    const request = ++listRequest.current;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/content-studio/audiences?clientId=${encodeURIComponent(clientId)}`);
+      const res = await fetch(`/api/content-studio/audiences?clientId=${encodeURIComponent(clientId)}`, { cache: "no-store" });
       if (!res.ok) throw new Error("Erro ao carregar públicos do cliente.");
       const data = await res.json();
       const list: ClientAudienceItem[] = data.audiences || [];
+      if (request !== listRequest.current) return;
       setAudiences(list);
       onAudiencesChangeRef.current?.(list);
     } catch (err) {
+      if (request !== listRequest.current) return;
       console.error(err);
       setError(err instanceof Error ? err.message : "Falha ao carregar públicos.");
     } finally {
-      setLoading(false);
+      if (request === listRequest.current) setLoading(false);
     }
   }, [clientId]);
 
   useEffect(() => {
     loadAudiences();
+    return () => { listRequest.current++; };
   }, [loadAudiences]);
 
   const openCreateModal = () => {
@@ -122,6 +128,7 @@ export function ClientAudiencesManager({
 
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!formName.trim()) {
       setFormError("O nome do público é obrigatório.");
       return;
@@ -166,10 +173,17 @@ export function ClientAudiencesManager({
       });
 
       const data = await res.json();
-      if (!res.ok) {
+      if (!res.ok || !data.audience?.id) {
         throw new Error(data.error || "Não foi possível salvar o público.");
       }
 
+      const saved: ClientAudienceItem = data.audience;
+      const updated = audiences.filter(item => item.id !== saved.id)
+        .map(item => saved.is_default ? { ...item, is_default: false } : item);
+      updated.push(saved);
+      updated.sort((a, b) => Number(b.is_default) - Number(a.is_default) || a.name.localeCompare(b.name, "pt-BR"));
+      setAudiences(updated);
+      onAudiencesChangeRef.current?.(updated);
       setModalOpen(false);
       await loadAudiences();
     } catch (err) {
@@ -460,7 +474,7 @@ export function ClientAudiencesManager({
       )}
 
       {/* Modal Criar / Editar Público */}
-      {modalOpen && (
+      {modalOpen && createPortal(
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
           <div
             role="dialog"
@@ -605,7 +619,8 @@ export function ClientAudiencesManager({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

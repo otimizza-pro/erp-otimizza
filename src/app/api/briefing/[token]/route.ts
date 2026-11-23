@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { generateWithOpenRouter, strategyModel, parseAiJson } from "@/lib/ai/openrouter";
 import { formatContactFirstName } from "@/modules/clients/contact-name";
+import { getClientDnaContext } from "@/modules/clients/dna-briefing-sync";
 
 const messageSchema = z.object({
   action: z.enum(["MESSAGE", "DONT_KNOW", "DECISION", "SUBMIT_CREDENTIALS", "SKIP_CREDENTIALS", "PAUSE"]),
@@ -134,6 +135,10 @@ DIRETRIZES DA PERSONALIDADE DA EDIVÂNIA:
 - ZERO jargões técnicos de marketing! NUNCA use termos como "ICP", "Persona", "Arquétipo", "Ganchos de retenção", "Linha editorial", etc.
 - Converse como uma pessoa amigável tomando um café com ${contact}. Seja empática, atenciosa e estimulante.
 - EXEMPLOS DO NICHO OBRIGATÓRIOS: Utilize SEMPRE a categoria da empresa (${category}) e o que ela vende (${servicesOffered}) para formular as perguntas com situações do cotidiano deles!
+- NUNCA confunda comentários e observações sobre públicos (ex: "eu só disse um público, mas tem mais", "temos outros públicos", "atendemos outros perfis") com diferenciais da marca! Diferenciais são os métodos exclusivos, atendimento de excelência, pontualidade e segurança da empresa.
+- NUNCA salve mensagens como "eu só disse um público, mas tem mais", "não sei", "vamos lá" ou comentários do chat em differentials ou targetAudience!
+- Se a empresa já possui públicos informados ou registrados no DNA, valide-os com a pessoa com simpatia (ex: "Vi que vocês atendem pessoas buscando [Públicos]. Você confirma esses perfis? Tem mais algum outro público que também procura vocês?").
+- Se o usuário confirmar os públicos já cadastrados, valide com entusiasmo ("Perfeito!") e avance para os diferenciais da marca sem duplicar ou re-perguntar.
 - Sobre tom de voz: pergunte de forma humana: "No dia a dia com seus clientes, como você prefere conversar nas redes sociais? De um jeito mais didático e explicativo, tirando dúvidas passo a passo, ou de um jeito mais leve, acolhedor e descontraído?".
 - Ofereça entre 4 e 6 opções práticas e claras em "options", adaptadas para o nicho real do cliente.
 - Ao tratar de tom de voz ou estilo, você pode incluir um campo "slider" para o cliente escolher o equilíbrio entre duas pontas (ex: Técnico <-> Acolhedor).
@@ -471,9 +476,33 @@ export async function POST(
 
     const company = session.company_name || "sua empresa";
     const contact = formatContactFirstName(session.contact_person_name || session.contact_name, company);
-    const notes = session.initial_notes || "";
-    const category = String(extracted.marketNiche || "");
-    const servicesOffered = String(extracted.valueProposition || "");
+    let notes = session.initial_notes || "";
+    let category = String(extracted.marketNiche || "");
+    let servicesOffered = String(extracted.valueProposition || "");
+
+    const effectiveClientId = session.client_id;
+    if (effectiveClientId && (!notes || !category || !servicesOffered || !extracted.targetAudience)) {
+      try {
+        const dna = await getClientDnaContext(effectiveClientId);
+        if (!notes) notes = dna.compiledInitialNotes;
+        if (!category) category = dna.category;
+        if (!servicesOffered) servicesOffered = dna.servicesOffered;
+        if (!extracted.marketNiche && dna.category) extracted.marketNiche = dna.category;
+        if (!extracted.valueProposition && dna.servicesOffered) extracted.valueProposition = dna.servicesOffered;
+        if (!extracted.targetAudience && dna.initialExtractedIdentity.targetAudience) {
+          extracted.targetAudience = dna.initialExtractedIdentity.targetAudience;
+          extracted.targetAudiences = dna.initialExtractedIdentity.targetAudiences;
+        }
+        if (!extracted.differentials && dna.initialExtractedIdentity.differentials) {
+          extracted.differentials = dna.initialExtractedIdentity.differentials;
+        }
+        if ((!extracted.toneOfVoice || (Array.isArray(extracted.toneOfVoice) && extracted.toneOfVoice.length === 0)) && dna.initialExtractedIdentity.toneOfVoice) {
+          extracted.toneOfVoice = dna.initialExtractedIdentity.toneOfVoice;
+        }
+      } catch (dnaErr) {
+        console.warn("Aviso ao carregar DNA no briefing público:", dnaErr);
+      }
+    }
     let progress = Number(session.progress_percent) || 15;
     const now = new Date().toISOString();
 
@@ -680,16 +709,36 @@ export async function POST(
         userText.toLowerCase() === "vamos lá";
 
       if (isStartMsg) {
+        const existingAudiencesText = extracted.targetAudience || extracted.targetAudiences;
+        const hasExistingAudiences = !!(existingAudiencesText && (Array.isArray(existingAudiencesText) ? existingAudiencesText.length > 0 : String(existingAudiencesText).trim().length > 0));
+
+        let startText = `Que maravilha, ${contact}! Vamos lá. ☕\n\nPara começar da forma mais prática possível: pensando no dia a dia da ${company}${category ? ` com ${category}` : ""}, quem costuma procurar os seus serviços? Me conta quem são os seus principais tipos de clientes. Se tiver mais de um perfil ou público, pode me falar todos!`;
+        let startOptions: ChatMessage["options"] = [
+          { label: "Clientes que buscam qualidade acima do preço", value: "Clientes que valorizam qualidade e confiança" },
+          { label: "Pessoas com necessidades imediatas", value: "Pessoas com demandas pontuais e urgentes" },
+          { label: "Famílias e moradores locais da região", value: "Moradores locais e famílias da região" },
+          { label: "💡 Me dê exemplos pro meu nicho", value: "DONT_KNOW_AUDIENCE", action: "DONT_KNOW" },
+        ];
+
+        if (hasExistingAudiences) {
+          const audienceSummary = Array.isArray(existingAudiencesText)
+            ? existingAudiencesText.join(", ")
+            : String(existingAudiencesText).split("\n")[0];
+
+          startText = `Que maravilha, ${contact}! Vamos lá. ☕\n\nA nossa equipe já registrou no perfil da ${company} que vocês atendem principalmente:\n👉 ${audienceSummary}\n\nVocê confirma esses públicos no seu dia a dia? Tem mais algum outro perfil ou público que vocês também atendem e gostaria de acrescentar?`;
+          startOptions = [
+            { label: "👍 Sim, esses são os nossos públicos!", value: "Confirmados: " + audienceSummary, action: "APPROVE" },
+            { label: "➕ Quero acrescentar outro público", value: "Temos outros públicos além desses", action: "ADJUST" },
+            { label: "✏️ Quero ajustar os públicos", value: "Gostaria de ajustar os públicos", action: "ADJUST" },
+            { label: "💡 Me dê exemplos pro meu nicho", value: "DONT_KNOW_AUDIENCE", action: "DONT_KNOW" },
+          ];
+        }
+
         history.push({
           id: `ast_${Date.now()}`,
           sender: "assistant",
-          text: `Que maravilha, ${contact}! Vamos lá. ☕\n\nPara começar da forma mais prática possível: pensando no dia a dia da ${company}${category ? ` com ${category}` : ""}, quem costuma procurar os seus serviços? Me conta quem são os seus principais tipos de clientes. Se tiver mais de um perfil ou público, pode me falar todos!`,
-          options: [
-            { label: "Clientes que buscam qualidade acima do preço", value: "Clientes que valorizam qualidade e confiança" },
-            { label: "Pessoas com necessidades imediatas", value: "Pessoas com demandas pontuais e urgentes" },
-            { label: "Famílias e moradores locais da região", value: "Moradores locais e famílias da região" },
-            { label: "💡 Me dê exemplos pro meu nicho", value: "DONT_KNOW_AUDIENCE", action: "DONT_KNOW" },
-          ],
+          text: startText,
+          options: startOptions,
           timestamp: now,
         });
       } else {

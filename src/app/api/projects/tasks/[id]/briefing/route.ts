@@ -3,6 +3,7 @@ import { query } from "@/lib/db/pool";
 import { randomBytes } from "node:crypto";
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { formatContactFirstName } from "@/modules/clients/contact-name";
+import { getClientDnaContext } from "@/modules/clients/dna-briefing-sync";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,17 @@ export async function GET(
 
     const task = taskRes.rows[0];
 
-    // 2. Verificar se já existe uma sessão para esta tarefa ou projeto
+    // 2. Buscar DNA estratégico completo do cliente (identidade, DNA comercial e públicos)
+    let dnaContext = null;
+    if (task.client_id) {
+      try {
+        dnaContext = await getClientDnaContext(task.client_id);
+      } catch (dnaErr) {
+        console.warn("Aviso ao carregar DNA do cliente para o briefing:", dnaErr);
+      }
+    }
+
+    // 3. Verificar se já existe uma sessão para esta tarefa ou projeto
     const sessionRes = await query(
       `SELECT * FROM public.client_briefing_sessions WHERE task_id = $1 OR project_id = $2 ORDER BY created_at DESC LIMIT 1`,
       [taskId, task.project_id]
@@ -72,14 +83,18 @@ export async function GET(
 
     let session = sessionRes.rows[0];
 
-    // Se ainda não existir, cria automaticamente uma sessão pronta para personalização
+    // Se ainda não existir, cria automaticamente uma sessão pré-populada com o DNA
     if (!session) {
       const token = randomBytes(16).toString("hex");
-      const companyName = task.trade_name || task.client_name || task.project_name || "Sua Empresa";
-      const rawContact = task.contact_person_name || (task.client_type === "PF" ? task.client_name : "") || "Parceiro";
+      const companyName = task.trade_name || task.client_name || dnaContext?.companyName || task.project_name || "Sua Empresa";
+      const rawContact = task.contact_person_name || (task.client_type === "PF" ? task.client_name : "") || dnaContext?.contactName || "Parceiro";
       const contactName = formatContactFirstName(rawContact, companyName);
-      const websiteUrl = task.client_website || "";
-      const instagramUrl = task.client_instagram ? `https://instagram.com/${task.client_instagram.replace("@", "")}` : "";
+      const websiteUrl = task.client_website || dnaContext?.websiteUrl || "";
+      const instagramUrl = task.client_instagram
+        ? (task.client_instagram.startsWith("http") ? task.client_instagram : `https://instagram.com/${task.client_instagram.replace("@", "")}`)
+        : (dnaContext?.instagramUrl || "");
+      const initialNotes = dnaContext?.compiledInitialNotes || "";
+      const initialExt = dnaContext?.initialExtractedIdentity || {};
 
       const initialMessage = {
         id: "msg_intro",
@@ -96,9 +111,9 @@ export async function GET(
         `
         INSERT INTO public.client_briefing_sessions (
           token, project_id, task_id, client_id, company_name, contact_name,
-          website_url, instagram_url, conversation_history, status, progress_percent
+          website_url, instagram_url, initial_notes, extracted_identity, conversation_history, status, progress_percent
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, 'PENDING', 15
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'PENDING', 15
         ) RETURNING *
         `,
         [
@@ -110,50 +125,104 @@ export async function GET(
           contactName,
           websiteUrl,
           instagramUrl,
+          initialNotes,
+          JSON.stringify(initialExt),
           JSON.stringify([initialMessage]),
         ]
       );
       session = insertRes.rows[0];
     } else {
-      // Complementar com dados cadastrais do cliente se a sessão estiver com campos em branco
+      // Complementar com dados cadastrais e DNA se a sessão estiver com campos em branco
+      let shouldUpdateDb = false;
+
       if (!session.company_name || session.company_name === "Sua Empresa") {
-        session.company_name = task.trade_name || task.client_name || task.project_name || "Sua Empresa";
+        session.company_name = task.trade_name || task.client_name || dnaContext?.companyName || task.project_name || "Sua Empresa";
+        shouldUpdateDb = true;
       }
       if (!session.contact_name || session.contact_name === "Parceiro" || session.contact_name === session.company_name) {
-        const rawContact = task.contact_person_name || (task.client_type === "PF" ? task.client_name : "") || "Parceiro";
+        const rawContact = task.contact_person_name || (task.client_type === "PF" ? task.client_name : "") || dnaContext?.contactName || "Parceiro";
         session.contact_name = formatContactFirstName(rawContact, session.company_name);
+        shouldUpdateDb = true;
       } else {
         session.contact_name = formatContactFirstName(session.contact_name, session.company_name);
       }
-      if (!session.website_url && task.client_website) {
-        session.website_url = task.client_website;
+      if (!session.website_url && (task.client_website || dnaContext?.websiteUrl)) {
+        session.website_url = task.client_website || dnaContext?.websiteUrl;
+        shouldUpdateDb = true;
       }
-      if (!session.instagram_url && task.client_instagram) {
-        session.instagram_url = `https://instagram.com/${task.client_instagram.replace("@", "")}`;
+      if (!session.instagram_url && (task.client_instagram || dnaContext?.instagramUrl)) {
+        session.instagram_url = task.client_instagram
+          ? (task.client_instagram.startsWith("http") ? task.client_instagram : `https://instagram.com/${task.client_instagram.replace("@", "")}`)
+          : (dnaContext?.instagramUrl || "");
+        shouldUpdateDb = true;
+      }
+      if ((!session.initial_notes || session.initial_notes.trim() === "") && dnaContext?.compiledInitialNotes) {
+        session.initial_notes = dnaContext.compiledInitialNotes;
+        shouldUpdateDb = true;
+      }
+
+      let currentExt: Record<string, unknown> = {};
+      try {
+        currentExt = typeof session.extracted_identity === "string" ? JSON.parse(session.extracted_identity) : (session.extracted_identity || {});
+      } catch {
+        currentExt = {};
+      }
+
+      if (Object.keys(currentExt).length === 0 && dnaContext?.initialExtractedIdentity) {
+        session.extracted_identity = dnaContext.initialExtractedIdentity;
+        shouldUpdateDb = true;
+      } else if (dnaContext?.initialExtractedIdentity) {
+        // Enriquecer campos que estiverem em branco sem sobrescrever o que já foi preenchido
+        let extUpdated = false;
+        const mergedExt = { ...currentExt };
+        if (!mergedExt.marketNiche && dnaContext.category) {
+          mergedExt.marketNiche = dnaContext.category;
+          extUpdated = true;
+        }
+        if (!mergedExt.valueProposition && dnaContext.servicesOffered) {
+          mergedExt.valueProposition = dnaContext.servicesOffered;
+          extUpdated = true;
+        }
+        if (extUpdated) {
+          session.extracted_identity = mergedExt;
+          shouldUpdateDb = true;
+        }
+      }
+
+      if (shouldUpdateDb) {
+        await query(
+          `UPDATE public.client_briefing_sessions 
+           SET company_name = $1, contact_name = $2, website_url = $3, instagram_url = $4,
+               initial_notes = $5, extracted_identity = $6, updated_at = NOW()
+           WHERE id = $7`,
+          [
+            session.company_name,
+            session.contact_name,
+            session.website_url,
+            session.instagram_url,
+            session.initial_notes,
+            JSON.stringify(typeof session.extracted_identity === "string" ? JSON.parse(session.extracted_identity) : session.extracted_identity),
+            session.id,
+          ]
+        );
       }
     }
 
-    // Buscar Identidade do Cliente registrada se houver
-    let clientIdentity = null;
-    if (task.client_id) {
-      const idRes = await query(
-        `SELECT * FROM public.client_identities WHERE client_id = $1 LIMIT 1`,
-        [task.client_id]
-      );
-      clientIdentity = idRes.rows[0] || null;
-    }
+    const clientIdentity = dnaContext?.clientIdentity || null;
+    const clientAudiences = dnaContext?.audiences || [];
 
     const ext = typeof session?.extracted_identity === "string" 
       ? JSON.parse(session.extracted_identity) 
       : (session?.extracted_identity || {});
-    const category = ext.marketNiche || clientIdentity?.market_niche || "";
-    const servicesOffered = ext.valueProposition || clientIdentity?.value_proposition || "";
+    const category = ext.marketNiche || dnaContext?.category || clientIdentity?.market_niche || "";
+    const servicesOffered = ext.valueProposition || dnaContext?.servicesOffered || clientIdentity?.value_proposition || "";
 
     return NextResponse.json({
       success: true,
       task,
       session,
       clientIdentity,
+      audiences: clientAudiences,
       category,
       servicesOffered,
       publicUrl: session ? `/briefing/${session.token}` : "",

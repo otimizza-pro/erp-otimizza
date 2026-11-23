@@ -407,12 +407,12 @@ function NewContractFormContent() {
 
   const handleTargetAmountChange = (valStr: string) => {
     setTargetClosedAmount(valStr);
-    const val = parseFloat(valStr.replace(/\./g, "").replace(",", ".")) || 0;
-    if (totalAmount > 0 && val > 0) {
+    const val = parseFloat(valStr.replace(/\./g, "").replace(",", "."));
+    if (!isNaN(val) && totalAmount > 0 && val >= 0) {
       const diff = Math.max(0, totalAmount - val);
       const pct = (diff / totalAmount) * 100;
-      setDiscountAmount(diff > 0 ? diff.toFixed(2).replace(".", ",") : "");
-      setDiscountPercent(pct > 0 ? pct.toFixed(1).replace(".", ",") : "");
+      setDiscountAmount(diff > 0 ? diff.toFixed(2).replace(".", ",") : "0,00");
+      setDiscountPercent(pct.toFixed(1).replace(".", ","));
     } else {
       setDiscountAmount("");
       setDiscountPercent("");
@@ -425,8 +425,8 @@ function NewContractFormContent() {
     if (totalAmount > 0) {
       const target = Math.max(0, totalAmount - diff);
       const pct = (diff / totalAmount) * 100;
-      setTargetClosedAmount(target > 0 ? target.toFixed(2).replace(".", ",") : "");
-      setDiscountPercent(pct > 0 ? pct.toFixed(1).replace(".", ",") : "");
+      setTargetClosedAmount(target.toFixed(2).replace(".", ","));
+      setDiscountPercent(pct > 0 ? pct.toFixed(1).replace(".", ",") : "0,0");
     }
   };
 
@@ -436,18 +436,38 @@ function NewContractFormContent() {
     if (totalAmount > 0) {
       const diff = (totalAmount * pct) / 100;
       const target = Math.max(0, totalAmount - diff);
-      setDiscountAmount(diff > 0 ? diff.toFixed(2).replace(".", ",") : "");
-      setTargetClosedAmount(target > 0 ? target.toFixed(2).replace(".", ",") : "");
+      setDiscountAmount(diff > 0 ? diff.toFixed(2).replace(".", ",") : "0,00");
+      setTargetClosedAmount(target.toFixed(2).replace(".", ","));
     }
+  };
+
+  const handleSetZeroPermuta = () => {
+    if (items.length === 0) return;
+    const updated = items.map((it) => ({
+      ...it,
+      unitPrice: 0,
+    }));
+    setItems(updated);
+    setTargetClosedAmount("0,00");
+    setDiscountPercent("100,0");
+    setDiscountAmount(totalAmount.toFixed(2).replace(".", ","));
+    setAppliedDiscountFeedback("Contrato configurado como permuta / valor zerado (R$ 0,00). Nenhuma fatura financeira será gerada!");
+    setTimeout(() => setAppliedDiscountFeedback(""), 8000);
   };
 
   const handleApplyDiscountToItems = () => {
     if (items.length === 0) return;
     const target = parseFloat(targetClosedAmount.replace(/\./g, "").replace(",", ".")) || 0;
-    if (target <= 0) {
-      alert("Informe um valor fechado válido maior que zero.");
+    if (target < 0) {
+      alert("O valor final não pode ser negativo.");
       return;
     }
+
+    if (target === 0) {
+      handleSetZeroPermuta();
+      return;
+    }
+
     if (totalAmount <= 0) return;
 
     const ratio = target / totalAmount;
@@ -950,7 +970,7 @@ function NewContractFormContent() {
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-[11px] text-zinc-500 font-medium">Atalhos rápidos:</span>
                     {[5, 10, 15, 20].map((pct) => (
                       <button
@@ -962,6 +982,14 @@ function NewContractFormContent() {
                         -{pct}%
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      onClick={handleSetZeroPermuta}
+                      className="px-2.5 py-1 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition shadow-2xs cursor-pointer flex items-center gap-1"
+                      title="Define todos os itens com valor R$ 0,00 sem gerar faturas financeiras"
+                    >
+                      🤝 Permuta (R$ 0,00)
+                    </button>
                   </div>
 
                   <button
@@ -996,8 +1024,13 @@ function NewContractFormContent() {
                 <span className="text-xs text-zinc-500 uppercase tracking-wider block">
                   Valor Contratado Total (Soma dos Itens)
                 </span>
-                <span className="text-xl font-bold text-zinc-950">
+                <span className="text-xl font-bold text-zinc-950 flex items-center justify-end gap-2">
                   {formatMoney(totalAmount)}
+                  {items.length > 0 && totalAmount === 0 && (
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                      Permuta • Sem Faturas
+                    </span>
+                  )}
                 </span>
               </div>
             </div>

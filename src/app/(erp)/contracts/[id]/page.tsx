@@ -751,8 +751,13 @@ export default function ContractDetailsPage() {
                 <span className="text-xs text-zinc-500">
                   Total correspondente à soma estrita dos componentes
                 </span>
-                <span className="text-base font-bold text-zinc-950">
+                <span className="text-base font-bold text-zinc-950 flex items-center gap-2">
                   R$ {(currentVer?.totalAmount || 0).toFixed(2)}
+                  {Number(currentVer?.totalAmount || 0) === 0 && (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full">
+                      Permuta • Sem Faturas
+                    </span>
+                  )}
                 </span>
               </div>
             </div>

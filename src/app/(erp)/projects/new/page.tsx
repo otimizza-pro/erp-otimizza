@@ -1,7 +1,7 @@
 "use client";
 
 import { useCompany } from "@/lib/context/company-context";
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { SocialMediaScheduleFields } from "@/components/projects/social-media-plan";
@@ -234,13 +234,20 @@ function NewProjectFormContent() {
       const d = new Date(startDate);
       d.setDate(d.getDate() + (tmpl.estimatedDays || 30));
       setDueDate(d.toISOString().substring(0, 10));
-
-      const isSocialMedia = /social\s*media|editorial|post|grava/i.test(tmpl.name + " " + (tmpl.description || ""));
-      if (isSocialMedia && !planSocialMedia) {
-        setPlanSocialMedia(true);
-      }
     }
   };
+
+  const isSocialMediaTemplate = useMemo(() => {
+    if (!templateId) return false;
+    const tmpl = templates.find((t) => t.id === templateId) || (templateDetail as unknown as ProjectTemplateRecord);
+    if (!tmpl) return false;
+    const combined = `${tmpl.code || ""} ${tmpl.name || ""} ${tmpl.description || ""}`.toLowerCase();
+    return /social|editorial|grava|conte[uú]do|post/i.test(combined);
+  }, [templateId, templateDetail, templates]);
+
+  useEffect(() => {
+    setPlanSocialMedia(isSocialMediaTemplate);
+  }, [isSocialMediaTemplate]);
 
   const calculateDate = (baseDateStr: string, daysToAdd: number) => {
     if (!baseDateStr) return "-";
@@ -375,17 +382,25 @@ function NewProjectFormContent() {
 
           {/* Prévia Dinâmica das Fases com Datas Sugeridas */}
           {templateDetail && templateDetail.stages && templateDetail.stages.length > 0 && (
-            <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-2xl p-4 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 pb-2">
+            <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-2xl p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 pb-2.5">
                 <div className="flex items-center gap-2">
                   <Rocket className="w-4 h-4 text-indigo-600" />
                   <span className="text-xs font-bold text-indigo-950">
-                    Fases do Onboarding com Datas Sugeridas (Base: Início em {calculateDate(startDate, 0)})
+                    Fases do Modelo com Datas Sugeridas (Base: Início em {calculateDate(startDate, 0)})
                   </span>
                 </div>
-                <span className="text-[11px] font-mono font-semibold text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
-                  {templateDetail.stages.length} fases estruturadas
-                </span>
+                <div className="flex items-center gap-2">
+                  {isSocialMediaTemplate && (
+                    <span className="text-[11px] font-semibold text-indigo-700 bg-white px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-indigo-600" />
+                      Modelo de Social Media
+                    </span>
+                  )}
+                  <span className="text-[11px] font-mono font-semibold text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                    {templateDetail.stages.length} {templateDetail.stages.length === 1 ? "fase estruturada" : "fases estruturadas"}
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -396,7 +411,7 @@ function NewProjectFormContent() {
                   return (
                     <div
                       key={stage.id}
-                      className="bg-white p-3 rounded-xl border border-indigo-100/80 space-y-2 shadow-2xs"
+                      className="bg-white p-3.5 rounded-xl border border-indigo-100/80 space-y-2 shadow-2xs"
                     >
                       <div className="flex items-center justify-between">
                         <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
@@ -414,44 +429,48 @@ function NewProjectFormContent() {
                   );
                 })}
               </div>
-            </div>
-          )}
 
-          {/* Planejamento de Conteúdo e Grade de Social Media */}
-          <section className="space-y-4 rounded-xl border border-indigo-100 bg-gradient-to-br from-indigo-50/40 via-white to-slate-50/50 p-5 shadow-xs">
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2.5 text-sm font-bold text-slate-800 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={planSocialMedia}
-                  onChange={event => setPlanSocialMedia(event.target.checked)}
-                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
-                />
-                <span className="flex items-center gap-1.5">
-                  <Calendar className="w-4 h-4 text-indigo-600" />
-                  Planejar conteúdo de Social Media
-                </span>
-              </label>
-              {planSocialMedia && (
-                <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-semibold">
-                  Ativo
-                </span>
+              {/* Se for template de Social Media: Planejador de Grade Integrado dentro do Modelo */}
+              {isSocialMediaTemplate && (
+                <div className="pt-3 border-t border-indigo-200/70 space-y-3">
+                  <div className="flex items-center justify-between bg-white/90 p-3 rounded-xl border border-indigo-100">
+                    <label className="flex items-center gap-2.5 text-xs font-bold text-slate-900 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={planSocialMedia}
+                        onChange={(e) => setPlanSocialMedia(e.target.checked)}
+                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                      />
+                      <span className="flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-indigo-600" />
+                        Planejar conteúdo de Social Media vinculado a este projeto
+                      </span>
+                    </label>
+                    <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-semibold border ${
+                      planSocialMedia 
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                        : "bg-slate-100 text-slate-500 border-slate-200"
+                    }`}>
+                      {planSocialMedia ? "Ativo" : "Desativado"}
+                    </span>
+                  </div>
+
+                  {planSocialMedia && (
+                    <div className="space-y-3 bg-white p-4 rounded-xl border border-indigo-100 shadow-2xs">
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Defina a quantidade de posts e clique nas datas desejadas no calendário para vincular a grade de publicações a este projeto. Os posts serão automaticamente registrados no Calendário Editorial do cliente a partir do início do projeto.
+                      </p>
+                      <SocialMediaScheduleFields
+                        value={socialMediaSchedule}
+                        onChange={setSocialMediaSchedule}
+                        baseDate={startDate}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-
-            {planSocialMedia && (
-              <div className="space-y-4 pt-1 border-t border-indigo-100/70">
-                <p className="text-xs text-slate-600">
-                  Defina a quantidade de posts e clique nas datas desejadas no calendário para planejar a grade de publicações. Os posts serão automaticamente registrados no Calendário Editorial do cliente a partir do início do projeto.
-                </p>
-                <SocialMediaScheduleFields
-                  value={socialMediaSchedule}
-                  onChange={setSocialMediaSchedule}
-                  baseDate={startDate}
-                />
-              </div>
-            )}
-          </section>
+          )}
 
           {/* Nome e Descrição */}
           <div>

@@ -225,15 +225,23 @@ function ProjectTemplatesContent() {
                 >
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <span
-                        className={`font-mono text-xs font-bold px-2.5 py-0.5 rounded-lg border ${
-                          isOnboarding
-                            ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                            : "bg-slate-50 text-slate-700 border-slate-200"
-                        }`}
-                      >
-                        {tmpl.code}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`font-mono text-xs font-bold px-2.5 py-0.5 rounded-lg border ${
+                            isOnboarding
+                              ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                              : "bg-slate-50 text-slate-700 border-slate-200"
+                          }`}
+                        >
+                          {tmpl.code}
+                        </span>
+                        {/social|editorial|grava|conte[uú]do|post/i.test(`${tmpl.code} ${tmpl.name}`) && (
+                          <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-indigo-600" />
+                            Social Media
+                          </span>
+                        )}
+                      </div>
                       <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                         {isOnboarding ? "Onboarding" : "Projeto"}
                       </span>
@@ -331,6 +339,20 @@ function ProjectTemplatesContent() {
                       />
                     </div>
                   </div>
+
+                  {/social|editorial|grava|conte[uú]do|post/i.test(`${templateDetails.code} ${templateDetails.name}`) && (
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 p-3.5 rounded-2xl flex items-center gap-3 text-xs text-indigo-950">
+                      <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0">
+                        <Calendar className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <span className="font-bold block">Modelo integrado com Grade de Social Media</span>
+                        <span className="text-indigo-700 text-[11px]">
+                          Ao iniciar um projeto a partir deste modelo, o formulário de cadastro abre diretamente o planejador com a quantidade de posts, dias da semana e calendário interativo para vinculação ao projeto.
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Fases do Onboarding com Datas Sugeridas */}
                   <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">

@@ -461,7 +461,7 @@ export function ClientAudiencesManager({
             role="dialog"
             aria-modal="true"
             aria-labelledby="modal-audience-title"
-            className="w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl border border-zinc-200 shadow-2xl p-6 space-y-4"
+            className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl border border-zinc-200 shadow-2xl p-6 sm:p-7 space-y-5"
           >
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
@@ -529,17 +529,17 @@ export function ClientAudiencesManager({
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-amber-800 block mb-1">
                     Dores (1 por linha)
                   </label>
                   <textarea
-                    rows={5}
+                    rows={7}
                     placeholder="Pouco tempo&#10;Falta de clientes&#10;Incerteza nas vendas"
                     value={formPainPoints}
                     onChange={(e) => setFormPainPoints(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 min-h-[110px] resize-y leading-relaxed"
+                    className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 min-h-[150px] resize-y leading-relaxed"
                   />
                 </div>
 
@@ -548,11 +548,11 @@ export function ClientAudiencesManager({
                     Desejos (1 por linha)
                   </label>
                   <textarea
-                    rows={5}
+                    rows={7}
                     placeholder="Escalar faturamento&#10;Ter previsibilidade&#10;Mais liberdade"
                     value={formDesires}
                     onChange={(e) => setFormDesires(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[110px] resize-y leading-relaxed"
+                    className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[150px] resize-y leading-relaxed"
                   />
                 </div>
 
@@ -561,11 +561,11 @@ export function ClientAudiencesManager({
                     Objeções (1 por linha)
                   </label>
                   <textarea
-                    rows={5}
+                    rows={7}
                     placeholder="Já me frustrei antes&#10;Acho caro&#10;Não tenho tempo"
                     value={formObjections}
                     onChange={(e) => setFormObjections(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[110px] resize-y leading-relaxed"
+                    className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[150px] resize-y leading-relaxed"
                   />
                 </div>
               </div>

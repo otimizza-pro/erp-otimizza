@@ -9,7 +9,20 @@ import { formatContactFirstName } from "@/modules/clients/contact-name";
 import { getClientDnaContext } from "@/modules/clients/dna-briefing-sync";
 
 const messageSchema = z.object({
-  action: z.enum(["MESSAGE", "DONT_KNOW", "DECISION", "SUBMIT_CREDENTIALS", "SKIP_CREDENTIALS", "PAUSE"]),
+  action: z.enum([
+    "MESSAGE",
+    "DONT_KNOW",
+    "DECISION",
+    "SUBMIT_CREDENTIALS",
+    "SKIP_CREDENTIALS",
+    "PAUSE",
+    "SAVE_STEP",
+    "AI_SUGGEST",
+    "FINALIZE",
+  ]),
+  step: z.number().min(0).max(10).optional(),
+  extractedIdentity: z.record(z.string(), z.unknown()).optional(),
+  aiStepField: z.enum(["targetAudience", "differentials", "toneOfVoice", "competitors"]).optional(),
   message: z.string().max(6000).optional(),
   decision: z.enum(["APPROVE", "ADJUST", "RETRY"]).optional(),
   suggestedField: z.enum(["targetAudience", "differentials", "toneOfVoice", "competitors"]).optional(),
@@ -305,6 +318,120 @@ function getConversationalFallback(
   };
 }
 
+async function getAiSuggestionsForCarousel({
+  field,
+  company,
+  category,
+  servicesOffered,
+}: {
+  field: "targetAudience" | "differentials" | "toneOfVoice" | "competitors";
+  company: string;
+  category: string;
+  servicesOffered: string;
+}): Promise<string[]> {
+  const fieldDescriptions: Record<string, string> = {
+    targetAudience: "públicos-alvo e perfis de clientes ideais (ex: 'Pessoas com dores crônicas buscando alívio seguro e qualidade de vida')",
+    differentials: "diferenciais competitivos reais e atrativos (ex: 'Atendimento 100% individualizado e com hora marcada')",
+    toneOfVoice: "estilos e tons de comunicação (ex: 'Didático e acolhedor, transmitindo confiança sem jargões')",
+    competitors: "exemplos de perfis, tipos de referências ou estilos de conteúdo no Instagram",
+  };
+
+  const prompt = `Você é um estrategista sênior de marketing da Otimizza.
+Gere exatamente 4 sugestões práticas, lúcidas, concisas e atrativas para a empresa "${company}".
+Nicho de atuação: "${category || 'Serviços'}"
+Serviços oferecidos: "${servicesOffered || 'Atendimento especializado'}"
+
+Campo solicitado: ${fieldDescriptions[field] || field}
+
+Regras:
+1. Retorne APENAS um array JSON de strings no formato: ["Sugestão 1", "Sugestão 2", "Sugestão 3", "Sugestão 4"]
+2. Sem asteriscos (**), sem prefixos numéricos, sem jargões corporativos vazios.
+3. Cada sugestão deve ter entre 4 e 15 palavras, direta ao ponto e pronta para o cliente escolher com 1 clique.`;
+
+  try {
+    const res = await generateWithOpenRouter({
+      model: strategyModel(),
+      messages: [
+        { role: "system", content: "Você é um gerador de sugestões estratégicas para onboarding de clientes. Responda apenas JSON puro." },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.5,
+      maxTokens: 500,
+    });
+
+    const parsed = parseAiJson(res.text, z.array(z.string()));
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed
+        .map((s) => stripAsterisks(String(s)).trim())
+        .filter((s) => s.length > 3)
+        .slice(0, 4);
+    }
+  } catch (err) {
+    console.warn("Fallback de sugestões com IA:", err);
+  }
+
+  return getCuratedFallbackSuggestions(field, company, category, servicesOffered);
+}
+
+function getCuratedFallbackSuggestions(
+  field: "targetAudience" | "differentials" | "toneOfVoice" | "competitors",
+  _company: string,
+  category: string,
+  servicesOffered: string
+): string[] {
+  const isHealth = /fisioterap|pilates|saúde|médic|dor|coluna|reabilita|ortoped/i.test(`${category} ${servicesOffered}`);
+
+  if (field === "targetAudience") {
+    if (isHealth) {
+      return [
+        "Pessoas com dores no corpo e limitações buscando alívio seguro",
+        "Adultos e idosos focados em mobilidade, postura e bem-estar",
+        "Praticantes de atividade física que precisam de prevenção ou recuperação",
+        "Profissionais que passam horas sentados e sofrem com dores posturais",
+      ];
+    }
+    return [
+      "Clientes que priorizam qualidade e confiança acima do menor preço",
+      "Pessoas que buscam uma solução completa e sem dores de cabeça",
+      "Moradores locais e famílias da região que valorizam credibilidade",
+      "Profissionais com rotina corrida que buscam agilidade e atenção",
+    ];
+  }
+
+  if (field === "differentials") {
+    if (isHealth) {
+      return [
+        "Atendimento 100% individualizado com acompanhamento contínuo",
+        "Avaliação detalhada da causa da dor antes de iniciar as sessões",
+        "Ambiente acolhedor, tranquilo e com pontualidade rigorosa",
+        "Metodologia personalizada para ganho real de mobilidade e autonomia",
+      ];
+    }
+    return [
+      "Atendimento próximo, consultivo e totalmente personalizado",
+      "Pontualidade e cumprimento rigoroso dos prazos combinados",
+      "Equipe especializada com metodologia transparente e suporte direto",
+      "Ambiente acolhedor e infraestrutura moderna voltada à melhor experiência",
+    ];
+  }
+
+  if (field === "toneOfVoice") {
+    return [
+      "Acolhedor e didático: ensina e tranquiliza sem termos difíceis",
+      "Autoridade e segurança: especialista respeitado que passa total confiança",
+      "Motivador e dinâmico: inspira transformação e disciplina positiva",
+      "Elegante e sereno: refinado, discreto e focado em excelência",
+    ];
+  }
+
+  return [
+    `Perfis de referência no segmento de ${category || "saúde e serviços"} que educam com clareza`,
+    "Contas com estética limpa, visual acolhedor e vídeos demonstrativos reais",
+    "Referências que mostram bastidores e evolução real dos clientes",
+    "Prefiro que a equipe da Otimizza recomende as melhores referências",
+  ];
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
@@ -359,8 +486,35 @@ export async function GET(
       })),
     }));
 
+    const displayContact = formatContactFirstName(row.contact_person_name || row.contact_name, row.company_name);
+
+    const effectiveClientId = row.client_id;
+    let audiences: Array<{ id: string; name: string; description?: string | null }> = [];
+    let category = "";
+    let servicesOffered = "";
+    let extracted = (typeof row.extracted_identity === "string" ? JSON.parse(row.extracted_identity) : row.extracted_identity) || {};
+
+    if (effectiveClientId) {
+      try {
+        const dna = await getClientDnaContext(effectiveClientId);
+        audiences = dna.audiences || [];
+        category = dna.category;
+        servicesOffered = dna.servicesOffered;
+
+        if (Object.keys(extracted).length === 0) {
+          extracted = { ...dna.initialExtractedIdentity };
+        } else {
+          extracted = {
+            ...dna.initialExtractedIdentity,
+            ...extracted,
+          };
+        }
+      } catch (dnaErr) {
+        console.warn("Aviso ao carregar DNA no briefing GET:", dnaErr);
+      }
+    }
+
     if (history.length === 0) {
-      const displayContact = formatContactFirstName(row.contact_person_name || row.contact_name, row.company_name);
       const introMsg: ChatMessage = {
         id: "msg_intro",
         sender: "assistant",
@@ -387,14 +541,17 @@ export async function GET(
         id: row.id,
         token: row.token,
         companyName: row.company_name,
-        contactName: row.contact_name,
+        contactName: displayContact,
         websiteUrl: row.website_url,
         mapsUrl: row.maps_url,
         instagramUrl: row.instagram_url,
         initialNotes: row.initial_notes,
         competitorNotes: row.competitor_notes,
         conversationHistory: history,
-        extractedIdentity: row.extracted_identity || {},
+        extractedIdentity: extracted,
+        audiences,
+        category,
+        servicesOffered,
         status: row.status,
         progressPercent: row.progress_percent || 15,
         credentialsSaved: row.credentials_saved,
@@ -505,6 +662,132 @@ export async function POST(
     }
     let progress = Number(session.progress_percent) || 15;
     const now = new Date().toISOString();
+
+    // 0. AÇÕES DO NOVO CARROSSEL / WIZARD
+    if (action === "AI_SUGGEST") {
+      const field = body.aiStepField || "targetAudience";
+      const suggestions = await getAiSuggestionsForCarousel({
+        field,
+        company,
+        category,
+        servicesOffered,
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          suggestions,
+        },
+      });
+    }
+
+    if (action === "SAVE_STEP") {
+      const stepIndex = typeof body.step === "number" ? body.step : 0;
+      if (body.extractedIdentity && typeof body.extractedIdentity === "object") {
+        Object.assign(extracted, body.extractedIdentity);
+      }
+
+      const progressMap = [15, 30, 50, 70, 85, 95, 100];
+      const newProgress = progressMap[stepIndex] ?? Math.min(95, 15 + stepIndex * 15);
+
+      await query(
+        `UPDATE public.client_briefing_sessions 
+         SET extracted_identity = $1, progress_percent = $2, updated_at = NOW() 
+         WHERE id = $3`,
+        [JSON.stringify(extracted), newProgress, session.id]
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          progressPercent: newProgress,
+          extractedIdentity: extracted,
+        },
+      });
+    }
+
+    if (action === "FINALIZE") {
+      if (body.extractedIdentity && typeof body.extractedIdentity === "object") {
+        Object.assign(extracted, body.extractedIdentity);
+      }
+
+      const username = credentials?.username?.trim();
+      const password = credentials?.password?.trim();
+
+      if (username && password) {
+        try {
+          const userRes = await query<{ id: string }>(
+            "SELECT id FROM auth.users ORDER BY created_at ASC LIMIT 1"
+          );
+          let ownerId = userRes.rows[0]?.id;
+          if (!ownerId) {
+            const vaultRes = await query<{ owner_id: string }>(
+              "SELECT owner_id FROM public.password_vault_entries LIMIT 1"
+            );
+            ownerId = vaultRes.rows[0]?.owner_id;
+          }
+          if (ownerId) {
+            const entryId = randomUUID();
+            const encrypted = encryptPassword(password, `${ownerId}:${entryId}`);
+            const website = session.instagram_url || `https://instagram.com/${username.replace("@", "")}`;
+
+            await query(
+              `
+              INSERT INTO public.password_vault_entries (
+                id, owner_id, title, username, website, encrypted_password, created_at, updated_at
+              ) VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+              `,
+              [entryId, ownerId, `Instagram - ${company}`, username, website, encrypted]
+            );
+            session.credentials_saved = true;
+          }
+        } catch (vaultErr) {
+          console.error("Erro ao salvar no cofre durante FINALIZE:", vaultErr);
+        }
+      }
+
+      const updateSql = `
+        UPDATE public.client_briefing_sessions
+        SET 
+          extracted_identity = $1,
+          progress_percent = 100,
+          credentials_saved = $2,
+          status = 'COMPLETED',
+          completed_at = COALESCE(completed_at, NOW()),
+          updated_at = NOW()
+        WHERE id = $3
+      `;
+
+      await withTransaction(async (client) => {
+        await client.query(updateSql, [
+          JSON.stringify(extracted),
+          !!session.credentials_saved,
+          session.id,
+        ]);
+
+        if (session.client_id) {
+          await syncBriefingIdentity(client, session.client_id, extracted, {
+            instagram: session.instagram_url || (username ? `https://instagram.com/${username.replace("@", "")}` : ""),
+            website: session.website_url || "",
+            notes: session.initial_notes || "",
+          });
+        }
+
+        if (session.task_id) {
+          await client.query("UPDATE project_tasks SET status='DONE', completed_at=NOW() WHERE id=$1", [session.task_id]);
+        }
+      });
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          progressPercent: 100,
+          status: "COMPLETED",
+          extractedIdentity: extracted,
+          credentialsSaved: session.credentials_saved,
+        },
+      });
+    }
 
     // 1. TRATAMENTO DE PAUSA (RESPONDER DEPOIS)
     if (action === "PAUSE") {

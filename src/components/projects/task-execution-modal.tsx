@@ -25,6 +25,7 @@ import {
   Layers,
   Sliders,
   Send,
+  Edit2,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { ProjectRecord, ProjectTaskRecord, TaskStatus, ProjectPriority } from "@/modules/projects/types";
@@ -89,6 +90,14 @@ export function TaskExecutionModal({
   const [status, setStatus] = useState<TaskStatus>(task?.status || "TODO");
   const [priority, setPriority] = useState<ProjectPriority>(task?.priority || "MEDIUM");
 
+  // Editable Briefing & Strategy Fields
+  const [isEditingStrategy, setIsEditingStrategy] = useState<boolean>(false);
+  const [briefingToneOfVoice, setBriefingToneOfVoice] = useState<string>("");
+  const [briefingDifferentials, setBriefingDifferentials] = useState<string>("");
+  const [briefingTargetAudience, setBriefingTargetAudience] = useState<string>("");
+  const [briefingCompetitors, setBriefingCompetitors] = useState<string>("");
+  const [savingStrategy, setSavingStrategy] = useState<boolean>(false);
+
   const taskId = task?.id;
 
   const loadBriefingSession = useCallback(async () => {
@@ -109,6 +118,23 @@ export function TaskExecutionModal({
         if (json.clientIdentity) {
           setClientIdentity(json.clientIdentity);
         }
+
+        const ext = json.session.extracted_identity || {};
+        const clientExt = json.clientIdentity || {};
+        setBriefingToneOfVoice(
+          Array.isArray(ext.toneOfVoice)
+            ? ext.toneOfVoice.join(", ")
+            : (ext.toneOfVoice || (Array.isArray(clientExt.tone_of_voice) ? clientExt.tone_of_voice.join(", ") : "Direto, especialista e focado em resultados reais"))
+        );
+        setBriefingDifferentials(
+          ext.differentials || (Array.isArray(clientExt.differentials) ? clientExt.differentials.join(", ") : "")
+        );
+        setBriefingTargetAudience(
+          ext.targetAudience || (Array.isArray(clientExt.target_audiences) ? clientExt.target_audiences.join(", ") : "")
+        );
+        setBriefingCompetitors(
+          ext.competitors || json.session.competitor_notes || ""
+        );
       }
     } catch (err) {
       console.error("Erro ao carregar briefing:", err);
@@ -176,6 +202,40 @@ export function TaskExecutionModal({
       setBriefingFeedback("Erro na comunicação com o servidor.");
     } finally {
       setLoadingBriefing(false);
+    }
+  };
+
+  const handleSaveStrategy = async () => {
+    if (!task?.id) return;
+    setSavingStrategy(true);
+    setBriefingFeedback(null);
+    try {
+      const res = await fetch(`/api/projects/tasks/${task.id}/briefing`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          extractedIdentity: {
+            toneOfVoice: briefingToneOfVoice,
+            differentials: briefingDifferentials,
+            targetAudience: briefingTargetAudience,
+            competitors: briefingCompetitors,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setBriefingSession(json.session);
+        setIsEditingStrategy(false);
+        setBriefingFeedback("Informações de copy e estratégia salvas com sucesso!");
+        onTaskUpdated();
+        setTimeout(() => setBriefingFeedback(null), 4000);
+      } else {
+        setBriefingFeedback(json.error || "Erro ao salvar informações estratégicas.");
+      }
+    } catch {
+      setBriefingFeedback("Erro na comunicação com o servidor.");
+    } finally {
+      setSavingStrategy(false);
     }
   };
 
@@ -537,80 +597,144 @@ export function TaskExecutionModal({
 
                   {/* Informações Coletadas pela Sofia (IA) organizadas por Domínio */}
                   <div className="space-y-4">
-                    {/* 2. DIRETRIZES PARA HEADLINES & COPYWRITING */}
-                    <div className="bg-gradient-to-r from-purple-50/70 to-white border border-purple-200 rounded-2xl p-4.5 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-purple-900 text-xs font-bold uppercase tracking-wide">
-                          <Sparkles className="w-4 h-4 text-purple-600" />
-                          <span>2. Informações para Construção de Headlines & Copywriting</span>
+                    {/* 2. DIRETRIZES PARA HEADLINES & COPYWRITING (EDITÁVEL) */}
+                    <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-3 shadow-hourline">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-zinc-700 shrink-0" />
+                          <h4 className="text-xs font-semibold text-zinc-950">
+                            2. Informações para construção de headlines & copywriting
+                          </h4>
                         </div>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-300">
-                          Texto & Estratégia
-                        </span>
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingStrategy(!isEditingStrategy)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-xs font-medium text-zinc-700 transition"
+                          >
+                            <Edit2 className="w-3.5 h-3.5 text-zinc-500" />
+                            {isEditingStrategy ? "Cancelar Edição" : "Editar Informações"}
+                          </button>
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
+                            Texto & Estratégia
+                          </span>
+                        </div>
                       </div>
+
                       <p className="text-[11px] text-zinc-500">
-                        Dados utilizados pela IA para gerar ganchos de retenção, headlines de alto impacto e legendas persuasivas.
+                        Dados utilizados pela IA para gerar ganchos de retenção, headlines de alto impacto e legendas persuasivas. Você pode editar diretamente qualquer um dos campos abaixo.
                       </p>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
-                          <span className="text-[10px] font-bold text-purple-600 uppercase">Tom de Voz Aprovado</span>
-                          <p className="text-zinc-800 font-medium">
-                            {briefingSession?.extracted_identity?.toneOfVoice
-                              ? Array.isArray(briefingSession.extracted_identity.toneOfVoice)
-                                ? briefingSession.extracted_identity.toneOfVoice.join(", ")
-                                : String(briefingSession.extracted_identity.toneOfVoice)
-                              : Array.isArray(clientIdentity?.tone_of_voice) && clientIdentity.tone_of_voice.length > 0
-                              ? clientIdentity.tone_of_voice.join(", ")
-                              : "Direto, especialista e focado em resultados reais"}
-                          </p>
-                        </div>
+                      {isEditingStrategy ? (
+                        <div className="space-y-3 pt-1">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-medium text-zinc-700 block">Tom de voz aprovado</label>
+                              <input
+                                type="text"
+                                value={briefingToneOfVoice}
+                                onChange={(e) => setBriefingToneOfVoice(e.target.value)}
+                                placeholder="Ex: Direto, especialista e focado em resultados reais"
+                                className="w-full text-xs font-medium border border-zinc-300 rounded-lg p-2.5 bg-white text-zinc-900 focus:outline-none focus:border-zinc-500"
+                              />
+                            </div>
 
-                        <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
-                          <span className="text-[10px] font-bold text-purple-600 uppercase">Diferenciais da Marca</span>
-                          <p className="text-zinc-800 font-medium">
-                            {String(
-                              briefingSession?.extracted_identity?.differentials ||
-                                (Array.isArray(clientIdentity?.differentials) && clientIdentity.differentials.length > 0
-                                  ? clientIdentity.differentials.join(", ")
-                                  : "Velocidade na entrega, atendimento direto e resultados mensuráveis")
-                            )}
-                          </p>
-                        </div>
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-medium text-zinc-700 block">Concorrentes ou referências</label>
+                              <input
+                                type="text"
+                                value={briefingCompetitors}
+                                onChange={(e) => setBriefingCompetitors(e.target.value)}
+                                placeholder="Ex: @concorrente1, @referencia2"
+                                className="w-full text-xs font-medium border border-zinc-300 rounded-lg p-2.5 bg-white text-zinc-900 focus:outline-none focus:border-zinc-500"
+                              />
+                            </div>
 
-                        <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
-                          <span className="text-[10px] font-bold text-purple-600 uppercase">Público-Alvo Prioritário (ICP)</span>
-                          <p className="text-zinc-800 font-medium">
-                            {String(
-                              briefingSession?.extracted_identity?.targetAudience ||
-                                (Array.isArray(clientIdentity?.target_audiences) && clientIdentity.target_audiences.length > 0
-                                  ? clientIdentity.target_audiences.join(", ")
-                                  : "Clientes qualificados buscando soluções completas")
-                            )}
-                          </p>
-                        </div>
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-medium text-zinc-700 block">Diferenciais da marca</label>
+                              <textarea
+                                rows={3}
+                                value={briefingDifferentials}
+                                onChange={(e) => setBriefingDifferentials(e.target.value)}
+                                placeholder="Ex: Metodologia estruturada, atendimento humanizado, correção postural avançada..."
+                                className="w-full text-xs font-medium border border-zinc-300 rounded-lg p-2.5 bg-white text-zinc-900 focus:outline-none focus:border-zinc-500 resize-none"
+                              />
+                            </div>
 
-                        <div className="p-3 bg-white rounded-xl border border-purple-100 space-y-1">
-                          <span className="text-[10px] font-bold text-purple-600 uppercase">Concorrentes Informados</span>
-                          <p className="text-zinc-800 font-medium">
-                            {String(
-                              briefingSession?.extracted_identity?.competitors ||
-                                competitorNotes ||
-                                "Mapeamento em andamento no Estúdio de Estratégia"
-                            )}
-                          </p>
+                            <div className="space-y-1">
+                              <label className="text-[11px] font-medium text-zinc-700 block">Público-alvo prioritário (ICP)</label>
+                              <textarea
+                                rows={3}
+                                value={briefingTargetAudience}
+                                onChange={(e) => setBriefingTargetAudience(e.target.value)}
+                                placeholder="Ex: Pessoas com dor muscular ou lesões, jovens para correção postural..."
+                                className="w-full text-xs font-medium border border-zinc-300 rounded-lg p-2.5 bg-white text-zinc-900 focus:outline-none focus:border-zinc-500 resize-none"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-end gap-2 pt-2 border-t border-zinc-100">
+                            <button
+                              type="button"
+                              onClick={() => setIsEditingStrategy(false)}
+                              className="px-3 py-1.5 rounded-lg border border-zinc-200 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSaveStrategy}
+                              disabled={savingStrategy}
+                              className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-medium transition disabled:opacity-50"
+                            >
+                              {savingStrategy ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                              Salvar Alterações de Estratégia
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div className="p-3 bg-zinc-50/70 rounded-lg border border-zinc-200 space-y-1">
+                            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Tom de Voz Aprovado</span>
+                            <p className="text-zinc-900 font-medium">
+                              {briefingToneOfVoice || "Direto, especialista e focado em resultados reais"}
+                            </p>
+                          </div>
+
+                          <div className="p-3 bg-zinc-50/70 rounded-lg border border-zinc-200 space-y-1">
+                            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Diferenciais da Marca</span>
+                            <p className="text-zinc-900 font-medium">
+                              {briefingDifferentials || "Velocidade na entrega, atendimento direto e resultados mensuráveis"}
+                            </p>
+                          </div>
+
+                          <div className="p-3 bg-zinc-50/70 rounded-lg border border-zinc-200 space-y-1">
+                            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Público-Alvo Prioritário (ICP)</span>
+                            <p className="text-zinc-900 font-medium">
+                              {briefingTargetAudience || "Clientes qualificados buscando soluções completas"}
+                            </p>
+                          </div>
+
+                          <div className="p-3 bg-zinc-50/70 rounded-lg border border-zinc-200 space-y-1">
+                            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Concorrentes Informados</span>
+                            <p className="text-zinc-900 font-medium">
+                              {briefingCompetitors || competitorNotes || "Mapeamento em andamento no Estúdio de Estratégia"}
+                            </p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* 3. DIRETRIZES VISUAIS PARA PROMPTS DE IMAGEM */}
-                    <div className="bg-gradient-to-r from-blue-50/70 to-white border border-blue-200 rounded-2xl p-4.5 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-blue-900 text-xs font-bold uppercase tracking-wide">
-                          <Layers className="w-4 h-4 text-blue-600" />
-                          <span>3. Informações para Construção do Prompt para Imagem</span>
+                    <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-3 shadow-hourline">
+                      <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
+                        <div className="flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-zinc-700" />
+                          <h4 className="text-xs font-semibold text-zinc-950">
+                            3. Informações para construção do prompt para imagem
+                          </h4>
                         </div>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300">
+                        <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-zinc-100 text-zinc-700 border border-zinc-200">
                           Diretrizes Visuais
                         </span>
                       </div>
@@ -619,20 +743,20 @@ export function TaskExecutionModal({
                       </p>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1">
-                          <span className="text-[10px] font-bold text-blue-600 uppercase">Proporção / Aspect Ratio Padrão</span>
-                          <p className="text-zinc-800 font-semibold">Feed Vertical 4:5 (1080x1350) & Stories 9:16 (1080x1920)</p>
-                          <p className="text-[10px] text-zinc-500">Otimizado para máxima ocupação de tela nos smartphones.</p>
+                        <div className="p-3 bg-zinc-50/70 rounded-lg border border-zinc-200 space-y-1">
+                          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Proporção / Aspect Ratio Padrão</span>
+                          <p className="text-zinc-900 font-medium">Feed Vertical 4:5 (1080x1350) & Stories 9:16 (1080x1920)</p>
+                          <p className="text-[10px] text-zinc-400">Otimizado para máxima ocupação de tela nos smartphones.</p>
                         </div>
 
-                        <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1">
-                          <span className="text-[10px] font-bold text-blue-600 uppercase">Estilo Visual & Iluminação</span>
-                          <p className="text-zinc-800 font-medium">Fotografia profissional de alta qualidade, iluminação suave comercial, render limpo e sofisticado.</p>
+                        <div className="p-3 bg-zinc-50/70 rounded-lg border border-zinc-200 space-y-1">
+                          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Estilo Visual & Iluminação</span>
+                          <p className="text-zinc-900 font-medium">Fotografia profissional de alta qualidade, iluminação suave comercial, render limpo e sofisticado.</p>
                         </div>
 
-                        <div className="p-3 bg-white rounded-xl border border-blue-100 space-y-1 sm:col-span-2">
-                          <span className="text-[10px] font-bold text-blue-600 uppercase">Regras de Exclusão (Negative Prompts)</span>
-                          <p className="text-zinc-700 text-[11px]">
+                        <div className="p-3 bg-zinc-50/70 rounded-lg border border-zinc-200 space-y-1 sm:col-span-2">
+                          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Regras de Exclusão (Negative Prompts)</span>
+                          <p className="text-zinc-600 text-[11px]">
                             Sem mãos deformadas, sem textos borrados ou ilegíveis dentro da imagem, sem poluição visual, sem logos de terceiros conflitantes.
                           </p>
                         </div>

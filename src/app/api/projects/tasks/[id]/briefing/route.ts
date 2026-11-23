@@ -161,6 +161,7 @@ export async function POST(
       instagramUrl,
       initialNotes,
       competitorNotes,
+      extractedIdentity,
     } = body;
 
     // Verificar se existe a sessão
@@ -186,9 +187,9 @@ export async function POST(
         INSERT INTO public.client_briefing_sessions (
           token, project_id, task_id, client_id, company_name, contact_name,
           website_url, maps_url, instagram_url, initial_notes, competitor_notes,
-          conversation_history, status, progress_percent
+          extracted_identity, conversation_history, status, progress_percent
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, '[]'::jsonb, 'PENDING', 15
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, '[]'::jsonb, 'PENDING', 15
         ) RETURNING *
         `,
         [
@@ -203,11 +204,12 @@ export async function POST(
           instagramUrl || null,
           initialNotes || null,
           competitorNotes || null,
+          extractedIdentity ? JSON.stringify(extractedIdentity) : "{}",
         ]
       );
       session = insertRes.rows[0];
     } else {
-      // Atualizar campos pré-preenchidos pela equipe
+      // Atualizar campos pré-preenchidos pela equipe e identidade estratégica
       const updateRes = await query(
         `
         UPDATE public.client_briefing_sessions
@@ -219,8 +221,12 @@ export async function POST(
           instagram_url = $5,
           initial_notes = $6,
           competitor_notes = $7,
+          extracted_identity = CASE 
+            WHEN $8::jsonb IS NOT NULL THEN (COALESCE(extracted_identity, '{}'::jsonb) || $8::jsonb)
+            ELSE extracted_identity 
+          END,
           updated_at = NOW()
-        WHERE id = $8
+        WHERE id = $9
         RETURNING *
         `,
         [
@@ -231,6 +237,7 @@ export async function POST(
           instagramUrl || null,
           initialNotes || null,
           competitorNotes || null,
+          extractedIdentity ? JSON.stringify(extractedIdentity) : null,
           session.id,
         ]
       );

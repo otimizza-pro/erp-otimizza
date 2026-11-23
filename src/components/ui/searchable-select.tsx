@@ -67,27 +67,27 @@ export function SearchableSelect({
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-1.5 text-xs font-semibold bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-purple-600 disabled:opacity-50 transition shadow-2xs text-left"
+        className="w-full flex items-center justify-between gap-2 px-3 h-9 text-xs font-medium bg-white border border-zinc-200 rounded-lg hover:bg-zinc-50 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400 disabled:opacity-50 transition text-left"
       >
-        <span className="truncate text-zinc-900 font-bold">
+        <span className="truncate text-zinc-900">
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown className={`w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} strokeWidth={1.5} />
       </button>
 
       {/* Dropdown com Campo de Busca Digitável */}
       {isOpen && (
-        <div className="absolute right-0 left-0 sm:left-auto sm:right-0 mt-1 min-w-[280px] max-w-[360px] bg-white border border-zinc-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+        <div className="absolute right-0 left-0 sm:left-auto sm:right-0 mt-1 min-w-[280px] max-w-[360px] bg-white border border-zinc-200 rounded-xl shadow-lg z-50 overflow-hidden animate-in fade-in duration-100">
           <div className="p-2 border-b border-zinc-100 bg-zinc-50/70">
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-2.5" />
+              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-2.5 top-2.5" strokeWidth={1.5} />
               <input
                 ref={inputRef}
                 type="text"
                 placeholder={searchPlaceholder}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-white border border-zinc-200 rounded-lg pl-8 pr-7 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-1 focus:ring-purple-600"
+                className="w-full bg-white border border-zinc-200 rounded-lg pl-8 pr-7 py-1.5 text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
               />
               {searchTerm && (
                 <button
@@ -95,7 +95,7 @@ export function SearchableSelect({
                   onClick={() => setSearchTerm("")}
                   className="absolute right-2 top-2 text-zinc-400 hover:text-zinc-600 p-0.5"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3 h-3" strokeWidth={1.5} />
                 </button>
               )}
             </div>
@@ -117,19 +117,19 @@ export function SearchableSelect({
                       onChange(opt.value);
                       setIsOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-xs rounded-xl text-left transition ${
+                    className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 text-xs rounded-lg text-left transition ${
                       isSelected
-                        ? "bg-purple-50 text-purple-950 font-bold"
-                        : "hover:bg-zinc-50 text-zinc-700"
+                        ? "bg-zinc-900 text-white font-medium"
+                        : "hover:bg-zinc-100 text-zinc-700"
                     }`}
                   >
                     <div className="flex flex-col truncate">
                       <span className="truncate">{opt.label}</span>
                       {opt.sublabel && (
-                        <span className="text-[10px] text-zinc-400 truncate">{opt.sublabel}</span>
+                        <span className={`text-[10px] truncate ${isSelected ? "text-zinc-300" : "text-zinc-400"}`}>{opt.sublabel}</span>
                       )}
                     </div>
-                    {isSelected && <Check className="w-3.5 h-3.5 text-purple-600 shrink-0" />}
+                    {isSelected && <Check className="w-3.5 h-3.5 text-white shrink-0" strokeWidth={1.5} />}
                   </button>
                 );
               })

@@ -209,7 +209,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
           </div>
           <Link
             href="/clients/new"
-            className="px-4 py-2 rounded-full bg-zinc-950 text-white text-xs font-semibold hover:bg-zinc-800 transition shadow-xs flex items-center gap-1.5 active:scale-[0.98]"
+            className="h-9 px-3.5 rounded-lg bg-zinc-950 text-white text-xs font-medium hover:bg-zinc-800 transition shadow-xs flex items-center gap-1.5 active:scale-[0.98]"
           >
             <Plus className="w-3.5 h-3.5" />
             Novo Cliente
@@ -218,38 +218,38 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
 
         {/* Feedback Banner */}
         {feedbackMessage && (
-          <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-900 flex items-center justify-between gap-2 shadow-xs">
+          <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center justify-between gap-2 shadow-xs">
             <div className="flex items-center gap-2 font-medium">
               <Check className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>{feedbackMessage}</span>
             </div>
-            <button onClick={() => setFeedbackMessage(null)} className="text-emerald-700 font-bold hover:underline">
+            <button onClick={() => setFeedbackMessage(null)} className="text-emerald-700 font-semibold hover:underline">
               Fechar
             </button>
           </div>
         )}
 
-        {!former&&<section className="flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-hourline sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><Building2 className="h-5 w-5"/></span><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-bold text-zinc-950">Otimizza Growth</h2><span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">Empresa interna · Fixa</span></div><p className="mt-1 text-xs text-zinc-500">Planejamento e conteúdo da própria marca. Não entra na contagem de clientes.</p></div></div><div className="flex flex-wrap gap-2"><Link onClick={selectOtimizza} href="/marketing/strategy" className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50">Estratégia</Link><Link onClick={selectOtimizza} href={"/clients/"+INTERNAL_COMPANY_ID+"/identity"} className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50">Identidade e manuais</Link><Link onClick={selectOtimizza} href="/prompt-creator" className="rounded-full bg-zinc-950 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800">Criar conteúdo</Link></div></section>}
+        {!former&&<section className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-hourline sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700 border border-zinc-200"><Building2 className="h-4 w-4"/></span><div><div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-semibold text-zinc-950">Otimizza Growth</h2><span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">Empresa interna · Fixa</span></div><p className="mt-0.5 text-xs text-zinc-500">Planejamento e conteúdo da própria marca. Não entra na contagem de clientes.</p></div></div><div className="flex flex-wrap gap-2"><Link onClick={selectOtimizza} href="/marketing/strategy" className="h-8 inline-flex items-center rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50">Estratégia</Link><Link onClick={selectOtimizza} href={"/clients/"+INTERNAL_COMPANY_ID+"/identity"} className="h-8 inline-flex items-center rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 hover:bg-zinc-50">Identidade e manuais</Link><Link onClick={selectOtimizza} href="/prompt-creator" className="h-8 inline-flex items-center rounded-lg bg-zinc-950 px-3 text-xs font-medium text-white hover:bg-zinc-800">Criar conteúdo</Link></div></section>}
         {/* Barra de Pesquisa e Filtros */}
-        <div className="p-4 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline flex flex-col md:flex-row items-center justify-between gap-4">
-          <form onSubmit={handleSearchSubmit} className="relative w-full md:w-96">
-            <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <div className="p-3.5 rounded-xl bg-white border border-zinc-200 shadow-hourline flex flex-col md:flex-row items-center justify-between gap-3">
+          <form onSubmit={handleSearchSubmit} className="relative w-full md:w-80">
+            <Search className="w-4 h-4 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="Buscar por nome, razão social, documento..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-full bg-zinc-50 border border-zinc-200 text-xs text-zinc-900 placeholder-zinc-400 focus:bg-white focus:outline-none focus:border-zinc-900 transition"
+              className="w-full h-9 pl-9 pr-3 rounded-lg bg-zinc-50 border border-zinc-200 text-xs text-zinc-900 placeholder-zinc-400 focus:bg-white focus:outline-none focus:border-zinc-400 transition"
             />
           </form>
 
           <div className="flex items-center gap-2 w-full md:w-auto justify-end">
             {/* Filtro Status */}
-            <div className="flex items-center rounded-full bg-zinc-100 p-1 text-xs">
+            <div className="flex items-center rounded-lg bg-zinc-100 p-0.5 text-xs">
               <button
                 type="button"
                 onClick={() => setStatusFilter("ACTIVE")}
-                className={`px-3 py-1 rounded-full font-medium transition ${
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
                   statusFilter === "ACTIVE"
                     ? "bg-white text-zinc-950 shadow-2xs font-semibold"
                     : "text-zinc-600 hover:text-zinc-950"
@@ -260,7 +260,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
               <button
                 type="button"
                 onClick={() => setStatusFilter("ARCHIVED")}
-                className={`px-3 py-1 rounded-full font-medium transition ${
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
                   statusFilter === "ARCHIVED"
                     ? "bg-white text-zinc-950 shadow-2xs font-semibold"
                     : "text-zinc-600 hover:text-zinc-950"
@@ -274,7 +274,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as "" | "PF" | "PJ")}
-              className="px-3 py-1.5 rounded-full bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 focus:outline-none focus:border-zinc-900 font-medium"
+              className="h-9 px-3 rounded-lg bg-white border border-zinc-200 text-xs text-zinc-700 focus:outline-none focus:border-zinc-400 font-medium"
             >
               <option value="">Todos os tipos</option>
               <option value="PJ">Pessoa Jurídica (PJ)</option>
@@ -284,7 +284,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
             <button
               onClick={loadClients}
               title="Atualizar lista"
-              className="p-2 rounded-full bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition"
+              className="h-9 w-9 flex items-center justify-center rounded-lg bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             </button>
@@ -292,18 +292,18 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
         </div>
 
         {/* Tabela de Clientes */}
-        <div className="p-6 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline space-y-4">
+        <div className="p-4 sm:p-5 rounded-xl bg-white border border-zinc-200 shadow-hourline space-y-3">
           <div className="flex items-center justify-between text-xs text-zinc-500">
             <span>
-              Total cadastrado: <strong className="text-zinc-900">{total}</strong> cliente(s)
+              Total cadastrado: <strong className="text-zinc-900 font-mono tabular-nums">{total}</strong> cliente(s)
             </span>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-zinc-600">
-              <thead className="text-[10px] uppercase tracking-wider text-zinc-400 border-b border-zinc-100">
+              <thead className="text-xs font-medium text-zinc-500 border-b border-zinc-200">
                 <tr>
-                  <th className="py-3 px-3 w-10 text-center">
+                  <th className="py-2.5 px-3 w-10 text-center">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -312,13 +312,13 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
                       className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer h-4 w-4"
                     />
                   </th>
-                  <th className="py-3 px-3">Tipo</th>
-                  <th className="py-3 px-3">Nome / Razão Social</th>
-                  <th className="py-3 px-3">Documento</th>
-                  <th className="py-3 px-3">Contato</th>
-                  <th className="py-3 px-3">Localização</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3 text-right">Ação</th>
+                  <th className="py-2.5 px-3">Tipo</th>
+                  <th className="py-2.5 px-3">Nome / Razão Social</th>
+                  <th className="py-2.5 px-3">Documento</th>
+                  <th className="py-2.5 px-3">Contato</th>
+                  <th className="py-2.5 px-3">Localização</th>
+                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 text-right">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -350,7 +350,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
                         key={c.id}
                         className={`transition ${isSelected ? "bg-zinc-100/70" : "hover:bg-zinc-50/70"}`}
                       >
-                        <td className="py-3.5 px-3 text-center">
+                        <td className="py-3 px-3 text-center">
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -358,21 +358,17 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
                             className="rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 cursor-pointer h-4 w-4"
                           />
                         </td>
-                        <td className="py-3.5 px-3">
+                        <td className="py-3 px-3">
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-medium ${
-                              c.type === "PJ"
-                                ? "bg-blue-50 text-blue-700 border border-blue-200"
-                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            }`}
+                            className="px-1.5 py-0.5 rounded text-[11px] font-mono font-medium bg-zinc-100 text-zinc-700 border border-zinc-200"
                           >
                             {c.type}
                           </span>
                         </td>
-                        <td className="py-3.5 px-3">
+                        <td className="py-3 px-3">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-zinc-100 text-zinc-800 flex items-center justify-center font-bold text-[10px] shrink-0">
-                              {c.type === "PJ" ? <Building2 className="w-3.5 h-3.5 text-zinc-600" /> : <User className="w-3.5 h-3.5 text-zinc-600" />}
+                            <div className="w-7 h-7 rounded-lg bg-zinc-100 border border-zinc-200 text-zinc-700 flex items-center justify-center shrink-0">
+                              {c.type === "PJ" ? <Building2 className="w-3.5 h-3.5 text-zinc-500" /> : <User className="w-3.5 h-3.5 text-zinc-500" />}
                             </div>
                             <div>
                               <Link
@@ -382,21 +378,21 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
                                 {c.name}
                               </Link>
                               {c.tradeName && (
-                                <div className="text-[10px] text-zinc-400">
+                                <div className="text-[11px] text-zinc-400">
                                   Fantasia: {c.tradeName}
                                 </div>
                               )}
                             </div>
                           </div>
                         </td>
-                        <td className="py-3.5 px-3 font-mono text-zinc-600">
+                        <td className="py-3 px-3 font-mono tabular-nums text-zinc-600">
                           {c.document ? formatDocument(c.document) : "-"}
                         </td>
-                        <td className="py-3.5 px-3">
+                        <td className="py-3 px-3">
                           {c.email && <div className="text-zinc-800">{c.email}</div>}
                           <div className="flex items-center gap-1.5 mt-0.5">
                             {c.phone && (
-                              <span className="text-[11px] text-zinc-500 font-mono">
+                              <span className="text-[11px] text-zinc-500 font-mono tabular-nums">
                                 {c.phone}
                               </span>
                             )}
@@ -406,25 +402,25 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
                           </div>
                           {!c.email && !c.phone && !c.whatsapp && <span className="text-zinc-400">-</span>}
                         </td>
-                        <td className="py-3.5 px-3">
+                        <td className="py-3 px-3">
                           {c.city ? `${c.city}${c.state ? ` - ${c.state}` : ""}` : "-"}
                         </td>
-                        <td className="py-3.5 px-3">
+                        <td className="py-3 px-3">
                           <span
-                            className={`px-3 py-1 rounded-full text-[10px] font-semibold border ${
+                            className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
                               c.status === "ACTIVE"
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                : "bg-zinc-100 text-zinc-500 border-zinc-200"
+                                : "bg-zinc-100 text-zinc-600 border-zinc-200"
                             }`}
                           >
-                            {c.status === "ACTIVE" ? "ATIVO" : "ARQUIVADO"}
+                            {c.status === "ACTIVE" ? "Ativo" : "Arquivado"}
                           </span>
                         </td>
-                        <td className="py-3.5 px-3 text-right">
+                        <td className="py-3 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <Link
                               href={`/clients/${c.id}`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-semibold border border-zinc-200 transition"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium border border-zinc-200 transition"
                               title="Ver detalhes do cliente"
                             >
                               Detalhes
@@ -432,7 +428,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
                             </Link>
                             <Link
                               href={`/clients/${c.id}/edit`}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-50 hover:bg-zinc-100 text-zinc-700 text-xs font-semibold border border-zinc-200 transition"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium border border-zinc-200 transition"
                               title="Editar cadastro do cliente"
                             >
                               <Edit2 className="w-3 h-3 text-zinc-500" />
@@ -442,10 +438,10 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
                               type="button"
                               disabled={deletingId === c.id}
                               onClick={() => handleDeleteClient(c)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold border border-rose-200 transition disabled:opacity-50 cursor-pointer"
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white hover:bg-rose-50 text-rose-700 text-xs font-medium border border-rose-200 transition disabled:opacity-50 cursor-pointer"
                               title="Excluir cliente, documentos e liberar espaço"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3 h-3 text-rose-600" />
                               {deletingId === c.id ? "Excluindo..." : "Excluir"}
                             </button>
                           </div>

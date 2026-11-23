@@ -85,7 +85,7 @@ export function CurrencyInput({
     <div className={`relative flex items-center ${wrapperClassName}`}>
       {showCurrencySymbol && (
         <span
-          className="absolute left-3 font-semibold text-zinc-500 text-xs sm:text-sm select-none pointer-events-none"
+          className="absolute left-3 font-medium text-zinc-400 text-xs select-none pointer-events-none"
           aria-hidden="true"
         >
           R$
@@ -100,7 +100,7 @@ export function CurrencyInput({
         onChange={handleChange}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        className={`${showCurrencySymbol ? "pl-9" : "pl-3"} ${className}`}
+        className={`font-mono tabular-nums ${showCurrencySymbol ? "pl-8" : "pl-3"} ${className}`}
         {...rest}
       />
     </div>

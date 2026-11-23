@@ -382,22 +382,22 @@ function NewProjectFormContent() {
 
           {/* Prévia Dinâmica das Fases com Datas Sugeridas */}
           {templateDetail && templateDetail.stages && templateDetail.stages.length > 0 && (
-            <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-2xl p-5 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-100 pb-2.5">
+            <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
                 <div className="flex items-center gap-2">
-                  <Rocket className="w-4 h-4 text-indigo-600" />
-                  <span className="text-xs font-bold text-indigo-950">
-                    Fases do Modelo com Datas Sugeridas (Base: Início em {calculateDate(startDate, 0)})
+                  <Rocket className="w-4 h-4 text-zinc-500" strokeWidth={1.5} />
+                  <span className="text-xs font-medium text-zinc-900">
+                    Fases do modelo com datas sugeridas (Início em {calculateDate(startDate, 0)})
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   {isSocialMediaTemplate && (
-                    <span className="text-[11px] font-semibold text-indigo-700 bg-white px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-indigo-600" />
+                    <span className="text-[11px] font-medium text-zinc-700 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-200 flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-zinc-500" strokeWidth={1.5} />
                       Modelo de Social Media
                     </span>
                   )}
-                  <span className="text-[11px] font-mono font-semibold text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200">
+                  <span className="text-[11px] font-mono text-zinc-500 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-200">
                     {templateDetail.stages.length} {templateDetail.stages.length === 1 ? "fase estruturada" : "fases estruturadas"}
                   </span>
                 </div>
@@ -411,17 +411,17 @@ function NewProjectFormContent() {
                   return (
                     <div
                       key={stage.id}
-                      className="bg-white p-3.5 rounded-xl border border-indigo-100/80 space-y-2 shadow-2xs"
+                      className="bg-zinc-50/70 p-3 rounded-lg border border-zinc-200/80 space-y-1.5"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
+                        <span className="w-5 h-5 rounded-full bg-zinc-900 text-white font-mono text-[10px] flex items-center justify-center shrink-0">
                           {idx + 1}
                         </span>
-                        <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                        <span className="text-[10px] font-mono text-zinc-700 bg-white px-1.5 py-0.2 rounded border border-zinc-200">
                           {stageStart} ~ {stageEnd}
                         </span>
                       </div>
-                      <h4 className="font-bold text-xs text-zinc-900">{stage.name}</h4>
+                      <h4 className="font-medium text-xs text-zinc-900">{stage.name}</h4>
                       <p className="text-[11px] text-zinc-500">
                         {stage.tasks?.length || 0} tarefas programadas
                       </p>
@@ -432,33 +432,33 @@ function NewProjectFormContent() {
 
               {/* Se for template de Social Media: Planejador de Grade Integrado dentro do Modelo */}
               {isSocialMediaTemplate && (
-                <div className="pt-3 border-t border-indigo-200/70 space-y-3">
-                  <div className="flex items-center justify-between bg-white/90 p-3 rounded-xl border border-indigo-100">
-                    <label className="flex items-center gap-2.5 text-xs font-bold text-slate-900 cursor-pointer">
+                <div className="pt-3 border-t border-zinc-100 space-y-3">
+                  <div className="flex items-center justify-between bg-zinc-50 p-2.5 rounded-lg border border-zinc-200">
+                    <label className="flex items-center gap-2.5 text-xs font-medium text-zinc-900 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={planSocialMedia}
                         onChange={(e) => setPlanSocialMedia(e.target.checked)}
-                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                        className="w-4 h-4 rounded text-zinc-900 focus:ring-zinc-400 border-zinc-300"
                       />
                       <span className="flex items-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-indigo-600" />
+                        <Calendar className="w-3.5 h-3.5 text-zinc-500" strokeWidth={1.5} />
                         Planejar conteúdo de Social Media vinculado a este projeto
                       </span>
                     </label>
-                    <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-semibold border ${
+                    <span className={`text-[10px] px-2 py-0.2 rounded font-medium border ${
                       planSocialMedia 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                        : "bg-slate-100 text-slate-500 border-slate-200"
+                        ? "bg-zinc-900 text-white border-zinc-900" 
+                        : "bg-white text-zinc-500 border-zinc-200"
                     }`}>
                       {planSocialMedia ? "Ativo" : "Desativado"}
                     </span>
                   </div>
 
                   {planSocialMedia && (
-                    <div className="space-y-3 bg-white p-4 rounded-xl border border-indigo-100 shadow-2xs">
-                      <p className="text-xs text-slate-600 leading-relaxed">
-                        Defina a quantidade de posts e clique nas datas desejadas no calendário para vincular a grade de publicações a este projeto. Os posts serão automaticamente registrados no Calendário Editorial do cliente a partir do início do projeto.
+                    <div className="space-y-3 bg-white p-3.5 rounded-lg border border-zinc-200">
+                      <p className="text-xs text-zinc-500 leading-relaxed">
+                        Defina a quantidade de posts e marque as datas no calendário para vincular a grade de publicações a este projeto.
                       </p>
                       <SocialMediaScheduleFields
                         value={socialMediaSchedule}

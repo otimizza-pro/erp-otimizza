@@ -360,12 +360,12 @@ export default function ExecutiveDashboardPage() {
 
         {/* BLOCO DE PENDÊNCIAS & CENTRAL DE AÇÃO */}
         {actionData && (
-          <div className="bg-white border border-zinc-200/80 p-6 rounded-2xl shadow-xs space-y-4">
+          <div className="bg-white border border-zinc-200 p-5 sm:p-6 rounded-xl shadow-hourline space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-600" />
-                <h2 className="text-xs font-bold text-zinc-950 uppercase tracking-wider">
-                  Pendências Operacionais & Ações Prioritárias
+                <AlertCircle className="w-4 h-4 text-zinc-500" />
+                <h2 className="text-sm font-semibold text-zinc-950">
+                  Pendências operacionais & ações prioritárias
                 </h2>
               </div>
               <span className="text-[11px] text-zinc-400">
@@ -373,71 +373,67 @@ export default function ExecutiveDashboardPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {/* 1. Atividades Comerciais */}
               <Link
                 href="/crm/activities?status=PENDING&filter=critical"
-                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+                className="p-3.5 rounded-lg bg-zinc-50/70 hover:bg-zinc-100/80 border border-zinc-200 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                    Atividades Comerciais
+                  <span className="text-xs font-medium text-zinc-600">
+                    Atividades comerciais
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
                       actionData.counts.activities > 0
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-zinc-200 text-zinc-600"
+                        ? "bg-amber-50 text-amber-800 border-amber-200"
+                        : "bg-zinc-100 text-zinc-600 border-zinc-200"
                     }`}
                   >
                     {actionData.counts.activities} pendentes
                   </span>
                 </div>
-                <div className="text-xs text-zinc-800 font-semibold group-hover:text-indigo-600 transition flex items-center justify-between">
+                <div className="text-xs text-zinc-900 font-medium group-hover:text-zinc-950 transition flex items-center justify-between">
                   <span>Reuniões e tarefas no prazo</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-indigo-600" />
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
                 </div>
               </Link>
 
               {/* 2. Propostas Aguardando Retorno */}
               <Link
                 href="/proposals?status=SENT"
-                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+                className="p-3.5 rounded-lg bg-zinc-50/70 hover:bg-zinc-100/80 border border-zinc-200 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                    Propostas Enviadas
+                  <span className="text-xs font-medium text-zinc-600">
+                    Propostas enviadas
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      actionData.counts.proposals > 0
-                        ? "bg-indigo-100 text-indigo-800"
-                        : "bg-zinc-200 text-zinc-600"
-                    }`}
+                    className="px-2 py-0.5 rounded text-[11px] font-medium border bg-zinc-100 text-zinc-700 border-zinc-200"
                   >
                     {actionData.counts.proposals} aguardando
                   </span>
                 </div>
-                <div className="text-xs text-zinc-800 font-semibold group-hover:text-indigo-600 transition flex items-center justify-between">
+                <div className="text-xs text-zinc-900 font-medium group-hover:text-zinc-950 transition flex items-center justify-between">
                   <span>Aguardando retorno do cliente</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-indigo-600" />
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
                 </div>
               </Link>
 
               {/* 3. Contas a Receber Vencidas */}
               <Link
                 href="/financial/receivables?status=PENDING&overdue=true"
-                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+                className="p-3.5 rounded-lg bg-zinc-50/70 hover:bg-zinc-100/80 border border-zinc-200 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                    Cobranças Vencidas
+                  <span className="text-xs font-medium text-zinc-600">
+                    Cobranças vencidas
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
                       actionData.counts.overdueReceivables > 0
-                        ? "bg-rose-100 text-rose-800"
-                        : "bg-emerald-100 text-emerald-800"
+                        ? "bg-rose-50 text-rose-700 border-rose-200"
+                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
                     }`}
                   >
                     {actionData.counts.overdueReceivables > 0
@@ -445,84 +441,84 @@ export default function ExecutiveDashboardPage() {
                       : "Em dia"}
                   </span>
                 </div>
-                <div className="text-xs text-zinc-800 font-semibold group-hover:text-rose-600 transition flex items-center justify-between">
+                <div className="text-xs text-zinc-900 font-medium group-hover:text-zinc-950 transition flex items-center justify-between">
                   <span>Inadimplência a cobrar</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-rose-600" />
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
                 </div>
               </Link>
 
               {/* 4. Contas a Pagar no Vencimento */}
               <Link
                 href="/financial/payables?status=PENDING&filter=critical"
-                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+                className="p-3.5 rounded-lg bg-zinc-50/70 hover:bg-zinc-100/80 border border-zinc-200 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                    Contas a Pagar (7 Dias)
+                  <span className="text-xs font-medium text-zinc-600">
+                    Contas a pagar (7 dias)
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
                       actionData.counts.upcomingPayables > 0
-                        ? "bg-amber-100 text-amber-800"
-                        : "bg-zinc-200 text-zinc-600"
+                        ? "bg-amber-50 text-amber-800 border-amber-200"
+                        : "bg-zinc-100 text-zinc-600 border-zinc-200"
                     }`}
                   >
                     {actionData.counts.upcomingPayables} a vencer
                   </span>
                 </div>
-                <div className="text-xs text-zinc-800 font-semibold group-hover:text-amber-700 transition flex items-center justify-between">
+                <div className="text-xs text-zinc-900 font-medium group-hover:text-zinc-950 transition flex items-center justify-between">
                   <span>Despesas próximas do vencimento</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-amber-700" />
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
                 </div>
               </Link>
 
               {/* 5. Contratos Próximos do Término */}
               <Link
                 href="/contracts?filter=expiring"
-                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+                className="p-3.5 rounded-lg bg-zinc-50/70 hover:bg-zinc-100/80 border border-zinc-200 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                    Renovações de Contrato
+                  <span className="text-xs font-medium text-zinc-600">
+                    Renovações de contrato
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
                       actionData.counts.expiringContracts > 0
-                        ? "bg-purple-100 text-purple-800"
-                        : "bg-zinc-200 text-zinc-600"
+                        ? "bg-amber-50 text-amber-800 border-amber-200"
+                        : "bg-zinc-100 text-zinc-600 border-zinc-200"
                     }`}
                   >
                     {actionData.counts.expiringContracts} a vencer
                   </span>
                 </div>
-                <div className="text-xs text-zinc-800 font-semibold group-hover:text-purple-700 transition flex items-center justify-between">
+                <div className="text-xs text-zinc-900 font-medium group-hover:text-zinc-950 transition flex items-center justify-between">
                   <span>Vigências expirando em 30 dias</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-purple-700" />
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
                 </div>
               </Link>
 
               {/* 6. Projetos com Prazo Próximo ou Atrasados */}
               <Link
                 href="/projects?filter=critical"
-                className="p-4 rounded-xl bg-zinc-50 hover:bg-zinc-100/80 border border-zinc-200/70 transition space-y-1.5 group block"
+                className="p-3.5 rounded-lg bg-zinc-50/70 hover:bg-zinc-100/80 border border-zinc-200 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">
-                    Prazos de Projetos
+                  <span className="text-xs font-medium text-zinc-600">
+                    Prazos de projetos
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
                       actionData.counts.overdueProjects > 0
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-zinc-200 text-zinc-600"
+                        ? "bg-rose-50 text-rose-700 border-rose-200"
+                        : "bg-zinc-100 text-zinc-600 border-zinc-200"
                     }`}
                   >
                     {actionData.counts.overdueProjects} críticos
                   </span>
                 </div>
-                <div className="text-xs text-zinc-800 font-semibold group-hover:text-blue-700 transition flex items-center justify-between">
-                  <span>Prazos de entrega de clientes</span>
-                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-blue-700" />
+                <div className="text-xs text-zinc-900 font-medium group-hover:text-zinc-950 transition flex items-center justify-between">
+                  <span>Entregas de fases com atraso</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
                 </div>
               </Link>
             </div>
@@ -533,96 +529,88 @@ export default function ExecutiveDashboardPage() {
         {isWidgetVisible("kpis_summary") && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Receita Recebida */}
-            <div className="bg-white border border-zinc-200/80 p-5 rounded-2xl shadow-xs">
+            <div className="bg-white border border-zinc-200 p-4.5 rounded-xl">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                  Receita Realizada (Caixa)
+                <span className="text-xs font-medium text-zinc-500">
+                  Receita realizada (Caixa)
                 </span>
-                <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
-                  <DollarSign className="w-4 h-4" />
-                </span>
+                <DollarSign className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
               </div>
-              <div className="text-2xl font-bold text-zinc-950 mt-2">
+              <div className="text-2xl font-semibold text-zinc-950 font-mono tabular-nums tracking-tight mt-1.5">
                 {formatBRL(kpis?.receivedRevenue.current)}
               </div>
               <div className="flex items-center gap-1.5 mt-2 text-xs">
                 {kpis?.receivedRevenue.delta && kpis.receivedRevenue.delta >= 0 ? (
-                  <span className="inline-flex items-center text-emerald-600 font-bold">
-                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  <span className="inline-flex items-center text-emerald-600 font-medium font-mono tabular-nums">
+                    <ArrowUpRight className="w-3.5 h-3.5" strokeWidth={1.5} />
                     +{kpis.receivedRevenue.percentageChange ?? 0}%
                   </span>
                 ) : (
-                  <span className="inline-flex items-center text-red-600 font-bold">
-                    <ArrowDownRight className="w-3.5 h-3.5" />
+                  <span className="inline-flex items-center text-red-600 font-medium font-mono tabular-nums">
+                    <ArrowDownRight className="w-3.5 h-3.5" strokeWidth={1.5} />
                     {kpis?.receivedRevenue.percentageChange ?? 0}%
                   </span>
                 )}
                 <span className="text-zinc-400">vs. período anterior</span>
               </div>
               <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-500">
-                <span>Previsto por Vencimento:</span>
-                <strong className="text-zinc-700">{formatBRL(kpis?.projectedRevenueDue)}</strong>
+                <span>Previsto por vencimento:</span>
+                <span className="text-zinc-700 font-mono tabular-nums font-medium">{formatBRL(kpis?.projectedRevenueDue)}</span>
               </div>
             </div>
 
             {/* Despesas Pagas */}
-            <div className="bg-white border border-zinc-200/80 p-5 rounded-2xl shadow-xs">
+            <div className="bg-white border border-zinc-200 p-4.5 rounded-xl">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                  Despesas Pagas (Saídas)
+                <span className="text-xs font-medium text-zinc-500">
+                  Despesas pagas (Saídas)
                 </span>
-                <span className="p-2 rounded-xl bg-red-50 text-red-600">
-                  <TrendingDown className="w-4 h-4" />
-                </span>
+                <TrendingDown className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
               </div>
-              <div className="text-2xl font-bold text-zinc-950 mt-2">
+              <div className="text-2xl font-semibold text-zinc-950 font-mono tabular-nums tracking-tight mt-1.5">
                 {formatBRL(kpis?.paidExpenses.current)}
               </div>
               <div className="flex items-center gap-1.5 mt-2 text-xs">
-                <span className="text-zinc-500 font-medium">
-                  Previsto a Pagar: <strong className="text-zinc-700">{formatBRL(kpis?.projectedExpenses)}</strong>
+                <span className="text-zinc-500 font-normal">
+                  Previsto a pagar: <span className="text-zinc-700 font-mono tabular-nums font-medium">{formatBRL(kpis?.projectedExpenses)}</span>
                 </span>
               </div>
               <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-500">
-                <span>Lançamentos liquidados sem estornos</span>
+                <span>Lançamentos liquidados</span>
               </div>
             </div>
 
             {/* Resultado Operacional Realizado */}
-            <div className="bg-white border border-zinc-200/80 p-5 rounded-2xl shadow-xs">
+            <div className="bg-white border border-zinc-200 p-4.5 rounded-xl">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                  Resultado Realizado
+                <span className="text-xs font-medium text-zinc-500">
+                  Resultado realizado
                 </span>
-                <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
-                  <TrendingUp className="w-4 h-4" />
-                </span>
+                <TrendingUp className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
               </div>
-              <div className={`text-2xl font-bold mt-2 ${(kpis?.realizedResult.current ?? 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+              <div className={`text-2xl font-semibold mt-1.5 font-mono tabular-nums tracking-tight ${(kpis?.realizedResult.current ?? 0) >= 0 ? "text-emerald-700" : "text-red-600"}`}>
                 {formatBRL(kpis?.realizedResult.current)}
               </div>
               <div className="flex items-center gap-1.5 mt-2 text-xs text-zinc-500">
-                <span>Resultado Projetado:</span>
-                <strong className={(kpis?.projectedResult ?? 0) >= 0 ? "text-emerald-700" : "text-red-600"}>
+                <span>Projetado:</span>
+                <span className={`font-mono tabular-nums font-medium ${(kpis?.projectedResult ?? 0) >= 0 ? "text-emerald-700" : "text-red-600"}`}>
                   {formatBRL(kpis?.projectedResult)}
-                </strong>
+                </span>
               </div>
               <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-500">
-                <span>Exclui transferências entre contas</span>
+                <span>Operação líquida</span>
               </div>
             </div>
 
             {/* MRR - Receita Mensal Recorrente */}
-            <div className="bg-white border border-zinc-200/80 p-5 rounded-2xl shadow-xs">
+            <div className="bg-white border border-zinc-200 p-4.5 rounded-xl">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
-                  MRR Contratual Ativo
+                <span className="text-xs font-medium text-zinc-500">
+                  MRR contratual ativo
                 </span>
-                <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
-                  <RefreshCw className="w-4 h-4" />
-                </span>
+                <RefreshCw className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
               </div>
-              <div className="text-2xl font-bold text-purple-700 mt-2">
+              <div className="text-2xl font-semibold text-zinc-950 font-mono tabular-nums tracking-tight mt-1.5">
                 {formatBRL(kpis?.mrr.currentMrr)}
               </div>
               <div className="flex items-center gap-2 mt-2 text-xs text-zinc-500">
@@ -632,7 +620,7 @@ export default function ExecutiveDashboardPage() {
               </div>
               <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-between text-[11px] text-zinc-500">
                 <span>Contratações ativas:</span>
-                <strong className="text-zinc-800">{kpis?.activeContractsCount} contratos</strong>
+                <span className="text-zinc-800 font-mono tabular-nums font-medium">{kpis?.activeContractsCount} contratos</span>
               </div>
             </div>
           </div>

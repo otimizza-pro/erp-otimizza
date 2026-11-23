@@ -152,13 +152,13 @@ export function SocialMediaScheduleFields({
   return (
     <div className="space-y-4 pt-1">
       {/* 1. Quantidade de posts com atalhos rápidos */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+      <div className="bg-zinc-50/70 border border-zinc-200 rounded-xl p-3.5 space-y-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Quantos posts você quer produzir neste ciclo?
+            <label className="block text-xs font-medium text-zinc-900">
+              Quantidade de publicações no ciclo
             </label>
-            <span className="text-xs text-slate-500">Defina a meta de publicações para o mês</span>
+            <span className="text-xs text-zinc-500">Meta mensal para geração de pautas</span>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -170,23 +170,23 @@ export function SocialMediaScheduleFields({
                 const num = Math.max(1, Math.min(31, Number(e.target.value) || 1));
                 onChange({ ...value, postsPerMonth: num, customDates: undefined });
               }}
-              className="w-20 px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-center font-bold text-indigo-700 text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-18 h-8 px-2.5 bg-white border border-zinc-200 rounded-lg text-center font-mono font-medium text-zinc-900 text-sm focus:outline-none focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
             />
-            <span className="text-xs font-semibold text-slate-600">posts</span>
+            <span className="text-xs text-zinc-500">posts</span>
           </div>
         </div>
 
         {/* Atalhos rápidos de quantidade */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          <span className="text-xs text-slate-500 mr-1">Atalhos rápidos:</span>
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <span className="text-xs text-zinc-400 mr-1">Atalhos:</span>
           {presetCounts.map(count => (
             <button
               key={count}
               type="button"
               onClick={() => onChange({ ...value, postsPerMonth: count, customDates: undefined })}
               className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${value.postsPerMonth === count
-                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100"
+                ? "bg-zinc-900 text-white border-zinc-900"
+                : "bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
                 }`}
             >
               {count} posts
@@ -196,14 +196,14 @@ export function SocialMediaScheduleFields({
       </div>
 
       {/* 2. Dias da semana preferenciais */}
-      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+      <div className="bg-zinc-50/70 border border-zinc-200 rounded-xl p-3.5 space-y-2">
         <div className="flex items-center justify-between">
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-            Dias da semana preferenciais de postagem
+          <label className="block text-xs font-medium text-zinc-900">
+            Dias da semana preferenciais
           </label>
-          <span className="text-xs text-slate-500">Usados para sugerir as datas automáticas</span>
+          <span className="text-xs text-zinc-500">Distribuição sugerida</span>
         </div>
-        <div className="flex flex-wrap gap-2 pt-1">
+        <div className="flex flex-wrap gap-1.5 pt-0.5">
           {weekdays.map((day, idx) => {
             const isSelected = value.weekdays.includes(idx);
             return (
@@ -220,12 +220,12 @@ export function SocialMediaScheduleFields({
                     customDates: undefined, // recalcula baseado nos novos dias
                   });
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1.5 ${isSelected
-                  ? "bg-indigo-50 text-indigo-700 border-indigo-300 shadow-xs font-bold"
-                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all flex items-center gap-1.5 ${isSelected
+                  ? "bg-zinc-900 text-white border-zinc-900"
+                  : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                   }`}
               >
-                {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                {isSelected && <Check className="w-3 h-3 text-white" strokeWidth={1.5} />}
                 {day}
               </button>
             );
@@ -234,50 +234,50 @@ export function SocialMediaScheduleFields({
       </div>
 
       {/* 3. Calendário Interativo para Planejamento de Datas */}
-      <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs bg-white">
+      <div className="border border-zinc-200 rounded-xl overflow-hidden bg-white">
         {/* Cabeçalho do Calendário */}
-        <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+        <div className="bg-zinc-900 text-white px-3.5 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CalendarIcon className="w-4 h-4 text-indigo-400" />
-            <span className="text-sm font-bold capitalize">{monthLabel}</span>
+            <CalendarIcon className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+            <span className="text-xs font-medium capitalize">{monthLabel}</span>
           </div>
 
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={handlePrevMonth}
-              className="p-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
               title="Mês anterior"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4" strokeWidth={1.5} />
             </button>
             <button
               type="button"
               onClick={handleNextMonth}
-              className="p-1 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+              className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
               title="Próximo mês"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4" strokeWidth={1.5} />
             </button>
           </div>
         </div>
 
         {/* Sub-barra com resumo e ações rápidas */}
-        <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <div className="px-3.5 py-2 bg-zinc-50 border-b border-zinc-200 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-800">
-              📌 {selectedDates.length} de {value.postsPerMonth} posts planejados
+            <span className="font-medium text-zinc-800 font-mono tabular-nums">
+              {selectedDates.length} de {value.postsPerMonth} posts planejados
             </span>
             {selectedDates.length === value.postsPerMonth ? (
-              <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-medium border border-emerald-200">
-                <Check className="w-3 h-3" /> Completo
+              <span className="inline-flex items-center gap-1 text-emerald-800 bg-emerald-50 px-2 py-0.2 rounded font-medium border border-emerald-200 text-[11px]">
+                <Check className="w-3 h-3" strokeWidth={1.5} /> Completo
               </span>
             ) : selectedDates.length < value.postsPerMonth ? (
-              <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-medium border border-amber-200">
+              <span className="text-amber-800 bg-amber-50 px-2 py-0.2 rounded font-medium border border-amber-200 text-[11px]">
                 Faltam {value.postsPerMonth - selectedDates.length} datas
               </span>
             ) : (
-              <span className="text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full font-medium border border-indigo-200">
+              <span className="text-zinc-700 bg-zinc-100 px-2 py-0.2 rounded font-medium border border-zinc-200 text-[11px]">
                 +{selectedDates.length - value.postsPerMonth} extras
               </span>
             )}
@@ -287,36 +287,36 @@ export function SocialMediaScheduleFields({
             <button
               type="button"
               onClick={handleAutoDistribute}
-              className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-50 transition-colors"
+              className="inline-flex items-center gap-1 text-zinc-700 hover:text-zinc-950 font-medium px-2 py-1 rounded hover:bg-zinc-100 transition-colors text-[11px]"
               title="Auto-distribuir pelos dias da semana"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3 h-3 text-zinc-400" strokeWidth={1.5} />
               Auto-distribuir
             </button>
             <button
               type="button"
               onClick={() => onChange({ ...value, customDates: [] })}
-              className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium px-2 py-1 rounded hover:bg-slate-100 transition-colors"
+              className="inline-flex items-center gap-1 text-zinc-500 hover:text-zinc-700 font-medium px-2 py-1 rounded hover:bg-zinc-100 transition-colors text-[11px]"
               title="Limpar todas as datas deste mês"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-3 h-3 text-zinc-400" strokeWidth={1.5} />
               Limpar
             </button>
           </div>
         </div>
 
         {/* Grade dos dias da semana */}
-        <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-100/70 text-center text-[11px] font-bold text-slate-500 py-1.5">
+        <div className="grid grid-cols-7 border-b border-zinc-200 bg-zinc-50 text-center text-[11px] font-medium text-zinc-500 py-1.5">
           {weekdays.map(w => (
             <div key={w}>{w}</div>
           ))}
         </div>
 
         {/* Células do Calendário */}
-        <div className="grid grid-cols-7 gap-1 p-2 bg-slate-50/50">
+        <div className="grid grid-cols-7 gap-1 p-2 bg-zinc-50/40">
           {calendarGrid.map((cell, idx) => {
             if (!cell.isCurrentMonth) {
-              return <div key={`empty-${idx}`} className="h-11 rounded-lg bg-transparent" />;
+              return <div key={`empty-${idx}`} className="h-10 rounded-lg bg-transparent" />;
             }
 
             const isSelected = selectedDates.includes(cell.dateStr);
@@ -327,16 +327,16 @@ export function SocialMediaScheduleFields({
                 key={cell.dateStr}
                 type="button"
                 onClick={() => toggleDate(cell.dateStr)}
-                className={`relative h-11 rounded-lg border text-xs flex flex-col items-center justify-center transition-all ${isSelected
-                  ? "bg-indigo-600 text-white font-bold border-indigo-700 shadow-sm ring-2 ring-indigo-200"
-                  : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50"
+                className={`relative h-10 rounded-lg border text-xs flex flex-col items-center justify-center transition-all ${isSelected
+                  ? "bg-zinc-900 text-white font-medium border-zinc-900"
+                  : "bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
                   }`}
                 title={isSelected ? `Post #${postOrder}: ${cell.dateStr} (Clique para remover)` : `Clique para agendar post em ${cell.dateStr}`}
               >
-                <span className="text-xs leading-none">{cell.dayNumber}</span>
+                <span className="text-xs leading-none font-mono tabular-nums">{cell.dayNumber}</span>
                 {isSelected && (
-                  <span className="text-[10px] font-extrabold text-indigo-100 mt-0.5 tracking-tight">
-                    Post #{postOrder}
+                  <span className="text-[9px] font-mono font-medium text-zinc-300 mt-0.5">
+                    #{postOrder}
                   </span>
                 )}
               </button>
@@ -346,8 +346,8 @@ export function SocialMediaScheduleFields({
 
         {/* Lista/Timeline resumida dos posts */}
         {selectedDates.length > 0 && (
-          <div className="p-3 bg-white border-t border-slate-200">
-            <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-2">
+          <div className="p-3 bg-white border-t border-zinc-200">
+            <span className="block text-[11px] font-medium text-zinc-500 mb-2">
               Cronograma de datas agendadas ({selectedDates.length} posts):
             </span>
             <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
@@ -356,9 +356,9 @@ export function SocialMediaScheduleFields({
                 return (
                   <span
                     key={dateStr}
-                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-50 border border-zinc-200 text-zinc-800 text-xs font-mono tabular-nums"
                   >
-                    <span className="text-[10px] text-indigo-500">#{i + 1}</span>
+                    <span className="text-[10px] text-zinc-400">#{i + 1}</span>
                     <span>{d}/{m}</span>
                   </span>
                 );

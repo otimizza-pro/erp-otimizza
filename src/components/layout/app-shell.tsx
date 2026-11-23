@@ -562,14 +562,14 @@ export function AppShell({ children, activeSection }: AppShellProps) {
             <Link
               href="/"
               onClick={() => setSidebarOpen(false)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+              className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
                 pathname === "/"
-                  ? "bg-zinc-950 text-white shadow-xs"
-                  : "text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100"
+                  ? "bg-zinc-900 text-white"
+                  : "text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100/70"
               }`}
               title="Início"
             >
-              <LayoutDashboard className={`w-4 h-4 shrink-0 ${pathname === "/" ? "text-white" : "text-zinc-500"}`} />
+              <LayoutDashboard className={`w-4 h-4 shrink-0 ${pathname === "/" ? "text-white" : "text-zinc-400"}`} strokeWidth={1.5} />
               {!sidebarCollapsed && <span>Início</span>}
             </Link>
 
@@ -700,8 +700,8 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                 <div key={group.id} className="space-y-0.5">
                   {/* Divisor e Título de Seção (Pilar) */}
                   {isNewSection && (
-                    <div className="pt-4 pb-1.5 px-3 text-[10px] font-extrabold uppercase tracking-wider text-zinc-400 select-none flex items-center gap-2">
-                      <span>{group.section}</span>
+                    <div className="pt-3.5 pb-1 px-2.5 text-[11px] font-medium text-zinc-400 select-none flex items-center gap-2">
+                      <span>{group.section === "MARKETING & GROWTH" ? "Marketing & Growth" : group.section === "COMERCIAL" ? "Comercial" : group.section === "PRODUÇÃO" ? "Produção" : "Administrativo"}</span>
                       <div className="h-px bg-zinc-100 flex-1" />
                     </div>
                   )}
@@ -710,26 +710,26 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                   <button
                     type="button"
                     onClick={() => toggleGroup(group.id)}
-                    className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer select-none ${
+                    className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition cursor-pointer select-none ${
                       isGroupActive
-                        ? "text-zinc-950 font-bold bg-zinc-50"
-                        : "text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100/60"
+                        ? "text-zinc-950 font-semibold bg-zinc-100/70"
+                        : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/50"
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <GroupIcon className={`w-3.5 h-3.5 ${isGroupActive ? "text-zinc-950" : "text-zinc-400"}`} />
-                      <span>{group.title}</span>
+                      <GroupIcon className={`w-4 h-4 shrink-0 ${isGroupActive ? "text-zinc-900" : "text-zinc-400"}`} strokeWidth={1.5} />
+                      <span className="truncate">{group.title}</span>
                     </div>
                     {isExpanded ? (
-                      <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
+                      <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" strokeWidth={1.5} />
                     ) : (
-                      <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
+                      <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" strokeWidth={1.5} />
                     )}
                   </button>
 
                   {/* Itens do Grupo */}
                   {isExpanded && (
-                    <div className="pl-6 space-y-0.5 border-l-2 border-zinc-100 ml-3.5 my-0.5">
+                    <div className="pl-4 space-y-0.5 border-l border-zinc-200 ml-4 my-0.5">
                       {group.items.map((item) => {
                         const active = isItemActive(item, group);
 
@@ -742,10 +742,10 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                               setCurrentSearch(q ? `?${q}` : "");
                               setSidebarOpen(false);
                             }}
-                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition ${
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs transition ${
                               active
-                                ? "bg-zinc-900 text-white font-semibold shadow-2xs"
-                                : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
+                                ? "bg-zinc-900 text-white font-medium"
+                                : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/70"
                             }`}
                           >
                             <span className="truncate">{item.label}</span>
@@ -781,14 +781,14 @@ export function AppShell({ children, activeSection }: AppShellProps) {
               ref={searchTriggerRef}
               type="button"
               onClick={openSearchModal}
-              className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl border border-zinc-200 bg-zinc-50/80 hover:bg-white text-xs text-zinc-400 hover:text-zinc-600 transition shadow-2xs cursor-pointer group focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+              className="w-full flex items-center justify-between px-3 h-9 rounded-lg border border-zinc-200 bg-zinc-50/70 hover:bg-white text-xs text-zinc-500 hover:text-zinc-700 transition cursor-pointer group focus-visible:ring-1 focus-visible:ring-zinc-400 focus-visible:outline-none"
             >
               <div className="flex items-center gap-2">
-                <Search className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600" />
+                <Search className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600" strokeWidth={1.5} />
                 <span className="hidden sm:inline">Buscar clientes, propostas, contratos, títulos...</span>
-                <span className="sm:hidden">Buscar no ERP...</span>
+                <span className="sm:hidden">Buscar...</span>
               </div>
-              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 rounded bg-zinc-200/80 text-[10px] font-mono font-semibold text-zinc-600">
+              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-zinc-200 bg-white text-[10px] font-mono text-zinc-500">
                 <Command className="w-2.5 h-2.5" /> K
               </kbd>
             </button>
@@ -812,74 +812,74 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                     setNewDropdownOpen(false);
                   }
                 }}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold transition shadow-xs cursor-pointer focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+                className="flex items-center gap-1.5 px-3 h-9 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition cursor-pointer focus-visible:ring-1 focus-visible:ring-zinc-400 focus-visible:outline-none"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5" strokeWidth={1.5} />
                 <span>Novo</span>
-                <ChevronDown className="w-3 h-3 text-zinc-400" />
+                <ChevronDown className="w-3 h-3 text-zinc-400" strokeWidth={1.5} />
               </button>
 
               {newDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-zinc-200 shadow-xl p-1.5 space-y-0.5 z-50 text-xs animate-in fade-in zoom-in-95">
-                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    Criar Novo Registro
+                <div className="absolute right-0 mt-1.5 w-56 rounded-xl bg-white border border-zinc-200 shadow-lg p-1 space-y-0.5 z-50 text-xs animate-in fade-in duration-100">
+                  <div className="px-2.5 py-1 text-[11px] font-medium text-zinc-400">
+                    Criar novo registro
                   </div>
                   <Link
                     href="/crm/leads/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:outline-none"
                   >
-                    <Users className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Novo Lead</span>
+                    <Users className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                    <span>Novo lead</span>
                   </Link>
                   <Link
                     href="/proposals/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:outline-none"
                   >
-                    <FileText className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>Nova Proposta Comercial</span>
+                    <FileText className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                    <span>Nova proposta comercial</span>
                   </Link>
                   <Link
                     href="/clients/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:outline-none"
                   >
-                    <Building className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Novo Cliente</span>
+                    <Building className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                    <span>Novo cliente</span>
                   </Link>
                   <Link
                     href="/contracts/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:outline-none"
                   >
-                    <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
-                    <span>Novo Contrato</span>
+                    <RefreshCw className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                    <span>Novo contrato</span>
                   </Link>
                   <div className="border-t border-zinc-100 my-1" />
                   <Link
                     href="/financial/receivables/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:outline-none"
                   >
-                    <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Conta a Receber (Receita)</span>
+                    <DollarSign className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                    <span>Conta a receber (Receita)</span>
                   </Link>
                   <Link
                     href="/financial/payables/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:outline-none"
                   >
-                    <Layers className="w-3.5 h-3.5 text-rose-600" />
-                    <span>Conta a Pagar (Despesa)</span>
+                    <Layers className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                    <span>Conta a pagar (Despesa)</span>
                   </Link>
                   <Link
                     href="/projects/new"
                     onClick={() => setNewDropdownOpen(false)}
-                    className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+                    className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950 transition focus-visible:outline-none"
                   >
-                    <Briefcase className="w-3.5 h-3.5 text-purple-600" />
-                    <span>Novo Projeto</span>
+                    <Briefcase className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
+                    <span>Novo projeto</span>
                   </Link>
                 </div>
               )}
@@ -958,11 +958,11 @@ export function AppShell({ children, activeSection }: AppShellProps) {
           <div
             ref={searchModalContainerRef}
             onClick={(e) => e.stopPropagation()}
-            className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-zinc-200 overflow-hidden flex flex-col max-h-[80vh]"
+            className="bg-white w-full max-w-2xl rounded-xl shadow-xl border border-zinc-200 overflow-hidden flex flex-col max-h-[80vh]"
           >
             {/* Input Header */}
-            <div className="p-4 border-b border-zinc-100 flex items-center gap-3">
-              <Search className="w-4 h-4 text-zinc-400 shrink-0" />
+            <div className="p-3.5 border-b border-zinc-100 flex items-center gap-3">
+              <Search className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.5} />
               <input
                 ref={searchInputRef}
                 type="text"
@@ -984,21 +984,21 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                     closeSearchModal();
                   }
                 }}
-                placeholder="Buscar clientes, propostas, contratos, contas ou projetos..."
-                className="w-full text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none"
+                placeholder="Buscar clientes, propostas, contratos, títulos ou projetos..."
+                className="w-full text-xs text-zinc-900 placeholder-zinc-400 focus:outline-none"
               />
               <button
                 type="button"
                 onClick={closeSearchModal}
-                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+                className="p-1 rounded-md text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 focus-visible:outline-none"
                 aria-label="Fechar busca"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4 h-4" strokeWidth={1.5} />
               </button>
             </div>
 
             {/* Lista de Resultados */}
-            <div className="p-3 overflow-y-auto flex-1 divide-y divide-zinc-100">
+            <div className="p-2 overflow-y-auto flex-1 divide-y divide-zinc-100">
               {searchLoading && (
                 <div className="p-8 text-center text-xs text-zinc-400">
                   Pesquisando registros no sistema...
@@ -1025,38 +1025,24 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                       key={`${item.type}-${item.id}`}
                       href={item.href}
                       onClick={() => closeSearchModal()}
-                      className={`p-3 rounded-xl flex items-center justify-between text-xs transition group focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none ${
+                      className={`p-2.5 rounded-lg flex items-center justify-between text-xs transition group focus-visible:outline-none ${
                         isSelected
-                          ? "bg-zinc-100 ring-1 ring-zinc-300"
-                          : "hover:bg-zinc-50"
+                          ? "bg-zinc-100 text-zinc-950 font-medium"
+                          : "hover:bg-zinc-50 text-zinc-800"
                       }`}
                     >
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <span
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${
-                              item.type === "CLIENT"
-                                ? "bg-blue-100 text-blue-800"
-                                : item.type === "LEAD"
-                                ? "bg-amber-100 text-amber-800"
-                                : item.type === "PROPOSAL"
-                                ? "bg-indigo-100 text-indigo-800"
-                                : item.type === "CONTRACT"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : item.type === "PROJECT"
-                                ? "bg-purple-100 text-purple-800"
-                                : "bg-zinc-100 text-zinc-700"
-                            }`}
-                          >
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-medium bg-zinc-100 text-zinc-600 border border-zinc-200">
                             {item.type}
                           </span>
-                          <span className={`font-semibold ${isSelected ? "text-indigo-600" : "text-zinc-900 group-hover:text-indigo-600"}`}>
+                          <span className={`font-medium ${isSelected ? "text-zinc-950" : "text-zinc-900"}`}>
                             {item.title}
                           </span>
                         </div>
                         <p className="text-zinc-500 text-[11px]">{item.subtitle}</p>
                       </div>
-                      <ArrowRight className={`w-4 h-4 transition ${isSelected ? "text-indigo-600" : "text-zinc-300 group-hover:text-zinc-600"}`} />
+                      <ArrowRight className={`w-3.5 h-3.5 transition ${isSelected ? "text-zinc-900" : "text-zinc-300 group-hover:text-zinc-500"}`} strokeWidth={1.5} />
                     </Link>
                   );
                 })}

@@ -17,7 +17,6 @@ import {
   ArrowRight,
   ShieldAlert,
   Globe,
-  Instagram,
   CheckCircle2,
   Layers,
   Sparkles,
@@ -26,6 +25,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
+import { InstagramIcon as Instagram } from "@/components/ui/instagram";
 import {
   COMMUNICATION_OPTIONS,
   CommunicationProfile,

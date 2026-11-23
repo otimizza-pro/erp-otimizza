@@ -28,12 +28,12 @@ import {
   ShieldAlert,
   MessageSquare,
   Globe,
-  Instagram,
   Target,
   Star,
   X,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
+import { InstagramIcon as Instagram } from "@/components/ui/instagram";
 
 const ARCHETYPES = [
   { id: "SABIO", name: "O Sábio / Especialista", desc: "Autoridade, precisão técnica, dados, didática e clareza profunda." },

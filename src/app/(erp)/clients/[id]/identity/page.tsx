@@ -1,10 +1,10 @@
 "use client";
-import {useCompany} from "@/lib/context/company-context";
-import {INTERNAL_COMPANY_ID} from "@/modules/clients/internal-company";
+import { useCompany } from "@/lib/context/company-context";
+import { INTERNAL_COMPANY_ID } from "@/modules/clients/internal-company";
 
-import {IdentityAiButton} from "@/components/clients/identity-ai-button";
-import type {IdentityAiField} from "@/modules/clients/identity-ai";
-import {CommunicationProfileFields} from "@/components/clients/communication-profile";
+import { IdentityAiButton } from "@/components/clients/identity-ai-button";
+import type { IdentityAiField } from "@/modules/clients/identity-ai";
+import { CommunicationProfileFields } from "@/components/clients/communication-profile";
 import { CommercialDnaPanel } from "@/components/crm/commercial-dna";
 import { CommunicationProfileSchema, emptyCommunicationProfile } from "@/modules/clients/communication-profile";
 import { ClientAudiencesManager } from "@/components/clients/client-audiences-manager";
@@ -60,7 +60,7 @@ const PRESET_TONES = [
 export default function ClientIdentityPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const {selectCompany}=useCompany();
+  const { selectCompany } = useCompany();
 
   const [clientName, setClientName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -177,7 +177,7 @@ export default function ClientIdentityPage() {
         if (idRes.ok) {
           const data = await idRes.json();
           setValueProposition(data.valueProposition || "");
-          setCommunicationProfile(CommunicationProfileSchema.parse(data.communicationProfile||{}));
+          setCommunicationProfile(CommunicationProfileSchema.parse(data.communicationProfile || {}));
           setMarketNiche(data.marketNiche || "");
           setArchetype(data.archetype || "");
           setSecondaryArchetype(data.secondaryArchetype || "");
@@ -293,8 +293,8 @@ export default function ClientIdentityPage() {
     setTimeout(() => { void saveIdentity(true); }, 150);
   };
 
-  const draftIdentity = {valueProposition,marketNiche,archetype,secondaryArchetype,toneOfVoice:selectedTones,brandContext,targetAudiences,painPoints,differentials,forbiddenWords,mandatoryTerms,defaultCtas,notes,communicationProfile};
-  const aiButton = (field:IdentityAiField) => <IdentityAiButton clientId={id} field={field} draft={draftIdentity} onApply={(val) => handleApplyAi(field, val)} />;
+  const draftIdentity = { valueProposition, marketNiche, archetype, secondaryArchetype, toneOfVoice: selectedTones, brandContext, targetAudiences, painPoints, differentials, forbiddenWords, mandatoryTerms, defaultCtas, notes, communicationProfile };
+  const aiButton = (field: IdentityAiField) => <IdentityAiButton clientId={id} field={field} draft={draftIdentity} onApply={(val) => handleApplyAi(field, val)} />;
 
   const toggleTone = (tone: string) => {
     const nextTones = selectedTones.includes(tone)
@@ -574,13 +574,12 @@ export default function ClientIdentityPage() {
                       setDirty(true);
                       setTimeout(() => void saveIdentity(true), 100);
                     }}
-                    className={`p-3.5 rounded-xl border cursor-pointer transition flex flex-col justify-between select-none ${
-                      isPrimary
-                        ? "bg-purple-50/80 border-purple-400 ring-2 ring-purple-600/30"
-                        : isSecondary
+                    className={`p-3.5 rounded-xl border cursor-pointer transition flex flex-col justify-between select-none ${isPrimary
+                      ? "bg-purple-50/80 border-purple-400 ring-2 ring-purple-600/30"
+                      : isSecondary
                         ? "bg-indigo-50/70 border-indigo-300 ring-2 ring-indigo-500/20"
                         : "bg-zinc-50/60 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
-                    }`}
+                      }`}
                   >
                     <div>
                       <div className="flex items-center justify-between mb-1.5 gap-2">
@@ -614,11 +613,10 @@ export default function ClientIdentityPage() {
                           setDirty(true);
                           setTimeout(() => void saveIdentity(true), 100);
                         }}
-                        className={`text-[10px] font-medium px-2 py-1 rounded transition ${
-                          isPrimary
-                            ? "bg-purple-700 text-white"
-                            : "bg-zinc-100 text-zinc-600 hover:bg-purple-100 hover:text-purple-700"
-                        }`}
+                        className={`text-[10px] font-medium px-2 py-1 rounded transition ${isPrimary
+                          ? "bg-purple-700 text-white"
+                          : "bg-zinc-100 text-zinc-600 hover:bg-purple-100 hover:text-purple-700"
+                          }`}
                       >
                         {isPrimary ? "★ Primário" : "+ Primário"}
                       </button>
@@ -636,11 +634,10 @@ export default function ClientIdentityPage() {
                           setDirty(true);
                           setTimeout(() => void saveIdentity(true), 100);
                         }}
-                        className={`text-[10px] font-medium px-2 py-1 rounded transition ${
-                          isSecondary
-                            ? "bg-indigo-700 text-white"
-                            : "bg-zinc-100 text-zinc-600 hover:bg-indigo-100 hover:text-indigo-700"
-                        }`}
+                        className={`text-[10px] font-medium px-2 py-1 rounded transition ${isSecondary
+                          ? "bg-indigo-700 text-white"
+                          : "bg-zinc-100 text-zinc-600 hover:bg-indigo-100 hover:text-indigo-700"
+                          }`}
                       >
                         {isSecondary ? "✦ Secundário" : "+ Secundário"}
                       </button>
@@ -670,24 +667,22 @@ export default function ClientIdentityPage() {
                   <label
                     key={tone}
                     onClick={() => toggleTone(tone)}
-                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs cursor-pointer select-none transition ${
-                      isChecked
-                        ? "bg-zinc-900 text-white border-zinc-900 font-semibold shadow-2xs"
-                        : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
-                    }`}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs cursor-pointer select-none transition ${isChecked
+                      ? "bg-zinc-900 text-white border-zinc-900 font-semibold shadow-2xs"
+                      : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
+                      }`}
                   >
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      onChange={() => {}}
+                      onChange={() => { }}
                       className="sr-only"
                     />
                     <div
-                      className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${
-                        isChecked
-                          ? "bg-white text-zinc-900 border-white"
-                          : "border-zinc-300 bg-white"
-                      }`}
+                      className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${isChecked
+                        ? "bg-white text-zinc-900 border-white"
+                        : "border-zinc-300 bg-white"
+                        }`}
                     >
                       {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                     </div>
@@ -872,7 +867,7 @@ export default function ClientIdentityPage() {
             {/* CTAs Sugeridas */}
             <div className="space-y-2 pt-2 border-t border-zinc-100">
               <label className="text-xs font-semibold text-zinc-700 block">Chamadas para Ação (CTAs) Sugeridas</label>
-                {aiButton("defaultCtas")}
+              {aiButton("defaultCtas")}
               <div className="flex flex-wrap gap-2">
                 {defaultCtas.map((cta, idx) => (
                   <span

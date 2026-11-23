@@ -115,7 +115,7 @@ export function SocialMediaScheduleFields({
         postsPerMonth: unique.length,
         customDates: unique,
       });
-    } catch {}
+    } catch { }
   };
 
   // Construir grade do calendário
@@ -184,11 +184,10 @@ export function SocialMediaScheduleFields({
               key={count}
               type="button"
               onClick={() => onChange({ ...value, postsPerMonth: count, customDates: undefined })}
-              className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${
-                value.postsPerMonth === count
-                  ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                  : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100"
-              }`}
+              className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${value.postsPerMonth === count
+                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-100"
+                }`}
             >
               {count} posts
             </button>
@@ -221,11 +220,10 @@ export function SocialMediaScheduleFields({
                     customDates: undefined, // recalcula baseado nos novos dias
                   });
                 }}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1.5 ${
-                  isSelected
-                    ? "bg-indigo-50 text-indigo-700 border-indigo-300 shadow-xs font-bold"
-                    : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
-                }`}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all flex items-center gap-1.5 ${isSelected
+                  ? "bg-indigo-50 text-indigo-700 border-indigo-300 shadow-xs font-bold"
+                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                  }`}
               >
                 {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600" />}
                 {day}
@@ -329,11 +327,10 @@ export function SocialMediaScheduleFields({
                 key={cell.dateStr}
                 type="button"
                 onClick={() => toggleDate(cell.dateStr)}
-                className={`relative h-11 rounded-lg border text-xs flex flex-col items-center justify-center transition-all ${
-                  isSelected
-                    ? "bg-indigo-600 text-white font-bold border-indigo-700 shadow-sm ring-2 ring-indigo-200"
-                    : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50"
-                }`}
+                className={`relative h-11 rounded-lg border text-xs flex flex-col items-center justify-center transition-all ${isSelected
+                  ? "bg-indigo-600 text-white font-bold border-indigo-700 shadow-sm ring-2 ring-indigo-200"
+                  : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50"
+                  }`}
                 title={isSelected ? `Post #${postOrder}: ${cell.dateStr} (Clique para remover)` : `Clique para agendar post em ${cell.dateStr}`}
               >
                 <span className="text-xs leading-none">{cell.dayNumber}</span>

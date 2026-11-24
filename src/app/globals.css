@@ -18,6 +18,10 @@
   .erp-content :where(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="hidden"]), select) {
     height: 2.25rem;
   }
+  .erp-content :where(textarea) {
+    min-height: 7.5rem;
+    line-height: 1.5;
+  }
   .erp-content :where(input, textarea, select):focus-visible {
     outline: none;
     border-color: #71717a;
@@ -42,6 +46,13 @@
     font-size: 0.8125rem;
     font-variant-numeric: tabular-nums;
   }
+}
+
+/* Modern Auto-sizing textareas: expands dynamically to fit all text content */
+textarea {
+  field-sizing: content;
+  min-height: 7.5rem;
+  line-height: 1.5;
 }
 
 :root {

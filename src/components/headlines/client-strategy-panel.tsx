@@ -720,7 +720,7 @@ export function ClientStrategyPanel({
                   </button>
                 </div>
                 <textarea
-                  className={`${control} min-h-[90px]`}
+                  className={`${control} min-h-[140px]`}
                   placeholder="O que a sua empresa entrega que ninguém mais entrega? Qual é a promessa transformadora?"
                   value={valueProposition}
                   onChange={(e) => {
@@ -745,7 +745,7 @@ export function ClientStrategyPanel({
                   </button>
                 </div>
                 <textarea
-                  className={`${control} min-h-[110px]`}
+                  className={`${control} min-h-[160px]`}
                   placeholder="Resumo executivo do negócio, histórico dos fundadores, reputação e momento atual da empresa..."
                   value={brandContext}
                   onChange={(e) => {
@@ -846,7 +846,7 @@ export function ClientStrategyPanel({
                   />
                 </div>
                 <textarea
-                  className={`${control} min-h-[70px]`}
+                  className={`${control} min-h-[160px]`}
                   placeholder="Ex: Não tenho tempo; Acho que musculação piora minha dor..."
                   value={salesObjections}
                   onChange={(e) => {

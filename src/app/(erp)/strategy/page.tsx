@@ -728,12 +728,12 @@ function StrategyContent() {
                         <IdentityAiButton clientId={activeClientId} field="marketNiche" draft={getAiDraft({ marketNiche })} onApply={(val) => { setMarketNiche(Array.isArray(val) ? val.join("\n") : val); markDirty("marketNiche"); }} />
                       </div>
                       <textarea
-                        rows={3}
+                        rows={4}
                         placeholder="Ex: Clínicas Odontológicas de Alto Padrão, Assessoria Contábil para PMEs..."
                         value={marketNiche}
                         onChange={(e) => { setMarketNiche(e.target.value); markDirty("marketNiche"); }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900"
+                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[120px]"
                       />
                     </div>
 
@@ -745,12 +745,12 @@ function StrategyContent() {
                         <IdentityAiButton clientId={activeClientId} field="valueProposition" draft={getAiDraft({ valueProposition })} onApply={(val) => { setValueProposition(Array.isArray(val) ? val.join("\n") : val); markDirty("valueProposition"); }} />
                       </div>
                       <textarea
-                        rows={3}
+                        rows={5}
                         placeholder="Ex: Dobrar a captação de clientes particulares em 90 dias com método validado..."
                         value={valueProposition}
                         onChange={(e) => { setValueProposition(e.target.value); markDirty("valueProposition"); }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900"
+                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[140px]"
                       />
                     </div>
                   </div>
@@ -763,12 +763,12 @@ function StrategyContent() {
                       <IdentityAiButton clientId={activeClientId} field="valueProposition" draft={getAiDraft({ valueProposition: corePromise })} onApply={(val) => { setCorePromise(Array.isArray(val) ? val.join("\n") : val); markDirty("corePromise"); }} />
                     </div>
                     <textarea
-                      rows={2}
+                      rows={3}
                       placeholder="Qual é o resultado inegociável que você garante aos seus clientes?"
                       value={corePromise}
                       onChange={(e) => { setCorePromise(e.target.value); markDirty("corePromise"); }}
                       onBlur={handleBlur}
-                      className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900"
+                      className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[110px]"
                     />
                   </div>
                 </div>
@@ -1267,12 +1267,12 @@ function StrategyContent() {
                         <IdentityAiButton clientId={activeClientId} field="brandContext" draft={getAiDraft({ brandContext: brandHistory })} onApply={(val) => { setBrandHistory(Array.isArray(val) ? val.join("\n") : val); markDirty("brandHistory"); }} />
                       </div>
                       <textarea
-                        rows={5}
+                        rows={6}
                         placeholder="Como a empresa começou, fundadores, marcos históricos e evolução..."
                         value={brandHistory}
                         onChange={(e) => { setBrandHistory(e.target.value); markDirty("brandHistory"); }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900"
+                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
                       />
                     </div>
 
@@ -1284,12 +1284,12 @@ function StrategyContent() {
                         <IdentityAiButton clientId={activeClientId} field="brandContext" draft={getAiDraft({ brandContext })} onApply={(val) => { setBrandContext(Array.isArray(val) ? val.join("\n") : val); markDirty("brandContext"); }} />
                       </div>
                       <textarea
-                        rows={5}
+                        rows={6}
                         placeholder="Cultura, valores centrais, modelo de atendimento e diretrizes não-negociáveis..."
                         value={brandContext}
                         onChange={(e) => { setBrandContext(e.target.value); markDirty("brandContext"); }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900"
+                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
                       />
                     </div>
                   </div>
@@ -1662,7 +1662,7 @@ function StrategyContent() {
                         />
                       </div>
                       <textarea
-                        rows={4}
+                        rows={6}
                         placeholder="Ex: 'Achei caro', 'Não tenho tempo agora', 'Já tentei outra empresa e não funcionou'..."
                         value={salesObjections}
                         onChange={(e) => {
@@ -1670,7 +1670,7 @@ function StrategyContent() {
                           markDirty("salesObjections");
                         }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900"
+                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
                       />
                     </div>
                   </div>
@@ -1879,7 +1879,7 @@ function StrategyContent() {
                       />
                     </div>
                     <textarea
-                      rows={3}
+                      rows={6}
                       placeholder="Orientações de atendimento, particularidades do cliente ou combinados operacionais..."
                       value={notes}
                       onChange={(e) => {
@@ -1887,7 +1887,7 @@ function StrategyContent() {
                         markDirty("notes");
                       }}
                       onBlur={handleBlur}
-                      className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900"
+                      className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
                     />
                   </div>
                 </div>
@@ -2024,11 +2024,11 @@ function StrategyContent() {
                                         />
                                       </div>
                                       <textarea
-                                        rows={3}
+                                        rows={5}
                                         placeholder="Explique o que é a oferta, como ela é executada, duração, objetivo e particularidades técnicas..."
                                         value={catalogDescription}
                                         onChange={(e) => setCatalogDescription(e.target.value)}
-                                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y"
+                                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y min-h-[140px]"
                                       />
                                     </div>
 
@@ -2038,11 +2038,11 @@ function StrategyContent() {
                                         O que está Incluso / Entregáveis e Escopo
                                       </label>
                                       <textarea
-                                        rows={3}
+                                        rows={5}
                                         placeholder="Ex: - Diagnóstico de maturidade inicial&#10;- 4 sessões práticas individuais de 1h&#10;- Suporte direto via WhatsApp por 60 dias&#10;- Relatório em PDF com recomendações"
                                         value={catalogDeliverables}
                                         onChange={(e) => setCatalogDeliverables(e.target.value)}
-                                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y"
+                                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y min-h-[140px]"
                                       />
                                       <p className="text-[11px] text-zinc-500 mt-1">
                                         Escopo prático do que o cliente final recebe ao adquirir esta oferta.
@@ -2231,11 +2231,11 @@ function StrategyContent() {
                                         Modo de Solução / Abordagem Metodológica
                                       </label>
                                       <textarea
-                                        rows={2}
+                                        rows={3}
                                         placeholder="Ex: Método 3D: Diagnóstico 360°, Plano de Ação em 15 dias e Acompanhamento Semanal com dashboards..."
                                         value={catalogSolution}
                                         onChange={(e) => setCatalogSolution(e.target.value)}
-                                        className="w-full px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y"
+                                        className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y min-h-[110px]"
                                       />
                                       <p className="text-[11px] text-zinc-500 mt-1">
                                         Como a solução é implementada ou qual é o método/mecanismo exclusivo da empresa.

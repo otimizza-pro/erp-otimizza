@@ -730,11 +730,11 @@ function EditorialContent() {
               </div>
 
               <textarea
-                rows={4}
+                rows={6}
                 placeholder="Insira as diretrizes gerais, frequência sugerida e notas editoriais da marca..."
                 value={generalNotes}
                 onChange={(e) => setGeneralNotes(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y leading-relaxed"
+                className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y leading-relaxed min-h-[160px]"
               />
             </section>
           </div>
@@ -850,11 +850,11 @@ function EditorialContent() {
                   Objetivo Estratégico do Tema
                 </label>
                 <textarea
-                  rows={2}
+                  rows={4}
                   placeholder="Ex: Demonstrar soluções de marcenaria para otimização de espaços e gerar orçamentos..."
                   value={themeObjectiveInput}
                   onChange={(e) => setThemeObjectiveInput(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y min-h-[120px]"
                 />
               </div>
 

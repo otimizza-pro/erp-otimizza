@@ -64,8 +64,8 @@ export function CommunicationProfileFields({
           {detailsAction}
         </div>
         <textarea
-          className="block w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 text-xs font-normal leading-relaxed text-zinc-900 outline-none focus:border-zinc-500 focus:bg-white focus:ring-2 focus:ring-purple-600/20 min-h-[120px] resize-y"
-          rows={5}
+          className="block w-full rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs sm:text-sm font-normal leading-relaxed text-zinc-900 outline-none focus:border-zinc-500 focus:bg-white focus:ring-2 focus:ring-purple-600/20 min-h-[160px] resize-y"
+          rows={6}
           maxLength={5000}
           value={value.details}
           onChange={e => onChange({ ...value, details: e.target.value })}

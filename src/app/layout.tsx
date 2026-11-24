@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { AutoResizeTextareaListener } from "@/components/ui/auto-resize-textarea-listener";
 
 const geistSans = localFont({
   src: "./fonts/geist-latin.woff2",
@@ -47,6 +48,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#F8F9FA] text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white">
+        <AutoResizeTextareaListener />
         {children}
       </body>
     </html>

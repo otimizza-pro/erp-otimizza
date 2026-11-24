@@ -781,7 +781,7 @@ export function ClientAudiencesManager({
                     placeholder="Dor física latente (hérnia, dores articulares)&#10;Impacto na rotina diária&#10;Insegurança ao se movimentar"
                     value={formPainPoints}
                     onChange={(e) => setFormPainPoints(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-white border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 min-h-[130px] resize-y leading-relaxed"
+                    className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 min-h-[160px] resize-y leading-relaxed"
                   />
                 </div>
 
@@ -796,7 +796,7 @@ export function ClientAudiencesManager({
                     placeholder="Viver sem dor e recuperar mobilidade&#10;Mais disposição e leveza no corpo&#10;Autonomia para atividades cotidianas"
                     value={formDesires}
                     onChange={(e) => setFormDesires(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[130px] resize-y leading-relaxed"
+                    className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-emerald-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 min-h-[160px] resize-y leading-relaxed"
                   />
                 </div>
 
@@ -811,7 +811,7 @@ export function ClientAudiencesManager({
                     placeholder="Já me frustrei antes&#10;Medo de piorar a lesão&#10;Acho que não tenho tempo"
                     value={formObjections}
                     onChange={(e) => setFormObjections(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[130px] resize-y leading-relaxed"
+                    className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[160px] resize-y leading-relaxed"
                   />
                 </div>
               </div>
@@ -826,11 +826,11 @@ export function ClientAudiencesManager({
                   Interesses para segmentação no Meta Ads e termos que esse público digita na busca do Google ou Google Meu Negócio.
                 </p>
                 <textarea
-                  rows={3}
+                  rows={4}
                   placeholder="Ex: Interesses Meta: Fisioterapia, Pilates, Saúde e Bem-Estar. Palavras-chave Google: fisioterapia perto de mim, alívio de dor na coluna, studio de pilates..."
                   value={formDigitalBehavior}
                   onChange={(e) => setFormDigitalBehavior(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[70px] resize-y leading-relaxed"
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[130px] resize-y leading-relaxed"
                 />
               </div>
 

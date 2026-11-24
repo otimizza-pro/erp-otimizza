@@ -7,6 +7,7 @@ import { useCompany } from "@/lib/context/company-context";
 import { contentCompanyId, INTERNAL_COMPANY_ID } from "@/modules/clients/internal-company";
 import { normalizeFrequencyLevel, type FrequencyLevel } from "@/modules/clients/content-settings";
 import { EditorialPlanner } from "@/components/content-studio/editorial-planner";
+import { IdentityAiButton } from "@/components/clients/identity-ai-button";
 import {
   Sparkles,
   Layers,
@@ -707,14 +708,25 @@ function EditorialContent() {
                     Orientações editoriais gerais e combinados de pauta para os redatores e designers.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSaveGeneralNotes}
-                  disabled={savingNotes}
-                  className="px-3 py-1.5 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition disabled:opacity-50"
-                >
-                  {savingNotes ? "Salvando..." : "Salvar Observações"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <IdentityAiButton
+                    clientId={activeClientId}
+                    field="notes"
+                    draft={{ notes: generalNotes }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
+                    onApply={(val) => {
+                      setGeneralNotes(Array.isArray(val) ? val.join("\n") : val);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveGeneralNotes}
+                    disabled={savingNotes}
+                    className="px-3 py-1.5 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition disabled:opacity-50"
+                  >
+                    {savingNotes ? "Salvando..." : "Salvar Observações"}
+                  </button>
+                </div>
               </div>
 
               <textarea

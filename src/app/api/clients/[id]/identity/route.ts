@@ -31,19 +31,52 @@ export async function GET(
     );
     const targetAudiences = audiences.rows.map((row) => String(row.name));
 
-    // Verificar se há Instagram ou Site registrado em sessões de briefing do cliente para sugestão opcional
+    // Verificar se há Instagram, Site ou dados legados registrados em sessões de briefing ou brand voice presets
     let sessionInstagram = "";
     let sessionWebsite = "";
+    let fallbackMandatoryTerms: string[] = [];
+    let fallbackForbiddenWords: string[] = [];
+    let fallbackToneOfVoice: string[] = [];
+    let fallbackDefaultCtas: string[] = [];
+
     try {
-      const sessionRes = await query<{ instagram_url: string | null; website_url: string | null }>(
-        `SELECT instagram_url, website_url FROM client_briefing_sessions 
-         WHERE client_id = $1 AND (instagram_url IS NOT NULL OR website_url IS NOT NULL) 
+      const presetRes = await query<{ forbidden_words: string[] | null; default_tones: string[] | null; default_ctas: string[] | null }>(
+        `SELECT forbidden_words, default_tones, default_ctas FROM client_brand_voice_presets WHERE client_id = $1 LIMIT 1`,
+        [id]
+      );
+      if (presetRes.rows.length > 0) {
+        const p = presetRes.rows[0];
+        if (Array.isArray(p.forbidden_words) && p.forbidden_words.length) fallbackForbiddenWords = p.forbidden_words;
+        if (Array.isArray(p.default_tones) && p.default_tones.length) fallbackToneOfVoice = p.default_tones;
+        if (Array.isArray(p.default_ctas) && p.default_ctas.length) fallbackDefaultCtas = p.default_ctas;
+      }
+    } catch {
+      // Falha não impeditiva
+    }
+
+    try {
+      const sessionRes = await query<{ instagram_url: string | null; website_url: string | null; extracted_identity: Record<string, unknown> | null }>(
+        `SELECT instagram_url, website_url, extracted_identity FROM client_briefing_sessions 
+         WHERE client_id = $1 AND (instagram_url IS NOT NULL OR website_url IS NOT NULL OR extracted_identity IS NOT NULL) 
          ORDER BY updated_at DESC LIMIT 1`,
         [id]
       );
       if (sessionRes?.rows && sessionRes.rows.length > 0) {
         sessionInstagram = sessionRes.rows[0].instagram_url || "";
         sessionWebsite = sessionRes.rows[0].website_url || "";
+        const ext = sessionRes.rows[0].extracted_identity || {};
+        if (!fallbackMandatoryTerms.length && Array.isArray(ext.mandatoryTerms)) {
+          fallbackMandatoryTerms = ext.mandatoryTerms as string[];
+        }
+        if (!fallbackForbiddenWords.length && Array.isArray(ext.forbiddenWords)) {
+          fallbackForbiddenWords = ext.forbiddenWords as string[];
+        }
+        if (!fallbackToneOfVoice.length && Array.isArray(ext.toneOfVoice)) {
+          fallbackToneOfVoice = ext.toneOfVoice as string[];
+        }
+        if (!fallbackDefaultCtas.length && Array.isArray(ext.defaultCtas)) {
+          fallbackDefaultCtas = ext.defaultCtas as string[];
+        }
       }
     } catch {
       // Falha não impeditiva
@@ -59,14 +92,14 @@ export async function GET(
         marketNiche: "",
         archetype: "",
         secondaryArchetype: "",
-        toneOfVoice: [],
+        toneOfVoice: fallbackToneOfVoice,
         brandContext: "",
         targetAudiences,
         painPoints: [],
         differentials: [],
-        forbiddenWords: [],
-        mandatoryTerms: [],
-        defaultCtas: [],
+        forbiddenWords: fallbackForbiddenWords,
+        mandatoryTerms: fallbackMandatoryTerms,
+        defaultCtas: fallbackDefaultCtas,
         instagramHandle: "",
         websiteUrl: "",
         suggestedInstagram: sessionInstagram,
@@ -84,6 +117,22 @@ export async function GET(
 
     const row = res.rows[0];
 
+    const resolvedToneOfVoice = (Array.isArray(row.tone_of_voice) && row.tone_of_voice.length > 0)
+      ? row.tone_of_voice
+      : fallbackToneOfVoice;
+
+    const resolvedMandatoryTerms = (Array.isArray(row.mandatory_terms) && row.mandatory_terms.length > 0)
+      ? row.mandatory_terms
+      : fallbackMandatoryTerms;
+
+    const resolvedForbiddenWords = (Array.isArray(row.forbidden_words) && row.forbidden_words.length > 0)
+      ? row.forbidden_words
+      : fallbackForbiddenWords;
+
+    const resolvedDefaultCtas = (Array.isArray(row.default_ctas) && row.default_ctas.length > 0)
+      ? row.default_ctas
+      : fallbackDefaultCtas;
+
     // Consulta puramente idempotente: NÃO realiza UPDATE no banco em requisição GET
     return NextResponse.json({
       id: row.id,
@@ -94,14 +143,14 @@ export async function GET(
       marketNiche: row.market_niche || "",
       archetype: row.archetype || "",
       secondaryArchetype: row.secondary_archetype || "",
-      toneOfVoice: row.tone_of_voice || [],
+      toneOfVoice: resolvedToneOfVoice,
       brandContext: row.brand_context || "",
       targetAudiences,
       painPoints: row.pain_points || [],
       differentials: row.differentials || [],
-      forbiddenWords: row.forbidden_words || [],
-      mandatoryTerms: row.mandatory_terms || [],
-      defaultCtas: row.default_ctas || [],
+      forbiddenWords: resolvedForbiddenWords,
+      mandatoryTerms: resolvedMandatoryTerms,
+      defaultCtas: resolvedDefaultCtas,
       instagramHandle: row.instagram_handle || "",
       websiteUrl: row.website_url || "",
       suggestedInstagram: !row.instagram_handle ? sessionInstagram : "",

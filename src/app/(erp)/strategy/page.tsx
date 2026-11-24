@@ -168,6 +168,15 @@ function StrategyContent() {
   // Ref para auto-save
   const dirtyFieldsRef = useRef<Set<string>>(new Set());
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const currentClientIdRef = useRef(activeClientId);
+
+  useEffect(() => {
+    currentClientIdRef.current = activeClientId;
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+  }, [activeClientId]);
 
   const loadStrategyData = useCallback(async (clientId: string) => {
     if (!clientId) return;
@@ -182,8 +191,11 @@ function StrategyContent() {
         fetch(`/api/clients/${clientId}/catalog`, { cache: "no-store" }),
       ]);
 
+      if (currentClientIdRef.current !== clientId) return;
+
       if (identRes.ok) {
         const idData = await identRes.json();
+        if (currentClientIdRef.current !== clientId) return;
         setVersion(idData.version || 1);
         setMarketNiche(idData.marketNiche || "");
         setValueProposition(idData.valueProposition || "");
@@ -217,13 +229,18 @@ function StrategyContent() {
 
       if (catRes.ok) {
         const catData = await catRes.json();
+        if (currentClientIdRef.current !== clientId) return;
         setCatalogItems(catData.items || []);
       }
     } catch (err) {
-      console.error("Erro ao carregar estratégia:", err);
-      setFeedback("Não foi possível carregar os dados de estratégia deste cliente.");
+      if (currentClientIdRef.current === clientId) {
+        console.error("Erro ao carregar estratégia:", err);
+        setFeedback("Não foi possível carregar os dados de estratégia deste cliente.");
+      }
     } finally {
-      setLoading(false);
+      if (currentClientIdRef.current === clientId) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -768,9 +785,22 @@ function StrategyContent() {
 
                   {/* Tons Personalizados */}
                   <div className="pt-2 border-t border-zinc-100">
-                    <label className="text-xs font-bold text-zinc-700 block mb-2">
-                      Tons Personalizados Salvos
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-bold text-zinc-700">
+                        Tons Personalizados Salvos
+                      </label>
+                      <IdentityAiButton
+                        clientId={activeClientId}
+                        field="toneOfVoice"
+                        draft={{ toneOfVoice: selectedTones }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-2.5 py-1 text-[11px] font-semibold text-purple-700 transition cursor-pointer"
+                        onApply={(val) => {
+                          const items = Array.isArray(val) ? val : [val];
+                          setSelectedTones((prev) => Array.from(new Set([...prev, ...items])));
+                          markDirty("toneOfVoice");
+                        }}
+                      />
+                    </div>
                     <div className="flex flex-wrap gap-2 mb-3">
                       {selectedTones
                         .filter((t) => !PRESET_TONES.includes(t))
@@ -997,9 +1027,24 @@ function StrategyContent() {
                   {/* Arquétipos Principal e Secundário */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-bold text-zinc-800 block mb-1">
-                        Arquétipo de Marca Principal
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-bold text-zinc-800">
+                          Arquétipo de Marca Principal
+                        </label>
+                        <IdentityAiButton
+                          clientId={activeClientId}
+                          field="archetype"
+                          draft={{ brandContext, marketNiche, valueProposition }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50/70 hover:bg-amber-100/80 px-2 py-0.5 text-[11px] font-semibold text-amber-700 transition cursor-pointer"
+                          onApply={(val) => {
+                            const item = Array.isArray(val) ? val[0] : val;
+                            if (item) {
+                              setArchetype(item);
+                              markDirty("archetype");
+                            }
+                          }}
+                        />
+                      </div>
                       <select
                         value={normalizeArchetypeId(archetype)}
                         onChange={(e) => {
@@ -1086,6 +1131,21 @@ function StrategyContent() {
                       markDirty("communicationProfile");
                     }}
                     onBlur={handleBlur}
+                    detailsAction={
+                      <div className="flex justify-end pt-1">
+                        <IdentityAiButton
+                          clientId={activeClientId}
+                          field="communicationDetails"
+                          draft={{ communicationProfile }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
+                          onApply={(val) => {
+                            const text = Array.isArray(val) ? val.join("\n") : val;
+                            setCommunicationProfile((prev) => ({ ...prev, details: text }));
+                            markDirty("communicationProfile");
+                          }}
+                        />
+                      </div>
+                    }
                   />
                 </div>
               </div>
@@ -1379,9 +1439,21 @@ function StrategyContent() {
                     </div>
 
                     <div className="space-y-3">
-                      <label className="text-xs font-bold text-zinc-800 block">
-                        Objeções de Venda Mais Frequentes
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-zinc-800 block">
+                          Objeções de Venda Mais Frequentes
+                        </label>
+                        <IdentityAiButton
+                          clientId={activeClientId}
+                          field="salesObjections"
+                          draft={{ salesObjections }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
+                          onApply={(val) => {
+                            setSalesObjections(Array.isArray(val) ? val.join("\n") : val);
+                            markDirty("salesObjections");
+                          }}
+                        />
+                      </div>
                       <textarea
                         rows={4}
                         placeholder="Ex: 'Achei caro', 'Não tenho tempo agora', 'Já tentei outra empresa e não funcionou'..."
@@ -1480,10 +1552,23 @@ function StrategyContent() {
 
                     {/* WhatsApp */}
                     <div>
-                      <label className="text-xs font-semibold text-zinc-700 block mb-1 flex items-center gap-1.5">
-                        <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
-                        WhatsApp de Atendimento
-                      </label>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-xs font-semibold text-zinc-700 flex items-center gap-1.5">
+                          <WhatsAppIcon className="w-3.5 h-3.5 text-emerald-600" />
+                          WhatsApp de Atendimento
+                        </label>
+                        <IdentityAiButton
+                          clientId={activeClientId}
+                          field="defaultCtas"
+                          draft={{ defaultCtas }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition cursor-pointer"
+                          onApply={(val) => {
+                            const item = Array.isArray(val) ? val[0] : val;
+                            if (item) setWhatsappCta(item);
+                            markDirty("whatsappCta");
+                          }}
+                        />
+                      </div>
                       <input
                         type="text"
                         placeholder="Ex: (11) 99999-9999 ou link wa.me"
@@ -1571,9 +1656,21 @@ function StrategyContent() {
 
                   {/* Notas e Contexto Estratégico da Equipe */}
                   <div className="pt-4 border-t border-zinc-100">
-                    <label className="text-xs font-bold text-zinc-800 block mb-1">
-                      Observações e Notas Estratégicas Internas da Equipe
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-zinc-800 block">
+                        Observações e Notas Estratégicas Internas da Equipe
+                      </label>
+                      <IdentityAiButton
+                        clientId={activeClientId}
+                        field="notes"
+                        draft={{ notes }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
+                        onApply={(val) => {
+                          setNotes(Array.isArray(val) ? val.join("\n") : val);
+                          markDirty("notes");
+                        }}
+                      />
+                    </div>
                     <textarea
                       rows={3}
                       placeholder="Orientações de atendimento, particularidades do cliente ou combinados operacionais..."
@@ -1654,9 +1751,20 @@ function StrategyContent() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-700 block mb-1">
-                  Descrição Completa
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-zinc-700">
+                    Descrição Completa
+                  </label>
+                  <IdentityAiButton
+                    clientId={activeClientId}
+                    field="valueProposition"
+                    draft={{ valueProposition: catalogDescription, marketNiche: catalogName }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
+                    onApply={(val) => {
+                      setCatalogDescription(Array.isArray(val) ? val.join("\n") : val);
+                    }}
+                  />
+                </div>
                 <textarea
                   rows={3}
                   placeholder="Explique o que é, como funciona e o que está incluído..."
@@ -1667,9 +1775,21 @@ function StrategyContent() {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-700 block mb-1">
-                  Diferencial Específico Desta Oferta
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-zinc-700">
+                    Diferencial Específico Desta Oferta
+                  </label>
+                  <IdentityAiButton
+                    clientId={activeClientId}
+                    field="differentials"
+                    draft={{ differentials: catalogDiffs ? [catalogDiffs] : [] }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
+                    onApply={(val) => {
+                      const item = Array.isArray(val) ? val[0] : val;
+                      if (item) setCatalogDiffs(item);
+                    }}
+                  />
+                </div>
                 <input
                   type="text"
                   placeholder="Ex: Sem conservantes artificiais, acabamento em laca com 5 anos de garantia..."

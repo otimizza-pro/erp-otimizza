@@ -27,6 +27,10 @@ import {
   Send,
   Edit2,
   RotateCcw,
+  Building2,
+  Package,
+  Tag,
+  Briefcase,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { ProjectRecord, ProjectTaskRecord, TaskStatus, ProjectPriority } from "@/modules/projects/types";
@@ -83,6 +87,41 @@ export function TaskExecutionModal({
   const [servicesOffered, setServicesOffered] = useState<string>("");
   const [resettingChat, setResettingChat] = useState<boolean>(false);
 
+  // CNPJ e CNAE Inteligente
+  const [cnpj, setCnpj] = useState<string>("");
+  const [cnaeCode, setCnaeCode] = useState<string>("");
+  const [cnaeDescription, setCnaeDescription] = useState<string>("");
+  const [searchingCnpj, setSearchingCnpj] = useState<boolean>(false);
+
+  // Campos Separados de Contexto Estratégico Prévio
+  const [brandHistory, setBrandHistory] = useState<string>("");
+  const [corePromise, setCorePromise] = useState<string>("");
+  const [nonNegotiables, setNonNegotiables] = useState<string>("");
+  const [salesObjections, setSalesObjections] = useState<string>("");
+
+  // Catálogo Estruturado de Serviços & Produtos
+  interface CatalogItemDraft {
+    id?: string;
+    type: "SERVICE" | "PRODUCT";
+    name: string;
+    description: string;
+    differentials: string;
+    deliverables: string;
+    target_pain_points: string;
+    solution_approach: string;
+  }
+  const [catalogItems, setCatalogItems] = useState<CatalogItemDraft[]>([]);
+  const [isAddingItem, setIsAddingItem] = useState<boolean>(false);
+  const [draftItem, setDraftItem] = useState<CatalogItemDraft>({
+    type: "SERVICE",
+    name: "",
+    description: "",
+    differentials: "",
+    deliverables: "",
+    target_pain_points: "",
+    solution_approach: "",
+  });
+
   // Audit competitors state
   const [auditing, setAuditing] = useState<boolean>(false);
   const [auditReport, setAuditReport] = useState<string | null>(null);
@@ -119,6 +158,20 @@ export function TaskExecutionModal({
         setInstagramUrl(json.session.instagram_url || "");
         setInitialNotes(json.session.initial_notes || "");
         setCompetitorNotes(json.session.competitor_notes || "");
+        setCnpj(json.cnpj || json.session.cnpj || "");
+        setCnaeCode(json.cnaeCode || json.session.cnae_code || "");
+        setCnaeDescription(json.cnaeDescription || json.session.cnae_description || "");
+        setBrandHistory(json.brandHistory || json.session.brand_history || "");
+        setCorePromise(json.corePromise || json.session.core_promise || "");
+        setNonNegotiables(json.nonNegotiables || json.session.non_negotiables || "");
+        setSalesObjections(json.salesObjections || json.session.sales_objections || "");
+
+        if (Array.isArray(json.catalogItems) && json.catalogItems.length > 0) {
+          setCatalogItems(json.catalogItems);
+        } else if (Array.isArray(json.session.catalog_items) && json.session.catalog_items.length > 0) {
+          setCatalogItems(json.session.catalog_items);
+        }
+
         if (json.clientIdentity) {
           setClientIdentity(json.clientIdentity);
         }
@@ -180,13 +233,45 @@ export function TaskExecutionModal({
   const isStrategyTask = titleLower.includes("estratégia") || titleLower.includes("pilares");
   const isCalendarTask = titleLower.includes("calendário") || titleLower.includes("editorial");
 
-  const isLinkUnlocked = !!(category.trim() && servicesOffered.trim());
+  const isLinkUnlocked = true;
 
   const briefingUrl = briefingSession?.token
     ? typeof window !== "undefined"
       ? `${window.location.origin}/briefing/${briefingSession.token}`
       : `/briefing/${briefingSession.token}`
     : "";
+
+  const handleLookupCnpj = async () => {
+    const clean = (cnpj || "").replace(/\D/g, "");
+    if (clean.length !== 14) {
+      setBriefingFeedback("Informe um CNPJ válido com 14 dígitos.");
+      return;
+    }
+    setSearchingCnpj(true);
+    setBriefingFeedback(null);
+    try {
+      const res = await fetch(`/api/cnpj/${clean}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        if (json.data.tradeName && (!companyName || companyName === "Empresa")) {
+          setCompanyName(json.data.tradeName);
+        }
+        if (json.data.suggestedCategory) {
+          setCategory(json.data.suggestedCategory);
+        }
+        setCnaeCode(json.data.cnaeCode || "");
+        setCnaeDescription(json.data.cnaeDescription || "");
+        setBriefingFeedback("CNPJ consultado com sucesso! Categoria e CNAE sincronizados.");
+        setTimeout(() => setBriefingFeedback(null), 4000);
+      } else {
+        setBriefingFeedback(json.error || "Não foi possível consultar os dados do CNPJ.");
+      }
+    } catch {
+      setBriefingFeedback("Erro na comunicação com o serviço de CNPJ.");
+    } finally {
+      setSearchingCnpj(false);
+    }
+  };
 
   const handleSavePreFill = async () => {
     setLoadingBriefing(true);
@@ -205,12 +290,20 @@ export function TaskExecutionModal({
           competitorNotes,
           category,
           servicesOffered,
+          cnpj,
+          cnaeCode,
+          cnaeDescription,
+          brandHistory,
+          corePromise,
+          nonNegotiables,
+          salesObjections,
+          catalogItems,
         }),
       });
       const json = await res.json();
       if (json.success) {
         setBriefingSession(json.session);
-        setBriefingFeedback("Dados prévios salvos! As informações de nicho foram registradas.");
+        setBriefingFeedback("Dados salvos com sucesso! Catálogo e contexto estratégico sincronizados.");
         setTimeout(() => setBriefingFeedback(null), 4000);
       } else {
         setBriefingFeedback("Erro ao salvar dados prévios.");
@@ -483,28 +576,14 @@ export function TaskExecutionModal({
                       vai guiar o cliente em uma conversa tranquila, com exemplos reais adaptados ao nicho dele e botões rápidos.
                     </p>
 
-                    {!isLinkUnlocked && (
-                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5 text-xs text-amber-900">
-                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                        <div>
-                          <span className="font-semibold block">Link Bloqueado: Preenchimento do Nicho Obrigatório</span>
-                          <span className="text-[11px] text-amber-800">
-                            Para liberar o link e garantir que a Edivânia converse com exemplos práticos do negócio, preencha a <strong>Categoria</strong> e <strong>O que ele vende / Serviços Principais</strong> no formulário abaixo e clique em &quot;Salvar Informações Prévias&quot;.
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
                     <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
                       <input
                         type="text"
                         readOnly
                         value={
-                          !isLinkUnlocked
-                            ? "🔒 Preencha a Categoria e O que ele vende abaixo para liberar o link"
-                            : loadingBriefing
+                          loadingBriefing
                             ? "Gerando link exclusivo..."
-                            : briefingUrl || "Clique em 'Salvar Informações Prévias' abaixo para gerar o link"
+                            : briefingUrl || "Clique em 'Salvar Informações' abaixo para gerar o link"
                         }
                         className="w-full bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 text-xs font-mono text-zinc-700 select-all"
                       />
@@ -513,7 +592,7 @@ export function TaskExecutionModal({
                         <button
                           type="button"
                           onClick={handleCopyLink}
-                          disabled={!briefingUrl || !isLinkUnlocked}
+                          disabled={!briefingUrl}
                           className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-zinc-950 hover:bg-zinc-800 disabled:opacity-40 text-white rounded-lg text-xs font-medium transition"
                         >
                           {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -521,38 +600,22 @@ export function TaskExecutionModal({
                         </button>
 
                         <a
-                          href={isLinkUnlocked ? `https://wa.me/?text=${encodeURIComponent(
+                          href={briefingUrl ? `https://wa.me/?text=${encodeURIComponent(
                             `Olá ${contactName || ""}! Aqui está seu link exclusivo de onboarding da Otimizza: ${briefingUrl}\n\nA Edivânia, nossa estrategista de IA, já está te esperando para batermos um papo tranquilo sobre o posicionamento e os conteúdos das suas redes sociais!`
                           )}` : "#"}
-                          onClick={(e) => {
-                            if (!isLinkUnlocked) {
-                              e.preventDefault();
-                              alert("Preencha a Categoria e O que ele vende abaixo para liberar o envio pelo WhatsApp.");
-                            }
-                          }}
-                          target={isLinkUnlocked ? "_blank" : undefined}
+                          target="_blank"
                           rel="noreferrer"
-                          className={`flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-white rounded-lg text-xs font-medium transition ${
-                            isLinkUnlocked ? "bg-emerald-600 hover:bg-emerald-700" : "bg-emerald-600/40 cursor-not-allowed"
-                          }`}
+                          className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3 py-2 text-white rounded-lg text-xs font-medium transition bg-emerald-600 hover:bg-emerald-700"
                         >
                           <WhatsAppIcon className="w-3.5 h-3.5" />
                           WhatsApp
                         </a>
 
                         <a
-                          href={isLinkUnlocked ? briefingUrl : "#"}
-                          onClick={(e) => {
-                            if (!isLinkUnlocked) {
-                              e.preventDefault();
-                              alert("Preencha a Categoria e O que ele vende abaixo para abrir o chat.");
-                            }
-                          }}
-                          target={isLinkUnlocked ? "_blank" : undefined}
+                          href={briefingUrl || "#"}
+                          target="_blank"
                           rel="noreferrer"
-                          className={`p-2 border border-zinc-200 rounded-lg transition ${
-                            isLinkUnlocked ? "hover:bg-zinc-50 text-zinc-700" : "text-zinc-300 cursor-not-allowed"
-                          }`}
+                          className="p-2 border border-zinc-200 rounded-lg transition hover:bg-zinc-50 text-zinc-700"
                           title="Abrir e Testar Briefing"
                         >
                           <ExternalLink className="w-4 h-4" />
@@ -572,57 +635,74 @@ export function TaskExecutionModal({
                     </div>
                   </div>
 
-                  {/* Informações prévias pelo Valdemar */}
+                  {/* Informações prévias pelo Valdemar / Equipe */}
                   <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-4 shadow-hourline">
                     <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
                       <h4 className="font-semibold text-zinc-950 text-xs">
-                        1. Informações Base do Cliente (Cadastro & Presença Digital)
+                        1. Informações Base do Cliente & Identificação Inteligente
                       </h4>
                       <span className="text-[11px] text-zinc-400">
-                        Base cadastral permanente da empresa no ERP
+                        Base cadastral permanente do cliente no ERP
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                      {/* DADOS DE NICHO OBRIGATÓRIOS PARA LIBERAÇÃO DO LINK */}
-                      <div className="sm:col-span-2 p-3 bg-zinc-50/80 border border-zinc-200 rounded-lg space-y-2.5">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-950">
-                            <Sparkles className="w-3.5 h-3.5 text-zinc-700" />
-                            <span>Contexto do Negócio para Personalização da Edivânia</span>
-                          </div>
-                          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                            Obrigatórios para liberar o link
+                      {/* CNPJ COM BUSCA AUTOMÁTICA VIA IA E RECEITA */}
+                      <div className="sm:col-span-2 p-3 bg-zinc-50 border border-zinc-200 rounded-lg space-y-2">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                          <label className="font-semibold text-zinc-800 flex items-center gap-1.5">
+                            <Building2 className="w-3.5 h-3.5 text-zinc-600" />
+                            <span>CNPJ da Empresa (Busca Automática com IA)</span>
+                          </label>
+                          <span className="text-[11px] text-zinc-500">
+                            Preenche Razão Social, CNAE e sugere o Nicho de Mercado
                           </span>
                         </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block font-medium text-zinc-700 mb-1">
-                              Categoria / Nicho de Atuação *
-                            </label>
-                            <textarea
-                              rows={3}
-                              value={category}
-                              onChange={(e) => setCategory(e.target.value)}
-                              placeholder="Ex: Fisioterapia e Reabilitação, Marcenaria de Alto Padrão..."
-                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500 font-medium leading-relaxed resize-y min-h-[72px]"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block font-medium text-zinc-700 mb-1">
-                              O que ele vende / Serviços Principais *
-                            </label>
-                            <textarea
-                              rows={3}
-                              value={servicesOffered}
-                              onChange={(e) => setServicesOffered(e.target.value)}
-                              placeholder="Ex: Sessões individuais de fisioterapia, tratamento de dor na coluna..."
-                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-zinc-500 font-medium leading-relaxed resize-y min-h-[72px]"
-                            />
-                          </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={cnpj}
+                            onChange={(e) => setCnpj(e.target.value)}
+                            placeholder="Ex: 00.000.000/0000-00"
+                            className="flex-1 bg-white border border-zinc-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-zinc-500 font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleLookupCnpj}
+                            disabled={searchingCnpj}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-medium transition disabled:opacity-50"
+                          >
+                            <Search className={`w-3.5 h-3.5 ${searchingCnpj ? "animate-spin" : ""}`} />
+                            {searchingCnpj ? "Buscando..." : "Buscar Dados"}
+                          </button>
                         </div>
+                        {cnaeCode && (
+                          <div className="text-[11px] text-zinc-600 bg-white p-2 rounded border border-zinc-200 flex items-start gap-1.5">
+                            <Tag className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                            <span>
+                              <strong>CNAE {cnaeCode}:</strong> {cnaeDescription}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* CATEGORIA / NICHO DE ATUAÇÃO (EDITÁVEL) */}
+                      <div className="sm:col-span-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="font-semibold text-zinc-800">
+                            Categoria / Nicho de Atuação
+                          </label>
+                          <span className="text-[11px] text-zinc-400">
+                            Preenchido pela IA ou editável livremente
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          value={category}
+                          onChange={(e) => setCategory(e.target.value)}
+                          placeholder="Ex: Fisioterapia e Reabilitação, Odontologia Estética, Marcenaria de Alto Padrão..."
+                          className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-zinc-500 font-medium"
+                        />
                       </div>
 
                       <div>
@@ -631,7 +711,7 @@ export function TaskExecutionModal({
                           type="text"
                           value={companyName}
                           onChange={(e) => setCompanyName(e.target.value)}
-                          placeholder="Ex: RS Artigos para Móveis"
+                          placeholder="Ex: Studio TRG"
                           className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500 font-medium"
                         />
                       </div>
@@ -642,7 +722,7 @@ export function TaskExecutionModal({
                           type="text"
                           value={contactName}
                           onChange={(e) => setContactName(e.target.value)}
-                          placeholder="Ex: Sérgio"
+                          placeholder="Ex: Rondinelle"
                           className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500 font-medium"
                         />
                       </div>
@@ -679,17 +759,309 @@ export function TaskExecutionModal({
                           className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         />
                       </div>
+                    </div>
+                  </div>
 
-                      <div className="sm:col-span-2">
-                        <label className="block font-semibold text-slate-700 mb-1">
-                          Notas e Contexto Estratégico Prévio
+                  {/* BLOCO DE SERVIÇOS E PRODUTOS ESTRUTURADOS (CATÁLOGO) */}
+                  <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-4 shadow-hourline">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
+                      <div>
+                        <h4 className="font-semibold text-zinc-950 text-xs flex items-center gap-1.5">
+                          <Package className="w-3.5 h-3.5 text-zinc-700" />
+                          <span>O que ele vende / Serviços & Produtos Estruturados</span>
+                        </h4>
+                        <p className="text-[11px] text-zinc-500">
+                          Cada serviço ou produto é um bloco independente para direcionamento de conteúdo, dores e públicos.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingItem(!isAddingItem)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-lg text-xs font-semibold self-start sm:self-auto transition"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        {isAddingItem ? "Fechar Formulário" : "Inserir Serviço / Produto"}
+                      </button>
+                    </div>
+
+                    {/* Formulário para Adicionar Item */}
+                    {isAddingItem && (
+                      <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-xl space-y-3 animate-in fade-in duration-200">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-zinc-900">Novo Item no Catálogo</span>
+                          <div className="inline-flex rounded-lg border border-zinc-200 bg-white p-0.5">
+                            <button
+                              type="button"
+                              onClick={() => setDraftItem((prev) => ({ ...prev, type: "SERVICE" }))}
+                              className={`px-2.5 py-1 text-xs font-medium rounded-md transition ${
+                                draftItem.type === "SERVICE" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:text-zinc-900"
+                              }`}
+                            >
+                              Serviço
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDraftItem((prev) => ({ ...prev, type: "PRODUCT" }))}
+                              className={`px-2.5 py-1 text-xs font-medium rounded-md transition ${
+                                draftItem.type === "PRODUCT" ? "bg-zinc-900 text-white" : "text-zinc-600 hover:text-zinc-900"
+                              }`}
+                            >
+                              Produto
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <label className="block font-medium text-zinc-700 mb-1">Nome do {draftItem.type === "SERVICE" ? "Serviço" : "Produto"} *</label>
+                            <input
+                              type="text"
+                              value={draftItem.name}
+                              onChange={(e) => setDraftItem((prev) => ({ ...prev, name: e.target.value }))}
+                              placeholder="Ex: Performance Física, Correção Postural..."
+                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-medium text-zinc-700 mb-1">Qual o seu Diferencial neste item?</label>
+                            <input
+                              type="text"
+                              value={draftItem.differentials}
+                              onChange={(e) => setDraftItem((prev) => ({ ...prev, differentials: e.target.value }))}
+                              placeholder="Ex: Avaliação biomecânica personalizada..."
+                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="block font-medium text-zinc-700 mb-1">Descrição Breve</label>
+                            <textarea
+                              rows={2}
+                              value={draftItem.description}
+                              onChange={(e) => setDraftItem((prev) => ({ ...prev, description: e.target.value }))}
+                              placeholder="Explique o que é este serviço/produto de forma clara..."
+                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-medium text-zinc-700 mb-1">Dor Principal do Cliente</label>
+                            <input
+                              type="text"
+                              value={draftItem.target_pain_points}
+                              onChange={(e) => setDraftItem((prev) => ({ ...prev, target_pain_points: e.target.value }))}
+                              placeholder="Ex: Dores crônicas nas costas, falta de tempo..."
+                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-medium text-zinc-700 mb-1">Como você resolve a dor?</label>
+                            <input
+                              type="text"
+                              value={draftItem.solution_approach}
+                              onChange={(e) => setDraftItem((prev) => ({ ...prev, solution_approach: e.target.value }))}
+                              placeholder="Ex: Plano de fortalecimento progressivo sem medicação..."
+                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2">
+                            <label className="block font-medium text-zinc-700 mb-1">O que está incluso? (Entregáveis)</label>
+                            <input
+                              type="text"
+                              value={draftItem.deliverables}
+                              onChange={(e) => setDraftItem((prev) => ({ ...prev, deliverables: e.target.value }))}
+                              placeholder="Ex: Sessões individuais, ficha digital, suporte via WhatsApp..."
+                              className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsAddingItem(false)}
+                            className="px-3 py-1.5 text-xs text-zinc-600 hover:text-zinc-900 border border-zinc-200 bg-white rounded-lg"
+                          >
+                            Cancelar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!draftItem.name.trim()) {
+                                alert("Informe o nome do serviço ou produto.");
+                                return;
+                              }
+                              setCatalogItems((prev) => [...prev, { ...draftItem }]);
+                              // Atualiza resumo textual em servicesOffered para retrocompatibilidade
+                              setServicesOffered((prev) =>
+                                prev ? `${prev}, ${draftItem.name.trim()}` : draftItem.name.trim()
+                              );
+                              setDraftItem({
+                                type: "SERVICE",
+                                name: "",
+                                description: "",
+                                differentials: "",
+                                deliverables: "",
+                                target_pain_points: "",
+                                solution_approach: "",
+                              });
+                              setIsAddingItem(false);
+                            }}
+                            className="px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg"
+                          >
+                            Adicionar ao Catálogo
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Lista de Blocos de Serviços */}
+                    {catalogItems.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {catalogItems.map((item, idx) => (
+                          <div
+                            key={item.id || idx}
+                            className="p-3.5 bg-zinc-50/70 border border-zinc-200 rounded-xl space-y-2 text-xs relative group"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div>
+                                <span className="inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-200 text-zinc-800 mb-1">
+                                  {item.type === "PRODUCT" ? "Produto" : "Serviço"}
+                                </span>
+                                <h5 className="font-bold text-zinc-950 text-sm">{item.name}</h5>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCatalogItems((prev) => prev.filter((_, i) => i !== idx));
+                                }}
+                                className="text-zinc-400 hover:text-rose-600 transition p-1"
+                                title="Remover item"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+
+                            {item.description && (
+                              <p className="text-zinc-600 text-xs leading-relaxed">{item.description}</p>
+                            )}
+
+                            {item.differentials && (
+                              <div className="text-[11px] text-zinc-700">
+                                <strong className="text-zinc-900">Diferencial:</strong> {item.differentials}
+                              </div>
+                            )}
+
+                            {item.deliverables && (
+                              <div className="text-[11px] text-zinc-700">
+                                <strong className="text-zinc-900">Incluso:</strong> {item.deliverables}
+                              </div>
+                            )}
+
+                            {(item.target_pain_points || item.solution_approach) && (
+                              <div className="pt-1.5 border-t border-zinc-200/70 text-[11px] space-y-0.5">
+                                {item.target_pain_points && (
+                                  <p className="text-amber-900">
+                                    <span className="font-semibold">Dor resolvida:</span> {item.target_pain_points}
+                                  </p>
+                                )}
+                                {item.solution_approach && (
+                                  <p className="text-emerald-900">
+                                    <span className="font-semibold">Como resolve:</span> {item.solution_approach}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 border border-dashed border-zinc-300 rounded-xl text-center space-y-1">
+                        <p className="text-xs text-zinc-600 font-medium">Nenhum serviço ou produto estruturado cadastrado ainda.</p>
+                        <p className="text-[11px] text-zinc-400">
+                          Clique em &quot;Inserir Serviço / Produto&quot; acima para cadastrar em blocos independentes.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CAMPOS SEPARADOS DE CONTEXTO ESTRATÉGICO PRÉVIO */}
+                  <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-4 shadow-hourline">
+                    <div className="border-b border-zinc-100 pb-2.5">
+                      <h4 className="font-semibold text-zinc-950 text-xs">
+                        Contexto Estratégico & DNA da Marca (Campos Separados)
+                      </h4>
+                      <p className="text-[11px] text-zinc-400">
+                        Preencha os campos que você tiver disponíveis. Todos são opcionais e ajudam a IA a alinhar a comunicação.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="block font-semibold text-zinc-700 mb-1">
+                          História da Marca & Fundação (Opcional)
                         </label>
                         <textarea
-                          rows={3}
+                          rows={2}
+                          value={brandHistory}
+                          onChange={(e) => setBrandHistory(e.target.value)}
+                          placeholder="Como surgiu a empresa, trajetória e marcos importantes..."
+                          className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-zinc-700 mb-1">
+                          Promessa Central de Valor (Opcional)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={corePromise}
+                          onChange={(e) => setCorePromise(e.target.value)}
+                          placeholder="Qual a grande transformação ou promessa que a marca entrega ao cliente..."
+                          className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-zinc-700 mb-1">
+                          Princípios & Não-Negociáveis da Marca (Opcional)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={nonNegotiables}
+                          onChange={(e) => setNonNegotiables(e.target.value)}
+                          placeholder="O que a empresa NUNCA faz ou não abre mão (ex: não atende sem agendamento, transparência total)..."
+                          className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-zinc-700 mb-1">
+                          Principais Objeções Comerciais (Opcional)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={salesObjections}
+                          onChange={(e) => setSalesObjections(e.target.value)}
+                          placeholder="Dúvidas comuns dos clientes antes de fechar: preço, tempo de resultado, dor, etc..."
+                          className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2">
+                        <label className="block font-semibold text-zinc-700 mb-1">
+                          Outras Notas e Observações Estratégicas
+                        </label>
+                        <textarea
+                          rows={2}
                           value={initialNotes}
                           onChange={(e) => setInitialNotes(e.target.value)}
-                          placeholder="Descreva o que já foi conversado com o cliente, produtos principais, cidade de atuação e foco inicial..."
-                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          placeholder="Anotações gerais, acordos de contratação, prazos acordados, etc..."
+                          className="w-full bg-white border border-zinc-300 rounded-lg px-3 py-1.5 focus:outline-none focus:border-zinc-500"
                         />
                       </div>
                     </div>
@@ -711,7 +1083,7 @@ export function TaskExecutionModal({
                         className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white rounded-xl text-xs font-semibold transition"
                       >
                         {loadingBriefing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
-                        Salvar Informações Prévias
+                        Salvar Informações Prévias & Catálogo
                       </button>
                     </div>
                   </div>

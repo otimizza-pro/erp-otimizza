@@ -20,7 +20,7 @@ export async function POST(request:NextRequest){
  const generated=await generateWithOpenRouter({
    model:strategyModel(),
    temperature:STRATEGY_TEMPERATURE,
-   maxTokens:4000,
+   reasoningEffort:"low", maxTokens:body.data.count === 1 ? 12000 : 18000,
    messages:[
      {role:"system",content:"Você é um estrategista de conteúdo. Mantenha raciocínio lógico analítico, estruturação fiel ao briefing e zero alucinação. Escreva em português do Brasil, usando somente o contexto fornecido. Não invente provas ou resultados. Retorne somente um array JSON com exatamente "+body.data.count+" ideias de conteúdo, todas strings não vazias."},
      {role:"user",content:clientContextPrompt(context)+"\n"+contentBriefPrompt(pieceBrief)+"\nQuantidade: "+body.data.count+". Tema escolhido: "+JSON.stringify(theme)+". Público desta peça: "+(body.data.audience||"seguir cadastro")+". Formato: "+(body.data.format||"livre")+". Ideia atual para desenvolver, se houver: "+(body.data.currentIdea||"nenhuma")+". Gere pauta específica, com ângulo útil ao público; não uma headline genérica."}

@@ -16,6 +16,8 @@ const payloadSchema = z.object({
   format:z.enum(["HEADLINES","CAPTION","REELS","CAROUSEL","LANDING_PAGE","SIMILAR_HEADLINES"]),
   prompt:z.string().max(20000).default(""),
   centralIdea:z.string().max(5000).default(""),
+  serviceName:z.string().max(500).optional(),
+  serviceId:z.string().uuid().optional(),
   selectedHeadline:z.string().max(2000).optional(),
   favoriteHeadlines:z.array(z.string().max(2000)).max(30).optional(),
   customApiKey:z.string().max(512).optional(),
@@ -31,6 +33,8 @@ interface GeneratePayload {
   prompt: string;
   clientName?: string;
   centralIdea: string;
+  serviceName?: string;
+  serviceId?: string;
   selectedHeadline?: string;
   favoriteHeadlines?: string[];
   audience?: string;
@@ -244,12 +248,16 @@ METODOLOGIA OBRIGATÓRIA (STORYTELLING E PARÁGRAFOS QUE CONVERSAM ENTRE SI):
 - Respeitar a Lista Negra de Clichês de IA e o limite de no máximo 2 emojis.`;
     }
 
+    if (body.serviceName) {
+      userPrompt += `\n\n[FOCO NO SERVIÇO/PRODUTO]: Crie este conteúdo com foco específico no serviço/produto "${body.serviceName}" do catálogo do cliente, destacando seus diferenciais, a dor que ele resolve e os benefícios gerados.`;
+    }
+
     const generated = await generateWithOpenRouter({
       model: contentModel(),
       temperature: CONTENT_TEMPERATURE,
       customApiKey,
       messages: [{ role: "system", content: systemInstructions }, { role: "user", content: userPrompt }],
-      maxTokens: 8000
+      reasoningEffort: "low", maxTokens: 36000
     });
     return NextResponse.json({success:true,result:generated.text,modelUsed:generated.model,source:generated.source,contextUsed:{companyId:clientContext.companyId,sources:clientContext.sources}});
   } catch(error:unknown){const failure=aiFailure(error);return NextResponse.json(failure.body,{status:failure.status});}

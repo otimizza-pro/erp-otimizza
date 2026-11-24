@@ -18,7 +18,7 @@ export async function POST(request:NextRequest){
  const generated=await generateWithOpenRouter({
    model:strategyModel(),
    temperature:STRATEGY_TEMPERATURE,
-   maxTokens:6000,
+   reasoningEffort:"low", maxTokens:27000,
    messages:[
      {role:"system",content:'Você é um estrategista de conteúdo sênior. Mantenha raciocínio lógico rigoroso, estruturação estritamente fiel ao briefing e zero alucinação. Crie quatro pilares editoriais específicos ao cliente, em português do Brasil. Não invente provas ou resultados. No campo notes do pilar prioritário, inclua o bloco sintetizado [DNA_DA_CAMPANHA] (Público-alvo, Dor Principal, Desejo Principal, Mecanismo Único, 3 Objeções e Tom de Voz). Retorne somente um array JSON com exatamente quatro objetos: {"pillar_name":"nome curto","theme":"tema até 255 caracteres","objective":"objetivo","preferred_formats":["REELS","CAROUSEL"],"frequency_per_month":4,"notes":"orientações"}.'},
      {role:"user",content:clientContextPrompt(context)}

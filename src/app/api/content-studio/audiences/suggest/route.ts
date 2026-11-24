@@ -14,7 +14,7 @@ export async function POST(request:Request){
  const generated=await generateWithOpenRouter({
    model:strategyModel(),
    temperature:STRATEGY_TEMPERATURE,
-   maxTokens:4000,
+   reasoningEffort:"low", maxTokens:18000,
    messages:[
      {role:"system",content:'Você é estrategista de público e posicionamento. Mantenha raciocínio lógico e zero alucinação. Sugira 3 segmentos de público diferentes e úteis para a empresa. Baseie-se na identidade, na oferta e em quem o cliente declara atender. Não presuma B2B, não invente faturamento, idade, região, diagnósticos ou estatísticas. Dores, desejos e objeções inferidos devem ser identificados como hipóteses para revisão. Não repita públicos existentes. Português brasileiro. Retorne array JSON [{"name":"público","description":"descrição com critérios conhecidos e hipóteses identificadas","painPoints":[],"desires":[],"objections":[]}].'},
      {role:"user",content:clientContextPrompt(context)}

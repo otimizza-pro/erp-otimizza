@@ -7,6 +7,7 @@ import { z } from "zod";
 import { generateWithOpenRouter, strategyModel, parseAiJson } from "@/lib/ai/openrouter";
 import { formatContactFirstName } from "@/modules/clients/contact-name";
 import { getClientDnaContext } from "@/modules/clients/dna-briefing-sync";
+import { getCatalogItemsByClientId, syncCatalogItems } from "@/modules/clients/catalog-service";
 
 const messageSchema = z.object({
   action: z.enum([
@@ -446,6 +447,8 @@ export async function GET(
         s.company_name, s.contact_name, s.website_url, s.maps_url, s.instagram_url,
         s.initial_notes, s.competitor_notes, s.conversation_history, s.extracted_identity,
         s.status, s.progress_percent, s.credentials_saved, s.completed_at, s.created_at,
+        s.brand_history, s.core_promise, s.non_negotiables, s.sales_objections,
+        s.cnpj, s.cnae_code, s.cnae_description, s.catalog_items,
         (
           SELECT cc.name 
           FROM public.client_contacts cc 
@@ -535,6 +538,18 @@ export async function GET(
       row.progress_percent = 15;
     }
 
+    let catalogItems: unknown[] = [];
+    if (effectiveClientId) {
+      try {
+        catalogItems = await getCatalogItemsByClientId(effectiveClientId);
+      } catch (catErr) {
+        console.warn("Aviso ao carregar catálogo no briefing GET:", catErr);
+      }
+    }
+    if (catalogItems.length === 0 && Array.isArray(row.catalog_items) && row.catalog_items.length > 0) {
+      catalogItems = row.catalog_items;
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -547,6 +562,14 @@ export async function GET(
         instagramUrl: row.instagram_url,
         initialNotes: row.initial_notes,
         competitorNotes: row.competitor_notes,
+        brandHistory: row.brand_history || "",
+        corePromise: row.core_promise || "",
+        nonNegotiables: row.non_negotiables || "",
+        salesObjections: row.sales_objections || "",
+        cnpj: row.cnpj || "",
+        cnaeCode: row.cnae_code || "",
+        cnaeDescription: row.cnae_description || "",
+        catalogItems,
         conversationHistory: history,
         extractedIdentity: extracted,
         audiences,
@@ -696,6 +719,20 @@ export async function POST(
          WHERE id = $3`,
         [JSON.stringify(extracted), newProgress, session.id]
       );
+
+      if (Array.isArray(extracted.catalogItems) && extracted.catalogItems.length > 0) {
+        await query(
+          `UPDATE public.client_briefing_sessions SET catalog_items = $1::jsonb WHERE id = $2`,
+          [JSON.stringify(extracted.catalogItems), session.id]
+        );
+        if (session.client_id) {
+          try {
+            await syncCatalogItems(session.client_id, extracted.catalogItems as any);
+          } catch (catErr) {
+            console.warn("Aviso ao sincronizar catálogo do briefing:", catErr);
+          }
+        }
+      }
 
       return NextResponse.json({
         success: true,

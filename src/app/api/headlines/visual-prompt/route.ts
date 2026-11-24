@@ -126,7 +126,7 @@ Gere o prompt visual ultra detalhado agora em JSON.`;
     const result = await generateWithOpenRouter({
       model: strategyModel(),
       temperature: 0.7,
-      maxTokens: 2000,
+      reasoningEffort: "low", maxTokens: 10500,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

@@ -12,7 +12,8 @@ describe("Contexto da empresa nas chamadas de IA", () => {
       sql.includes("FROM client_identities") ? [{ brand_context: "Móveis planejados", target_audiences: ["Famílias"], differentials: ["Projeto personalizado"], forbidden_words: ["milagre"], api_key: "não enviar" }] :
       sql.includes("FROM client_audiences") ? [{ name: "Famílias", description: "Pessoas planejando uma reforma", objections: ["Prazo de entrega"] }] :
       sql.includes("FROM client_brand_voice_presets") ? [{ custom_guidelines: "Explicar materiais sem jargões" }] :
-      sql.includes("FROM client_editorial_lines") ? [{id:"33333333-3333-4333-8333-333333333333",pillar_name:"Ambientes",theme:"Cozinhas"}] : []
+      sql.includes("FROM client_editorial_lines") ? [{id:"33333333-3333-4333-8333-333333333333",pillar_name:"Ambientes",theme:"Cozinhas"}] :
+      sql.includes("FROM client_catalog_items") ? [{ name: "Armários Planejados", item_type: "SERVICE", deliverables: ["Medição no local"] }] : []
     }));
   });
   it("inclui características, público, objeções e restrições da marca", async () => {
@@ -23,11 +24,12 @@ describe("Contexto da empresa nas chamadas de IA", () => {
     expect(prompt).toContain("Projeto personalizado");
     expect(prompt).toContain("Prazo de entrega");
     expect(prompt).toContain("Explicar materiais sem jargões");
+    expect(prompt).toContain("Armários Planejados");
     expect(prompt).not.toContain("não enviar");
   });
   it("todas as consultas usam somente o ID da empresa solicitada", async () => {
     await loadAiClientContext(clientId);
-    expect(query).toHaveBeenCalledTimes(5);
+    expect(query).toHaveBeenCalledTimes(6);
     for (const [, values] of query.mock.calls) expect(values).toEqual([clientId]);
     const other = await loadAiClientContext("22222222-2222-4222-8222-222222222222");
     expect(other.company.name).toBe("Distribuidora");

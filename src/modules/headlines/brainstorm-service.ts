@@ -279,7 +279,7 @@ DIRETRIZES FUNDAMENTAIS:
 
   const response = await generateWithOpenRouter({
     model: strategyModel(),
-    maxTokens: Math.max(2000, count * 900),
+    maxTokens: Math.max(6000, count * 2700),
     reasoningEffort: "low",
     temperature: 0.7,
     messages: [

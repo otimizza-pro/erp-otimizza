@@ -23,7 +23,7 @@ export async function POST(request:Request){
   const result=await generateWithOpenRouter({
     model:strategyModel(),
     temperature:STRATEGY_TEMPERATURE,
-    maxTokens:7000,
+    reasoningEffort:"low", maxTokens:31500,
     messages:[
       {role:"system",content:'Você é estrategista editorial sênior. Mantenha raciocínio lógico rigoroso, estruturação estritamente fiel ao briefing e zero alucinação. Organize pilares amplos em temas recorrentes; não confunda tema com pauta de post. '+(data.pillar?'Gere 3 novos temas do pilar informado, preservando seu nome exatamente.':'Gere 4 pilares específicos ao negócio, com 3 temas recorrentes em cada pilar (12 registros).')+' Cada tema deve ter objetivo e orientação próprios. No campo notes do tema principal, inclua o bloco sintetizado [DNA_DA_CAMPANHA] (Público-alvo, Dor Principal, Desejo Principal, Mecanismo Único, 3 Objeções e Tom de Voz). Não invente diferenciais, pesquisas ou resultados. Evite repetir os temas já cadastrados no contexto. Retorne somente array JSON: [{"pillar_name":"pilar","theme":"tema recorrente","objective":"objetivo","preferred_formats":["REELS","CAROUSEL"],"frequency_per_month":1,"notes":"orientação"}]. Português brasileiro.'},
       {role:"user",content:clientContextPrompt(context)+(data.pillar?"\nPilar selecionado: "+data.pillar:"")}

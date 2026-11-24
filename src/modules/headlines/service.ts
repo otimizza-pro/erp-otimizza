@@ -100,7 +100,7 @@ export async function executeRun(id:string,user:string) {
  if(!claim.rowCount)return;
  const start=Date.now();let usage:unknown=null;let actual:string|null=null;
  try {
-  const generated=await generateWithOpenRouter({model:run.requested_model,maxTokens:8000,reasoningEffort:"low",disableThinking:run.requested_model.startsWith('nvidia/nemotron-3.5-lightning'),temperature:run.brief.creativity==="Conservadora"?0.3:run.brief.creativity==="Exploratória"?0.9:0.65,timeoutMs:80000,messages:[{role:"system",content:headlineRules},{role:"user",content:makeRunPrompt(run.prompt,run.mode,run.style_snapshot||run.style,run.rejection_snapshot)}]});
+  const generated=await generateWithOpenRouter({model:run.requested_model,maxTokens:30000,reasoningEffort:"low",disableThinking:run.requested_model.startsWith('nvidia/nemotron-3.5-lightning'),temperature:run.brief.creativity==="Conservadora"?0.3:run.brief.creativity==="Exploratória"?0.9:0.65,timeoutMs:80000,messages:[{role:"system",content:headlineRules},{role:"user",content:makeRunPrompt(run.prompt,run.mode,run.style_snapshot||run.style,run.rejection_snapshot)}]});
   usage=generated.usage;actual=generated.model;
   const candidates=validateCandidates(JSON.parse(generated.text.replace(/^```(?:json)?\s*/i,"").replace(/\s*```$/,"").trim()),briefSchema.parse(run.brief));
   await withTransaction(async db=>{
@@ -169,7 +169,7 @@ export async function brainstorm(id:string,user:string,direction:string) {
  const w=await ownedWorkspace(id,user),context=await loadAiClientContext(w.client_id);
  const recent=await query("SELECT title,central_idea FROM content_calendar_items WHERE client_id=$1 AND archived_at IS NULL ORDER BY created_at DESC LIMIT 25",[w.client_id]);
  const schema=z.array(z.object({idea:z.string().min(1).max(1500),audience:z.string().max(1500),pain:z.string().max(1000),desire:z.string().max(1000),goal:z.string().max(1000),angle:z.string().max(200),format:z.string().max(100),rationale:z.string().max(1000),repetition:z.string().max(1000)})).length(5);
- const generated=await generateWithOpenRouter({model:strategyModel(),maxTokens:4500,messages:[{role:"system",content:"Sugira exatamente 5 pautas distintas, sem inventar fatos, evidências ou resultados. Use públicos cadastrados. Sinalize repetição. Retorne SOMENTE array JSON de objetos {idea,audience,pain,desire,goal,angle,format,rationale,repetition}."},{role:"user",content:JSON.stringify({context,brief:w.brief,direction,recent:recent.rows})}]});
+ const generated=await generateWithOpenRouter({model:strategyModel(),maxTokens:13500,messages:[{role:"system",content:"Sugira exatamente 5 pautas distintas, sem inventar fatos, evidências ou resultados. Use públicos cadastrados. Sinalize repetição. Retorne SOMENTE array JSON de objetos {idea,audience,pain,desire,goal,angle,format,rationale,repetition}."},{role:"user",content:JSON.stringify({context,brief:w.brief,direction,recent:recent.rows})}]});
  const ideas=parseAiJson(generated.text,schema);
  await query("UPDATE headline_workspaces SET brainstorm=$3::jsonb,updated_at=NOW() WHERE id=$1 AND user_id=$2",[id,user,JSON.stringify([...(w.brainstorm||[]),{ideas,model:generated.model,createdAt:new Date().toISOString()}])]);return ideas;
 }
@@ -179,14 +179,14 @@ export async function saveStyle(clientId:string,user:string,format:string,guidan
 export async function summarizeStyle(clientId:string,user:string,format:string) {
  const style=await styleContext(clientId,user,format);
  if(!style.positive.length&&!style.negative.length)throw new Error("Avalie ou escreva headlines para iniciar o aprendizado.");
- const generated=await generateWithOpenRouter({model:contentModel(),maxTokens:1600,messages:[{role:"system",content:"Resuma preferências editoriais observadas neste cliente e formato, com base nos exemplos e motivos. Não transforme ausência de avaliação em rejeição, não generalize uma rejeição a todo assunto. Preserve orientação explícita do usuário. Não invente fatos. Apenas um resumo breve editável em português."},{role:"user",content:JSON.stringify(style)}]});
+ const generated=await generateWithOpenRouter({model:contentModel(),maxTokens:4800,messages:[{role:"system",content:"Resuma preferências editoriais observadas neste cliente e formato, com base nos exemplos e motivos. Não transforme ausência de avaliação em rejeição, não generalize uma rejeição a todo assunto. Preserve orientação explícita do usuário. Não invente fatos. Apenas um resumo breve editável em português."},{role:"user",content:JSON.stringify(style)}]});
  // Suggestion only: user reviews before replacing their own guidance.
  return generated.text;
 }
 export async function recommendBrief(id:string,user:string) {
  const w=await ownedWorkspace(id,user),context=await loadAiClientContext(w.client_id);
  const schema=z.object({structures:z.array(z.enum(structures as [string,...string[]])).min(1).max(4),angles:z.array(z.enum(angles as [string,...string[]])).min(1).max(3),triggers:z.array(z.enum(triggers as [string,...string[]])).max(3),awareness:z.enum(awareness as [string,...string[]]),rationale:z.string().max(1200)});
- const generated=await generateWithOpenRouter({model:strategyModel(),maxTokens:2000,messages:[{role:"system",content:"Recomende parâmetros editoriais pelo briefing. Não invente fatos sobre o público. Consciência é hipótese editável, não fato confirmado. Se faltar informação, use Pedir recomendação e explique. Sem evidência real não sugira prova social, escassez, urgência, estatística ou depoimento. Retorne SOMENTE JSON {structures:string[],angles:string[],triggers:string[],awareness:string,rationale:string}."},{role:"user",content:JSON.stringify({brief:w.brief,context,options:{structures,angles,triggers,awareness}})}]});
+ const generated=await generateWithOpenRouter({model:strategyModel(),maxTokens:6000,messages:[{role:"system",content:"Recomende parâmetros editoriais pelo briefing. Não invente fatos sobre o público. Consciência é hipótese editável, não fato confirmado. Se faltar informação, use Pedir recomendação e explique. Sem evidência real não sugira prova social, escassez, urgência, estatística ou depoimento. Retorne SOMENTE JSON {structures:string[],angles:string[],triggers:string[],awareness:string,rationale:string}."},{role:"user",content:JSON.stringify({brief:w.brief,context,options:{structures,angles,triggers,awareness}})}]});
  return parseAiJson(generated.text,schema);
 }
 export async function createExperiment(user:string,raw:unknown) {

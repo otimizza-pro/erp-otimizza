@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { formatContactFirstName } from "@/modules/clients/contact-name";
 import { getClientDnaContext } from "@/modules/clients/dna-briefing-sync";
+import { getCatalogItemsByClientId, syncCatalogItems } from "@/modules/clients/catalog-service";
 
 export const dynamic = "force-dynamic";
 
@@ -211,6 +212,15 @@ export async function GET(
     const clientIdentity = dnaContext?.clientIdentity || null;
     const clientAudiences = dnaContext?.audiences || [];
 
+    let catalogItems: unknown[] = [];
+    if (task.client_id) {
+      try {
+        catalogItems = await getCatalogItemsByClientId(task.client_id);
+      } catch (catErr) {
+        console.warn("Aviso ao carregar catálogo do cliente:", catErr);
+      }
+    }
+
     const ext = typeof session?.extracted_identity === "string" 
       ? JSON.parse(session.extracted_identity) 
       : (session?.extracted_identity || {});
@@ -223,6 +233,14 @@ export async function GET(
       session,
       clientIdentity,
       audiences: clientAudiences,
+      catalogItems,
+      brandHistory: session?.brand_history || clientIdentity?.brand_history || "",
+      corePromise: session?.core_promise || clientIdentity?.core_promise || "",
+      nonNegotiables: session?.non_negotiables || "",
+      salesObjections: session?.sales_objections || clientIdentity?.sales_objections || "",
+      cnpj: session?.cnpj || "",
+      cnaeCode: session?.cnae_code || "",
+      cnaeDescription: session?.cnae_description || "",
       category,
       servicesOffered,
       publicUrl: session ? `/briefing/${session.token}` : "",
@@ -256,6 +274,14 @@ export async function POST(
       extractedIdentity,
       category,
       servicesOffered,
+      brandHistory,
+      corePromise,
+      nonNegotiables,
+      salesObjections,
+      cnpj,
+      cnaeCode,
+      cnaeDescription,
+      catalogItems,
     } = body;
 
     const mergedExt = {
@@ -287,9 +313,12 @@ export async function POST(
         INSERT INTO public.client_briefing_sessions (
           token, project_id, task_id, client_id, company_name, contact_name,
           website_url, maps_url, instagram_url, initial_notes, competitor_notes,
-          extracted_identity, conversation_history, status, progress_percent
+          extracted_identity, conversation_history, status, progress_percent,
+          brand_history, core_promise, non_negotiables, sales_objections,
+          cnpj, cnae_code, cnae_description, catalog_items
         ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, '[]'::jsonb, 'PENDING', 15
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, '[]'::jsonb, 'PENDING', 15,
+          $13, $14, $15, $16, $17, $18, $19, COALESCE($20::jsonb, '[]'::jsonb)
         ) RETURNING *
         `,
         [
@@ -305,24 +334,57 @@ export async function POST(
           initialNotes || null,
           competitorNotes || null,
           JSON.stringify(mergedExt),
+          brandHistory || null,
+          corePromise || null,
+          nonNegotiables || null,
+          salesObjections || null,
+          cnpj || null,
+          cnaeCode || null,
+          cnaeDescription || null,
+          catalogItems ? JSON.stringify(catalogItems) : null,
         ]
       );
       session = insertRes.rows[0];
 
-      if (taskRes.rows[0].client_id) {
+      const effectiveClientId = taskRes.rows[0].client_id;
+      if (effectiveClientId) {
         await query(
           `
-          INSERT INTO public.client_identities (client_id, market_niche, value_proposition, instagram_handle, website_url, updated_at)
-          VALUES ($1, $2, $3, $4, $5, NOW())
+          INSERT INTO public.client_identities (
+            client_id, market_niche, value_proposition, instagram_handle, website_url,
+            brand_history, core_promise, sales_objections, catalog_items, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9::jsonb, '[]'::jsonb), NOW())
           ON CONFLICT (client_id) DO UPDATE SET
             market_niche = COALESCE(EXCLUDED.market_niche, client_identities.market_niche),
             value_proposition = COALESCE(EXCLUDED.value_proposition, client_identities.value_proposition),
             instagram_handle = COALESCE(NULLIF(EXCLUDED.instagram_handle, ''), client_identities.instagram_handle),
             website_url = COALESCE(NULLIF(EXCLUDED.website_url, ''), client_identities.website_url),
+            brand_history = COALESCE(EXCLUDED.brand_history, client_identities.brand_history),
+            core_promise = COALESCE(EXCLUDED.core_promise, client_identities.core_promise),
+            sales_objections = COALESCE(EXCLUDED.sales_objections, client_identities.sales_objections),
+            catalog_items = CASE WHEN EXCLUDED.catalog_items IS NOT NULL AND jsonb_array_length(EXCLUDED.catalog_items) > 0 THEN EXCLUDED.catalog_items ELSE client_identities.catalog_items END,
             updated_at = NOW()
           `,
-          [taskRes.rows[0].client_id, category || null, servicesOffered || null, instagramUrl || null, websiteUrl || null]
+          [
+            effectiveClientId,
+            category || null,
+            servicesOffered || null,
+            instagramUrl || null,
+            websiteUrl || null,
+            brandHistory || null,
+            corePromise || null,
+            salesObjections || null,
+            catalogItems ? JSON.stringify(catalogItems) : null,
+          ]
         );
+
+        if (Array.isArray(catalogItems) && catalogItems.length > 0) {
+          try {
+            await syncCatalogItems(effectiveClientId, catalogItems);
+          } catch (syncErr) {
+            console.warn("Aviso ao sincronizar catálogo do cliente:", syncErr);
+          }
+        }
       }
     } else {
       // Atualizar campos pré-preenchidos pela equipe e identidade estratégica
@@ -341,8 +403,16 @@ export async function POST(
             WHEN $8::jsonb IS NOT NULL THEN (COALESCE(extracted_identity, '{}'::jsonb) || $8::jsonb)
             ELSE extracted_identity 
           END,
+          brand_history = COALESCE($9, brand_history),
+          core_promise = COALESCE($10, core_promise),
+          non_negotiables = COALESCE($11, non_negotiables),
+          sales_objections = COALESCE($12, sales_objections),
+          cnpj = COALESCE($13, cnpj),
+          cnae_code = COALESCE($14, cnae_code),
+          cnae_description = COALESCE($15, cnae_description),
+          catalog_items = CASE WHEN $16::jsonb IS NOT NULL THEN $16::jsonb ELSE catalog_items END,
           updated_at = NOW()
-        WHERE id = $9
+        WHERE id = $17
         RETURNING *
         `,
         [
@@ -354,6 +424,14 @@ export async function POST(
           initialNotes || null,
           competitorNotes || null,
           Object.keys(mergedExt).length > 0 ? JSON.stringify(mergedExt) : null,
+          brandHistory || null,
+          corePromise || null,
+          nonNegotiables || null,
+          salesObjections || null,
+          cnpj || null,
+          cnaeCode || null,
+          cnaeDescription || null,
+          catalogItems ? JSON.stringify(catalogItems) : null,
           session.id,
         ]
       );
@@ -362,17 +440,41 @@ export async function POST(
       if (session.client_id) {
         await query(
           `
-          INSERT INTO public.client_identities (client_id, market_niche, value_proposition, instagram_handle, website_url, updated_at)
-          VALUES ($1, $2, $3, $4, $5, NOW())
+          INSERT INTO public.client_identities (
+            client_id, market_niche, value_proposition, instagram_handle, website_url,
+            brand_history, core_promise, sales_objections, catalog_items, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9::jsonb, '[]'::jsonb), NOW())
           ON CONFLICT (client_id) DO UPDATE SET
             market_niche = COALESCE(EXCLUDED.market_niche, client_identities.market_niche),
             value_proposition = COALESCE(EXCLUDED.value_proposition, client_identities.value_proposition),
             instagram_handle = COALESCE(NULLIF(EXCLUDED.instagram_handle, ''), client_identities.instagram_handle),
             website_url = COALESCE(NULLIF(EXCLUDED.website_url, ''), client_identities.website_url),
+            brand_history = COALESCE(EXCLUDED.brand_history, client_identities.brand_history),
+            core_promise = COALESCE(EXCLUDED.core_promise, client_identities.core_promise),
+            sales_objections = COALESCE(EXCLUDED.sales_objections, client_identities.sales_objections),
+            catalog_items = CASE WHEN EXCLUDED.catalog_items IS NOT NULL AND jsonb_array_length(EXCLUDED.catalog_items) > 0 THEN EXCLUDED.catalog_items ELSE client_identities.catalog_items END,
             updated_at = NOW()
           `,
-          [session.client_id, category || null, servicesOffered || null, instagramUrl || null, websiteUrl || null]
+          [
+            session.client_id,
+            category || null,
+            servicesOffered || null,
+            instagramUrl || null,
+            websiteUrl || null,
+            brandHistory || null,
+            corePromise || null,
+            salesObjections || null,
+            catalogItems ? JSON.stringify(catalogItems) : null,
+          ]
         );
+
+        if (Array.isArray(catalogItems) && catalogItems.length > 0) {
+          try {
+            await syncCatalogItems(session.client_id, catalogItems);
+          } catch (syncErr) {
+            console.warn("Aviso ao sincronizar catálogo do cliente:", syncErr);
+          }
+        }
       }
     }
 

@@ -31,7 +31,6 @@ import {
   ArrowRight,
   ExternalLink,
   ChevronDown,
-  Building2,
   X,
   Check,
 } from "lucide-react";
@@ -354,19 +353,6 @@ function StrategyContent() {
     }
   };
 
-  // Troca de cliente
-  const handleClientChange = (newId: string) => {
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    if (dirty) {
-      void persistChanges(false);
-    }
-    const targetComp = availableCompanies.find((c) => c.id === newId);
-    if (targetComp) {
-      selectCompany(targetComp);
-    }
-    router.push(`/strategy?clientId=${newId}`);
-  };
-
   // Funções de manipulação do catálogo
   const handleOpenNewCatalogItem = () => {
     setEditingCatalogItem(null);
@@ -454,8 +440,8 @@ function StrategyContent() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-bold text-zinc-950">Estratégia da Marca</h1>
-                <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200">
-                  Produção
+                <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  {activeCompany.name}
                 </span>
               </div>
               <p className="text-xs text-zinc-500 mt-0.5">
@@ -465,22 +451,6 @@ function StrategyContent() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Seletor de Cliente */}
-            <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 px-3 py-1.5 rounded-xl">
-              <Building2 className="w-3.5 h-3.5 text-zinc-400" />
-              <select
-                value={activeClientId}
-                onChange={(e) => handleClientChange(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-zinc-900 focus:outline-none cursor-pointer"
-              >
-                {availableCompanies.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} {c.id === INTERNAL_COMPANY_ID ? "(Interna)" : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* Links rápidos para Linha Editorial, Padrões e Brainstorm */}
             <Link
               href="/social/editorial"

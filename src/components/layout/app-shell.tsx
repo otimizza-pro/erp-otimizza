@@ -159,16 +159,20 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       { id: "proposals_list", label: "Propostas comerciais", href: "/proposals", icon: FileText },
       { id: "contracts_list", label: "Contratos vigentes", href: "/contracts", icon: FileText },
     ] },
+    { id: "strategy", title: "Estratégia", icon: Compass, section: "PRODUÇÃO", items: [
+      { id: "strategy_overview", label: "Estratégia", href: "/strategy", icon: Compass },
+    ] },
     { id: "projects", title: "Projetos", icon: Briefcase, section: "PRODUÇÃO", items: [
       { id: "projects_new", label: "Novo projeto", href: "/projects/new", icon: Briefcase },
       { id: "projects_list", label: "Projetos em andamento", href: "/projects", icon: Briefcase },
     ] },
     { id: "content_studio", title: "Social Media", icon: Sparkles, section: "PRODUÇÃO", items: [
-        { id: "content_brainstorm", label: "Brainstorm de Conteúdo", href: "/prompt-creator/headlines", icon: Lightbulb },
+      { id: "editorial", label: "Linha Editorial", href: "/social/editorial", icon: Layers },
+      { id: "format_guidelines", label: "Padrões de Formatos", href: "/social/format-guidelines", icon: FileText },
+      { id: "content_brainstorm", label: "Brainstorm de Conteúdo", href: "/prompt-creator/headlines", icon: Lightbulb },
       { id: "prompt_creator", label: "Estúdio Criativo", href: "/prompt-creator", icon: Sparkles },
-      { id: "editorial", label: "Linha Editorial", href: "/prompt-creator?tab=EDITORIAL", icon: Sparkles },
-      { id: "calendar", label: "Calendário de Conteúdo", href: "/prompt-creator?tab=CALENDAR", icon: Sparkles },
-      { id: "saved_posts", label: "Feed & Criativos", href: "/prompt-creator/saved", icon: Sparkles },
+      { id: "calendar", label: "Calendário de Conteúdo", href: "/prompt-creator?tab=CALENDAR", icon: Calendar },
+      { id: "saved_posts", label: "Feed & Criativos", href: "/prompt-creator/saved", icon: ImageIcon },
     ] },
     { id: "paid_media", title: "Tráfego pago", icon: Target, section: "PRODUÇÃO", items: [
       { id: "meta-ads", label: "Anúncios Meta Ads", href: "/operations/meta-ads", icon: Target },

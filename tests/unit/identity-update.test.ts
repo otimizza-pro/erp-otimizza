@@ -11,6 +11,11 @@ describe("Identity consistency",()=>{
  });
  it("does not overwrite unrelated fields when editing only notes",async()=>{
   query.mockResolvedValue({rows:[{id}]});const request=new Request("http://localhost",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({notes:"Nova orientação"})});
-  expect((await PUT(request,scope)).status).toBe(200);const [sql,values]=query.mock.calls[0];expect(sql).toContain("CASE WHEN $19::jsonb ? 'brandContext' THEN");expect(sql).toContain("ELSE client_identities.brand_context");expect(values[18]).toBe('["notes"]');
+  expect((await PUT(request,scope)).status).toBe(200);
+  const upsertCall = query.mock.calls.find((call: unknown[]) => Array.isArray(call) && typeof call[0] === "string" && (call[0] as string).includes("INSERT INTO client_identities"))!;
+  const [sql, values] = upsertCall as [string, unknown[]];
+  expect(sql).toContain("CASE WHEN $19::jsonb ? 'brandContext' THEN");
+  expect(sql).toContain("ELSE client_identities.brand_context");
+  expect(values[18]).toBe('["notes"]');
  });
 });

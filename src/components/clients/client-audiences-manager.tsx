@@ -21,6 +21,7 @@ import {
   Flame,
   Heart,
   Globe,
+  Package,
 } from "lucide-react";
 import { AudienceAiPlanner } from "@/components/content-studio/audience-ai-planner";
 
@@ -36,6 +37,8 @@ export interface ClientAudienceItem {
   digital_behavior?: string | null;
   is_default: boolean;
   archived_at: string | null;
+  linkedCatalogItemIds?: string[];
+  linkedCatalogItems?: { id: string; name: string; type: string }[];
 }
 
 interface ClientAudiencesManagerProps {
@@ -50,6 +53,7 @@ export function ClientAudiencesManager({
   onAudiencesChange,
 }: ClientAudiencesManagerProps) {
   const [audiences, setAudiences] = useState<ClientAudienceItem[]>([]);
+  const [catalogItems, setCatalogItems] = useState<{ id: string; name: string; type: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,6 +72,7 @@ export function ClientAudiencesManager({
   const [formObjections, setFormObjections] = useState("");
   const [formDigitalBehavior, setFormDigitalBehavior] = useState("");
   const [formIsDefault, setFormIsDefault] = useState(false);
+  const [formCatalogItemIds, setFormCatalogItemIds] = useState<string[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
 
   const onAudiencesChangeRef = useRef(onAudiencesChange);
@@ -92,13 +97,26 @@ export function ClientAudiencesManager({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/content-studio/audiences?clientId=${encodeURIComponent(clientId)}`, { cache: "no-store" });
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
+      const [audRes, catRes] = await Promise.all([
+        fetch(`/api/content-studio/audiences?clientId=${encodeURIComponent(clientId)}`, { cache: "no-store" }),
+        fetch(`/api/clients/${encodeURIComponent(clientId)}/catalog`, { cache: "no-store" }),
+      ]);
+      if (!audRes.ok) {
+        const errJson = await audRes.json().catch(() => ({}));
         throw new Error(errJson.error || "Erro ao carregar públicos do cliente.");
       }
-      const data = await res.json();
+      const data = await audRes.json();
       const list: ClientAudienceItem[] = data.audiences || [];
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        if (Array.isArray(catData.items)) {
+          setCatalogItems(catData.items.map((it: { id: string; name: string; type: string }) => ({
+            id: it.id,
+            name: it.name,
+            type: it.type || "PRODUCT",
+          })));
+        }
+      }
       if (isMountedRef.current) {
         setAudiences(list);
         onAudiencesChangeRef.current?.(list);
@@ -129,6 +147,7 @@ export function ClientAudiencesManager({
     setFormObjections("");
     setFormDigitalBehavior("");
     setFormIsDefault(audiences.length === 0);
+    setFormCatalogItemIds([]);
     setFormError(null);
     setModalOpen(true);
   };
@@ -143,6 +162,7 @@ export function ClientAudiencesManager({
     setFormObjections((aud.objections || []).join("\n"));
     setFormDigitalBehavior(aud.digital_behavior || "");
     setFormIsDefault(Boolean(aud.is_default));
+    setFormCatalogItemIds(aud.linkedCatalogItemIds || aud.linkedCatalogItems?.map((it) => it.id) || []);
     setFormError(null);
     setModalOpen(true);
   };
@@ -186,6 +206,7 @@ export function ClientAudiencesManager({
         objections,
         digitalBehavior: formDigitalBehavior.trim() || null,
         isDefault: formIsDefault,
+        catalogItemIds: formCatalogItemIds,
       };
 
       const res = await fetch(url, {
@@ -500,6 +521,26 @@ export function ClientAudiencesManager({
                         </p>
                       </div>
                     )}
+
+                    {/* Vínculo com Produtos & Serviços do Catálogo */}
+                    {aud.linkedCatalogItems && aud.linkedCatalogItems.length > 0 && (
+                      <div className="space-y-1 pt-1.5 border-t border-zinc-100">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1">
+                          <Package className="w-2.5 h-2.5" /> Produtos / Serviços Vinculados ({aud.linkedCatalogItems.length})
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {aud.linkedCatalogItems.map((prod) => (
+                            <span
+                              key={prod.id}
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 line-clamp-1 max-w-[200px]"
+                              title={prod.name}
+                            >
+                              {prod.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -557,6 +598,48 @@ export function ClientAudiencesManager({
                   className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600"
                 />
               </div>
+
+              {/* Vínculo de Produtos e Serviços */}
+              {catalogItems.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-purple-50/40 border border-purple-200/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5 text-purple-600" />
+                      Produtos e Serviços Associados a Este Público
+                    </label>
+                    <span className="text-[11px] text-purple-700 font-medium">
+                      {formCatalogItemIds.length} selecionado(s)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-purple-800/80">
+                    Selecione quais ofertas deste cliente são consumidas ou procuradas por este perfil:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {catalogItems.map((item) => {
+                      const selected = formCatalogItemIds.includes(item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            setFormCatalogItemIds((prev) =>
+                              selected ? prev.filter((id) => id !== item.id) : [...prev, item.id]
+                            );
+                          }}
+                          className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border font-medium transition cursor-pointer ${
+                            selected
+                              ? "bg-purple-600 text-white border-purple-600 shadow-2xs"
+                              : "bg-white text-zinc-700 border-zinc-200 hover:border-purple-300"
+                          }`}
+                        >
+                          {selected ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3 text-zinc-400" />}
+                          {item.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Pilar 1: Dados Demográficos (Quem são) */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">

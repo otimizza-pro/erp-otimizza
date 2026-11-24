@@ -299,7 +299,7 @@ describe("Brainstorm Service", () => {
     const result = await convertIdeaToHeadlines("idea-1", "user-1", { id: "planned-post", clientId: "client-123" });
 
     expect(result).toEqual({ ideaId: "idea-1", workspaceId: "workspace-1", contentId: "planned-post" });
-    expect(execute).toHaveBeenCalledWith(expect.stringContaining("SET central_idea"), ["planned-post", "Ideia do mês", null, "Reels", null, false]);
+    expect(execute).toHaveBeenCalledWith(expect.stringContaining("SET central_idea"), ["planned-post", "Ideia do mês", null, "Reels", null, false, null, null, null]);
     expect(execute.mock.calls.some(([sql]) => sql.includes("INSERT INTO content_calendar_items"))).toBe(false);
   });
 

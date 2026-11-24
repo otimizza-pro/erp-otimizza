@@ -35,7 +35,29 @@ export interface BrainstormIdea {
   project_id?: string | null;
   created_at: string;
   updated_at: string;
+  offer_name?: string;
+  offer_id?: string | null;
+  audience_angle?: string;
+  angle_focus?: string;
+  audience_question?: string;
+  required_material?: string;
+  is_hypothesis?: boolean;
+  round_number?: number;
+  parent_idea_id?: string | null;
+  refinement_type?: string;
 }
+
+import {
+  BRAINSTORM_ANGLES,
+  type BrainstormAngleId,
+  type FocusSuggestion,
+} from "./brainstorm-modes";
+
+export {
+  BRAINSTORM_ANGLES,
+  type BrainstormAngleId,
+  type FocusSuggestion,
+};
 
 export interface PillarWithLines {
   id: string;
@@ -142,6 +164,10 @@ type BrainstormSearchInput = {
   format?: string;
   count?: number;
   team?: "A" | "B" | "BOTH";
+  offerName?: string;
+  offerId?: string | null;
+  audienceAngle?: string;
+  angleFocus?: string;
 };
 
 export async function generateBrainstormIdeas(
@@ -255,6 +281,9 @@ DIRETRIZES FUNDAMENTAIS:
     foco_solicitado: {
       pilar_selecionado: targetPillar?.name || "Todos os pilares / distribuir equilibradamente",
       assunto_especifico: targetLine?.theme || "Livre dentro dos pilares",
+      oferta_ou_produto: input.offerName || "Institucional / Marca",
+      angulo_de_abordagem: input.audienceAngle || "Diversificar ângulos",
+      recorte_ou_pergunta_do_angulo: input.angleFocus || undefined,
       direcionamento_do_usuario: input.direction || "Gere as melhores ideias estratégicas para o momento atual",
       formato: input.format || "Diversifique os formatos",
     },
@@ -311,6 +340,10 @@ DIRETRIZES FUNDAMENTAIS:
       editorial_line_id: matchedLine?.id,
       format: input.format || idea.format,
       team: input.team === "A" || input.team === "B" ? input.team : idea.team,
+      offer_name: input.offerName || "",
+      offer_id: input.offerId || null,
+      audience_angle: input.audienceAngle || "",
+      angle_focus: input.angleFocus || "",
     };
   });
 }
@@ -318,7 +351,7 @@ DIRETRIZES FUNDAMENTAIS:
 export async function searchBrainstormIdeas(input: BrainstormSearchInput) {
   const scopeKey = createHash("sha256").update(JSON.stringify([
     input.mode, input.pillarId, input.editorialLineId, normalizeBrainstormText(input.direction || ""),
-    input.format, input.team,
+    input.format, input.team, input.offerName, input.audienceAngle, input.angleFocus,
   ])).digest("hex");
   const today = brainstormDay();
   const lease = randomUUID();
@@ -577,9 +610,22 @@ export async function convertIdeaToHeadlines(
       await db.query(
         `UPDATE content_calendar_items
          SET central_idea = $2, editorial_line_id = $3, format = $4, target_audience_name = $5,
+             offer_name = COALESCE(NULLIF($7, ''), offer_name),
+             audience_angle = COALESCE(NULLIF($8, ''), audience_angle),
+             required_material = COALESCE(NULLIF($9, ''), required_material),
              status = CASE WHEN status = 'PLANNED' AND NOT $6 THEN 'IN_CREATION' ELSE status END, updated_at = NOW()
          WHERE id = $1`,
-        [contentId, idea.title, idea.editorial_line_id || null, calendarFormat, idea.target_audience || null, linkOnly],
+        [
+          contentId,
+          idea.title,
+          idea.editorial_line_id || null,
+          calendarFormat,
+          idea.target_audience || null,
+          linkOnly,
+          idea.offer_name || null,
+          idea.audience_angle || null,
+          idea.required_material || null,
+        ],
       );
       if (linkOnly) {
         await db.query(
@@ -602,8 +648,8 @@ export async function convertIdeaToHeadlines(
       const contentRes = await db.query(
         `INSERT INTO content_calendar_items (
           client_id, editorial_line_id, title, central_idea,
-          format, target_audience_name, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, 'IN_CREATION')
+          format, target_audience_name, offer_name, audience_angle, required_material, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'IN_CREATION')
         RETURNING id`,
         [
           idea.client_id,
@@ -612,6 +658,9 @@ export async function convertIdeaToHeadlines(
           idea.title,
           calendarFormat,
           idea.target_audience || null,
+          idea.offer_name || "",
+          idea.audience_angle || "",
+          idea.required_material || "",
         ]
       );
       contentId = contentRes.rows[0].id;
@@ -674,4 +723,70 @@ export async function convertIdeaToHeadlines(
       ideaId,
     };
   });
+}
+
+export async function suggestFocus(clientId: string, offerName?: string): Promise<{
+  paths: FocusSuggestion[];
+}> {
+  const [identityRes, audiencesRes, catalogRes] = await Promise.all([
+    query(
+      `SELECT positioning, tone_of_voice, differentials, brand_promise
+       FROM client_identities WHERE client_id = $1 LIMIT 1`,
+      [clientId]
+    ),
+    query(
+      `SELECT name, pain_points, desires, objections, demographics
+       FROM client_audiences WHERE client_id = $1 AND archived_at IS NULL
+       ORDER BY is_default DESC, name ASC LIMIT 3`,
+      [clientId]
+    ),
+    offerName
+      ? query(
+          `SELECT name, category, differentiator, target_pain, solution_method, what_is_included
+           FROM client_catalog_items
+           WHERE client_id = $1 AND name ILIKE $2 AND archived_at IS NULL LIMIT 1`,
+          [clientId, `%${offerName}%`]
+        )
+      : Promise.resolve({ rows: [] }),
+  ]);
+
+  const identity = identityRes.rows[0] || {};
+  const audiences = audiencesRes.rows || [];
+  const primaryAudience = audiences[0] || {};
+  const catalogItem = catalogRes.rows[0] || null;
+
+  const targetOffer = offerName || (catalogItem ? catalogItem.name : "Oferta principal");
+  const mainPain = catalogItem?.target_pain || primaryAudience.pain_points?.[0] || "Dificuldade em obter resultado consistente";
+  const mainDesire = primaryAudience.desires?.[0] || "Alcançar mais previsibilidade e transformação";
+  const mainObjection = primaryAudience.objections?.[0] || "Receio quanto ao custo-benefício ou tempo de entrega";
+  const mainDiff = catalogItem?.differentiator || identity.differentials || "Atendimento especializado e método validado";
+
+  const paths: FocusSuggestion[] = [
+    {
+      id: "focus-pain",
+      title: `Superar a dor: ${mainPain.slice(0, 45)}...`,
+      description: `Aborde diretamente como ${targetOffer} elimina o obstáculo diário que o cliente enfrenta sem promessas vazias.`,
+      angleId: "PAIN",
+      angleFocus: mainPain,
+      rationale: `Conexão imediata por dor latente identificada no público (${primaryAudience.name || "Público-alvo"}).`,
+    },
+    {
+      id: "focus-desire",
+      title: `Destacar o resultado: ${mainDesire.slice(0, 45)}...`,
+      description: `Mostre a transformação palpável que ${targetOffer} gera na prática para quem busca essa solução.`,
+      angleId: "DESIRE",
+      angleFocus: mainDesire,
+      rationale: "Foco no ganho final esperado pelo cliente, ativando desejo de contratação/compra.",
+    },
+    {
+      id: "focus-proof",
+      title: `Prova e diferencial: ${mainDiff.slice(0, 45)}...`,
+      description: `Demonstre os bastidores, a entrega ou o diferencial exclusivo que separa ${targetOffer} de alternativas genéricas.`,
+      angleId: "PROOF",
+      angleFocus: mainDiff,
+      rationale: `Quebra a principal objeção ("${mainObjection.slice(0, 40)}") comprovando a qualidade real.`,
+    },
+  ];
+
+  return { paths };
 }

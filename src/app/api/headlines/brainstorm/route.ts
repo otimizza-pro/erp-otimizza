@@ -16,6 +16,10 @@ const searchSchema = z.object({
   format: z.enum(["Carrossel", "Reels", "Post estático", "Stories"]).optional(),
   count: z.number().int().min(1).max(10).default(5),
   team: z.enum(["A", "B", "BOTH"]).default("BOTH"),
+  offerName: z.string().trim().max(255).optional(),
+  offerId: uuidSchema.optional(),
+  audienceAngle: z.string().trim().max(255).optional(),
+  angleFocus: z.string().trim().max(1000).optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -74,6 +78,12 @@ export async function POST(request: NextRequest) {
       const clientId = uuidSchema.parse(body.clientId);
       await buildWeeklyReview(clientId);
       return NextResponse.json({ success: true, weeklyReview: await getWeeklyReview(clientId) });
+    }
+
+    if (action === "SUGGEST_FOCUS") {
+      const clientId = uuidSchema.parse(body.clientId);
+      const res = await brainstormService.suggestFocus(clientId, body.offerName);
+      return NextResponse.json({ success: true, ...res });
     }
 
     if (action === "GENERATE") {

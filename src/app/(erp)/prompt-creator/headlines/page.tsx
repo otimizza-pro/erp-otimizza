@@ -8,12 +8,17 @@ import { useCompany } from "@/lib/context/company-context";
 import { contentCompanyId } from "@/modules/clients/internal-company";
 import { briefSchema, blankBrief, fieldGroups, structures, angles, triggers, awareness, formats, missingBrief, sameBrief, type HeadlineBrief } from "@/modules/headlines/schema";
 import { makeHeadlinePrompt } from "@/modules/headlines/prompt";
-import { brainstormModes, type BrainstormMode } from "@/modules/headlines/brainstorm-modes";
+import {
+  brainstormModes,
+  type BrainstormMode,
+  BRAINSTORM_ANGLES,
+  type BrainstormAngleId,
+  type FocusSuggestion,
+} from "@/modules/headlines/brainstorm-modes";
 import { suggestPostFits } from "@/modules/headlines/brainstorm-post-fit";
 import { ProductionChecklist } from "@/components/content-studio/production-checklist";
 import { ContentDeliveryPanel } from "@/components/content-studio/content-delivery-panel";
 import type { Context, WorkspaceState, Run, Candidate, ModelSlot } from "@/modules/headlines/types";
-import { ClientStrategyPanel } from "@/components/headlines/client-strategy-panel";
 import { ContentWriterPanel } from "@/components/headlines/content-writer-panel";
 import { ImagePromptPanel } from "@/components/headlines/image-prompt-panel";
 import { SchedulePanel } from "@/components/headlines/schedule-panel";
@@ -44,6 +49,7 @@ import {
   Calendar,
   FileText,
   Image as ImageIcon,
+  Package,
 } from "lucide-react";
 
 const control = "mt-1 w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition";
@@ -93,6 +99,12 @@ interface SavedIdea extends IdeaSource {
   post_status?: string | null;
   project_id?: string | null;
   created_at: string;
+  offer_name?: string;
+  offer_id?: string | null;
+  audience_angle?: string;
+  angle_focus?: string;
+  required_material?: string;
+  is_hypothesis?: boolean;
 }
 
 interface Pillar {
@@ -116,6 +128,12 @@ interface BrainstormAiIdea extends IdeaSource {
   goal?: string;
   rationale?: string;
   team?: "A" | "B";
+  offer_name?: string;
+  offer_id?: string | null;
+  audience_angle?: string;
+  angle_focus?: string;
+  required_material?: string;
+  is_hypothesis?: boolean;
 }
 
 interface EditorialLine {
@@ -337,7 +355,7 @@ function Workspace({ clientId, companyName, projectPost }: {
   const workspaceId = params.get("workspaceId") || (productionTab ? projectPost?.workspaceId : null);
   const contentId = projectPost ? (productionTab && (projectPost.hasIdea || linkedProjectPostId === projectPost.id) ? projectPost.id : null) : params.get("contentId");
   const projectPostId = projectPost?.id;
-  const activeTab = productionTab || (tabParam === "strategy" || tabParam === "brainstorm" ? tabParam :
+  const activeTab = productionTab || (tabParam === "brainstorm" ? "brainstorm" :
     workspaceId || contentId ? "headlines" : "brainstorm");
   const setActiveTab = (tab: typeof activeTab) => {
     const next = new URLSearchParams(params.toString());
@@ -345,6 +363,13 @@ function Workspace({ clientId, companyName, projectPost }: {
     if (workspaceId) next.set("workspaceId", workspaceId);
     router.replace("?" + next, { scroll: false });
   };
+
+  useEffect(() => {
+    if (tabParam === "strategy") {
+      router.replace(`/strategy?clientId=${encodeURIComponent(clientId)}`);
+    }
+  }, [tabParam, clientId, router]);
+
   const [availablePosts, setAvailablePosts] = useState<PlannedProjectPost[]>([]);
   const [weeklyReview, setWeeklyReview] = useState<{
     recommendations: { ideaId: string; postId: string }[];
@@ -364,7 +389,16 @@ function Workspace({ clientId, companyName, projectPost }: {
     contentId: string;
   } | null>(null);
 
-  // Estado do Brainstorm de Conteúdo
+  // Estado do Brainstorm de Conteúdo & Oferta/Ângulo
+  const [strategySummaryOpen, setStrategySummaryOpen] = useState(false);
+  const [catalogOffers, setCatalogOffers] = useState<{ id: string; name: string; type: string; category?: string }[]>([]);
+  const [selectedOffer, setSelectedOffer] = useState<string>("");
+  const [customOfferName, setCustomOfferName] = useState("");
+  const [selectedAngleId, setSelectedAngleId] = useState<BrainstormAngleId>("EXPLORE");
+  const [angleFocusText, setAngleFocusText] = useState("");
+  const [suggestingFocus, setSuggestingFocus] = useState(false);
+  const [focusSuggestions, setFocusSuggestions] = useState<FocusSuggestion[]>([]);
+
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [editorialLines, setEditorialLines] = useState<EditorialLine[]>([]);
   const [savedIdeas, setSavedIdeas] = useState<SavedIdea[]>([]);
@@ -374,6 +408,15 @@ function Workspace({ clientId, companyName, projectPost }: {
   const [selectedPillarId, setSelectedPillarId] = useState<string>("");
   const [selectedLineId, setSelectedLineId] = useState<string>("");
   const [brainstormDirection, setBrainstormDirection] = useState("");
+
+  useEffect(() => {
+    setSelectedOffer("");
+    setCustomOfferName("");
+    setSelectedAngleId("EXPLORE");
+    setAngleFocusText("");
+    setFocusSuggestions([]);
+    setAiGeneratedIdeas([]);
+  }, [clientId]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && clientId) {
@@ -436,11 +479,14 @@ function Workspace({ clientId, companyName, projectPost }: {
   const mounted = useRef(true);
   const initialized = useRef("");
 
-  // 1. Carrega dados do Brainstorm (Pilares, Linhas, Ideias e Lista Negra)
+  // 1. Carrega dados do Brainstorm (Pilares, Linhas, Ideias, Catálogo e Lista Negra)
   const loadBrainstormData = async () => {
     setLoadingBrainstorm(true);
     try {
-      const res = await fetch(`/api/headlines/brainstorm?clientId=${clientId}`);
+      const [res, catRes] = await Promise.all([
+        fetch(`/api/headlines/brainstorm?clientId=${clientId}`),
+        fetch(`/api/clients/${encodeURIComponent(clientId)}/catalog`),
+      ]);
       if (!res.ok) throw new Error("Erro ao carregar dados do brainstorm");
       const d = await res.json();
       setPillars(d.pillars || []);
@@ -448,6 +494,18 @@ function Workspace({ clientId, companyName, projectPost }: {
       setSavedIdeas(d.ideas || []);
       setRejectedIdeas(d.rejectedIdeas || []);
       setWeeklyReview(d.weeklyReview || null);
+
+      if (catRes.ok) {
+        const catData = await catRes.json();
+        if (Array.isArray(catData.items)) {
+          setCatalogOffers(catData.items.map((i: { id: string; name: string; type: string; category?: string }) => ({
+            id: i.id,
+            name: i.name,
+            type: i.type || "PRODUCT",
+            category: i.category,
+          })));
+        }
+      }
     } catch (e: unknown) {
       const err = e as Error;
       setError(err.message || "Falha ao carregar brainstorm.");
@@ -732,6 +790,15 @@ function Workspace({ clientId, companyName, projectPost }: {
     setError("");
     setMessage("");
     try {
+      const activeOfferName =
+        selectedOffer === "custom"
+          ? customOfferName.trim()
+          : selectedOffer
+          ? catalogOffers.find((o) => o.id === selectedOffer)?.name
+          : undefined;
+      const activeOfferId = selectedOffer && selectedOffer !== "custom" ? selectedOffer : undefined;
+      const activeAngle = BRAINSTORM_ANGLES.find((a) => a.id === selectedAngleId)?.label;
+
       const res = await fetch("/api/headlines/brainstorm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -745,6 +812,10 @@ function Workspace({ clientId, companyName, projectPost }: {
           count: 5,
           team: brainstormTeam,
           format: brainstormFormat === "Todos" ? undefined : brainstormFormat,
+          offerName: activeOfferName,
+          offerId: activeOfferId,
+          audienceAngle: activeAngle,
+          angleFocus: angleFocusText.trim() || undefined,
         }),
       });
       const d = await res.json();
@@ -761,6 +832,36 @@ function Workspace({ clientId, companyName, projectPost }: {
       setError(err.message || "Falha na geração de ideias.");
     } finally {
       setGeneratingIdeas(false);
+    }
+  }
+
+  // 1.1 Sugestão assistida de foco
+  async function handleSuggestFocus() {
+    setSuggestingFocus(true);
+    setError("");
+    try {
+      const activeOfferName =
+        selectedOffer === "custom"
+          ? customOfferName.trim()
+          : selectedOffer
+          ? catalogOffers.find((o) => o.id === selectedOffer)?.name
+          : undefined;
+      const res = await fetch("/api/headlines/brainstorm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "SUGGEST_FOCUS",
+          clientId,
+          offerName: activeOfferName,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Não foi possível sugerir caminhos.");
+      setFocusSuggestions(data.paths || []);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erro ao sugerir caminhos de foco.");
+    } finally {
+      setSuggestingFocus(false);
     }
   }
 
@@ -1070,9 +1171,7 @@ function Workspace({ clientId, companyName, projectPost }: {
             </span>
           </div>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-zinc-950">
-            {activeTab === "strategy"
-              ? "Estratégia Completa & DNA"
-              : activeTab === "brainstorm"
+            {activeTab === "brainstorm"
               ? "Brainstorm de Conteúdo"
               : activeTab === "headlines"
               ? "Laboratório de Headlines"
@@ -1083,9 +1182,7 @@ function Workspace({ clientId, companyName, projectPost }: {
               : "Calendário & Agendamento"}
           </h1>
           <p className="mt-1 text-sm text-zinc-500 max-w-3xl">
-            {activeTab === "strategy"
-              ? "Diretrizes estratégicas, posicionamento, públicos-alvo, dores, arquétipos, regras de voz e canais do cliente."
-              : activeTab === "brainstorm"
+            {activeTab === "brainstorm"
               ? "Defina os temas e ideias dos próximos conteúdos com base nos pilares estratégicos e gere com os Times A e B de IA."
               : activeTab === "headlines"
               ? "Desdobre suas ideias de conteúdo em headlines de alto impacto com os times de IA, avalie opções e escolha a melhor."
@@ -1097,20 +1194,10 @@ function Workspace({ clientId, companyName, projectPost }: {
           </p>
         </div>
 
-        {/* NAVEGAÇÃO DE FLUXO SEQUENCIAL (6 PASSOS) & ATALHOS */}
+        {/* NAVEGAÇÃO DE FLUXO SEQUENCIAL (5 PASSOS) & ATALHOS */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* MENU DAS 6 SEQUÊNCIAS DE CRIAÇÃO */}
+          {/* MENU DAS 5 SEQUÊNCIAS DE CRIAÇÃO */}
           <div className="inline-flex rounded-xl bg-zinc-100 p-1 border border-zinc-200 shadow-2xs">
-            <button
-              onClick={() => setActiveTab("strategy")}
-              className={
-                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
-                (activeTab === "strategy" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
-              }
-            >
-              <Compass size={14} className={activeTab === "strategy" ? "text-emerald-600" : ""} />
-              1. Estratégia
-            </button>
             <button
               onClick={() => setActiveTab("brainstorm")}
               className={
@@ -1119,7 +1206,7 @@ function Workspace({ clientId, companyName, projectPost }: {
               }
             >
               <Lightbulb size={14} className={activeTab === "brainstorm" ? "text-amber-500" : ""} />
-              2. Brainstorm
+              1. Brainstorm
               {savedIdeas.length > 0 && (
                 <span className="ml-1 rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
                   {savedIdeas.length}
@@ -1134,7 +1221,7 @@ function Workspace({ clientId, companyName, projectPost }: {
               }
             >
               <Sparkles size={14} className={activeTab === "headlines" ? "text-emerald-600" : ""} />
-              3. Headlines
+              2. Headlines
             </button>
             <button
               onClick={() => setActiveTab("content")}
@@ -1144,7 +1231,7 @@ function Workspace({ clientId, companyName, projectPost }: {
               }
             >
               <FileText size={14} className={activeTab === "content" ? "text-indigo-600" : ""} />
-              4. Texto & Roteiro
+              3. Texto & Roteiro
             </button>
             <button
               onClick={() => setActiveTab("imagePrompt")}
@@ -1154,7 +1241,7 @@ function Workspace({ clientId, companyName, projectPost }: {
               }
             >
               <ImageIcon size={14} className={activeTab === "imagePrompt" ? "text-pink-600" : ""} />
-              5. Prompt de Arte
+              4. Prompt de Arte
             </button>
             <button
               onClick={() => setActiveTab("schedule")}
@@ -1164,12 +1251,16 @@ function Workspace({ clientId, companyName, projectPost }: {
               }
             >
               <Calendar size={14} className={activeTab === "schedule" ? "text-blue-600" : ""} />
-              6. Calendário & Post
+              5. Calendário & Post
             </button>
           </div>
 
           {destinationReady && targetContentId && <Link className={button} href={`/prompt-creator?contentId=${targetContentId}`}>Briefing da peça</Link>}
-          <Link className={button} href="/prompt-creator?tab=EDITORIAL" title="Gerenciar Pilares e Linha Editorial">
+          <Link className={button} href={`/strategy?clientId=${encodeURIComponent(clientId)}`} title="Abrir Estratégia da Marca">
+            <Compass size={16} className="text-emerald-600" />
+            Estratégia & DNA
+          </Link>
+          <Link className={button} href="/social/editorial" title="Gerenciar Linha Editorial">
             <BookOpen size={16} />
             Linha Editorial
           </Link>
@@ -1195,35 +1286,93 @@ function Workspace({ clientId, companyName, projectPost }: {
       )}
 
       {/* ========================================================================= */}
-      {/* PASSO 1: ESTRATÉGIA COMPLETA & DNA DO CLIENTE                             */}
-      {/* ========================================================================= */}
-      {activeTab === "strategy" && (
-        <ClientStrategyPanel
-          clientId={clientId}
-          companyName={companyName}
-          pillars={pillars}
-          editorialLines={editorialLines}
-          onAdvanceToBrainstorm={() => setActiveTab("brainstorm")}
-          onStrategySaved={async () => {
-            await loadBrainstormData();
-            try {
-              const res = await fetch("/api/headlines?action=context&clientId=" + clientId);
-              if (res.ok) {
-                const c = await res.json();
-                if (c && !c.error) setContext(c);
-              }
-            } catch (err) {
-              console.warn("Falha ao recarregar contexto após salvar estratégia:", err);
-            }
-          }}
-        />
-      )}
-
-      {/* ========================================================================= */}
-      {/* PASSO 2: BRAINSTORM DE CONTEÚDO (PILARES, ASSUNTOS E BANCO DE IDEIAS)     */}
+      {/* PASSO 1: BRAINSTORM DE CONTEÚDO (PILARES, ASSUNTOS E BANCO DE IDEIAS)     */}
       {/* ========================================================================= */}
       {activeTab === "brainstorm" && (
-        <div className="space-y-8">
+        <div className="space-y-6">
+          {/* RESUMO RECOLHÍVEL DA ESTRATÉGIA DO CLIENTE */}
+          <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-2xs">
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-zinc-50/70 border-b border-zinc-100">
+              <button
+                type="button"
+                onClick={() => setStrategySummaryOpen((prev) => !prev)}
+                className="flex items-center gap-2 text-left font-bold text-zinc-900 text-sm hover:text-emerald-700 transition cursor-pointer"
+              >
+                <Compass className="w-4 h-4 text-emerald-600" />
+                <span>Estratégia & DNA de {companyName}</span>
+                {strategySummaryOpen ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
+              </button>
+              <Link
+                href={`/strategy?clientId=${encodeURIComponent(clientId)}`}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100/80 px-3 py-1.5 rounded-lg border border-emerald-200 transition cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Abrir estratégia completa
+              </Link>
+            </div>
+            {strategySummaryOpen && (
+              <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div className="space-y-1.5 p-3 rounded-xl bg-zinc-50 border border-zinc-200/70">
+                  <span className="font-bold text-zinc-800 uppercase tracking-wider text-[10px] block">
+                    Posicionamento & Promessa
+                  </span>
+                  <p className="text-zinc-700 leading-relaxed font-medium">
+                    {String(context?.identity?.value_proposition || "Posicionamento não definido no cadastro da estratégia.")}
+                  </p>
+                  {Boolean(context?.identity?.market_niche) && (
+                    <span className="inline-block mt-1 text-[11px] px-2 py-0.5 rounded bg-zinc-200/70 text-zinc-800">
+                      Nicho: {String(context?.identity?.market_niche)}
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 p-3 rounded-xl bg-zinc-50 border border-zinc-200/70">
+                  <span className="font-bold text-zinc-800 uppercase tracking-wider text-[10px] block">
+                    Públicos-Alvo Cadastrados ({context?.audiences?.length || 0})
+                  </span>
+                  {context?.audiences && context.audiences.length > 0 ? (
+                    <div className="space-y-1">
+                      {context.audiences.slice(0, 3).map((a: Record<string, unknown>, idx: number) => {
+                        const pains = Array.isArray(a.pain_points) ? (a.pain_points as string[]) : [];
+                        return (
+                          <div key={String(a.name || idx)} className="border-b border-zinc-200/50 pb-1 last:border-0 last:pb-0">
+                            <p className="font-bold text-zinc-800">{String(a.name || "Público")}</p>
+                            {pains[0] && (
+                              <p className="text-zinc-500 line-clamp-1 text-[11px]">Dor: {pains[0]}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-zinc-500">Nenhum público detalhado cadastrado.</p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 p-3 rounded-xl bg-zinc-50 border border-zinc-200/70">
+                  <span className="font-bold text-zinc-800 uppercase tracking-wider text-[10px] block">
+                    Tom de Voz & Diretrizes
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {Array.isArray(context?.identity?.tone_of_voice) && context.identity.tone_of_voice.length > 0 ? (
+                      (context.identity.tone_of_voice as string[]).map((tone: string) => (
+                        <span key={tone} className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-medium">
+                          {tone}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-zinc-500">Tom de voz não especificado.</span>
+                    )}
+                  </div>
+                  {Array.isArray(context?.identity?.forbidden_words) && context.identity.forbidden_words.length > 0 && (
+                    <p className="text-rose-700 text-[11px] pt-1 line-clamp-1">
+                      Proibido: {(context.identity.forbidden_words as string[]).join(", ")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <nav aria-label="Brainstorm" className="flex flex-wrap gap-2">
             {([["discover", "Descobrir"], ["bank", "Banco de ideias"], ["rejected", "Rejeitadas"]] as const).map(([value, label]) => (
               <button key={value} type="button" aria-pressed={brainstormView === value}
@@ -1377,6 +1526,135 @@ function Workspace({ clientId, companyName, projectPost }: {
                   }}>{brainstormModes[value]}</button>
               ))}
             </div>
+
+            {/* SELEÇÃO DE PRODUTO/SERVIÇO & ÂNGULO DE ABORDAGEM */}
+            <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-200/80 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 1. Qual produto ou serviço vamos trabalhar? */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-emerald-600" />
+                    Qual produto ou serviço vamos trabalhar?
+                  </label>
+                  <select
+                    className={control}
+                    value={selectedOffer}
+                    onChange={(e) => setSelectedOffer(e.target.value)}
+                  >
+                    <option value="">🏢 Institucional / Marca (divulgação geral)</option>
+                    {catalogOffers.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.type === "SERVICE" ? "🛠️ Serviço" : "📦 Produto"}: {item.name}
+                      </option>
+                    ))}
+                    <option value="custom">➕ Outra oferta para esta rodada...</option>
+                  </select>
+
+                  {selectedOffer === "custom" && (
+                    <input
+                      type="text"
+                      className={control + " mt-2"}
+                      placeholder="Nome do produto ou serviço para esta rodada..."
+                      value={customOfferName}
+                      onChange={(e) => setCustomOfferName(e.target.value)}
+                    />
+                  )}
+                  <p className="text-[11px] text-zinc-500">
+                    O que a marca {companyName} vende ao seu cliente final.
+                  </p>
+                </div>
+
+                {/* 2. Por qual ângulo você quer abordar esse assunto? */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-900 flex items-center gap-1.5">
+                    <Target className="w-3.5 h-3.5 text-purple-600" />
+                    Por qual ângulo você quer abordar esse assunto?
+                  </label>
+                  <select
+                    className={control}
+                    value={selectedAngleId}
+                    onChange={(e) => setSelectedAngleId(e.target.value as BrainstormAngleId)}
+                  >
+                    {BRAINSTORM_ANGLES.map((angle) => (
+                      <option key={angle.id} value={angle.id}>
+                        {angle.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-zinc-500">
+                    Define a psicologia e a alavanca de interesse que guia os temas gerados.
+                  </p>
+                </div>
+              </div>
+
+              {/* Pergunta adaptativa ao ângulo selecionado */}
+              <div className="space-y-1 pt-1 border-t border-zinc-200/60">
+                <label className="block text-xs font-semibold text-zinc-800">
+                  {BRAINSTORM_ANGLES.find((a) => a.id === selectedAngleId)?.questionPrompt || "Qual foco específico você quer trabalhar?"}
+                </label>
+                <input
+                  type="text"
+                  className={control}
+                  placeholder="Ex: Não tenho tempo para treinar, dor ao sentar por muitas horas, resultado antes do verão..."
+                  value={angleFocusText}
+                  onChange={(e) => setAngleFocusText(e.target.value)}
+                />
+              </div>
+
+              {/* Botão Assistente de Foco */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleSuggestFocus}
+                  disabled={suggestingFocus}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100/80 border border-amber-200 px-3 py-1.5 rounded-xl transition cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                  {suggestingFocus ? "Analisando estratégia e públicos..." : "✨ Me ajude a escolher um foco"}
+                </button>
+                {focusSuggestions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setFocusSuggestions([])}
+                    className="text-xs text-zinc-400 hover:text-zinc-600 underline cursor-pointer"
+                  >
+                    Limpar sugestões
+                  </button>
+                )}
+              </div>
+
+              {/* Cards com 3 caminhos de foco sugeridos */}
+              {focusSuggestions.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+                  {focusSuggestions.map((path) => (
+                    <button
+                      key={path.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedAngleId(path.angleId);
+                        setAngleFocusText(path.angleFocus);
+                        setBrainstormDirection(path.description);
+                      }}
+                      className="text-left p-3 rounded-xl bg-white border border-amber-200 hover:border-amber-400 hover:shadow-xs transition space-y-1 cursor-pointer group"
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 block">
+                        {BRAINSTORM_ANGLES.find((a) => a.id === path.angleId)?.label || "Ângulo"}
+                      </span>
+                      <p className="text-xs font-bold text-zinc-900 group-hover:text-amber-800 line-clamp-1">
+                        {path.title}
+                      </p>
+                      <p className="text-[11px] text-zinc-600 line-clamp-2 leading-relaxed">
+                        {path.description}
+                      </p>
+                      <span className="text-[10px] text-amber-600 font-semibold inline-block pt-1">
+                        Aplicar este foco →
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="grid gap-4 md:grid-cols-3">
               <div className="md:col-span-2 space-y-3">
                 <div>
@@ -1500,6 +1778,17 @@ function Workspace({ clientId, companyName, projectPost }: {
                           <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                             {idea.format}
                           </span>
+                          {idea.offer_name && (
+                            <span className="rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-900 flex items-center gap-1">
+                              <Package size={11} className="text-purple-700" />
+                              {idea.offer_name}
+                            </span>
+                          )}
+                          {idea.audience_angle && (
+                            <span className="rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-900">
+                              {idea.audience_angle}
+                            </span>
+                          )}
                         </div>
                         <h4 className="text-sm font-bold text-zinc-950 leading-snug">{idea.title}</h4>
                         <BrainstormIdeaSource source={idea} />
@@ -1675,6 +1964,17 @@ function Workspace({ clientId, companyName, projectPost }: {
                           <span className="rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                             {idea.format}
                           </span>
+                          {idea.offer_name && (
+                            <span className="rounded-md bg-purple-100 px-2.5 py-0.5 text-[10px] font-bold text-purple-900 flex items-center gap-1">
+                              <Package size={11} className="text-purple-700" />
+                              {idea.offer_name}
+                            </span>
+                          )}
+                          {idea.audience_angle && (
+                            <span className="rounded-md bg-sky-100 px-2 py-0.5 text-[10px] font-bold text-sky-900">
+                              {idea.audience_angle}
+                            </span>
+                          )}
                         </div>
 
                         {/* TÍTULO / TEMA */}

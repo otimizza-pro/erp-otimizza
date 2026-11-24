@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCompany } from "@/lib/context/company-context";
 import { contentCompanyId, INTERNAL_COMPANY_ID } from "@/modules/clients/internal-company";
+import { IdentityAiButton } from "@/components/clients/identity-ai-button";
 import {
   FileText,
   Video,
@@ -235,14 +236,27 @@ function FormatGuidelinesContent() {
             {/* 1. Padrão de Reels */}
             <article className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4 flex flex-col justify-between">
               <div className="space-y-3">
-                <div className="flex items-center gap-2.5 border-b border-zinc-100 pb-3">
-                  <div className="w-8 h-8 rounded-lg bg-pink-50 border border-pink-200 text-pink-600 flex items-center justify-center">
-                    <Video className="w-4 h-4" />
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-pink-50 border border-pink-200 text-pink-600 flex items-center justify-center shrink-0">
+                      <Video className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-bold text-zinc-950">Padrão de Reels</h2>
+                      <p className="text-[11px] text-zinc-400">Vídeos curtos e verticais</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-zinc-950">Padrão de Reels</h2>
-                    <p className="text-[11px] text-zinc-400">Vídeos curtos e verticais</p>
-                  </div>
+                  <IdentityAiButton
+                    clientId={activeClientId}
+                    field="reelsStandard"
+                    draft={{ reelsStandard }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-pink-200 bg-pink-50/70 hover:bg-pink-100/80 px-3 py-1.5 text-[11px] font-semibold text-pink-700 transition cursor-pointer shrink-0 shadow-2xs"
+                    onApply={(val) => {
+                      const text = Array.isArray(val) ? val.join("\n") : val;
+                      setReelsStandard(text);
+                      markDirty();
+                    }}
+                  />
                 </div>
 
                 <p className="text-xs text-zinc-500 leading-relaxed">
@@ -274,14 +288,27 @@ function FormatGuidelinesContent() {
             {/* 2. Padrão de Carrossel */}
             <article className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4 flex flex-col justify-between">
               <div className="space-y-3">
-                <div className="flex items-center gap-2.5 border-b border-zinc-100 pb-3">
-                  <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center">
-                    <Layers className="w-4 h-4" />
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-bold text-zinc-950">Padrão de Carrossel</h2>
+                      <p className="text-[11px] text-zinc-400">Posts sequenciais em lâminas</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-zinc-950">Padrão de Carrossel</h2>
-                    <p className="text-[11px] text-zinc-400">Posts sequenciais em lâminas</p>
-                  </div>
+                  <IdentityAiButton
+                    clientId={activeClientId}
+                    field="carouselStandard"
+                    draft={{ carouselStandard }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/80 px-3 py-1.5 text-[11px] font-semibold text-indigo-700 transition cursor-pointer shrink-0 shadow-2xs"
+                    onApply={(val) => {
+                      const text = Array.isArray(val) ? val.join("\n") : val;
+                      setCarouselStandard(text);
+                      markDirty();
+                    }}
+                  />
                 </div>
 
                 <p className="text-xs text-zinc-500 leading-relaxed">
@@ -313,14 +340,27 @@ function FormatGuidelinesContent() {
             {/* 3. Padrão de Headlines */}
             <article className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4 flex flex-col justify-between">
               <div className="space-y-3">
-                <div className="flex items-center gap-2.5 border-b border-zinc-100 pb-3">
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4" />
+                <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-sm font-bold text-zinc-950">Padrão de Headlines</h2>
+                      <p className="text-[11px] text-zinc-400">Títulos e ganchos de abertura</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-sm font-bold text-zinc-950">Padrão de Headlines</h2>
-                    <p className="text-[11px] text-zinc-400">Títulos e ganchos de abertura</p>
-                  </div>
+                  <IdentityAiButton
+                    clientId={activeClientId}
+                    field="headlinesStandard"
+                    draft={{ headlinesStandard }}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50/70 hover:bg-amber-100/80 px-3 py-1.5 text-[11px] font-semibold text-amber-700 transition cursor-pointer shrink-0 shadow-2xs"
+                    onApply={(val) => {
+                      const text = Array.isArray(val) ? val.join("\n") : val;
+                      setHeadlinesStandard(text);
+                      markDirty();
+                    }}
+                  />
                 </div>
 
                 <p className="text-xs text-zinc-500 leading-relaxed">

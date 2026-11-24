@@ -838,6 +838,17 @@ function StrategyContent() {
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                           Termos Obrigatórios (Vocabulário da Marca)
                         </label>
+                        <IdentityAiButton
+                          clientId={activeClientId}
+                          field="mandatoryTerms"
+                          draft={{ mandatoryTerms }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition cursor-pointer"
+                          onApply={(val) => {
+                            const items = Array.isArray(val) ? val : [val];
+                            setMandatoryTerms((prev) => Array.from(new Set([...prev, ...items])));
+                            markDirty("mandatoryTerms");
+                          }}
+                        />
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {mandatoryTerms.map((term, idx) => (
@@ -897,6 +908,17 @@ function StrategyContent() {
                           <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
                           Palavras Proibidas (Filtros de Exclusão)
                         </label>
+                        <IdentityAiButton
+                          clientId={activeClientId}
+                          field="forbiddenWords"
+                          draft={{ forbiddenWords }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50/70 hover:bg-rose-100/80 px-2.5 py-1 text-[11px] font-semibold text-rose-700 transition cursor-pointer"
+                          onApply={(val) => {
+                            const items = Array.isArray(val) ? val : [val];
+                            setForbiddenWords((prev) => Array.from(new Set([...prev, ...items])));
+                            markDirty("forbiddenWords");
+                          }}
+                        />
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {forbiddenWords.map((word, idx) => (
@@ -1218,6 +1240,17 @@ function StrategyContent() {
                         Categorias amplas de audiência que recebem as comunicações institucionais da marca.
                       </p>
                     </div>
+                    <IdentityAiButton
+                      clientId={activeClientId}
+                      field="targetAudiences"
+                      draft={{ targetAudiences }}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-3 py-1.5 text-[11px] font-semibold text-purple-700 transition cursor-pointer"
+                      onApply={(val) => {
+                        const items = Array.isArray(val) ? val : [val];
+                        setTargetAudiences((prev) => Array.from(new Set([...prev, ...items])));
+                        markDirty("targetAudiences");
+                      }}
+                    />
                   </div>
 
                   <div className="flex flex-wrap gap-2">
@@ -1277,9 +1310,22 @@ function StrategyContent() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
-                      <label className="text-xs font-bold text-zinc-800 block">
-                        Dores Globais do Mercado
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-zinc-800 block">
+                          Dores Globais do Mercado
+                        </label>
+                        <IdentityAiButton
+                          clientId={activeClientId}
+                          field="painPoints"
+                          draft={{ painPoints }}
+                          className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
+                          onApply={(val) => {
+                            const items = Array.isArray(val) ? val : [val];
+                            setPainPoints((prev) => Array.from(new Set([...prev, ...items])));
+                            markDirty("painPoints");
+                          }}
+                        />
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {painPoints.map((pain, idx) => (
                           <span
@@ -1454,9 +1500,22 @@ function StrategyContent() {
 
                   {/* Chamadas para Ação Sugeridas */}
                   <div className="pt-4 border-t border-zinc-100 space-y-3">
-                    <label className="text-xs font-bold text-zinc-800 block">
-                      Chamadas para Ação Sugeridas (CTAs Padrão)
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-zinc-800 block">
+                        Chamadas para Ação Sugeridas (CTAs Padrão)
+                      </label>
+                      <IdentityAiButton
+                        clientId={activeClientId}
+                        field="defaultCtas"
+                        draft={{ defaultCtas }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50/70 hover:bg-blue-100/80 px-2.5 py-1 text-[11px] font-semibold text-blue-700 transition cursor-pointer"
+                        onApply={(val) => {
+                          const items = Array.isArray(val) ? val : [val];
+                          setDefaultCtas((prev) => Array.from(new Set([...prev, ...items])));
+                          markDirty("defaultCtas");
+                        }}
+                      />
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {defaultCtas.map((cta, idx) => (
                         <span

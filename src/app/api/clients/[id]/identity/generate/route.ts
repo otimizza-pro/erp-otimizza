@@ -19,7 +19,17 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
   const keys=["companyDescription","brandContext","marketNiche","valueProposition","targetAudience","targetAudiences","painPoints","differentials","differentialsList","toneOfVoice","competitors","contentGoals","communicationProfile"];
   const briefingData=Object.fromEntries(keys.filter(key=>ext[key]!==undefined).map(key=>[key,ext[key]]));
   const draft=input.data.draft;
-  if(!draft.brandContext?.trim()&&!draft.marketNiche?.trim()&&!draft.valueProposition?.trim()&&context.missing.length&&Object.keys(briefingData).length===0)throw new AiGenerationError("AI_CONTEXT_INCOMPLETE","Descreva a empresa, sua atuação ou preencha o briefing antes de pedir sugestões. Apenas o nome não é contexto suficiente.",422);
+  const hasBusinessContext =
+    Boolean(draft.brandContext?.trim()) ||
+    Boolean(draft.marketNiche?.trim()) ||
+    Boolean(draft.valueProposition?.trim()) ||
+    Boolean(context.identity?.brand_context) ||
+    Boolean(context.identity?.market_niche) ||
+    Boolean(context.identity?.value_proposition) ||
+    Boolean(context.company?.name) ||
+    Object.keys(briefingData).length > 0;
+
+  if (!hasBusinessContext) throw new AiGenerationError("AI_CONTEXT_INCOMPLETE","Descreva a empresa, sua atuação ou preencha o briefing antes de pedir sugestões. Apenas o nome não é contexto suficiente.",422);
   const field=identityFieldPrompts[input.data.field];
   const result=await generateWithOpenRouter({
     model:strategyModel(),

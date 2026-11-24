@@ -7,6 +7,7 @@ import { useCompany } from "@/lib/context/company-context";
 import { contentCompanyId, INTERNAL_COMPANY_ID } from "@/modules/clients/internal-company";
 import { normalizeFrequencyLevel, type FrequencyLevel } from "@/modules/clients/content-settings";
 import { EditorialPlanner } from "@/components/content-studio/editorial-planner";
+import { SocialWorkflowStepper } from "@/components/content-studio/social-workflow-stepper";
 import { IdentityAiButton } from "@/components/clients/identity-ai-button";
 import {
   Sparkles,
@@ -343,6 +344,7 @@ function EditorialContent() {
 
       {/* Conteúdo Principal */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 space-y-6">
+        <SocialWorkflowStepper activeStep="editorial" />
         {feedback && (
           <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -606,6 +608,13 @@ function EditorialContent() {
                               </div>
 
                               <div className="flex items-center gap-1">
+                                <Link
+                                  href={`/prompt-creator?pillarId=${encodeURIComponent(pillar.id)}&themeId=${encodeURIComponent(theme.id)}`}
+                                  className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-[10px] font-semibold transition inline-flex items-center gap-1"
+                                  title="Ir para o Estúdio Criativo com este tema selecionado"
+                                >
+                                  Criar Post →
+                                </Link>
                                 <button
                                   type="button"
                                   onClick={() => {

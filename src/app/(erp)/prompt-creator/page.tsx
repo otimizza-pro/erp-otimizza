@@ -9,6 +9,7 @@ import {ClientDnaPanel} from "@/components/content-studio/client-dna-panel";
 import {ProjectPostPicker} from "@/components/content-studio/project-post-picker";
 import { ProductionChecklist } from "@/components/content-studio/production-checklist";
 import { ContentDeliveryPanel } from "@/components/content-studio/content-delivery-panel";
+import { SocialWorkflowStepper } from "@/components/content-studio/social-workflow-stepper";
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
@@ -461,6 +462,13 @@ function ContentStudioPageContent() {
   const briefReady=parsedBrief.success;
   const briefLabels:Record<string,string>={themeId:"pilar e tema",speaker:"quem comunica",voice:"porta-voz",audience:"público",funnel:"funil",journey:"jornada",goal:"objetivo",pain:"dor ou não se aplica",tone:"tom",cta:"CTA"};
   const missingBrief=parsedBrief.success?[]:Array.from(new Set(parsedBrief.error.issues.map(issue=>briefLabels[String(issue.path[0])]||"direcionamento")));
+  useEffect(() => {
+    const themeIdParam = searchParams.get("themeId");
+    if (themeIdParam && editorialLines.some((l) => l.id === themeIdParam)) {
+      setSelectedThemeId(themeIdParam);
+    }
+  }, [searchParams, editorialLines]);
+
   useEffect(()=>{
     const contentId=searchParams.get("contentId");if(!contentId||loadingData||importedContent.current===contentId)return;
     const controller=new AbortController();
@@ -918,6 +926,7 @@ function ContentStudioPageContent() {
   return (
     <>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        <SocialWorkflowStepper activeStep="studio" />
         {activeTab === "STUDIO" && <section className="rounded-xl border border-zinc-200 bg-white p-4">
           <ProjectPostPicker clientId={selectedClientId} />
         </section>}

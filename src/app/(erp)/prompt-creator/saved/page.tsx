@@ -5,6 +5,7 @@ import { useCompany } from "@/lib/context/company-context";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {ArchiveRecordAction} from "@/components/ui/archive-record-action";
+import { SocialWorkflowStepper } from "@/components/content-studio/social-workflow-stepper";
 
 import {
   Sparkles,
@@ -234,6 +235,7 @@ export default function SavedPostsPage() {
   return (
     <>
       <div className="max-w-7xl mx-auto space-y-6 pb-24">
+        <SocialWorkflowStepper activeStep="calendar" />
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-zinc-200 shadow-2xs">
           <div className="flex items-center gap-3">
@@ -265,6 +267,32 @@ export default function SavedPostsPage() {
           >
             <Plus className="w-3.5 h-3.5" /> Criar Novo Conteúdo com IA
           </Link>
+        </div>
+
+        {/* Resumo de Produção & Aprovação */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-2xs">
+            <span className="text-[11px] font-medium text-zinc-500 block">Total de Peças</span>
+            <span className="text-lg font-bold text-zinc-950 font-mono tabular-nums">{posts.length}</span>
+          </div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3.5 shadow-2xs">
+            <span className="text-[11px] font-medium text-emerald-700 block">Aprovadas / Prontas</span>
+            <span className="text-lg font-bold text-emerald-800 font-mono tabular-nums">
+              {posts.filter((c) => ["APPROVED", "SCHEDULED", "PUBLISHED", "ACTIVE"].includes((c.status || "").toUpperCase())).length}
+            </span>
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-3.5 shadow-2xs">
+            <span className="text-[11px] font-medium text-amber-700 block">Em Revisão / Rascunho</span>
+            <span className="text-lg font-bold text-amber-800 font-mono tabular-nums">
+              {posts.filter((c) => !["APPROVED", "SCHEDULED", "PUBLISHED", "ACTIVE"].includes((c.status || "").toUpperCase())).length}
+            </span>
+          </div>
+          <div className="rounded-xl border border-zinc-200 bg-white p-3.5 shadow-2xs">
+            <span className="text-[11px] font-medium text-zinc-500 block">Criativos de Ads</span>
+            <span className="text-lg font-bold text-zinc-950 font-mono tabular-nums">
+              {posts.filter((c) => c.contentType === "ADS").length}
+            </span>
+          </div>
         </div>
 
         {/* Barra de Filtros: Cliente + Abas Social Media / Ads */}

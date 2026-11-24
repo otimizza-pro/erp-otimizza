@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ProjectPostPicker, type PlannedProjectPost } from "@/components/content-studio/project-post-picker";
+import { SocialWorkflowStepper } from "@/components/content-studio/social-workflow-stepper";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
 import { contentCompanyId } from "@/modules/clients/internal-company";
@@ -1153,6 +1154,7 @@ function Workspace({ clientId, companyName, projectPost }: {
 
   return (
     <main className="mx-auto max-w-[1800px] space-y-6 p-4 md:p-8 text-zinc-900">
+      <SocialWorkflowStepper activeStep="brainstorm" />
       <section className="space-y-2 rounded-xl border border-zinc-200 bg-white p-4">
         <ProjectPostPicker clientId={clientId} selected={projectPost} onPostsLoaded={setAvailablePosts} />
         {projectPost && <div className="flex flex-wrap gap-4 text-sm">

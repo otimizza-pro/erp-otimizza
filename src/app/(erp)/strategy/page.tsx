@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { InstagramIcon as Instagram } from "@/components/ui/instagram";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
+import { toast } from "@/components/ui/toast-provider";
 
 const PRESET_TONE_CATEGORIES = [
   {
@@ -325,6 +326,16 @@ function StrategyContent() {
     }
   }, [activeClientId]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && catalogModalOpen) {
+        setCatalogModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [catalogModalOpen]);
+
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const loadStrategyData = useCallback(async (clientId: string) => {
     if (!clientId) return;
@@ -456,10 +467,11 @@ function StrategyContent() {
 
         if (res.status === 409) {
           const errData = await res.json();
-          setConflict(
+          const conflictMsg =
             errData.message ||
-            "Conflito detectado: este registro foi alterado em outra sessão. Recarregue para atualizar."
-          );
+            "Conflito detectado: este registro foi alterado em outra sessão. Recarregue para atualizar.";
+          setConflict(conflictMsg);
+          toast.warning(conflictMsg);
           setSaving(false);
           return;
         }
@@ -478,10 +490,14 @@ function StrategyContent() {
         const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         setLastSavedTime(timeStr);
         setFeedback(`Alterações salvas com sucesso às ${timeStr}.`);
+        if (manual) {
+          toast.success("Estratégia salva com sucesso!");
+        }
         setTimeout(() => setFeedback(null), 4000);
       } catch (err) {
         console.error("Erro ao salvar:", err);
         setFeedback("Erro ao salvar dados de estratégia.");
+        toast.error("Erro ao salvar dados de estratégia.");
       } finally {
         setSaving(false);
       }
@@ -616,6 +632,7 @@ function StrategyContent() {
 
       if (!res.ok) throw new Error("Erro ao salvar item no catálogo.");
       setCatalogModalOpen(false);
+      toast.success(editingCatalogItem ? "Oferta atualizada com sucesso!" : "Nova oferta cadastrada com sucesso!");
       // Recarregar catálogo
       const reload = await fetch(`/api/clients/${activeClientId}/catalog`);
       if (reload.ok) {
@@ -624,7 +641,7 @@ function StrategyContent() {
       }
     } catch (err) {
       console.error(err);
-      alert("Não foi possível salvar o produto/serviço.");
+      toast.error("Não foi possível salvar a oferta no catálogo.");
     } finally {
       setCatalogSaving(false);
     }
@@ -638,9 +655,10 @@ function StrategyContent() {
       });
       if (!res.ok) throw new Error("Erro ao excluir.");
       setCatalogItems((prev) => prev.filter((i) => i.id !== itemId));
+      toast.success("Item removido do catálogo com sucesso.");
     } catch (err) {
       console.error(err);
-      alert("Falha ao remover item.");
+      toast.error("Falha ao remover item do catálogo.");
     }
   };
 
@@ -896,7 +914,7 @@ function StrategyContent() {
                     {differentials.map((diff, idx) => (
                       <span
                         key={idx}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50/70 border border-indigo-200 text-indigo-900 text-xs font-medium"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50/70 border border-emerald-200 text-emerald-950 text-xs font-medium"
                       >
                         <span>{diff}</span>
                         <button
@@ -905,9 +923,9 @@ function StrategyContent() {
                             setDifferentials(prev => prev.filter((_, i) => i !== idx));
                             markDirty("differentials");
                           }}
-                          className="p-0.5 hover:bg-indigo-200 rounded-full transition cursor-pointer"
+                          className="p-0.5 hover:bg-emerald-200 rounded-full transition cursor-pointer"
                         >
-                          <X className="w-3 h-3 text-indigo-700" />
+                          <X className="w-3 h-3 text-emerald-700" />
                         </button>
                       </span>
                     ))}
@@ -927,7 +945,7 @@ function StrategyContent() {
                           markDirty("differentials");
                         }
                       }}
-                      className="flex-1 px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                      className="flex-1 px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-900"
                     />
                     <button
                       type="button"
@@ -938,7 +956,7 @@ function StrategyContent() {
                           markDirty("differentials");
                         }
                       }}
-                      className="px-3.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition"
+                      className="px-3.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition cursor-pointer shrink-0"
                     >
                       <Plus className="w-3.5 h-3.5 inline mr-1" />
                       Adicionar
@@ -957,7 +975,7 @@ function StrategyContent() {
                   <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                     <div>
                       <h2 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
-                        <MessageSquare className="w-4 h-4 text-purple-600" />
+                        <MessageSquare className="w-4 h-4 text-emerald-600" />
                         Tom de Voz & Diretrizes de Linguagem
                       </h2>
                       <p className="text-xs text-zinc-500 mt-0.5">
@@ -968,13 +986,13 @@ function StrategyContent() {
 
                   {/* Tons Ativos Selecionados */}
                   {selectedTones.length > 0 && (
-                    <div className="p-4 rounded-xl bg-purple-50/70 border border-purple-200/80 space-y-2">
+                    <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200/80 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-purple-700" />
+                        <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-700" />
                           Personalidade Ativa da Marca ({selectedTones.length} {selectedTones.length === 1 ? "tom ativo" : "tons ativos"})
                         </span>
-                        <span className="text-[11px] text-purple-700 hidden sm:inline">
+                        <span className="text-[11px] text-emerald-700 hidden sm:inline">
                           A IA combinará estes estilos na criação de conteúdos.
                         </span>
                       </div>
@@ -982,7 +1000,7 @@ function StrategyContent() {
                         {selectedTones.map((tone) => (
                           <span
                             key={tone}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-purple-300 text-purple-950 text-xs font-semibold shadow-2xs"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-emerald-300 text-emerald-950 text-xs font-semibold shadow-2xs"
                           >
                             <span>{tone}</span>
                             <button
@@ -991,7 +1009,7 @@ function StrategyContent() {
                                 setSelectedTones(prev => prev.filter(t => t !== tone));
                                 markDirty("toneOfVoice");
                               }}
-                              className="p-0.5 hover:bg-purple-100 rounded-full text-purple-700 cursor-pointer"
+                              className="p-0.5 hover:bg-emerald-100 rounded-full text-emerald-700 cursor-pointer"
                               title="Remover tom"
                             >
                               <X className="w-3 h-3" />
@@ -1033,7 +1051,7 @@ function StrategyContent() {
                                     markDirty("toneOfVoice");
                                   }}
                                   className={`px-2.5 py-1 rounded-lg text-xs font-medium transition border cursor-pointer ${isSelected
-                                      ? "bg-purple-600 text-white border-purple-600 shadow-2xs font-semibold"
+                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs font-semibold"
                                       : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                                     }`}
                                 >
@@ -1063,7 +1081,7 @@ function StrategyContent() {
                         clientId={activeClientId}
                         field="toneOfVoice"
                         draft={getAiDraft({ toneOfVoice: selectedTones })}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-2.5 py-1 text-[11px] font-semibold text-purple-700 transition cursor-pointer self-start sm:self-auto shrink-0"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition cursor-pointer self-start sm:self-auto shrink-0"
                         onApply={(val) => {
                           const items = Array.isArray(val) ? val : [val];
                           setSelectedTones((prev) => Array.from(new Set([...prev, ...items])));
@@ -1080,7 +1098,7 @@ function StrategyContent() {
                           .map((customTone, idx) => (
                             <span
                               key={idx}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-medium"
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 text-xs font-medium"
                             >
                               <span>{customTone}</span>
                               <button
@@ -1089,10 +1107,10 @@ function StrategyContent() {
                                   setSelectedTones(prev => prev.filter(t => t !== customTone));
                                   markDirty("toneOfVoice");
                                 }}
-                                className="p-0.5 hover:bg-purple-200 rounded-full transition cursor-pointer"
+                                className="p-0.5 hover:bg-emerald-200 rounded-full transition cursor-pointer"
                                 title="Remover tom"
                               >
-                                <X className="w-3 h-3 text-purple-700" />
+                                <X className="w-3 h-3 text-emerald-700" />
                               </button>
                             </span>
                           ))}
@@ -1115,7 +1133,7 @@ function StrategyContent() {
                             markDirty("toneOfVoice");
                           }
                         }}
-                        className="flex-1 px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 text-zinc-900"
+                        className="flex-1 px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-900"
                       />
                       <button
                         type="button"
@@ -1412,7 +1430,7 @@ function StrategyContent() {
                         clientId={activeClientId}
                         field="communicationDetails"
                         draft={getAiDraft({ communicationProfile })}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-2.5 py-1 text-[11px] font-semibold text-purple-700 transition cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition cursor-pointer"
                         onApply={(val) => {
                           const text = Array.isArray(val) ? val.join("\n") : val;
                           setCommunicationProfile((prev) => ({ ...prev, details: text }));
@@ -1572,7 +1590,7 @@ function StrategyContent() {
                                 {item.linked_audiences.map((aud) => (
                                   <span
                                     key={aud.id}
-                                    className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 text-[10px] font-semibold"
+                                    className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-semibold"
                                   >
                                     {aud.name}
                                   </span>
@@ -1602,7 +1620,7 @@ function StrategyContent() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-4">
                     <div>
                       <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
-                        <Users className="w-4 h-4 text-purple-600" />
+                        <Users className="w-4 h-4 text-emerald-600" />
                         Com Quem a Marca Fala (Categorias Gerais)
                       </h3>
                       <p className="text-xs text-zinc-500 mt-0.5">
@@ -1614,7 +1632,7 @@ function StrategyContent() {
                       field="targetAudiences"
                       draft={{ targetAudiences }}
                       currentValue={targetAudiences.join("\n")}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-3 py-1.5 text-[11px] font-semibold text-purple-700 transition cursor-pointer self-start sm:self-auto"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 transition cursor-pointer self-start sm:self-auto"
                       onApply={(val) => {
                         const items = Array.isArray(val) ? val : [val];
                         setTargetAudiences((prev) => Array.from(new Set([...prev, ...items])));
@@ -1625,10 +1643,10 @@ function StrategyContent() {
 
                   {/* Resumo / Segmentos Ativos */}
                   {targetAudiences.length > 0 && (
-                    <div className="p-3.5 rounded-xl bg-purple-50/50 border border-purple-100 space-y-2">
+                    <div className="p-3.5 rounded-xl bg-emerald-50/50 border border-emerald-100 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-purple-600" />
+                        <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
                           Segmentos e Públicos Ativos ({targetAudiences.length})
                         </span>
                         <button
@@ -1637,7 +1655,7 @@ function StrategyContent() {
                             setTargetAudiences([]);
                             markDirty("targetAudiences");
                           }}
-                          className="text-[10px] text-purple-700/80 hover:text-purple-900 underline cursor-pointer"
+                          className="text-[10px] text-emerald-700/80 hover:text-emerald-900 underline cursor-pointer"
                         >
                           Limpar todos
                         </button>
@@ -1650,13 +1668,13 @@ function StrategyContent() {
                               key={aud}
                               className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-2xs ${
                                 isCustom
-                                  ? "bg-purple-700 text-white border border-purple-600"
-                                  : "bg-purple-600 text-white"
+                                  ? "bg-emerald-800 text-white border border-emerald-700"
+                                  : "bg-emerald-600 text-white"
                               }`}
                             >
                               {aud}
                               {isCustom && (
-                                <span className="text-[9px] bg-purple-800/80 px-1 py-0.2 rounded text-purple-200 uppercase tracking-wider">
+                                <span className="text-[9px] bg-emerald-900/80 px-1 py-0.2 rounded text-emerald-200 uppercase tracking-wider">
                                   Custom
                                 </span>
                               )}
@@ -1687,7 +1705,7 @@ function StrategyContent() {
                         placeholder="Buscar por segmento (ex: saúde, luxo, agro, B2B, famílias, médicos)..."
                         value={audienceSearch}
                         onChange={(e) => setAudienceSearch(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 text-zinc-900"
+                        className="w-full pl-9 pr-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-900"
                       />
                     </div>
                     {/* Filtros rápidos de categoria */}
@@ -1744,7 +1762,7 @@ function StrategyContent() {
                               </span>
                             </div>
                             {activeCount > 0 && (
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 shrink-0">
                                 {activeCount} ativo(s)
                               </span>
                             )}
@@ -1765,7 +1783,7 @@ function StrategyContent() {
                                   }}
                                   className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition border cursor-pointer ${
                                     isSelected
-                                      ? "bg-purple-600 text-white border-purple-600 shadow-2xs font-semibold"
+                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs font-semibold"
                                       : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300"
                                   }`}
                                 >
@@ -1797,7 +1815,7 @@ function StrategyContent() {
                             addCustomAudience();
                           }
                         }}
-                        className="flex-1 px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 text-zinc-900"
+                        className="flex-1 px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-900"
                       />
                       <button
                         type="button"
@@ -2165,155 +2183,161 @@ function StrategyContent() {
 
       {/* Modal de Criação / Edição de Produto ou Serviço */}
       {catalogModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs">
-                <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-zinc-200">
-                  {/* Header Fixo */}
-                  <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between gap-4 bg-zinc-50/50">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${catalogType === "SERVICE"
-                            ? "bg-blue-50 text-blue-600 border-blue-200"
-                            : "bg-amber-50 text-amber-600 border-amber-200"
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs"
+          onClick={() => setCatalogModalOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-zinc-200"
+          >
+            {/* Header Fixo */}
+            <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between gap-4 bg-zinc-50/50">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${catalogType === "SERVICE"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}
+                >
+                  {catalogType === "SERVICE" ? (
+                    <Briefcase className="w-5 h-5" />
+                  ) : (
+                    <Package className="w-5 h-5" />
+                  )}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-base text-zinc-950">
+                      {editingCatalogItem ? "Editar Oferta do Catálogo" : "Nova Oferta do Catálogo"}
+                    </h3>
+                    <span
+                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${catalogType === "SERVICE"
+                          ? "bg-emerald-100/70 text-emerald-800 border-emerald-200"
+                          : "bg-amber-100/70 text-amber-800 border-amber-200"
+                        }`}
+                    >
+                      {catalogType === "SERVICE" ? "Serviço" : "Produto"}
+                    </span>
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    Cadastre em detalhes o que o seu cliente comercializa para orientar pautas, roteiros e anúncios da IA.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCatalogModalOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-zinc-200/70 text-zinc-400 hover:text-zinc-700 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Conteúdo com Scroll */}
+            <form onSubmit={handleSaveCatalogModal} className="flex-1 overflow-y-auto p-6 space-y-6">
+              {/* Barra Superior: Tipo e Nome */}
+              <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-zinc-700">Tipo da Oferta:</span>
+                    <div className="inline-flex rounded-xl bg-zinc-200/70 p-1 border border-zinc-200">
+                      <button
+                        type="button"
+                        onClick={() => setCatalogType("SERVICE")}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${catalogType === "SERVICE"
+                            ? "bg-white text-emerald-800 shadow-2xs font-bold"
+                            : "text-zinc-600 hover:text-zinc-900"
                           }`}
                       >
-                        {catalogType === "SERVICE" ? (
-                          <Briefcase className="w-5 h-5" />
-                        ) : (
-                          <Package className="w-5 h-5" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-base text-zinc-950">
-                            {editingCatalogItem ? "Editar Oferta do Catálogo" : "Nova Oferta do Catálogo"}
-                          </h3>
-                          <span
-                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${catalogType === "SERVICE"
-                                ? "bg-blue-100/70 text-blue-800 border-blue-200"
-                                : "bg-amber-100/70 text-amber-800 border-amber-200"
-                              }`}
-                          >
-                            {catalogType === "SERVICE" ? "Serviço" : "Produto"}
-                          </span>
-                        </div>
-                        <p className="text-xs text-zinc-500 mt-0.5">
-                          Cadastre em detalhes o que o seu cliente comercializa para orientar pautas, roteiros e anúncios da IA.
-                        </p>
-                      </div>
+                        <Briefcase className="w-3.5 h-3.5" />
+                        Serviço
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCatalogType("PRODUCT")}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${catalogType === "PRODUCT"
+                            ? "bg-white text-amber-800 shadow-2xs font-bold"
+                            : "text-zinc-600 hover:text-zinc-900"
+                          }`}
+                      >
+                        <Package className="w-3.5 h-3.5" />
+                        Produto
+                      </button>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setCatalogModalOpen(false)}
-                      className="p-1.5 rounded-xl hover:bg-zinc-200/70 text-zinc-400 hover:text-zinc-700 transition cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
                   </div>
 
-                        {/* Conteúdo com Scroll */}
-                        <form onSubmit={handleSaveCatalogModal} className="flex-1 overflow-y-auto p-6 space-y-6">
-                          {/* Barra Superior: Tipo e Nome */}
-                          <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-zinc-700">Tipo da Oferta:</span>
-                                <div className="inline-flex rounded-xl bg-zinc-200/70 p-1 border border-zinc-200">
-                                  <button
-                                    type="button"
-                                    onClick={() => setCatalogType("SERVICE")}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${catalogType === "SERVICE"
-                                        ? "bg-white text-blue-700 shadow-2xs"
-                                        : "text-zinc-600 hover:text-zinc-900"
-                                      }`}
-                                  >
-                                    <Briefcase className="w-3.5 h-3.5" />
-                                    Serviço
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setCatalogType("PRODUCT")}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${catalogType === "PRODUCT"
-                                        ? "bg-white text-amber-700 shadow-2xs"
-                                        : "text-zinc-600 hover:text-zinc-900"
-                                      }`}
-                                  >
-                                    <Package className="w-3.5 h-3.5" />
-                                    Produto
-                                  </button>
-                                </div>
-                              </div>
+                  <span className="text-[11px] text-zinc-500">
+                    {catalogType === "SERVICE"
+                      ? "Prestação de serviços, consultorias, atendimentos e cursos."
+                      : "Bens físicos, produtos em embalagem, e-commerce ou manufaturados."}
+                  </span>
+                </div>
 
-                              <span className="text-[11px] text-zinc-500">
-                                {catalogType === "SERVICE"
-                                  ? "Prestação de serviços, consultorias, atendimentos e cursos."
-                                  : "Bens físicos, produtos em embalagem, e-commerce ou manufaturados."}
-                              </span>
-                            </div>
-
-                                <div>
-                                  <label className="text-xs font-bold text-zinc-800 block mb-1">
-                                    Nome Comercial da Oferta *
-                                  </label>
+                <div>
+                  <label className="text-xs font-bold text-zinc-800 block mb-1">
+                    Nome Comercial da Oferta *
+                  </label>
                   <input
-                                    type="text"
-                                    required
-                                    placeholder="Ex: Consultoria de Gestão Financeira 1 a 1, Clareamento Dental a Laser, Móveis Planejados de Cozinha..."
-                                    value={catalogName}
-                                    onChange={(e) => setCatalogName(e.target.value)}
-                                    className="w-full px-3.5 py-2.5 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 font-medium"
-                                  />
-                                </div>
-                            </div>
+                    type="text"
+                    required
+                    placeholder="Ex: Consultoria de Gestão Financeira 1 a 1, Clareamento Dental a Laser, Móveis Planejados de Cozinha..."
+                    value={catalogName}
+                    onChange={(e) => setCatalogName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-900 font-medium"
+                  />
+                </div>
+              </div>
 
-                                {/* Grid de 2 Colunas */}
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                  {/* Coluna 1: Proposta, Escopo e Diferenciais */}
-                                  <div className="space-y-4">
-                                    {/* Descrição Completa */}
-                                    <div>
-                                      <div className="flex items-center justify-between mb-1.5">
-                                        <label className="text-xs font-bold text-zinc-800">
-                                          Descrição Completa da Oferta
-                                        </label>
-                                        <IdentityAiButton
-                                          clientId={activeClientId}
-                                          field="valueProposition"
-                                          draft={{
-                                            valueProposition: catalogDescription,
-                                            marketNiche: `${catalogType === "SERVICE" ? "Serviço" : "Produto"}: ${catalogName || activeCompany.name}`,
-                                          }}
-                                          className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/80 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition cursor-pointer"
-                                          onApply={(val) => {
-                                            setCatalogDescription(Array.isArray(val) ? val.join("\n") : val);
-                                          }}
-                                        />
-                                      </div>
-                                      <textarea
-                                        rows={5}
-                                        placeholder="Explique o que é a oferta, como ela é executada, duração, objetivo e particularidades técnicas..."
-                                        value={catalogDescription}
-                                        onChange={(e) => setCatalogDescription(e.target.value)}
-                                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y min-h-[140px]"
-                                      />
-                                    </div>
+              {/* Grid de 2 Colunas */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Coluna 1: Proposta, Escopo e Diferenciais */}
+                <div className="space-y-4">
+                  {/* Descrição Completa */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-bold text-zinc-800">
+                        Descrição Completa da Oferta
+                      </label>
+                      <IdentityAiButton
+                        clientId={activeClientId}
+                        field="valueProposition"
+                        draft={{
+                          valueProposition: catalogDescription,
+                          marketNiche: `${catalogType === "SERVICE" ? "Serviço" : "Produto"}: ${catalogName || activeCompany.name}`,
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition cursor-pointer"
+                        onApply={(val) => {
+                          setCatalogDescription(Array.isArray(val) ? val.join("\n") : val);
+                        }}
+                      />
+                    </div>
+                    <textarea
+                      rows={5}
+                      placeholder="Explique o que é a oferta, como ela é executada, duração, objetivo e particularidades técnicas..."
+                      value={catalogDescription}
+                      onChange={(e) => setCatalogDescription(e.target.value)}
+                      className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-900 resize-y min-h-[140px]"
+                    />
+                  </div>
 
-                                    {/* Entregáveis / O que está incluso */}
-                                    <div>
-                                      <label className="text-xs font-bold text-zinc-800 block mb-1">
-                                        O que está Incluso / Entregáveis e Escopo
-                                      </label>
-                                      <textarea
-                                        rows={5}
-                                        placeholder="Ex: - Diagnóstico de maturidade inicial&#10;- 4 sessões práticas individuais de 1h&#10;- Suporte direto via WhatsApp por 60 dias&#10;- Relatório em PDF com recomendações"
-                                        value={catalogDeliverables}
-                                        onChange={(e) => setCatalogDeliverables(e.target.value)}
-                                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y min-h-[140px]"
-                                      />
-                                      <p className="text-[11px] text-zinc-500 mt-1">
-                                        Escopo prático do que o cliente final recebe ao adquirir esta oferta.
-                                      </p>
-                                    </div>
+                  {/* Entregáveis / O que está incluso */}
+                  <div>
+                    <label className="text-xs font-bold text-zinc-800 block mb-1">
+                      O que está Incluso / Entregáveis e Escopo
+                    </label>
+                    <textarea
+                      rows={5}
+                      placeholder="Ex: - Diagnóstico de maturidade inicial&#10;- 4 sessões práticas individuais de 1h&#10;- Suporte direto via WhatsApp por 60 dias&#10;- Relatório em PDF com recomendações"
+                      value={catalogDeliverables}
+                      onChange={(e) => setCatalogDeliverables(e.target.value)}
+                      className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-900 resize-y min-h-[140px]"
+                    />
+                    <p className="text-[11px] text-zinc-500 mt-1">
+                      Escopo prático do que o cliente final recebe ao adquirir esta oferta.
+                    </p>
+                  </div>
 
                                     {/* Diferenciais Competitivos Desta Oferta (Tags / Lista) */}
                                     <div className="space-y-2">
@@ -2414,7 +2438,7 @@ function StrategyContent() {
                                             painPoints: catalogPainsList,
                                             marketNiche: `${catalogType === "SERVICE" ? "Serviço" : "Produto"}: ${catalogName || activeCompany.name}. Descrição: ${catalogDescription}`,
                                           }}
-                                          className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-2.5 py-1 text-[11px] font-semibold text-purple-700 transition cursor-pointer"
+                                          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition cursor-pointer"
                                           onApply={(val) => {
                                             const items = Array.isArray(val) ? val : [val];
                                             setCatalogPainsList((prev) => Array.from(new Set([...prev, ...items.map((s) => s.trim())])));
@@ -2483,8 +2507,8 @@ function StrategyContent() {
                                       </div>
 
                                       {/* Banner explicativo de inteligência */}
-                                      <div className="p-2.5 rounded-xl bg-purple-50/60 border border-purple-200 text-purple-900 text-xs flex items-start gap-2">
-                                        <Sparkles className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                                      <div className="p-2.5 rounded-xl bg-emerald-50/60 border border-emerald-200 text-emerald-950 text-xs flex items-start gap-2">
+                                        <Sparkles className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                                         <p className="leading-relaxed text-[11px]">
                                           <strong>Inteligência de Conteúdo:</strong> Cada dor cadastrada acima pode ser selecionada isoladamente pela IA no Brainstorm e Estúdio Criativo para criar roteiros e carrosséis com foco cirúrgico em cada problema.
                                         </p>
@@ -2501,7 +2525,7 @@ function StrategyContent() {
                                         placeholder="Ex: Método 3D: Diagnóstico 360°, Plano de Ação em 15 dias e Acompanhamento Semanal com dashboards..."
                                         value={catalogSolution}
                                         onChange={(e) => setCatalogSolution(e.target.value)}
-                                        className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y min-h-[110px]"
+                                        className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-900 resize-y min-h-[110px]"
                                       />
                                       <p className="text-[11px] text-zinc-500 mt-1">
                                         Como a solução é implementada ou qual é o método/mecanismo exclusivo da empresa.
@@ -2527,7 +2551,7 @@ function StrategyContent() {
                                                   );
                                                 }}
                                                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer flex items-center gap-1.5 ${isSelected
-                                                    ? "bg-purple-600 text-white border-purple-600 shadow-2xs"
+                                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
                                                     : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
                                                   }`}
                                               >
@@ -2569,7 +2593,7 @@ function StrategyContent() {
                                           <button
                                             type="submit"
                                             disabled={catalogSaving || !catalogName.trim()}
-                                            className="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 transition disabled:opacity-50 cursor-pointer shadow-2xs"
+                                            className="inline-flex items-center gap-2 px-5 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition disabled:opacity-50 cursor-pointer shadow-2xs"
                                           >
                                             {catalogSaving ? (
                                               <>

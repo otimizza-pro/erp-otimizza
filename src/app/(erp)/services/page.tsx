@@ -274,8 +274,8 @@ export default function ServicesPage() {
 
           {/* Barra de Ações em Massa */}
           {selectedServiceIds.length > 0 && (
-            <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between animate-in fade-in">
-              <span className="text-xs font-bold text-purple-900">
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between animate-in fade-in">
+              <span className="text-xs font-bold text-emerald-950">
                 {selectedServiceIds.length} serviço(s) selecionado(s)
               </span>
               <div className="flex items-center gap-2">
@@ -308,7 +308,7 @@ export default function ServicesPage() {
                       type="checkbox"
                       checked={selectedServiceIds.length === services.length && services.length > 0}
                       onChange={handleToggleSelectAll}
-                      className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                      className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                       title="Selecionar todos os serviços visíveis"
                     />
                   </th>
@@ -346,7 +346,7 @@ export default function ServicesPage() {
                     <tr
                       key={s.id}
                       className={`hover:bg-zinc-50/70 transition ${
-                        selectedServiceIds.includes(s.id) ? "bg-purple-50/30" : ""
+                        selectedServiceIds.includes(s.id) ? "bg-emerald-50/30" : ""
                       }`}
                     >
                       <td className="py-3.5 px-3">
@@ -354,7 +354,7 @@ export default function ServicesPage() {
                           type="checkbox"
                           checked={selectedServiceIds.includes(s.id)}
                           onChange={() => handleToggleSelect(s.id)}
-                          className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                          className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                         />
                       </td>
                       <td className="py-3.5 px-3">

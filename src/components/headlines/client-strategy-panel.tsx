@@ -1021,14 +1021,14 @@ export function ClientStrategyPanel({
                 .map((customTone) => (
                   <span
                     key={customTone}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-900 shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-950 shadow-2xs"
                   >
-                    <Check size={12} className="text-purple-700" />
+                    <Check size={12} className="text-emerald-700" />
                     {customTone}
                     <button
                       type="button"
                       onClick={() => removeItem(setSelectedTones, customTone)}
-                      className="ml-0.5 text-purple-600 hover:text-purple-900 cursor-pointer"
+                      className="ml-0.5 text-emerald-700 hover:text-emerald-950 cursor-pointer"
                       title="Remover tom"
                     >
                       <Trash2 size={12} />

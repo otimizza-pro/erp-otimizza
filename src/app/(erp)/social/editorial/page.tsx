@@ -359,10 +359,10 @@ function EditorialContent() {
 
         {/* Bloco de Assistente de IA */}
         {aiPlannerOpen && (
-          <div className="p-6 rounded-2xl bg-white border border-purple-200 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+          <div className="p-6 rounded-2xl bg-white border border-emerald-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-emerald-100 pb-3">
               <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-600" />
+                <Sparkles className="w-4 h-4 text-emerald-600" />
                 Assistente de Planejamento Editorial com IA
               </h3>
               <button

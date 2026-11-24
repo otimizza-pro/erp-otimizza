@@ -44,6 +44,7 @@ import {
   Rocket,
   Image as ImageIcon,
   Target,
+  Bell,
 } from "lucide-react";
 import { SearchItem } from "@/app/api/search/route";
 import { CompanySelector } from "@/components/layout/company-selector";
@@ -100,6 +101,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
 
   // Estados de atalhos rápidos "+ Novo" e Busca Global
   const [newDropdownOpen, setNewDropdownOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchItem[]>([]);
@@ -114,6 +116,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
   const lastFocusedElementRef = useRef<HTMLElement | null>(null);
   const newDropdownRef = useRef<HTMLDivElement>(null);
   const newDropdownButtonRef = useRef<HTMLButtonElement>(null);
+  const notificationsRef = useRef<HTMLDivElement>(null);
 
   // Mapeamento dos grupos do menu organizados nos Pilares Estratégicos: Marketing & Growth, Comercial, Produção e Administrativo
   const [commercialPipelines, setCommercialPipelines] = useState<{id:string;name:string;status:string}[]>([]);
@@ -414,15 +417,28 @@ export function AppShell({ children, activeSection }: AppShellProps) {
     }
   }, [searchModalOpen]);
 
-  // Fechar dropdown de "+ Novo" ao clicar fora
+  // Fechar dropdown de "+ Novo" e notificações ao clicar fora ou apertar Escape
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (newDropdownRef.current && !newDropdownRef.current.contains(e.target as Node)) {
         setNewDropdownOpen(false);
       }
+      if (notificationsRef.current && !notificationsRef.current.contains(e.target as Node)) {
+        setNotificationsOpen(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setNewDropdownOpen(false);
+        setNotificationsOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   // Busca instantânea com debounce e cancelamento via AbortController (previne race conditions)
@@ -886,6 +902,76 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                     <Briefcase className="w-4 h-4 text-zinc-400" strokeWidth={1.5} />
                     <span>Novo projeto</span>
                   </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Central de Notificações & Status Otimizza */}
+            <div className="relative" ref={notificationsRef}>
+              <button
+                type="button"
+                aria-label="Notificações e status do sistema"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="relative p-2 rounded-xl text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer focus-visible:ring-1 focus-visible:ring-zinc-400 focus-visible:outline-none"
+              >
+                <Bell className="w-4 h-4" strokeWidth={1.5} />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+              </button>
+
+              {notificationsOpen && (
+                <div className="absolute right-0 mt-1.5 w-80 rounded-2xl bg-white border border-zinc-200 shadow-xl p-4 space-y-3 z-50 text-xs animate-in fade-in duration-100">
+                  <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
+                    <div className="flex items-center gap-1.5 font-bold text-zinc-950">
+                      <Bell className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>Notificações & Status</span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Operacional
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-100 space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-zinc-900 text-[11px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                        Ambiente Otimizza Data & Growth
+                      </div>
+                      <p className="text-[11px] text-zinc-500 leading-relaxed">
+                        Sistema conectado ao PostgreSQL Supabase. Schema auditado, integridade referencial ativa e migrações sincronizadas.
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-100 space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-zinc-900 text-[11px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                        Inteligência Artificial & OpenRouter
+                      </div>
+                      <p className="text-[11px] text-zinc-500 leading-relaxed">
+                        Assistente de estratégia e geradores de copy prontos nos modos Adicionar, Substituir e Melhorar.
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-100 space-y-1">
+                      <div className="flex items-center gap-1.5 font-semibold text-zinc-900 text-[11px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                        Notificações de Ação Ativas
+                      </div>
+                      <p className="text-[11px] text-zinc-500 leading-relaxed">
+                        Toasts visuais ativos para confirmações de salvamento, alertas de rede e criação de registros.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-zinc-100 flex items-center justify-between text-[11px]">
+                    <span className="text-zinc-400">Otimizza ERP v0.1.0</span>
+                    <button
+                      type="button"
+                      onClick={() => setNotificationsOpen(false)}
+                      className="font-semibold text-zinc-700 hover:text-zinc-950 cursor-pointer"
+                    >
+                      Fechar
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

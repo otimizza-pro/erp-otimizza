@@ -24,6 +24,7 @@ import {
   Package,
 } from "lucide-react";
 import { AudienceAiPlanner } from "@/components/content-studio/audience-ai-planner";
+import { toast } from "@/components/ui/toast-provider";
 
 export interface ClientAudienceItem {
   id: string;
@@ -123,6 +124,16 @@ export function ClientAudiencesManager({
       );
     }
   }, [propCatalogItems]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && modalOpen) {
+        setModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [modalOpen]);
 
   const loadAudiences = useCallback(async () => {
     if (!clientId) {
@@ -265,9 +276,12 @@ export function ClientAudiencesManager({
       setAudiences(updated);
       onAudiencesChangeRef.current?.(updated);
       setModalOpen(false);
+      toast.success(editingAudience ? "Público atualizado com sucesso!" : "Novo público cadastrado com sucesso!");
       await loadAudiences();
     } catch (err) {
-      setFormError(err instanceof Error ? err.message : "Erro ao salvar público.");
+      const msg = err instanceof Error ? err.message : "Erro ao salvar público.";
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -284,9 +298,11 @@ export function ClientAudiencesManager({
         const data = await res.json();
         throw new Error(data.error || "Erro ao remover público.");
       }
+      toast.success("Público excluído com sucesso.");
       await loadAudiences();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Falha ao remover público.");
+      const msg = err instanceof Error ? err.message : "Falha ao remover público.";
+      toast.error(msg);
     } finally {
       setDeletingId(null);
     }
@@ -314,9 +330,11 @@ export function ClientAudiencesManager({
       if (!res.ok) {
         throw new Error("Erro ao definir como padrão.");
       }
+      toast.success(`"${aud.name}" definido como público padrão.`);
       await loadAudiences();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Falha ao atualizar público padrão.");
+      const msg = err instanceof Error ? err.message : "Falha ao atualizar público padrão.";
+      toast.error(msg);
     }
   };
 
@@ -327,11 +345,11 @@ export function ClientAudiencesManager({
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-xs font-bold text-zinc-900 uppercase tracking-wider flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-purple-600" />
+              <Users className="w-3.5 h-3.5 text-emerald-600" />
               Públicos Segmentados & Personas ({audiences.length})
             </h3>
             {audiences.length > 0 && (
-              <span className="text-[10px] bg-purple-50 text-purple-700 font-semibold px-2 py-0.5 rounded-full border border-purple-100">
+              <span className="text-[10px] bg-emerald-50 text-emerald-800 font-semibold px-2 py-0.5 rounded-full border border-emerald-100">
                 {audiences.length} {audiences.length === 1 ? "cadastrado" : "cadastrados"}
               </span>
             )}
@@ -346,7 +364,7 @@ export function ClientAudiencesManager({
           <button
             type="button"
             onClick={openCreateModal}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-2xs transition cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs transition cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             Novo Público
@@ -375,8 +393,8 @@ export function ClientAudiencesManager({
         </div>
       ) : audiences.length === 0 ? (
         /* Empty State */
-        <div className="p-6 text-center bg-purple-50/40 rounded-2xl border border-dashed border-purple-200 space-y-3">
-          <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 mx-auto flex items-center justify-center">
+        <div className="p-6 text-center bg-emerald-50/40 rounded-2xl border border-dashed border-emerald-200 space-y-3">
+          <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center">
             <Target className="w-5 h-5" />
           </div>
           <div>
@@ -410,7 +428,7 @@ export function ClientAudiencesManager({
                 key={aud.id}
                 className={`p-4 rounded-2xl border transition flex flex-col justify-between bg-white ${
                   aud.is_default
-                    ? "border-purple-300 ring-2 ring-purple-500/10 shadow-xs"
+                    ? "border-emerald-300 ring-2 ring-emerald-500/10 shadow-xs"
                     : "border-zinc-200 hover:border-zinc-300 shadow-2xs"
                 }`}
               >
@@ -423,8 +441,8 @@ export function ClientAudiencesManager({
                           {aud.name}
                         </span>
                         {aud.is_default ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 text-[10px] font-bold">
-                            <Star className="w-2.5 h-2.5 fill-purple-700 text-purple-700" />
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                            <Star className="w-2.5 h-2.5 fill-emerald-700 text-emerald-700" />
                             Principal
                           </span>
                         ) : (
@@ -432,7 +450,7 @@ export function ClientAudiencesManager({
                             type="button"
                             onClick={() => handleSetDefault(aud)}
                             title="Tornar este o público principal"
-                            className="text-[10px] text-zinc-400 hover:text-purple-600 transition"
+                            className="text-[10px] text-zinc-400 hover:text-emerald-600 transition"
                           >
                             Definir como principal
                           </button>
@@ -525,14 +543,14 @@ export function ClientAudiencesManager({
 
                     {hasObjections && (
                       <div className="space-y-1 pt-1">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1">
-                          <ShieldAlert className="w-2.5 h-2.5" /> Objeções Comuns
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                          <ShieldAlert className="w-2.5 h-2.5 text-amber-600" /> Objeções Comuns
                         </span>
                         <div className="flex flex-wrap gap-1">
                           {aud.objections.slice(0, 2).map((obj, idx) => (
                             <span
                               key={idx}
-                              className="text-[10px] px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 line-clamp-1 max-w-[200px]"
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200 line-clamp-1 max-w-[200px]"
                               title={obj}
                             >
                               {obj}
@@ -562,14 +580,14 @@ export function ClientAudiencesManager({
                     {/* Vínculo com Produtos & Serviços do Catálogo */}
                     {aud.linkedCatalogItems && aud.linkedCatalogItems.length > 0 && (
                       <div className="space-y-1 pt-1.5 border-t border-zinc-100">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1">
-                          <Package className="w-2.5 h-2.5" /> Produtos / Serviços Vinculados ({aud.linkedCatalogItems.length})
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                          <Package className="w-2.5 h-2.5 text-emerald-600" /> Produtos / Serviços Vinculados ({aud.linkedCatalogItems.length})
                         </span>
                         <div className="flex flex-wrap gap-1">
                           {aud.linkedCatalogItems.map((prod) => (
                             <span
                               key={prod.id}
-                              className="text-[10px] px-2 py-0.5 rounded-md bg-purple-50 text-purple-800 border border-purple-200 line-clamp-1 max-w-[200px]"
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 line-clamp-1 max-w-[200px]"
                               title={prod.name}
                             >
                               {prod.name}
@@ -588,17 +606,21 @@ export function ClientAudiencesManager({
 
       {/* Modal Criar / Editar Público com os 4 Pilares */}
       {modalOpen && createPortal(
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          onClick={() => setModalOpen(false)}
+        >
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="modal-audience-title"
+            onClick={(e) => e.stopPropagation()}
             className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-2xl border border-zinc-200 shadow-2xl p-6 sm:p-7 space-y-5"
           >
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
                 <h3 id="modal-audience-title" className="text-sm font-bold text-zinc-950 flex items-center gap-1.5">
-                  <Target className="w-4 h-4 text-purple-600" />
+                  <Target className="w-4 h-4 text-emerald-600" />
                   {editingAudience ? "Editar Público-Alvo (4 Pilares)" : "Cadastrar Novo Público-Alvo (4 Pilares)"}
                 </h3>
                 <p className="text-xs text-zinc-500">
@@ -608,7 +630,7 @@ export function ClientAudiencesManager({
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition"
+                className="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -632,19 +654,19 @@ export function ClientAudiencesManager({
                   placeholder="Ex: Reabilitação, Postural, Atletas..."
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
               {/* Vínculo de Produtos e Serviços */}
-              <div className="p-4 rounded-xl bg-purple-50/50 border border-purple-200/80 space-y-2.5">
+              <div className="p-4 rounded-xl bg-emerald-50/40 border border-emerald-200/80 space-y-2.5">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
-                    <Package className="w-4 h-4 text-purple-600" />
+                  <label className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                    <Package className="w-4 h-4 text-emerald-600" />
                     Produtos & Serviços Associados a Este Público
                   </label>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-semibold text-purple-800 bg-purple-100/70 px-2 py-0.5 rounded-md border border-purple-200">
+                    <span className="text-[11px] font-semibold text-emerald-800 bg-emerald-100/70 px-2 py-0.5 rounded-md border border-emerald-200">
                       {formCatalogItemIds.length} de {catalogItems.length} selecionado(s)
                     </span>
                     {catalogItems.length > 0 && (
@@ -652,15 +674,15 @@ export function ClientAudiencesManager({
                         <button
                           type="button"
                           onClick={() => setFormCatalogItemIds(catalogItems.map((c) => c.id))}
-                          className="text-purple-700 hover:text-purple-900 font-medium underline cursor-pointer"
+                          className="text-emerald-700 hover:text-emerald-900 font-medium underline cursor-pointer"
                         >
                           Todos
                         </button>
-                        <span className="text-purple-300">•</span>
+                        <span className="text-emerald-300">•</span>
                         <button
                           type="button"
                           onClick={() => setFormCatalogItemIds([])}
-                          className="text-purple-700 hover:text-purple-900 font-medium underline cursor-pointer"
+                          className="text-emerald-700 hover:text-emerald-900 font-medium underline cursor-pointer"
                         >
                           Limpar
                         </button>
@@ -669,7 +691,7 @@ export function ClientAudiencesManager({
                   </div>
                 </div>
 
-                <p className="text-[11px] text-purple-800/90 leading-relaxed">
+                <p className="text-[11px] text-emerald-800/90 leading-relaxed">
                   Vincule quais produtos e serviços deste cliente são consumidos ou destinados a esta persona. A IA usará este vínculo para sugerir a oferta certa em cada conteúdo:
                 </p>
 
@@ -689,8 +711,8 @@ export function ClientAudiencesManager({
                           }}
                           className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border font-semibold transition cursor-pointer select-none shadow-2xs ${
                             selected
-                              ? "bg-purple-600 text-white border-purple-600 ring-2 ring-purple-600/30"
-                              : "bg-white text-zinc-700 border-zinc-200 hover:border-purple-300 hover:bg-purple-50/30"
+                              ? "bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-600/30"
+                              : "bg-white text-zinc-700 border-zinc-200 hover:border-emerald-300 hover:bg-emerald-50/30"
                           }`}
                         >
                           {selected ? (
@@ -715,9 +737,9 @@ export function ClientAudiencesManager({
                     })}
                   </div>
                 ) : (
-                  <div className="p-3 bg-white/80 rounded-xl border border-dashed border-purple-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-purple-900">
+                  <div className="p-3 bg-white/80 rounded-xl border border-dashed border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-900">
                     <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-purple-400 shrink-0" />
+                      <Package className="w-4 h-4 text-emerald-600 shrink-0" />
                       <span>
                         Nenhum produto ou serviço cadastrado ainda no catálogo do cliente.
                       </span>
@@ -725,7 +747,7 @@ export function ClientAudiencesManager({
                     <button
                       type="button"
                       onClick={() => void loadCatalog()}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg text-[11px] font-semibold transition cursor-pointer self-start sm:self-auto shrink-0"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg text-[11px] font-semibold transition cursor-pointer self-start sm:self-auto shrink-0"
                     >
                       <RefreshCw className="w-3 h-3" />
                       Recarregar catálogo
@@ -750,7 +772,7 @@ export function ClientAudiencesManager({
                       placeholder="Ex: 35 a 65 anos, homens e mulheres, raio de 3 a 5 km, classe A/B..."
                       value={formDemographics}
                       onChange={(e) => setFormDemographics(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600"
+                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
                   <div>
@@ -762,7 +784,7 @@ export function ClientAudiencesManager({
                       placeholder="Ex: Profissionais de escritório, pessoas com dor crônica, praticantes de corrida..."
                       value={formDescription}
                       onChange={(e) => setFormDescription(e.target.value)}
-                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-600"
+                      className="w-full px-3 py-2 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
                 </div>
@@ -800,29 +822,29 @@ export function ClientAudiencesManager({
                   />
                 </div>
 
-                <div className="p-3.5 rounded-xl bg-purple-50/50 border border-purple-200/80 space-y-1.5">
-                  <label className="text-xs font-bold text-purple-900 block flex items-center gap-1">
-                    <ShieldAlert className="w-3.5 h-3.5 text-purple-600" />
+                <div className="p-3.5 rounded-xl bg-amber-50/40 border border-amber-200/70 space-y-1.5">
+                  <label className="text-xs font-bold text-amber-950 block flex items-center gap-1">
+                    <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
                     Medos e Objeções
                   </label>
-                  <span className="text-[10px] text-purple-700 block">Travas e receios do cliente (1 por linha)</span>
+                  <span className="text-[10px] text-amber-700 block">Travas e receios do cliente (1 por linha)</span>
                   <textarea
                     rows={6}
                     placeholder="Já me frustrei antes&#10;Medo de piorar a lesão&#10;Acho que não tenho tempo"
                     value={formObjections}
                     onChange={(e) => setFormObjections(e.target.value)}
-                    className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 min-h-[160px] resize-y leading-relaxed"
+                    className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-amber-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 min-h-[160px] resize-y leading-relaxed"
                   />
                 </div>
               </div>
 
               {/* Pilar 4: Comportamento no Digital */}
-              <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200/80 space-y-2">
-                <span className="text-[11px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-blue-600" />
+              <div className="p-4 rounded-xl bg-sky-50/40 border border-sky-200/70 space-y-2">
+                <span className="text-[11px] font-bold text-sky-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-sky-600" />
                   4. Comportamento e Interesses no Digital (Como alcançar)
                 </span>
-                <p className="text-[11px] text-blue-800/80 leading-relaxed">
+                <p className="text-[11px] text-sky-800/80 leading-relaxed">
                   Interesses para segmentação no Meta Ads e termos que esse público digita na busca do Google ou Google Meu Negócio.
                 </p>
                 <textarea
@@ -830,7 +852,7 @@ export function ClientAudiencesManager({
                   placeholder="Ex: Interesses Meta: Fisioterapia, Pilates, Saúde e Bem-Estar. Palavras-chave Google: fisioterapia perto de mim, alívio de dor na coluna, studio de pilates..."
                   value={formDigitalBehavior}
                   onChange={(e) => setFormDigitalBehavior(e.target.value)}
-                  className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-blue-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[130px] resize-y leading-relaxed"
+                  className="w-full px-3 py-2 text-xs sm:text-sm bg-white border border-sky-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 min-h-[130px] resize-y leading-relaxed"
                 />
               </div>
 
@@ -840,7 +862,7 @@ export function ClientAudiencesManager({
                     type="checkbox"
                     checked={formIsDefault}
                     onChange={(e) => setFormIsDefault(e.target.checked)}
-                    className="rounded text-purple-600 focus:ring-purple-500"
+                    className="rounded text-emerald-600 focus:ring-emerald-500"
                   />
                   <span>Definir como público prioritário / padrão</span>
                 </label>
@@ -849,14 +871,14 @@ export function ClientAudiencesManager({
                   <button
                     type="button"
                     onClick={() => setModalOpen(false)}
-                    className="px-3 py-1.5 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl border border-zinc-200 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="px-4 py-1.5 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold shadow-2xs transition disabled:opacity-50 cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs transition disabled:opacity-50 cursor-pointer"
                   >
                     {saving ? "Salvando..." : editingAudience ? "Atualizar Público" : "Salvar Público"}
                   </button>

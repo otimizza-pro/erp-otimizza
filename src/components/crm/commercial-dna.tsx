@@ -58,7 +58,7 @@ export function CommercialDnaFields({
                           title={isIncluded ? "Público já citado" : "Clique para incluir no campo"}
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition cursor-pointer border ${
                             isIncluded
-                              ? "bg-purple-50 text-purple-700 border-purple-200"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : "bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-200"
                           }`}
                         >
@@ -71,7 +71,7 @@ export function CommercialDnaFields({
                       <button
                         type="button"
                         onClick={onScrollToAudiences}
-                        className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 underline ml-1 cursor-pointer"
+                        className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 underline ml-1 cursor-pointer"
                       >
                         Gerenciar públicos ↓
                       </button>
@@ -84,7 +84,7 @@ export function CommercialDnaFields({
                       <button
                         type="button"
                         onClick={onScrollToAudiences}
-                        className="font-semibold text-purple-600 hover:text-purple-800 underline cursor-pointer"
+                        className="font-semibold text-emerald-600 hover:text-emerald-800 underline cursor-pointer"
                       >
                         Cadastrar públicos segmentados com IA ↓
                       </button>
@@ -201,7 +201,7 @@ export function CommercialDnaPanel({
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {saving && (
-          <span className="text-xs text-purple-600 font-medium animate-pulse flex items-center gap-1">
+          <span className="text-xs text-emerald-600 font-medium animate-pulse flex items-center gap-1">
             Salvando...
           </span>
         )}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { AutoResizeTextareaListener } from "@/components/ui/auto-resize-textarea-listener";
+import { ToastProvider } from "@/components/ui/toast-provider";
 
 const geistSans = localFont({
   src: "./fonts/geist-latin.woff2",
@@ -49,7 +50,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-[#F8F9FA] text-zinc-900 font-sans selection:bg-zinc-900 selection:text-white">
         <AutoResizeTextareaListener />
-        {children}
+        <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
   );

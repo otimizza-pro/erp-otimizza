@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import {
   Sparkles,
   Loader2,
@@ -13,8 +13,10 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
+  X,
 } from "lucide-react";
 import type { IdentityAiField } from "@/modules/clients/identity-ai";
+import { toast } from "@/components/ui/toast-provider";
 
 export function IdentityAiButton({
   clientId,
@@ -62,6 +64,15 @@ export function IdentityAiButton({
   const hasExistingText = Boolean(resolvedCurrentText.trim());
   const hasExistingList = resolvedCurrentList.length > 0;
   const isListField = Array.isArray(currentValue) || Array.isArray((draft as Record<string, unknown>)?.[field]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open]);
 
   async function generate(append = false, mode: "generate" | "improve" = "generate") {
     const requestId = ++generation.current;
@@ -154,18 +165,22 @@ export function IdentityAiButton({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
+        <div
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          onClick={() => setOpen(false)}
+        >
           <section
             role="dialog"
             aria-modal="true"
             aria-label="Sugestões da IA"
             className="max-h-[92vh] w-full max-w-2xl flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Cabeçalho do modal */}
             <div className="flex items-start justify-between pb-3 border-b border-zinc-100">
               <div>
                 <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-indigo-600" />
+                  <Sparkles className="w-4 h-4 text-emerald-700" />
                   Sugestão com IA para este campo
                 </h3>
                 <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">
@@ -174,11 +189,21 @@ export function IdentityAiButton({
                 </p>
               </div>
 
-              {model && (
-                <span className="text-[10px] font-mono text-zinc-400 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-200 shrink-0">
-                  {model}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {model && (
+                  <span className="text-[10px] font-mono text-zinc-400 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-200 shrink-0">
+                    {model}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="p-1 rounded-lg text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 transition cursor-pointer"
+                  title="Fechar"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Alternador de Modo de IA: Sugerir Novas Ideias vs Melhorar Texto Existente */}
@@ -195,7 +220,7 @@ export function IdentityAiButton({
                         : "text-zinc-600 hover:text-zinc-900"
                     }`}
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-700" />
                     Gerar novas opções (sem repetir)
                   </button>
                   <button
@@ -204,11 +229,11 @@ export function IdentityAiButton({
                     onClick={() => generate(false, "improve")}
                     className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
                       activeAiMode === "improve"
-                        ? "bg-white text-indigo-900 shadow-2xs"
+                        ? "bg-white text-emerald-900 shadow-2xs"
                         : "text-zinc-600 hover:text-zinc-900"
                     }`}
                   >
-                    <Wand2 className="w-3.5 h-3.5 text-indigo-600" />
+                    <Wand2 className="w-3.5 h-3.5 text-emerald-700" />
                     Melhorar meu texto existente
                   </button>
                 </div>
@@ -217,7 +242,7 @@ export function IdentityAiButton({
                   <button
                     type="button"
                     onClick={() => setShowOriginal(!showOriginal)}
-                    className="inline-flex items-center gap-1 text-[11px] font-medium text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+                    className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 hover:text-emerald-900 hover:underline cursor-pointer"
                   >
                     <FileText className="w-3 h-3" />
                     {showOriginal ? "Ocultar original" : "Ver texto original"}
@@ -241,8 +266,8 @@ export function IdentityAiButton({
 
             {/* Status e Erro */}
             {busy && (
-              <div className="my-4 p-3 rounded-xl bg-indigo-50/60 border border-indigo-200 text-xs text-indigo-900 flex items-center gap-2">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+              <div className="my-4 p-3 rounded-xl bg-emerald-50/60 border border-emerald-200 text-xs text-emerald-950 flex items-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-700" />
                 <span>
                   {activeAiMode === "improve"
                     ? "A IA está lapidando e aprimorando o seu texto existente..."
@@ -379,8 +404,9 @@ export function IdentityAiButton({
                           const merged = Array.from(new Set([...resolvedCurrentList, ...selected]));
                           onApply(merged, "append");
                           setOpen(false);
+                          toast.success("Sugestão adicionada à lista!", "As novas opções foram mescladas com sucesso.");
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition disabled:opacity-40 cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition disabled:opacity-40 cursor-pointer"
                         title="Acrescenta os itens selecionados mantendo os que já estão no formulário"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -394,6 +420,7 @@ export function IdentityAiButton({
                       onClick={() => {
                         onApply(Array.from(selectedSet), "replace");
                         setOpen(false);
+                        toast.success("Lista atualizada com sucesso!", "As opções selecionadas substituíram o conteúdo anterior.");
                       }}
                       className={`rounded-xl px-4 py-2 text-xs font-semibold transition disabled:opacity-40 cursor-pointer ${
                         hasExistingList
@@ -417,8 +444,9 @@ export function IdentityAiButton({
                             : suggestion;
                           onApply(merged, "append");
                           setOpen(false);
+                          toast.success("Texto adicionado abaixo!", "A sugestão da IA foi inserida em uma nova linha.");
                         }}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-2xs transition cursor-pointer"
                         title="Mantém o texto atual e acrescenta a sugestão da IA em uma nova linha abaixo"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -431,6 +459,7 @@ export function IdentityAiButton({
                       onClick={() => {
                         onApply(suggestion, "replace");
                         setOpen(false);
+                        toast.success("Texto substituído com sucesso!", "O campo foi atualizado com a sugestão da IA.");
                       }}
                       className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-xs font-semibold transition cursor-pointer ${
                         hasExistingText

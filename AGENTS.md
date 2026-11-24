@@ -7,3 +7,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Regras de Deploy, Git e Supabase
+- **Git / Push:** NÃO faça `git commit` nem `git push` automaticamente após cada alteração. Só suba alterações para o Git quando o usuário pedir explicitamente.
+- **Supabase:** Você tem liberdade para aplicar alterações e migrações diretamente no Supabase quando necessário.

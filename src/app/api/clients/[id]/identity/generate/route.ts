@@ -148,7 +148,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const schema = z.object({
       value: field.list
-        ? z.array(z.string().trim().min(1).max(2000)).min(1).max(25)
+        ? z.preprocess(
+            (val) => {
+              if (Array.isArray(val)) return val.map((v) => String(v).trim()).filter(Boolean);
+              if (typeof val === "string") {
+                return val
+                  .split(/\r?\n/)
+                  .map((s) => s.replace(/^[\s\-•*\d.)]+/, "").trim())
+                  .filter(Boolean);
+              }
+              return val;
+            },
+            z.array(z.string().trim().min(1).max(2000)).min(1).max(25)
+          )
         : z.string().trim().min(1).max(12000),
       missing: z.array(z.string()).default([]),
     });

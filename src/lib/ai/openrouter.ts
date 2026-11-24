@@ -84,6 +84,38 @@ const responseSchema = z.object({
   })).min(1)
 });
 
+export const AI_TEAM_A_DEFAULTS = [
+  "google/gemini-3.8-flash",
+  "openai/gpt-5",
+  "google/gemma-4-26b-a4b-it:free",
+  "nvidia/nemotron-3.5-lightning:free",
+] as const;
+
+export const AI_TEAM_B_DEFAULTS = [
+  "anthropic/claude-sonnet-5.5",
+  "meta-llama/llama-4-maverick",
+  "particle-ai/particle-1:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
+] as const;
+
+export function getAiFallbackModels(): string[] {
+  const envModels: string[] = [];
+  for (const team of ["A", "B"] as const) {
+    const defaults = team === "A" ? AI_TEAM_A_DEFAULTS : AI_TEAM_B_DEFAULTS;
+    for (let i = 0; i < 4; i++) {
+      const envVal = process.env[`OPENROUTER_HEADLINE_TEAM_${team}_${i + 1}_MODEL`]?.trim();
+      envModels.push(envVal || defaults[i]);
+    }
+  }
+  return Array.from(new Set(envModels.filter(Boolean)));
+}
+
+const NON_RETRYABLE_AI_CODES = new Set([
+  "AI_KEY_MISSING",
+  "AI_KEY_REJECTED",
+  "AI_INSUFFICIENT_CREDITS",
+]);
+
 export interface GenerateWithOpenRouterInput {
   model: string;
   messages: { role: "system" | "user"; content: string }[];
@@ -93,16 +125,21 @@ export interface GenerateWithOpenRouterInput {
   timeoutMs?: number;
   reasoningEffort?: "low" | "medium" | "high";
   disableThinking?: boolean;
+  disableFallback?: boolean;
 }
 
-export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput){
-  const key = input.customApiKey?.trim() || process.env.OPENROUTER_API_KEY?.trim();
-  if(!key) throw new AiGenerationError("AI_KEY_MISSING","Chave do OpenRouter não configurada. Preencha OPENROUTER_API_KEY no servidor e reinicie a aplicação.",503);
-  
+async function generateSingleModel(
+  model: string,
+  input: GenerateWithOpenRouterInput,
+  key: string,
+  timeoutMs: number
+) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), input.timeoutMs ?? 45000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  const isClaudeOrSol = ["anthropic/claude-sonnet-5.5", "openai/gpt-6.2-sol"].includes(input.model);
+  const isClaudeOrSol = ["anthropic/claude-sonnet-5.5", "openai/gpt-6.2-sol"].includes(model);
+  const shouldDisableThinking =
+    input.disableThinking || model.startsWith("nvidia/nemotron-3.5-lightning");
   let tempConfig: Record<string, unknown> = {};
 
   if (input.temperature !== undefined) {
@@ -113,8 +150,8 @@ export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput)
     tempConfig = { temperature: 0.7 };
   }
 
-  let responseUsage:AiGenerationError['usage']=null;
-  let responseModel:string|undefined;
+  let responseUsage: AiGenerationError["usage"] = null;
+  let responseModel: string | undefined;
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -123,43 +160,117 @@ export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput)
         "Content-Type": "application/json",
         Authorization: "Bearer " + key,
         "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-        "X-Title": "Otimizza ERP"
+        "X-Title": "Otimizza ERP",
       },
       body: JSON.stringify({
-        model: input.model,
+        model,
         messages: input.messages,
         provider: { max_price: { prompt: 2, completion: 10 } },
         ...tempConfig,
-        ...(input.reasoningEffort?{reasoning:{effort:input.reasoningEffort,exclude:true}}:{}),
-        ...(input.disableThinking?{reasoning:{enabled:false,exclude:true},chat_template_kwargs:{enable_thinking:false}}:{}),
-        max_tokens: input.maxTokens ?? 6000
-      })
+        ...(input.reasoningEffort ? { reasoning: { effort: input.reasoningEffort, exclude: true } } : {}),
+        ...(shouldDisableThinking
+          ? { reasoning: { enabled: false, exclude: true }, chat_template_kwargs: { enable_thinking: false } }
+          : {}),
+        max_tokens: input.maxTokens ?? 6000,
+      }),
     });
 
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) throw new AiGenerationError("AI_KEY_REJECTED","O OpenRouter recusou a chave ou o acesso ao modelo. Confira a configuração.");
-      if (response.status === 402) throw new AiGenerationError("AI_INSUFFICIENT_CREDITS","O OpenRouter informou saldo insuficiente. Recarregue a conta antes de tentar novamente.",503);
-      if (response.status === 429) throw new AiGenerationError("AI_RATE_LIMIT","O limite de chamadas da IA foi atingido. Aguarde antes de tentar novamente.",429);
-      if (response.status === 404) throw new AiGenerationError("AI_MODEL_UNAVAILABLE","Não há modelo ou provedor disponível dentro do limite de preço configurado. Nenhuma geração foi confirmada.");
-      throw new AiGenerationError("AI_PROVIDER_ERROR","O OpenRouter não concluiu a solicitação. Tente novamente mais tarde.",502);
+      if (response.status === 401 || response.status === 403)
+        throw new AiGenerationError("AI_KEY_REJECTED", "O OpenRouter recusou a chave ou o acesso ao modelo. Confira a configuração.");
+      if (response.status === 402)
+        throw new AiGenerationError("AI_INSUFFICIENT_CREDITS", "O OpenRouter informou saldo insuficiente. Recarregue a conta antes de tentar novamente.", 503);
+      if (response.status === 429)
+        throw new AiGenerationError("AI_RATE_LIMIT", "O limite de chamadas da IA foi atingido. Aguarde antes de tentar novamente.", 429);
+      if (response.status === 404)
+        throw new AiGenerationError("AI_MODEL_UNAVAILABLE", "Não há modelo ou provedor disponível dentro do limite de preço configurado. Nenhuma geração foi confirmada.");
+      throw new AiGenerationError("AI_PROVIDER_ERROR", "O OpenRouter não concluiu a solicitação. Tente novamente mais tarde.", 502);
     }
 
-    const raw=await response.json();
-    const metadata=z.object({model:z.string().optional(),usage:z.object({prompt_tokens:z.number().optional(),completion_tokens:z.number().optional(),cost:z.number().optional()}).optional()}).safeParse(raw);
-    if(metadata.success){responseUsage=metadata.data.usage||null;responseModel=metadata.data.model;}
+    const raw = await response.json();
+    const metadata = z
+      .object({
+        model: z.string().optional(),
+        usage: z
+          .object({
+            prompt_tokens: z.number().optional(),
+            completion_tokens: z.number().optional(),
+            cost: z.number().optional(),
+          })
+          .optional(),
+      })
+      .safeParse(raw);
+    if (metadata.success) {
+      responseUsage = metadata.data.usage || null;
+      responseModel = metadata.data.model;
+    }
     const parsed = responseSchema.safeParse(raw);
-    if (!parsed.success) throw new AiGenerationError("AI_INVALID_RESPONSE","A IA retornou uma resposta vazia ou inválida. Nenhum conteúdo foi aceito.");
+    if (!parsed.success)
+      throw new AiGenerationError("AI_INVALID_RESPONSE", "A IA retornou uma resposta vazia ou inválida. Nenhum conteúdo foi aceito.");
     const choice = parsed.data.choices[0];
-    if (choice.finish_reason === "length") throw new AiGenerationError("AI_TRUNCATED_RESPONSE","A resposta da IA foi cortada pelo limite de tamanho. Reduza o pedido e tente novamente.");
-    if (choice.finish_reason !== "stop") throw new AiGenerationError("AI_INCOMPLETE_RESPONSE","O provedor não confirmou a conclusão da geração. Nenhum conteúdo foi aceito.");
-    return { text: choice.message.content, model: parsed.data.model || input.model, source: "OPENROUTER" as const, usage: parsed.data.usage || null, providerRequestId: parsed.data.id || null };
+    if (choice.finish_reason === "length")
+      throw new AiGenerationError("AI_TRUNCATED_RESPONSE", "A resposta da IA foi cortada pelo limite de tamanho. Reduza o pedido e tente novamente.");
+    if (choice.finish_reason !== "stop")
+      throw new AiGenerationError("AI_INCOMPLETE_RESPONSE", "O provedor não confirmou a conclusão da geração. Nenhum conteúdo foi aceito.");
+    return {
+      text: choice.message.content,
+      model: parsed.data.model || model,
+      source: "OPENROUTER" as const,
+      usage: parsed.data.usage || null,
+      providerRequestId: parsed.data.id || null,
+    };
   } catch (error) {
-    if (error instanceof AiGenerationError) {error.usage=responseUsage;error.actualModel=responseModel;throw error;}
-    if (controller.signal.aborted) throw new AiGenerationError("AI_TIMEOUT","A IA excedeu o tempo limite. Nenhum resultado foi confirmado; tente novamente.",504);
-    throw new AiGenerationError("AI_CONNECTION_FAILED","Não foi possível receber uma resposta válida do OpenRouter. Confira a conexão e tente novamente.",503);
+    if (error instanceof AiGenerationError) {
+      error.usage = responseUsage;
+      error.actualModel = responseModel;
+      throw error;
+    }
+    if (controller.signal.aborted)
+      throw new AiGenerationError("AI_TIMEOUT", "A IA excedeu o tempo limite. Nenhum resultado foi confirmado; tente novamente.", 504);
+    throw new AiGenerationError("AI_CONNECTION_FAILED", "Não foi possível receber uma resposta válida do OpenRouter. Confira a conexão e tente novamente.", 503);
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function generateWithOpenRouter(input: GenerateWithOpenRouterInput) {
+  const key = input.customApiKey?.trim() || process.env.OPENROUTER_API_KEY?.trim();
+  if (!key)
+    throw new AiGenerationError(
+      "AI_KEY_MISSING",
+      "Chave do OpenRouter não configurada. Preencha OPENROUTER_API_KEY no servidor e reinicie a aplicação.",
+      503
+    );
+
+  const modelsToTry = input.disableFallback
+    ? [input.model]
+    : [input.model, ...getAiFallbackModels().filter((m) => m !== input.model)];
+
+  const perAttemptTimeout = input.timeoutMs ?? (modelsToTry.length > 1 ? 20000 : 45000);
+  let lastError: AiGenerationError | null = null;
+
+  for (let i = 0; i < modelsToTry.length; i++) {
+    const currentModel = modelsToTry[i];
+    try {
+      return await generateSingleModel(currentModel, input, key, perAttemptTimeout);
+    } catch (error) {
+      const aiErr =
+        error instanceof AiGenerationError
+          ? error
+          : new AiGenerationError("AI_GENERATION_FAILED", "Não foi possível concluir a geração.", 502);
+      lastError = aiErr;
+
+      if (NON_RETRYABLE_AI_CODES.has(aiErr.code) || i === modelsToTry.length - 1) {
+        throw aiErr;
+      }
+
+      console.warn(
+        `[OpenRouter Fallback] Modelo "${currentModel}" falhou (${aiErr.code}). Tentando próxima IA (${i + 2}/${modelsToTry.length}): "${modelsToTry[i + 1]}"`
+      );
+    }
+  }
+
+  throw lastError ?? new AiGenerationError("AI_GENERATION_FAILED", "Todas as IAs configuradas (Time A e Time B) falharam.", 502);
 }
 
 export function parseAiJson<T>(text:string, schema:z.ZodType<T>):T{

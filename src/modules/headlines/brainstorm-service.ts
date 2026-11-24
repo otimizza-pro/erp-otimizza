@@ -730,7 +730,7 @@ export async function suggestFocus(clientId: string, offerName?: string): Promis
 }> {
   const [identityRes, audiencesRes, catalogRes] = await Promise.all([
     query(
-      `SELECT positioning, tone_of_voice, differentials, brand_promise
+      `SELECT value_proposition AS positioning, tone_of_voice, differentials, core_promise AS brand_promise
        FROM client_identities WHERE client_id = $1 LIMIT 1`,
       [clientId]
     ),
@@ -742,9 +742,9 @@ export async function suggestFocus(clientId: string, offerName?: string): Promis
     ),
     offerName
       ? query(
-          `SELECT name, category, differentiator, target_pain, solution_method, what_is_included
+          `SELECT name, type AS category, differentials AS differentiator, target_pain_points AS target_pain, solution_approach AS solution_method, deliverables AS what_is_included
            FROM client_catalog_items
-           WHERE client_id = $1 AND name ILIKE $2 AND archived_at IS NULL LIMIT 1`,
+           WHERE client_id = $1 AND name ILIKE $2 AND is_active = true LIMIT 1`,
           [clientId, `%${offerName}%`]
         )
       : Promise.resolve({ rows: [] }),
@@ -756,10 +756,18 @@ export async function suggestFocus(clientId: string, offerName?: string): Promis
   const catalogItem = catalogRes.rows[0] || null;
 
   const targetOffer = offerName || (catalogItem ? catalogItem.name : "Oferta principal");
-  const mainPain = catalogItem?.target_pain || primaryAudience.pain_points?.[0] || "Dificuldade em obter resultado consistente";
+  const rawPain = catalogItem?.target_pain
+    ? String(catalogItem.target_pain).split(/\r?\n/)[0]?.trim()
+    : primaryAudience.pain_points?.[0];
+  const mainPain = rawPain || "Dificuldade em obter resultado consistente";
   const mainDesire = primaryAudience.desires?.[0] || "Alcançar mais previsibilidade e transformação";
   const mainObjection = primaryAudience.objections?.[0] || "Receio quanto ao custo-benefício ou tempo de entrega";
-  const mainDiff = catalogItem?.differentiator || identity.differentials || "Atendimento especializado e método validado";
+  const rawDiff = catalogItem?.differentiator
+    ? String(catalogItem.differentiator).split(/\r?\n/)[0]?.trim()
+    : Array.isArray(identity.differentials)
+    ? identity.differentials[0]
+    : identity.differentials;
+  const mainDiff = String(rawDiff || "Atendimento especializado e método validado");
 
   const paths: FocusSuggestion[] = [
     {

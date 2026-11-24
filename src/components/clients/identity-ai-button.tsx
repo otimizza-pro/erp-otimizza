@@ -42,6 +42,8 @@ export function IdentityAiButton({
   const [selectedSet, setSelectedSet] = useState<Set<string>>(new Set());
   const [model, setModel] = useState("");
   const [open, setOpen] = useState(false);
+  const [modalStep, setModalStep] = useState<"choose" | "result">("choose");
+  const [intendedAction, setIntendedAction] = useState<"append" | "improve" | "replace">("append");
   const [activeAiMode, setActiveAiMode] = useState<"generate" | "improve">("generate");
   const [showOriginal, setShowOriginal] = useState(false);
   const generation = useRef(0);
@@ -152,12 +154,29 @@ export function IdentityAiButton({
 
   const isListMode = optionsList.length > 0 || isListField;
 
+  function openChoiceModal() {
+    generation.current++;
+    setBusy(false);
+    setError("");
+    setSuggestion(null);
+    setOptionsList([]);
+    setSelectedSet(new Set());
+    setModalStep("choose");
+    setOpen(true);
+  }
+
+  function startWithChoice(choice: "append" | "improve" | "replace") {
+    setIntendedAction(choice);
+    setModalStep("result");
+    void generate(false, choice === "improve" ? "improve" : "generate");
+  }
+
   return (
     <>
       <button
         type="button"
         disabled={busy}
-        onClick={() => generate(false, "generate")}
+        onClick={openChoiceModal}
         className={className ?? defaultBtnClass}
       >
         {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
@@ -181,11 +200,14 @@ export function IdentityAiButton({
               <div>
                 <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-emerald-700" />
-                  Sugestão com IA para este campo
+                  {modalStep === "choose"
+                    ? "Como você quer usar a IA neste campo?"
+                    : "Sugestão com IA para este campo"}
                 </h3>
                 <p className="mt-0.5 text-xs text-zinc-500 leading-relaxed">
-                  Revise a sugestão abaixo. Você pode <strong>adicionar uma linha abaixo</strong> mantendo o que já está
-                  lá, <strong>substituir</strong> por completo ou pedir para a IA <strong>melhorar</strong> seu texto existente.
+                  {modalStep === "choose"
+                    ? "Escolha se deseja acrescentar novos itens abaixo, melhorar o que já está escrito ou apagar tudo e reescrever do zero."
+                    : "Revise a sugestão abaixo antes de aplicar no formulário."}
                 </p>
               </div>
 
@@ -206,6 +228,71 @@ export function IdentityAiButton({
               </div>
             </div>
 
+            {modalStep === "choose" ? (
+              <div className="py-5 space-y-3">
+                <button
+                  type="button"
+                  onClick={() => startWithChoice("append")}
+                  className="w-full text-left p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 hover:bg-emerald-50 transition flex items-start gap-3 cursor-pointer"
+                >
+                  <div className="p-2 rounded-lg bg-emerald-600 text-white shrink-0">
+                    <Plus className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-zinc-950">Adicionar mais coisas ao campo</div>
+                    <p className="text-xs text-zinc-600 mt-0.5">
+                      Mantém o que já está preenchido e acrescenta novas linhas ou itens abaixo, sem repetir.
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!hasExistingText && !hasExistingList}
+                  onClick={() => startWithChoice("improve")}
+                  className="w-full text-left p-4 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 transition flex items-start gap-3 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="p-2 rounded-lg bg-zinc-900 text-white shrink-0">
+                    <Wand2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-zinc-950">Melhorar o que está escrito no campo</div>
+                    <p className="text-xs text-zinc-600 mt-0.5">
+                      {hasExistingText || hasExistingList
+                        ? "Usa o texto/itens atuais como base para a IA lapidar, organizar e deixar mais persuasivo."
+                        : "Preencha algo no campo antes para poder usar esta opção."}
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => startWithChoice("replace")}
+                  className="w-full text-left p-4 rounded-xl border border-zinc-200 bg-white hover:bg-rose-50/40 hover:border-rose-200 transition flex items-start gap-3 cursor-pointer"
+                >
+                  <div className="p-2 rounded-lg bg-zinc-200 text-zinc-800 shrink-0">
+                    <RefreshCw className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-zinc-950">Apagar tudo do campo e reescrever</div>
+                    <p className="text-xs text-zinc-600 mt-0.5">
+                      Ignora o conteúdo atual e gera uma nova sugestão completa do zero para substituir o campo.
+                    </p>
+                  </div>
+                </button>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(false)}
+                    className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             {/* Alternador de Modo de IA: Sugerir Novas Ideias vs Melhorar Texto Existente */}
             {hasExistingText && (
               <div className="pt-3 pb-1 flex flex-wrap items-center justify-between gap-2">
@@ -370,12 +457,20 @@ export function IdentityAiButton({
                 <button
                   type="button"
                   disabled={busy}
+                  onClick={() => setModalStep("choose")}
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-zinc-100 border border-zinc-200 transition cursor-pointer disabled:opacity-50"
+                >
+                  ← Trocar opção
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
                   onClick={() => generate(true, activeAiMode)}
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-zinc-800 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 transition cursor-pointer disabled:opacity-50"
                   title="Gera mais alternativas da IA para este campo"
                 >
                   {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                  {optionsList.length > 0 ? "Gerar mais opções (+ alternativas)" : "Gerar outra versão"}
+                  {optionsList.length > 0 ? "Gerar mais opções" : "Gerar outra versão"}
                 </button>
               </div>
 
@@ -475,6 +570,8 @@ export function IdentityAiButton({
                 ) : null}
               </div>
             </div>
+              </>
+            )}
           </section>
         </div>
       )}

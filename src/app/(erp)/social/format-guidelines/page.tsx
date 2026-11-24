@@ -134,13 +134,13 @@ function FormatGuidelinesContent() {
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-zinc-200 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-600 to-rose-600 text-white flex items-center justify-center shadow-xs">
-              <FileText className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-zinc-950 text-white flex items-center justify-center shadow-2xs">
+              <FileText className="w-5 h-5 text-zinc-100" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-zinc-950">Padrões de Formatos</h1>
-                <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <h1 className="text-base font-semibold text-zinc-950">Padrões de Formatos</h1>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 border border-zinc-200">
                   {activeCompany.name}
                 </span>
               </div>
@@ -214,13 +214,13 @@ function FormatGuidelinesContent() {
         )}
 
         {/* Card Explicativo: Linha Editorial vs Padrões de Formatos */}
-        <div className="p-4 rounded-2xl bg-indigo-50/70 border border-indigo-200/80 text-xs text-indigo-950 flex items-start gap-3">
-          <Info className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-800 flex items-start gap-3">
+          <Info className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="font-semibold">
-              Como funciona a relação entre Linha Editorial e Padrões de Formatos:
+            <p className="font-semibold text-zinc-900">
+              Relação entre Linha Editorial e Padrões de Formatos
             </p>
-            <p className="text-indigo-800 leading-relaxed">
+            <p className="text-zinc-600 leading-relaxed">
               A <strong>Linha Editorial</strong> define <em>o que</em> falar (assuntos, pilares e objetivos). Já os <strong>Padrões de Formatos</strong> definem <em>como executar</em> cada formato para a marca (ganchos de Reels, número de lâminas de Carrossel e estilo de Headlines). Os geradores de IA consultam essas regras automaticamente em cada peça.
             </p>
           </div>
@@ -238,19 +238,19 @@ function FormatGuidelinesContent() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-pink-50 border border-pink-200 text-pink-600 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 text-zinc-700 flex items-center justify-center shrink-0">
                       <Video className="w-4 h-4" />
                     </div>
                     <div>
-                      <h2 className="text-sm font-bold text-zinc-950">Padrão de Reels</h2>
-                      <p className="text-[11px] text-zinc-400">Vídeos curtos e verticais</p>
+                      <h2 className="text-sm font-semibold text-zinc-950">Padrão de Reels</h2>
+                      <p className="text-[11px] text-zinc-500">Vídeos curtos e verticais</p>
                     </div>
                   </div>
                   <IdentityAiButton
                     clientId={activeClientId}
                     field="reelsStandard"
                     draft={{ reelsStandard }}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-pink-200 bg-pink-50/70 hover:bg-pink-100/80 px-3 py-1.5 text-[11px] font-semibold text-pink-700 transition cursor-pointer shrink-0 shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700 transition cursor-pointer shrink-0 shadow-2xs"
                     onApply={(val) => {
                       const text = Array.isArray(val) ? val.join("\n") : val;
                       setReelsStandard(text);
@@ -276,7 +276,7 @@ function FormatGuidelinesContent() {
                     markDirty();
                   }}
                   onBlur={() => handleSave(false)}
-                  className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-pink-600 resize-y leading-relaxed text-zinc-900 font-mono text-[11px]"
+                  className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 resize-y leading-relaxed text-zinc-900 font-mono text-[11px]"
                 />
               </div>
 
@@ -290,19 +290,19 @@ function FormatGuidelinesContent() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 text-zinc-700 flex items-center justify-center shrink-0">
                       <Layers className="w-4 h-4" />
                     </div>
                     <div>
-                      <h2 className="text-sm font-bold text-zinc-950">Padrão de Carrossel</h2>
-                      <p className="text-[11px] text-zinc-400">Posts sequenciais em lâminas</p>
+                      <h2 className="text-sm font-semibold text-zinc-950">Padrão de Carrossel</h2>
+                      <p className="text-[11px] text-zinc-500">Posts sequenciais em lâminas</p>
                     </div>
                   </div>
                   <IdentityAiButton
                     clientId={activeClientId}
                     field="carouselStandard"
                     draft={{ carouselStandard }}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/80 px-3 py-1.5 text-[11px] font-semibold text-indigo-700 transition cursor-pointer shrink-0 shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700 transition cursor-pointer shrink-0 shadow-2xs"
                     onApply={(val) => {
                       const text = Array.isArray(val) ? val.join("\n") : val;
                       setCarouselStandard(text);
@@ -328,7 +328,7 @@ function FormatGuidelinesContent() {
                     markDirty();
                   }}
                   onBlur={() => handleSave(false)}
-                  className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 font-mono text-[11px]"
+                  className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 resize-y leading-relaxed text-zinc-900 font-mono text-[11px]"
                 />
               </div>
 
@@ -342,19 +342,19 @@ function FormatGuidelinesContent() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-2 border-b border-zinc-100 pb-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-zinc-100 border border-zinc-200 text-zinc-700 flex items-center justify-center shrink-0">
                       <Sparkles className="w-4 h-4" />
                     </div>
                     <div>
-                      <h2 className="text-sm font-bold text-zinc-950">Padrão de Headlines</h2>
-                      <p className="text-[11px] text-zinc-400">Títulos e ganchos de abertura</p>
+                      <h2 className="text-sm font-semibold text-zinc-950">Padrão de Headlines</h2>
+                      <p className="text-[11px] text-zinc-500">Títulos e ganchos de abertura</p>
                     </div>
                   </div>
                   <IdentityAiButton
                     clientId={activeClientId}
                     field="headlinesStandard"
                     draft={{ headlinesStandard }}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50/70 hover:bg-amber-100/80 px-3 py-1.5 text-[11px] font-semibold text-amber-700 transition cursor-pointer shrink-0 shadow-2xs"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700 transition cursor-pointer shrink-0 shadow-2xs"
                     onApply={(val) => {
                       const text = Array.isArray(val) ? val.join("\n") : val;
                       setHeadlinesStandard(text);
@@ -380,7 +380,7 @@ function FormatGuidelinesContent() {
                     markDirty();
                   }}
                   onBlur={() => handleSave(false)}
-                  className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-600 resize-y leading-relaxed text-zinc-900 font-mono text-[11px]"
+                  className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-950 resize-y leading-relaxed text-zinc-900 font-mono text-[11px]"
                 />
               </div>
 

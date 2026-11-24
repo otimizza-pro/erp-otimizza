@@ -1165,12 +1165,12 @@ function Workspace({ clientId, companyName, projectPost }: {
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 pb-6">
         <div>
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-emerald-800">
-              <Compass size={13} />
+            <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 border border-zinc-200 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
+              <Compass size={13} className="text-zinc-500" />
               {companyName}
             </span>
           </div>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-zinc-950">
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
             {activeTab === "brainstorm"
               ? "Brainstorm de Conteúdo"
               : activeTab === "headlines"
@@ -1201,14 +1201,14 @@ function Workspace({ clientId, companyName, projectPost }: {
             <button
               onClick={() => setActiveTab("brainstorm")}
               className={
-                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " +
                 (activeTab === "brainstorm" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
               }
             >
-              <Lightbulb size={14} className={activeTab === "brainstorm" ? "text-amber-500" : ""} />
+              <Lightbulb size={14} className={activeTab === "brainstorm" ? "text-zinc-900" : "text-zinc-400"} />
               1. Brainstorm
               {savedIdeas.length > 0 && (
-                <span className="ml-1 rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
+                <span className="ml-1 rounded-md bg-zinc-100 px-1.5 py-0.5 text-[11px] font-mono font-medium text-zinc-700 border border-zinc-200 tabular-nums">
                   {savedIdeas.length}
                 </span>
               )}
@@ -1216,41 +1216,41 @@ function Workspace({ clientId, companyName, projectPost }: {
             <button
               onClick={() => setActiveTab("headlines")}
               className={
-                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " +
                 (activeTab === "headlines" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
               }
             >
-              <Sparkles size={14} className={activeTab === "headlines" ? "text-emerald-600" : ""} />
+              <Sparkles size={14} className={activeTab === "headlines" ? "text-zinc-900" : "text-zinc-400"} />
               2. Headlines
             </button>
             <button
               onClick={() => setActiveTab("content")}
               className={
-                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " +
                 (activeTab === "content" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
               }
             >
-              <FileText size={14} className={activeTab === "content" ? "text-indigo-600" : ""} />
+              <FileText size={14} className={activeTab === "content" ? "text-zinc-900" : "text-zinc-400"} />
               3. Texto & Roteiro
             </button>
             <button
               onClick={() => setActiveTab("imagePrompt")}
               className={
-                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " +
                 (activeTab === "imagePrompt" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
               }
             >
-              <ImageIcon size={14} className={activeTab === "imagePrompt" ? "text-pink-600" : ""} />
+              <ImageIcon size={14} className={activeTab === "imagePrompt" ? "text-zinc-900" : "text-zinc-400"} />
               4. Prompt de Arte
             </button>
             <button
               onClick={() => setActiveTab("schedule")}
               className={
-                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition cursor-pointer " +
+                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition cursor-pointer " +
                 (activeTab === "schedule" ? "bg-white text-zinc-950 shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
               }
             >
-              <Calendar size={14} className={activeTab === "schedule" ? "text-blue-600" : ""} />
+              <Calendar size={14} className={activeTab === "schedule" ? "text-zinc-900" : "text-zinc-400"} />
               5. Calendário & Post
             </button>
           </div>
@@ -1313,7 +1313,7 @@ function Workspace({ clientId, companyName, projectPost }: {
             {strategySummaryOpen && (
               <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                 <div className="space-y-1.5 p-3 rounded-xl bg-zinc-50 border border-zinc-200/70">
-                  <span className="font-bold text-zinc-800 uppercase tracking-wider text-[10px] block">
+                  <span className="font-semibold text-zinc-800 text-xs block">
                     Posicionamento & Promessa
                   </span>
                   <p className="text-zinc-700 leading-relaxed font-medium">
@@ -1327,7 +1327,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                 </div>
 
                 <div className="space-y-1.5 p-3 rounded-xl bg-zinc-50 border border-zinc-200/70">
-                  <span className="font-bold text-zinc-800 uppercase tracking-wider text-[10px] block">
+                  <span className="font-semibold text-zinc-800 text-xs block">
                     Públicos-Alvo Cadastrados ({context?.audiences?.length || 0})
                   </span>
                   {context?.audiences && context.audiences.length > 0 ? (
@@ -1350,7 +1350,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                 </div>
 
                 <div className="space-y-1.5 p-3 rounded-xl bg-zinc-50 border border-zinc-200/70">
-                  <span className="font-bold text-zinc-800 uppercase tracking-wider text-[10px] block">
+                  <span className="font-semibold text-zinc-800 text-xs block">
                     Tom de Voz & Diretrizes
                   </span>
                   <div className="flex flex-wrap gap-1">

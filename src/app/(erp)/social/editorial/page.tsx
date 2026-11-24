@@ -298,13 +298,13 @@ function EditorialContent() {
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-zinc-200 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
-              <Layers className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-zinc-950 text-white flex items-center justify-center shadow-2xs">
+              <Layers className="w-5 h-5 text-zinc-100" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold text-zinc-950">Linha Editorial</h1>
-                <span className="text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <h1 className="text-base font-semibold text-zinc-950">Linha Editorial</h1>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 border border-zinc-200">
                   {activeCompany.name}
                 </span>
               </div>
@@ -318,9 +318,9 @@ function EditorialContent() {
             <button
               type="button"
               onClick={() => setAiPlannerOpen((prev) => !prev)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 rounded-xl hover:bg-purple-100 transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-800 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 transition cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5 text-zinc-600" />
               Planejar com IA
             </button>
 

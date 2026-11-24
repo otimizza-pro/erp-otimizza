@@ -239,11 +239,11 @@ export default function Page() {
       {/* HEADER */}
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 pb-6">
         <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-0.5 text-xs font-bold uppercase tracking-wider text-emerald-800">
-            <BarChart3 size={13} />
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 border border-zinc-200 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
+            <BarChart3 size={13} className="text-zinc-500" />
             BI & Análise de IA · {selectedCompany.name}
           </span>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-zinc-950">
+          <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
             BI de Headlines e Modelos
           </h1>
           <p className="mt-1 text-sm text-zinc-500 max-w-3xl">
@@ -261,8 +261,8 @@ export default function Page() {
 
       {/* FILTROS DE ANÁLISE */}
       <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
-          <Filter size={14} />
+        <div className="flex items-center gap-2 text-xs font-semibold text-zinc-700">
+          <Filter size={14} className="text-zinc-500" />
           Filtros de Período e Parâmetros
         </div>
         <div className="flex flex-wrap gap-3 items-end">
@@ -356,7 +356,7 @@ export default function Page() {
                   "Custo/Escolhida",
                   "Tempo Médio",
                 ].map((t) => (
-                  <th className="p-3 text-[11px] font-bold text-zinc-600 uppercase tracking-wider" key={t}>
+                  <th className="p-3 text-xs font-medium text-zinc-600" key={t}>
                     {t}
                   </th>
                 ))}
@@ -516,7 +516,7 @@ export default function Page() {
             <thead className="bg-zinc-50 border-b border-zinc-200">
               <tr>
                 {["Headline / Autoria", "Fonte & Período", "Impressões", "Cliques / CTR", "Leads / Conv.", "CPL (BRL)", "Vendas"].map((v) => (
-                  <th className="p-3 font-bold text-zinc-600 uppercase tracking-wider text-[11px]" key={v}>{v}</th>
+                  <th className="p-3 font-medium text-zinc-600 text-xs" key={v}>{v}</th>
                 ))}
               </tr>
             </thead>

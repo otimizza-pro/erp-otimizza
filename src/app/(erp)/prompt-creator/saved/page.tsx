@@ -245,12 +245,12 @@ export default function SavedPostsPage() {
             </Link>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-purple-600 bg-purple-50 px-2 py-0.5 rounded border border-purple-100">
+                <span className="text-xs font-medium text-zinc-700 bg-zinc-100 px-2.5 py-0.5 rounded-md border border-zinc-200">
                   Estúdio de Conteúdo & IA
                 </span>
               </div>
-              <h1 className="text-xl font-bold tracking-tight text-zinc-950 mt-1 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-purple-600" />
+              <h1 className="text-xl font-semibold tracking-tight text-zinc-950 mt-1 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-zinc-700" />
                 Feed & Criativos Salvos dos Clientes
               </h1>
               <p className="text-xs text-zinc-500">

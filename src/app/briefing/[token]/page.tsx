@@ -245,7 +245,7 @@ export default function PublicBriefingPage({
           "Equipe altamente qualificada e atendimento humanizado",
           "Ambiente acolhedor, seguro e com pontualidade rigorosa",
         ];
-        let loadedDiffs: string[] = [...defaultDiffs];
+        const loadedDiffs: string[] = [...defaultDiffs];
 
         if (Array.isArray(ext.differentials)) {
           ext.differentials.forEach((d) => {

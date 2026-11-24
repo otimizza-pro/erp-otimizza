@@ -727,7 +727,7 @@ export async function POST(
         );
         if (session.client_id) {
           try {
-            await syncCatalogItems(session.client_id, extracted.catalogItems as any);
+            await syncCatalogItems(session.client_id, extracted.catalogItems as Parameters<typeof syncCatalogItems>[1]);
           } catch (catErr) {
             console.warn("Aviso ao sincronizar catálogo do briefing:", catErr);
           }

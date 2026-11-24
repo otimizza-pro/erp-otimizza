@@ -1,7 +1,9 @@
 "use client";
-import {useRef,useState} from "react";
-import {Sparkles,Loader2} from "lucide-react";
-import type {IdentityAiField} from "@/modules/clients/identity-ai";
+
+import { useRef, useState } from "react";
+import { Sparkles, Loader2, RefreshCw, Check, CheckSquare, Square } from "lucide-react";
+import type { IdentityAiField } from "@/modules/clients/identity-ai";
+
 export function IdentityAiButton({
   clientId,
   field,
@@ -19,17 +21,25 @@ export function IdentityAiButton({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [suggestion, setSuggestion] = useState<string | string[] | null>(null);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [optionsList, setOptionsList] = useState<string[]>([]);
+  const [selectedSet, setSelectedSet] = useState<Set<string>>(new Set());
   const [model, setModel] = useState("");
   const [open, setOpen] = useState(false);
   const generation = useRef(0);
 
-  async function generate() {
+  async function generate(append = false) {
     const requestId = ++generation.current;
-    setOpen(true);
+    if (!open) setOpen(true);
     setBusy(true);
     setError("");
-    setSuggestion(null);
+
+    if (!append) {
+      setSuggestion(null);
+      setOptionsList([]);
+      setSelectedSet(new Set());
+    }
+
     try {
       const response = await fetch("/api/clients/" + clientId + "/identity/generate", {
         method: "POST",
@@ -40,11 +50,33 @@ export function IdentityAiButton({
       if (requestId !== generation.current) return;
       if (!response.ok || !data.success || data.source !== "OPENROUTER")
         throw new Error(data.error || "A IA não confirmou a geração.");
-      setSuggestion(data.value);
-      setModel(data.model);
-    } catch (error) {
+
+      if (Array.isArray(data.value)) {
+        const newItems: string[] = data.value
+          .map((s: unknown) => String(s).trim())
+          .filter(Boolean);
+
+        setOptionsList((prev) => {
+          const combined = append ? Array.from(new Set([...prev, ...newItems])) : newItems;
+          setSelectedSet((prevSelected) => {
+            if (append) {
+              const merged = new Set(prevSelected);
+              newItems.forEach((item) => merged.add(item));
+              return merged;
+            }
+            return new Set(combined);
+          });
+          return combined;
+        });
+        setSuggestion(null);
+      } else {
+        setSuggestion(String(data.value));
+        setOptionsList([]);
+      }
+      setModel(data.model || "");
+    } catch (err) {
       if (requestId === generation.current)
-        setError(error instanceof Error ? error.message : "Erro ao gerar sugestão");
+        setError(err instanceof Error ? err.message : "Erro ao gerar sugestão");
     } finally {
       if (requestId === generation.current) setBusy(false);
     }
@@ -53,71 +85,190 @@ export function IdentityAiButton({
   const defaultBtnClass =
     "mb-2 inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-50 cursor-pointer";
 
+  const isListMode = optionsList.length > 0;
+
   return (
     <>
       <button
         type="button"
         disabled={busy}
-        onClick={generate}
+        onClick={() => generate(false)}
         className={className ?? defaultBtnClass}
       >
         {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
         {label}
       </button>
+
       {open && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
           <section
             role="dialog"
             aria-modal="true"
-            aria-label="Sugestão da IA"
-            className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl"
+            aria-label="Sugestões da IA"
+            className="max-h-[90vh] w-full max-w-2xl flex flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl"
           >
-            <h3 className="text-base font-bold text-zinc-950">Sugestão para este campo</h3>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-              Revise antes de usar. Aplicar substitui o campo no formulário; lembre-se de salvar as alterações.
-            </p>
+            {/* Cabeçalho do modal */}
+            <div className="flex items-start justify-between pb-3 border-b border-zinc-100">
+              <div>
+                <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-zinc-700" />
+                  Sugestões da IA para este campo
+                </h3>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {isListMode
+                    ? "Selecione as opções que deseja incorporar ao cadastro ou gere mais alternativas."
+                    : "Revise a sugestão ou gere novas alternativas para comparar."}
+                </p>
+              </div>
+
+              {model && (
+                <span className="text-[10px] font-mono text-zinc-400 bg-zinc-50 px-2 py-0.5 rounded border border-zinc-200">
+                  {model}
+                </span>
+              )}
+            </div>
+
+            {/* Status e Erro */}
             {busy && (
-              <p role="status" className="mt-5 text-xs text-zinc-500">
-                Gerando com o contexto do cliente...
-              </p>
+              <div className="my-4 p-3 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-600 flex items-center gap-2">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-950" />
+                <span>Gerando opções com base no contexto e posicionamento da marca...</span>
+              </div>
             )}
+
             {error && (
-              <p role="alert" className="mt-5 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+              <p role="alert" className="my-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
                 {error}
               </p>
             )}
-            {suggestion !== null && (
-              <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs leading-relaxed whitespace-pre-wrap text-zinc-700 font-mono">
-                {Array.isArray(suggestion) ? suggestion.join("\n") : suggestion}
+
+            {/* Conteúdo: Lista Interativa ou Texto Único */}
+            <div className="my-4 flex-1 overflow-y-auto pr-1">
+              {isListMode ? (
+                <div className="space-y-3">
+                  {/* Barra de controle da lista */}
+                  <div className="flex items-center justify-between text-xs px-1 text-zinc-600">
+                    <span className="font-semibold text-zinc-900">
+                      {selectedSet.size} de {optionsList.length} opções selecionadas
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSet(new Set(optionsList))}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-700 hover:text-zinc-950 hover:underline cursor-pointer"
+                      >
+                        <CheckSquare className="w-3 h-3" />
+                        Selecionar todas
+                      </button>
+                      <span className="text-zinc-300">•</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSet(new Set())}
+                        className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-700 hover:text-zinc-950 hover:underline cursor-pointer"
+                      >
+                        <Square className="w-3 h-3" />
+                        Desmarcar todas
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Cards de cada opção */}
+                  <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+                    {optionsList.map((item, idx) => {
+                      const isSelected = selectedSet.has(item);
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setSelectedSet((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(item)) next.delete(item);
+                              else next.add(item);
+                              return next;
+                            });
+                          }}
+                          className={`p-3 rounded-xl border text-xs cursor-pointer transition flex items-start gap-3 select-none ${
+                            isSelected
+                              ? "bg-zinc-950 text-white border-zinc-950 shadow-2xs"
+                              : "bg-zinc-50 border-zinc-200 text-zinc-800 hover:bg-zinc-100"
+                          }`}
+                        >
+                          <div
+                            className={`mt-0.5 w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition ${
+                              isSelected
+                                ? "bg-white text-zinc-950 border-white"
+                                : "border-zinc-300 bg-white"
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                          </div>
+                          <span className="flex-1 leading-relaxed">{item}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : suggestion !== null ? (
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-xs leading-relaxed whitespace-pre-wrap text-zinc-800 font-mono">
+                  {suggestion}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Rodapé de Ações */}
+            <div className="pt-3 border-t border-zinc-100 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => generate(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-zinc-800 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 transition cursor-pointer disabled:opacity-50"
+                  title="Gera mais alternativas da IA para este campo"
+                >
+                  {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  {isListMode ? "Gerar mais opções (+ alternativas)" : "Gerar outra versão"}
+                </button>
               </div>
-            )}
-            {model && suggestion !== null && (
-              <p className="mt-2 text-[10px] text-zinc-400">Modelo: {model}</p>
-            )}
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  generation.current++;
-                  setBusy(false);
-                  setOpen(false);
-                }}
-                className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 cursor-pointer"
-              >
-                Fechar
-              </button>
-              {suggestion !== null && (
+
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
-                    onApply(suggestion);
+                    generation.current++;
+                    setBusy(false);
                     setOpen(false);
                   }}
-                  className="rounded-full bg-zinc-950 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 cursor-pointer"
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 cursor-pointer"
                 >
-                  Usar sugestão
+                  Fechar
                 </button>
-              )}
+
+                {isListMode ? (
+                  <button
+                    type="button"
+                    disabled={selectedSet.size === 0}
+                    onClick={() => {
+                      onApply(Array.from(selectedSet));
+                      setOpen(false);
+                    }}
+                    className="rounded-xl bg-zinc-950 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 transition disabled:opacity-40 cursor-pointer"
+                  >
+                    Usar selecionadas ({selectedSet.size})
+                  </button>
+                ) : suggestion !== null ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onApply(suggestion);
+                      setOpen(false);
+                    }}
+                    className="rounded-xl bg-zinc-950 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 transition cursor-pointer"
+                  >
+                    Usar sugestão
+                  </button>
+                ) : null}
+              </div>
             </div>
           </section>
         </div>

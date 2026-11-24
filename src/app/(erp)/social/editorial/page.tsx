@@ -705,7 +705,7 @@ function EditorialContent() {
                     Observações Editoriais Gerais & Combinados da Linha
                   </h3>
                   <p className="text-xs text-zinc-500 mt-0.5">
-                    Orientações editoriais gerais e combinados de pauta para os redatores e designers.
+                    Regras práticas do dia a dia (cadência, captação, restrições visuais e CTA padrão) para redatores e designers.
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -713,7 +713,7 @@ function EditorialContent() {
                     clientId={activeClientId}
                     field="notes"
                     draft={{ notes: generalNotes }}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition cursor-pointer"
                     onApply={(val) => {
                       setGeneralNotes(Array.isArray(val) ? val.join("\n") : val);
                     }}
@@ -722,7 +722,7 @@ function EditorialContent() {
                     type="button"
                     onClick={handleSaveGeneralNotes}
                     disabled={savingNotes}
-                    className="px-3 py-1.5 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition disabled:opacity-50"
+                    className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition disabled:opacity-50 cursor-pointer"
                   >
                     {savingNotes ? "Salvando..." : "Salvar Observações"}
                   </button>
@@ -730,11 +730,11 @@ function EditorialContent() {
               </div>
 
               <textarea
-                rows={6}
-                placeholder="Insira as diretrizes gerais, frequência sugerida e notas editoriais da marca..."
+                rows={4}
+                placeholder={"Ex:\n• Cadência: 3 posts/semana (Terça, Quinta e Sábado) + Stories diários\n• Captação: Gravações em bloco 1x/mês com uniforme e microfone\n• Restrições: Não expor pacientes/alunos sem termo de imagem\n• CTA padrão: Agendar avaliação via WhatsApp / link da bio"}
                 value={generalNotes}
                 onChange={(e) => setGeneralNotes(e.target.value)}
-                className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y leading-relaxed min-h-[160px]"
+                className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-zinc-900 resize-y leading-relaxed min-h-[110px]"
               />
             </section>
           </div>

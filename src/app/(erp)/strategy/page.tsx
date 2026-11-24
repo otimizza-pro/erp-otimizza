@@ -1653,6 +1653,7 @@ function StrategyContent() {
                           clientId={activeClientId}
                           field="salesObjections"
                           draft={getAiDraft({ salesObjections })}
+                          currentValue={salesObjections}
                           className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
                           onApply={(val) => {
                             setSalesObjections(Array.isArray(val) ? val.join("\n") : val);

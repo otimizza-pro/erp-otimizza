@@ -27,6 +27,7 @@ import {
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { InstagramIcon as Instagram } from "@/components/ui/instagram";
 import { ClientAudiencesManager } from "@/components/clients/client-audiences-manager";
+import { IdentityAiButton } from "@/components/clients/identity-ai-button";
 import { CommercialDnaPanel } from "@/components/crm/commercial-dna";
 import {
   COMMUNICATION_OPTIONS,
@@ -830,7 +831,20 @@ export function ClientStrategyPanel({
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-700">Objeções Comerciais Críticas</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-zinc-700">Objeções Comerciais Críticas</label>
+                  <IdentityAiButton
+                    clientId={clientId}
+                    field="salesObjections"
+                    draft={{ salesObjections, marketNiche, valueProposition }}
+                    currentValue={salesObjections}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
+                    onApply={(val) => {
+                      setSalesObjections(Array.isArray(val) ? val.join("\n") : val);
+                      setDirty(true);
+                    }}
+                  />
+                </div>
                 <textarea
                   className={`${control} min-h-[70px]`}
                   placeholder="Ex: Não tenho tempo; Acho que musculação piora minha dor..."

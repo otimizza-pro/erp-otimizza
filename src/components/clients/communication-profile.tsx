@@ -1,5 +1,5 @@
 "use client";
-import {COMMUNICATION_OPTIONS,CommunicationProfile} from "@/modules/clients/communication-profile";
+import { COMMUNICATION_OPTIONS, CommunicationProfile } from "@/modules/clients/communication-profile";
 export function CommunicationProfileFields({
   value,
   onChange,

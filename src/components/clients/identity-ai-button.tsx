@@ -52,9 +52,18 @@ export function IdentityAiButton({
         throw new Error(data.error || "A IA não confirmou a geração.");
 
       if (Array.isArray(data.value)) {
+        const rawExisting = (draft as Record<string, unknown>)?.[field];
+        const existingLower = new Set(
+          Array.isArray(rawExisting)
+            ? rawExisting.map((s) => String(s).trim().toLowerCase())
+            : typeof rawExisting === "string" && rawExisting.trim()
+            ? [rawExisting.trim().toLowerCase()]
+            : []
+        );
+
         const newItems: string[] = data.value
           .map((s: unknown) => String(s).trim())
-          .filter(Boolean);
+          .filter((item: string) => Boolean(item) && !existingLower.has(item.toLowerCase()));
 
         setOptionsList((prev) => {
           const combined = append ? Array.from(new Set([...prev, ...newItems])) : newItems;

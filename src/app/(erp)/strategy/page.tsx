@@ -481,6 +481,24 @@ function StrategyContent() {
     }
   };
 
+  const getAiDraft = (override?: Record<string, unknown>) => ({
+    marketNiche,
+    valueProposition,
+    brandContext,
+    archetype,
+    secondaryArchetype,
+    toneOfVoice: selectedTones,
+    targetAudiences,
+    painPoints,
+    differentials,
+    mandatoryTerms,
+    forbiddenWords,
+    defaultCtas,
+    salesObjections,
+    notes,
+    ...override,
+  });
+
   return (
     <div className="min-h-screen bg-zinc-50/60 pb-20">
       {/* Header Sticky */}
@@ -649,7 +667,7 @@ function StrategyContent() {
                         <label className="text-xs font-semibold text-zinc-700">
                           Nicho de Mercado & Especialidade
                         </label>
-                        <IdentityAiButton clientId={activeClientId} field="marketNiche" draft={{ marketNiche }} onApply={(val) => { setMarketNiche(Array.isArray(val) ? val.join("\n") : val); markDirty("marketNiche"); }} />
+                        <IdentityAiButton clientId={activeClientId} field="marketNiche" draft={getAiDraft({ marketNiche })} onApply={(val) => { setMarketNiche(Array.isArray(val) ? val.join("\n") : val); markDirty("marketNiche"); }} />
                       </div>
                       <textarea
                         rows={3}
@@ -666,7 +684,7 @@ function StrategyContent() {
                         <label className="text-xs font-semibold text-zinc-700">
                           Proposta de Valor / Promessa Central
                         </label>
-                        <IdentityAiButton clientId={activeClientId} field="valueProposition" draft={{ valueProposition }} onApply={(val) => { setValueProposition(Array.isArray(val) ? val.join("\n") : val); markDirty("valueProposition"); }} />
+                        <IdentityAiButton clientId={activeClientId} field="valueProposition" draft={getAiDraft({ valueProposition })} onApply={(val) => { setValueProposition(Array.isArray(val) ? val.join("\n") : val); markDirty("valueProposition"); }} />
                       </div>
                       <textarea
                         rows={3}
@@ -684,7 +702,7 @@ function StrategyContent() {
                       <label className="text-xs font-semibold text-zinc-700">
                         Promessa Central Detalhada (Core Promise)
                       </label>
-                      <IdentityAiButton clientId={activeClientId} field="valueProposition" draft={{ valueProposition: corePromise }} onApply={(val) => { setCorePromise(Array.isArray(val) ? val.join("\n") : val); markDirty("corePromise"); }} />
+                      <IdentityAiButton clientId={activeClientId} field="valueProposition" draft={getAiDraft({ valueProposition: corePromise })} onApply={(val) => { setCorePromise(Array.isArray(val) ? val.join("\n") : val); markDirty("corePromise"); }} />
                     </div>
                     <textarea
                       rows={2}
@@ -706,7 +724,7 @@ function StrategyContent() {
                         O que torna o cliente único e inimitável perante a concorrência.
                       </p>
                     </div>
-                    <IdentityAiButton clientId={activeClientId} field="differentials" draft={{ differentials }} onApply={(val) => {
+                    <IdentityAiButton clientId={activeClientId} field="differentials" draft={getAiDraft({ differentials })} onApply={(val) => {
                       const items = (Array.isArray(val) ? val : val.split("\n")).map((s: string) => s.trim()).filter(Boolean);
                       setDifferentials(prev => Array.from(new Set([...prev, ...items])));
                       markDirty("differentials");
@@ -884,7 +902,7 @@ function StrategyContent() {
                       <IdentityAiButton
                         clientId={activeClientId}
                         field="toneOfVoice"
-                        draft={{ toneOfVoice: selectedTones }}
+                        draft={getAiDraft({ toneOfVoice: selectedTones })}
                         className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-2.5 py-1 text-[11px] font-semibold text-purple-700 transition cursor-pointer self-start sm:self-auto shrink-0"
                         onApply={(val) => {
                           const items = Array.isArray(val) ? val : [val];
@@ -969,7 +987,7 @@ function StrategyContent() {
                         <IdentityAiButton
                           clientId={activeClientId}
                           field="mandatoryTerms"
-                          draft={{ mandatoryTerms }}
+                          draft={getAiDraft({ mandatoryTerms })}
                           className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition cursor-pointer"
                           onApply={(val) => {
                             const items = Array.isArray(val) ? val : [val];
@@ -1039,7 +1057,7 @@ function StrategyContent() {
                         <IdentityAiButton
                           clientId={activeClientId}
                           field="forbiddenWords"
-                          draft={{ forbiddenWords }}
+                          draft={getAiDraft({ forbiddenWords })}
                           className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50/70 hover:bg-rose-100/80 px-2.5 py-1 text-[11px] font-semibold text-rose-700 transition cursor-pointer"
                           onApply={(val) => {
                             const items = Array.isArray(val) ? val : [val];
@@ -1189,7 +1207,7 @@ function StrategyContent() {
                         <label className="text-xs font-semibold text-zinc-700">
                           História e Trajetória da Empresa
                         </label>
-                        <IdentityAiButton clientId={activeClientId} field="brandContext" draft={{ brandContext: brandHistory }} onApply={(val) => { setBrandHistory(Array.isArray(val) ? val.join("\n") : val); markDirty("brandHistory"); }} />
+                        <IdentityAiButton clientId={activeClientId} field="brandContext" draft={getAiDraft({ brandContext: brandHistory })} onApply={(val) => { setBrandHistory(Array.isArray(val) ? val.join("\n") : val); markDirty("brandHistory"); }} />
                       </div>
                       <textarea
                         rows={5}
@@ -1206,7 +1224,7 @@ function StrategyContent() {
                         <label className="text-xs font-semibold text-zinc-700">
                           Contexto e DNA da Marca (Para os geradores de IA)
                         </label>
-                        <IdentityAiButton clientId={activeClientId} field="brandContext" draft={{ brandContext }} onApply={(val) => { setBrandContext(Array.isArray(val) ? val.join("\n") : val); markDirty("brandContext"); }} />
+                        <IdentityAiButton clientId={activeClientId} field="brandContext" draft={getAiDraft({ brandContext })} onApply={(val) => { setBrandContext(Array.isArray(val) ? val.join("\n") : val); markDirty("brandContext"); }} />
                       </div>
                       <textarea
                         rows={5}
@@ -1475,7 +1493,7 @@ function StrategyContent() {
                         <IdentityAiButton
                           clientId={activeClientId}
                           field="painPoints"
-                          draft={{ painPoints }}
+                          draft={getAiDraft({ painPoints })}
                           className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
                           onApply={(val) => {
                             const items = Array.isArray(val) ? val : [val];
@@ -1544,7 +1562,7 @@ function StrategyContent() {
                         <IdentityAiButton
                           clientId={activeClientId}
                           field="salesObjections"
-                          draft={{ salesObjections }}
+                          draft={getAiDraft({ salesObjections })}
                           className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
                           onApply={(val) => {
                             setSalesObjections(Array.isArray(val) ? val.join("\n") : val);
@@ -1658,7 +1676,7 @@ function StrategyContent() {
                         <IdentityAiButton
                           clientId={activeClientId}
                           field="defaultCtas"
-                          draft={{ defaultCtas }}
+                          draft={getAiDraft({ defaultCtas })}
                           className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition cursor-pointer"
                           onApply={(val) => {
                             const item = Array.isArray(val) ? val[0] : val;
@@ -1690,7 +1708,7 @@ function StrategyContent() {
                       <IdentityAiButton
                         clientId={activeClientId}
                         field="defaultCtas"
-                        draft={{ defaultCtas }}
+                        draft={getAiDraft({ defaultCtas })}
                         className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50/70 hover:bg-blue-100/80 px-2.5 py-1 text-[11px] font-semibold text-blue-700 transition cursor-pointer"
                         onApply={(val) => {
                           const items = Array.isArray(val) ? val : [val];
@@ -1761,7 +1779,7 @@ function StrategyContent() {
                       <IdentityAiButton
                         clientId={activeClientId}
                         field="notes"
-                        draft={{ notes }}
+                        draft={getAiDraft({ notes })}
                         className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
                         onApply={(val) => {
                           setNotes(Array.isArray(val) ? val.join("\n") : val);

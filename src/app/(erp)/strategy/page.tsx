@@ -1248,19 +1248,17 @@ function StrategyContent() {
                     }}
                     onBlur={handleBlur}
                     detailsAction={
-                      <div className="flex justify-end pt-1">
-                        <IdentityAiButton
-                          clientId={activeClientId}
-                          field="communicationDetails"
-                          draft={{ communicationProfile }}
-                          className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50/80 hover:bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition cursor-pointer"
-                          onApply={(val) => {
-                            const text = Array.isArray(val) ? val.join("\n") : val;
-                            setCommunicationProfile((prev) => ({ ...prev, details: text }));
-                            markDirty("communicationProfile");
-                          }}
-                        />
-                      </div>
+                      <IdentityAiButton
+                        clientId={activeClientId}
+                        field="communicationDetails"
+                        draft={getAiDraft({ communicationProfile })}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-2.5 py-1 text-[11px] font-semibold text-purple-700 transition cursor-pointer"
+                        onApply={(val) => {
+                          const text = Array.isArray(val) ? val.join("\n") : val;
+                          setCommunicationProfile((prev) => ({ ...prev, details: text }));
+                          markDirty("communicationProfile");
+                        }}
+                      />
                     }
                   />
                 </div>

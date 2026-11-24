@@ -56,11 +56,13 @@ export function CommunicationProfileFields({
           </div>
         </fieldset>
       ))}
-      {detailsAction}
       <div>
-        <label className="block text-xs font-semibold text-zinc-800 mb-1">
-          Detalhes e orientações
-        </label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="block text-xs font-semibold text-zinc-800">
+            Detalhes e orientações
+          </label>
+          {detailsAction}
+        </div>
         <textarea
           className="block w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3.5 text-xs font-normal leading-relaxed text-zinc-900 outline-none focus:border-zinc-500 focus:bg-white focus:ring-2 focus:ring-purple-600/20 min-h-[120px] resize-y"
           rows={5}

@@ -37,18 +37,54 @@ import {
 import { InstagramIcon as Instagram } from "@/components/ui/instagram";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 
-const PRESET_TONES = [
-  "Direto e didático",
-  "Sem juridiquês ou jargões vazios",
-  "Focado em decisões e crescimento",
-  "Orientado a dados com clareza",
-  "Enérgico e persuasivo",
-  "Empático e consultivo",
-  "Sofisticado e exclusivo",
-  "Provocativo e instigante",
-  "Calmo e acolhedor",
-  "Técnico e fundamentado",
+const PRESET_TONE_CATEGORIES = [
+  {
+    category: "Autoridade & Especialista",
+    tones: [
+      "Direto e didático",
+      "Técnico e fundamentado",
+      "Orientado a dados com clareza",
+      "Especialista & Didático",
+      "Institucional e sóbrio",
+      "Focado em decisões e crescimento",
+    ],
+  },
+  {
+    category: "Humano & Relacionamento",
+    tones: [
+      "Empático e consultivo",
+      "Calmo e acolhedor",
+      "Próximo e conversacional",
+      "Acessível e descomplicado",
+      "Sem juridiquês ou jargões vazios",
+      "Inspirador e motivacional",
+    ],
+  },
+  {
+    category: "Persuasão & Vendas",
+    tones: [
+      "Enérgico e persuasivo",
+      "Provocativo e instigante",
+      "Urgente e focado em ação",
+      "Questionador e transformador",
+      "Direto ao ponto (Sem enrolação)",
+      "Confiante e assertivo",
+    ],
+  },
+  {
+    category: "Posicionamento & Estilo",
+    tones: [
+      "Sofisticado e exclusivo",
+      "Elegante e minimalista",
+      "Moderno e inovador",
+      "Narrativo e storytelling",
+      "Leve e bem-humorado",
+      "Prático e focado na rotina",
+    ],
+  },
 ];
+
+const PRESET_TONES = Array.from(new Set(PRESET_TONE_CATEGORIES.flatMap((c) => c.tones)));
 
 const TARGET_AUDIENCE_OPTIONS = [
   "Consumidor final / B2C",
@@ -751,49 +787,105 @@ function StrategyContent() {
                     </div>
                   </div>
 
-                  {/* Tons Predefinidos */}
-                  <div>
-                    <label className="text-xs font-bold text-zinc-700 block mb-2">
-                      Tons Predefinidos (Clique para ativar/desativar)
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {PRESET_TONES.map((tone) => {
-                        const isSelected = selectedTones.includes(tone);
-                        return (
-                          <button
+                  {/* Tons Ativos Selecionados */}
+                  {selectedTones.length > 0 && (
+                    <div className="p-4 rounded-xl bg-purple-50/70 border border-purple-200/80 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-purple-700" />
+                          Personalidade Ativa da Marca ({selectedTones.length} {selectedTones.length === 1 ? "tom ativo" : "tons ativos"})
+                        </span>
+                        <span className="text-[11px] text-purple-700 hidden sm:inline">
+                          A IA combinará estes estilos na criação de conteúdos.
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedTones.map((tone) => (
+                          <span
                             key={tone}
-                            type="button"
-                            onClick={() => {
-                              setSelectedTones(prev =>
-                                isSelected ? prev.filter(t => t !== tone) : [...prev, tone]
-                              );
-                              markDirty("toneOfVoice");
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer ${
-                              isSelected
-                                ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                                : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
-                            }`}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-purple-300 text-purple-950 text-xs font-semibold shadow-2xs"
                           >
-                            {isSelected && <Check className="w-3 h-3 inline mr-1" />}
-                            {tone}
-                          </button>
-                        );
-                      })}
+                            <span>{tone}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedTones(prev => prev.filter(t => t !== tone));
+                                markDirty("toneOfVoice");
+                              }}
+                              className="p-0.5 hover:bg-purple-100 rounded-full text-purple-700 cursor-pointer"
+                              title="Remover tom"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Biblioteca de Tons Organizada por Categorias */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-bold text-zinc-900 block">
+                        Catálogo de Tons de Voz (Clique nos botões para ativar ou desativar)
+                      </label>
+                      <p className="text-[11px] text-zinc-500 mt-0.5">
+                        Escolha de 2 a 4 nuances que melhor representam a postura verbal e a cadência da marca.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {PRESET_TONE_CATEGORIES.map((cat) => (
+                        <div key={cat.category} className="p-3.5 rounded-xl border border-zinc-200 bg-zinc-50/60 space-y-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 block">
+                            {cat.category}
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {cat.tones.map((tone) => {
+                              const isSelected = selectedTones.includes(tone);
+                              return (
+                                <button
+                                  key={tone}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedTones(prev =>
+                                      isSelected ? prev.filter(t => t !== tone) : [...prev, tone]
+                                    );
+                                    markDirty("toneOfVoice");
+                                  }}
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition border cursor-pointer ${
+                                    isSelected
+                                      ? "bg-purple-600 text-white border-purple-600 shadow-2xs font-semibold"
+                                      : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100"
+                                  }`}
+                                >
+                                  {isSelected && <Check className="w-3 h-3 inline mr-1" />}
+                                  {tone}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Tons Personalizados */}
-                  <div className="pt-2 border-t border-zinc-100">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-bold text-zinc-700">
-                        Tons Personalizados Salvos
-                      </label>
+                  {/* Estilo ou Tom Próprio da Marca (Personalizado) */}
+                  <div className="pt-3 border-t border-zinc-100 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <div>
+                        <label className="text-xs font-bold text-zinc-900 block">
+                          Estilo ou Tom Próprio da Marca (Opcional)
+                        </label>
+                        <p className="text-[11px] text-zinc-500 mt-0.5">
+                          Caso a marca use uma expressão ou diretriz de estilo exclusiva que não esteja nas categorias acima (ex: &ldquo;Voz de mentor acolhedor&rdquo; ou &ldquo;Médico humanizado&rdquo;), digite abaixo ou gere com IA.
+                        </p>
+                      </div>
                       <IdentityAiButton
                         clientId={activeClientId}
                         field="toneOfVoice"
                         draft={{ toneOfVoice: selectedTones }}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-2.5 py-1 text-[11px] font-semibold text-purple-700 transition cursor-pointer"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-2.5 py-1 text-[11px] font-semibold text-purple-700 transition cursor-pointer self-start sm:self-auto shrink-0"
                         onApply={(val) => {
                           const items = Array.isArray(val) ? val : [val];
                           setSelectedTones((prev) => Array.from(new Set([...prev, ...items])));
@@ -801,32 +893,38 @@ function StrategyContent() {
                         }}
                       />
                     </div>
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      {selectedTones
-                        .filter((t) => !PRESET_TONES.includes(t))
-                        .map((customTone, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-medium"
-                          >
-                            <span>{customTone}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedTones(prev => prev.filter(t => t !== customTone));
-                                markDirty("toneOfVoice");
-                              }}
-                              className="p-0.5 hover:bg-purple-200 rounded-full transition cursor-pointer"
+
+                    {/* Exibir estilos que foram adicionados manualmente ou pela IA e não pertencem ao catálogo padrão */}
+                    {selectedTones.some((t) => !PRESET_TONES.includes(t)) && (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedTones
+                          .filter((t) => !PRESET_TONES.includes(t))
+                          .map((customTone, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-50 border border-purple-200 text-purple-900 text-xs font-medium"
                             >
-                              <X className="w-3 h-3 text-purple-700" />
-                            </button>
-                          </span>
-                        ))}
-                    </div>
+                              <span>{customTone}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTones(prev => prev.filter(t => t !== customTone));
+                                  markDirty("toneOfVoice");
+                                }}
+                                className="p-0.5 hover:bg-purple-200 rounded-full transition cursor-pointer"
+                                title="Remover tom"
+                              >
+                                <X className="w-3 h-3 text-purple-700" />
+                              </button>
+                            </span>
+                          ))}
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2 max-w-xl">
                       <input
                         type="text"
-                        placeholder="Novo tom de voz personalizado..."
+                        placeholder="Ex: Mentor acolhedor, Irônico e sagaz, Científico e simples..."
                         value={newCustomTone}
                         onChange={(e) => setNewCustomTone(e.target.value)}
                         onKeyDown={(e) => {
@@ -852,7 +950,7 @@ function StrategyContent() {
                             markDirty("toneOfVoice");
                           }
                         }}
-                        className="px-3.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition"
+                        className="px-3.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition cursor-pointer shrink-0"
                       >
                         <Plus className="w-3.5 h-3.5 inline mr-1" />
                         Adicionar

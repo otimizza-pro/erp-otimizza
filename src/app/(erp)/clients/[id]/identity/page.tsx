@@ -34,15 +34,7 @@ import {
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { InstagramIcon as Instagram } from "@/components/ui/instagram";
-
-const ARCHETYPES = [
-  { id: "SABIO", name: "O Sábio / Especialista", desc: "Autoridade, precisão técnica, dados, didática e clareza profunda." },
-  { id: "AMIGO", name: "O Amigo / Parceiro", desc: "Proximidade, empatia, diálogo acessível e suporte constante." },
-  { id: "CRIADOR", name: "O Criador / Visionário", desc: "Inovação, originalidade, design arrojado e soluções fora da caixa." },
-  { id: "HEROI", name: "O Herói / Conquistador", desc: "Superação de desafios, alta performance, foco em resultados e vitórias." },
-  { id: "MAGO", name: "O Mago / Transformador", desc: "Transformação rápida, visão estratégica, saltos de crescimento e impacto." },
-  { id: "GOVERNANTE", name: "O Governante / Líder", desc: "Liderança de mercado, segurança, governança, estabilidade e solidez." },
-];
+import { ARCHETYPES, normalizeArchetypeId, getArchetypeName } from "@/components/headlines/client-strategy-panel";
 
 const PRESET_TONES = [
   "Direto e didático",
@@ -179,8 +171,8 @@ export default function ClientIdentityPage() {
           setValueProposition(data.valueProposition || "");
           setCommunicationProfile(CommunicationProfileSchema.parse(data.communicationProfile || {}));
           setMarketNiche(data.marketNiche || "");
-          setArchetype(data.archetype || "");
-          setSecondaryArchetype(data.secondaryArchetype || "");
+          setArchetype(normalizeArchetypeId(data.archetype));
+          setSecondaryArchetype(normalizeArchetypeId(data.secondaryArchetype));
           setSelectedTones(data.toneOfVoice || []);
           setBrandContext(data.brandContext || "");
           setTargetAudiences(data.targetAudiences || []);
@@ -221,8 +213,8 @@ export default function ClientIdentityPage() {
         communicationProfile: cur.communicationProfile,
         valueProposition: cur.valueProposition,
         marketNiche: cur.marketNiche,
-        archetype: cur.archetype,
-        secondaryArchetype: cur.secondaryArchetype,
+        archetype: normalizeArchetypeId(cur.archetype),
+        secondaryArchetype: normalizeArchetypeId(cur.secondaryArchetype),
         toneOfVoice: cur.selectedTones,
         brandContext: cur.brandContext,
         painPoints: cur.painPoints,
@@ -517,7 +509,7 @@ export default function ClientIdentityPage() {
                 {archetype ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-100 text-purple-800 border border-purple-200 font-medium">
                     <Star className="w-3.5 h-3.5 fill-purple-700 text-purple-700" />
-                    <span>Primário: <strong className="font-semibold">{archetype.split("/")[0]?.trim() || archetype}</strong></span>
+                    <span>Primário: <strong className="font-semibold">{getArchetypeName(archetype)}</strong></span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -541,7 +533,7 @@ export default function ClientIdentityPage() {
                 {secondaryArchetype ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200 font-medium">
                     <Sparkles className="w-3.5 h-3.5 text-indigo-700" />
-                    <span>Secundário: <strong className="font-semibold">{secondaryArchetype.split("/")[0]?.trim() || secondaryArchetype}</strong></span>
+                    <span>Secundário: <strong className="font-semibold">{getArchetypeName(secondaryArchetype)}</strong></span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -566,8 +558,8 @@ export default function ClientIdentityPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {ARCHETYPES.map((arch) => {
-                const isPrimary = archetype === arch.name || archetype === arch.id;
-                const isSecondary = secondaryArchetype === arch.name || secondaryArchetype === arch.id;
+                const isPrimary = normalizeArchetypeId(archetype) === arch.id;
+                const isSecondary = normalizeArchetypeId(secondaryArchetype) === arch.id;
 
                 return (
                   <div
@@ -578,11 +570,11 @@ export default function ClientIdentityPage() {
                       } else if (isSecondary) {
                         setSecondaryArchetype("");
                       } else if (!archetype) {
-                        setArchetype(arch.name);
+                        setArchetype(arch.id);
                       } else if (!secondaryArchetype) {
-                        setSecondaryArchetype(arch.name);
+                        setSecondaryArchetype(arch.id);
                       } else {
-                        setSecondaryArchetype(arch.name);
+                        setSecondaryArchetype(arch.id);
                       }
                       setDirty(true);
                       setTimeout(() => void saveIdentity(true), 100);

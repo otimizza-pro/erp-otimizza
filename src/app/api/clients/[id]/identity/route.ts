@@ -60,6 +60,11 @@ export async function GET(
         whatsappCta: "",
         notes: "",
         formatGuidelines: { reelsStandard: "", headlinesStandard: "", carouselStandard: "" },
+        brandHistory: "",
+        corePromise: "",
+        salesObjections: "",
+        commercialProfile: {},
+        catalogItems: [],
       });
     }
 
@@ -100,6 +105,11 @@ export async function GET(
       whatsappCta: row.whatsapp_cta || "",
       notes: row.notes || "",
       formatGuidelines: row.format_guidelines || { reelsStandard: "", headlinesStandard: "", carouselStandard: "" },
+      brandHistory: row.brand_history || "",
+      corePromise: row.core_promise || "",
+      salesObjections: row.sales_objections || "",
+      commercialProfile: row.commercial_profile || {},
+      catalogItems: row.catalog_items || [],
     });
   } catch (error: unknown) {
     console.error("Erro ao buscar identidade do cliente:", error);
@@ -126,9 +136,11 @@ export async function PUT(
         client_id, value_proposition, market_niche, archetype, secondary_archetype,
         tone_of_voice, brand_context, target_audiences, pain_points,
         differentials, forbidden_words, mandatory_terms, default_ctas,
-        instagram_handle, website_url, whatsapp_cta, notes, communication_profile, updated_at
+        instagram_handle, website_url, whatsapp_cta, notes, communication_profile,
+        brand_history, core_promise, sales_objections, commercial_profile, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, COALESCE($18::jsonb,'{}'::jsonb), NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, COALESCE($18::jsonb,'{}'::jsonb),
+        $21, $22, $23, COALESCE($24::jsonb, '{}'::jsonb), NOW()
       )
       ON CONFLICT (client_id) DO UPDATE SET
         value_proposition = CASE WHEN $19::jsonb ? 'valueProposition' THEN EXCLUDED.value_proposition ELSE client_identities.value_proposition END,
@@ -149,6 +161,10 @@ export async function PUT(
         notes = CASE WHEN $19::jsonb ? 'notes' THEN EXCLUDED.notes ELSE client_identities.notes END,
         format_guidelines = CASE WHEN $19::jsonb ? 'formatGuidelines' THEN $20::jsonb ELSE client_identities.format_guidelines END,
         communication_profile = COALESCE($18::jsonb,client_identities.communication_profile),
+        brand_history = CASE WHEN $19::jsonb ? 'brandHistory' THEN EXCLUDED.brand_history ELSE client_identities.brand_history END,
+        core_promise = CASE WHEN $19::jsonb ? 'corePromise' THEN EXCLUDED.core_promise ELSE client_identities.core_promise END,
+        sales_objections = CASE WHEN $19::jsonb ? 'salesObjections' THEN EXCLUDED.sales_objections ELSE client_identities.sales_objections END,
+        commercial_profile = CASE WHEN $19::jsonb ? 'commercialProfile' THEN COALESCE($24::jsonb, client_identities.commercial_profile) ELSE client_identities.commercial_profile END,
         updated_at = NOW()
       RETURNING *
     `;
@@ -176,6 +192,10 @@ export async function PUT(
       body.communicationProfile !== undefined && profile.success ? JSON.stringify(profile.data) : null,
       JSON.stringify(Object.keys(body)),
       JSON.stringify(body.formatGuidelines || {}),
+      body.brandHistory || null,
+      body.corePromise || null,
+      body.salesObjections || null,
+      body.commercialProfile ? JSON.stringify(body.commercialProfile) : null,
       ]);
     });
 

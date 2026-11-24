@@ -12,13 +12,13 @@ export async function loadAiClientContext(companyId:string):Promise<AiClientCont
  try{
  const [clients,identities,audiences,presets,editorial,catalog]=await Promise.all([
  query("SELECT id,name,trade_name,city,state FROM clients WHERE id=$1",[companyId]),
- query("SELECT communication_profile,value_proposition,market_niche,archetype,tone_of_voice,brand_context,target_audiences,pain_points,differentials,forbidden_words,mandatory_terms,default_ctas,instagram_handle,website_url,whatsapp_cta,notes,commercial_profile,brand_history,core_promise,sales_objections FROM client_identities WHERE client_id=$1",[companyId]),
+ query("SELECT communication_profile,value_proposition,market_niche,archetype,secondary_archetype,tone_of_voice,brand_context,target_audiences,pain_points,differentials,forbidden_words,mandatory_terms,default_ctas,instagram_handle,website_url,whatsapp_cta,notes,commercial_profile,brand_history,core_promise,sales_objections FROM client_identities WHERE client_id=$1",[companyId]),
  query("SELECT id,name,description,demographics,pain_points,desires,objections,is_default FROM client_audiences WHERE client_id=$1 AND archived_at IS NULL ORDER BY is_default DESC,name",[companyId]),
  query("SELECT custom_guidelines FROM client_brand_voice_presets WHERE client_id=$1",[companyId]),
  query("SELECT el.id,el.pillar_name,el.theme,el.objective,el.preferred_formats,el.frequency_per_month,el.notes,el.custom_fields FROM client_editorial_lines el LEFT JOIN client_editorial_pillars p ON p.id=el.pillar_id WHERE el.client_id=$1 AND el.is_active=true AND el.archived_at IS NULL AND p.archived_at IS NULL ORDER BY el.pillar_name LIMIT 30",[companyId]),
  query("SELECT id,type,name,description,differentials,deliverables,target_pain_points,solution_approach,target_audience_ids FROM client_catalog_items WHERE client_id=$1 AND is_active=true ORDER BY order_index ASC,created_at ASC",[companyId])]);
  if(!clients.rows[0])throw new AiGenerationError("AI_CLIENT_NOT_FOUND","A empresa selecionada não foi encontrada. Nenhum conteúdo foi gerado.",404);
- const identity=pick(identities.rows[0],["value_proposition","market_niche","archetype","tone_of_voice","brand_context","target_audiences","pain_points","differentials","forbidden_words","mandatory_terms","default_ctas","instagram_handle","website_url","whatsapp_cta","notes","commercial_profile","brand_history","core_promise","sales_objections"]);
+ const identity=pick(identities.rows[0],["value_proposition","market_niche","archetype","secondary_archetype","tone_of_voice","brand_context","target_audiences","pain_points","differentials","forbidden_words","mandatory_terms","default_ctas","instagram_handle","website_url","whatsapp_cta","notes","commercial_profile","brand_history","core_promise","sales_objections"]);
  if(identities.rows.length||audiences.rows.length)identity.target_audiences=audiences.rows.map(row=>String(row.name));
  const brandVoice=pick(presets.rows[0],["custom_guidelines"]);
  const communicationProfile=CommunicationProfileSchema.parse(identities.rows[0]?.communication_profile||{});

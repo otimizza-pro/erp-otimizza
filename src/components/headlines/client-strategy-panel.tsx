@@ -27,6 +27,7 @@ import {
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { InstagramIcon as Instagram } from "@/components/ui/instagram";
 import { ClientAudiencesManager } from "@/components/clients/client-audiences-manager";
+import { CommercialDnaPanel } from "@/components/crm/commercial-dna";
 import {
   COMMUNICATION_OPTIONS,
   CommunicationProfile,
@@ -34,7 +35,7 @@ import {
   emptyCommunicationProfile,
 } from "@/modules/clients/communication-profile";
 
-const ARCHETYPES = [
+export const ARCHETYPES = [
   { id: "SABIO", name: "O Sábio / Especialista", desc: "Autoridade, precisão técnica, dados, didática e clareza profunda." },
   { id: "AMIGO", name: "O Amigo / Parceiro", desc: "Proximidade, empatia, diálogo acessível e suporte constante." },
   { id: "CRIADOR", name: "O Criador / Visionário", desc: "Inovação, originalidade, design arrojado e soluções fora da caixa." },
@@ -42,6 +43,26 @@ const ARCHETYPES = [
   { id: "MAGO", name: "O Mago / Transformador", desc: "Transformação rápida, visão estratégica, saltos de crescimento e impacto." },
   { id: "GOVERNANTE", name: "O Governante / Líder", desc: "Liderança de mercado, segurança, governança, estabilidade e solidez." },
 ];
+
+export function normalizeArchetypeId(val: string | null | undefined): string {
+  if (!val) return "";
+  const clean = val.trim().toLowerCase();
+  const found = ARCHETYPES.find(
+    (a) =>
+      a.id.toLowerCase() === clean ||
+      a.name.toLowerCase() === clean ||
+      clean.includes(a.id.toLowerCase()) ||
+      a.name.toLowerCase().includes(clean)
+  );
+  return found ? found.id : "";
+}
+
+export function getArchetypeName(val: string | null | undefined): string {
+  if (!val) return "";
+  const id = normalizeArchetypeId(val);
+  const found = ARCHETYPES.find((a) => a.id === id);
+  return found ? found.name : val;
+}
 
 const PRESET_TONES = [
   "Direto e didático",
@@ -103,6 +124,9 @@ export function ClientStrategyPanel({
   const [valueProposition, setValueProposition] = useState("");
   const [archetype, setArchetype] = useState("");
   const [secondaryArchetype, setSecondaryArchetype] = useState("");
+  const [brandHistory, setBrandHistory] = useState("");
+  const [corePromise, setCorePromise] = useState("");
+  const [salesObjections, setSalesObjections] = useState("");
   const [selectedTones, setSelectedTones] = useState<string[]>([]);
   const [newCustomTone, setNewCustomTone] = useState("");
 
@@ -151,6 +175,9 @@ export function ClientStrategyPanel({
     valueProposition,
     archetype,
     secondaryArchetype,
+    brandHistory,
+    corePromise,
+    salesObjections,
     selectedTones,
     targetAudiences,
     painPoints,
@@ -173,6 +200,9 @@ export function ClientStrategyPanel({
       valueProposition,
       archetype,
       secondaryArchetype,
+      brandHistory,
+      corePromise,
+      salesObjections,
       selectedTones,
       targetAudiences,
       painPoints,
@@ -202,8 +232,11 @@ export function ClientStrategyPanel({
       setBrandContext(data.brandContext || "");
       setMarketNiche(data.marketNiche || "");
       setValueProposition(data.valueProposition || "");
-      setArchetype(data.archetype || "");
-      setSecondaryArchetype(data.secondaryArchetype || "");
+      setArchetype(normalizeArchetypeId(data.archetype));
+      setSecondaryArchetype(normalizeArchetypeId(data.secondaryArchetype));
+      setBrandHistory(data.brandHistory || "");
+      setCorePromise(data.corePromise || "");
+      setSalesObjections(data.salesObjections || "");
       setSelectedTones(Array.isArray(data.toneOfVoice) ? data.toneOfVoice : []);
       setTargetAudiences(Array.isArray(data.targetAudiences) ? data.targetAudiences : []);
       setPainPoints(Array.isArray(data.painPoints) ? data.painPoints : []);
@@ -311,8 +344,11 @@ export function ClientStrategyPanel({
         brandContext: cur.brandContext,
         marketNiche: cur.marketNiche,
         valueProposition: cur.valueProposition,
-        archetype: cur.archetype,
-        secondaryArchetype: cur.secondaryArchetype,
+        archetype: normalizeArchetypeId(cur.archetype),
+        secondaryArchetype: normalizeArchetypeId(cur.secondaryArchetype),
+        brandHistory: cur.brandHistory,
+        corePromise: cur.corePromise,
+        salesObjections: cur.salesObjections,
         toneOfVoice: cur.selectedTones,
         targetAudiences: cur.targetAudiences,
         painPoints: cur.painPoints,
@@ -611,148 +647,187 @@ export function ClientStrategyPanel({
 
       {/* CONTEÚDO DA SUB-ABA 1: POSICIONAMENTO & DNA */}
       {subTab === "dna" && (
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Proposta de Valor e Nicho */}
-          <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
-            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
-              <Building2 size={18} className="text-emerald-600" />
-              Posicionamento Central
-            </h3>
+        <div className="space-y-6">
+          {/* DNA Comercial (Porta-voz, Cliente Ideal, Objetivo Comercial, Escopo) */}
+          <CommercialDnaPanel
+            clientId={clientId}
+            showBusinessDescription={false}
+            audiences={targetAudiences}
+            onSaved={() => {
+              void loadStrategyData();
+            }}
+          />
 
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-zinc-700">Nicho de Mercado / Especialidade</label>
-                <button
-                  type="button"
-                  disabled={generatingAiField === "marketNiche"}
-                  onClick={() => handleGenerateAiField("marketNiche")}
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
-                >
-                  <Sparkles size={12} className={generatingAiField === "marketNiche" ? "animate-spin" : ""} />
-                  {generatingAiField === "marketNiche" ? "Gerando..." : "Sugerir com IA"}
-                </button>
-              </div>
-              <input
-                className={control}
-                placeholder="Ex: Clínicas Odontológicas Premium, Consultoria Tributária B2B..."
-                value={marketNiche}
-                onChange={(e) => {
-                  setMarketNiche(e.target.value);
-                  setDirty(true);
-                }}
-                onBlur={handleBlur}
-              />
-            </div>
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Proposta de Valor e Nicho */}
+            <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
+              <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+                <Building2 size={18} className="text-emerald-600" />
+                Posicionamento Central
+              </h3>
 
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-zinc-700">Proposta de Valor Única</label>
-                <button
-                  type="button"
-                  disabled={generatingAiField === "valueProposition"}
-                  onClick={() => handleGenerateAiField("valueProposition")}
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
-                >
-                  <Sparkles size={12} className={generatingAiField === "valueProposition" ? "animate-spin" : ""} />
-                  {generatingAiField === "valueProposition" ? "Gerando..." : "Sugerir com IA"}
-                </button>
-              </div>
-              <textarea
-                className={`${control} min-h-[90px]`}
-                placeholder="O que a sua empresa entrega que ninguém mais entrega? Qual é a promessa transformadora?"
-                value={valueProposition}
-                onChange={(e) => {
-                  setValueProposition(e.target.value);
-                  setDirty(true);
-                }}
-                onBlur={handleBlur}
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-zinc-700">Contexto da Empresa / História da Marca</label>
-                <button
-                  type="button"
-                  disabled={generatingAiField === "brandContext"}
-                  onClick={() => handleGenerateAiField("brandContext")}
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
-                >
-                  <Sparkles size={12} className={generatingAiField === "brandContext" ? "animate-spin" : ""} />
-                  {generatingAiField === "brandContext" ? "Gerando..." : "Sugerir com IA"}
-                </button>
-              </div>
-              <textarea
-                className={`${control} min-h-[110px]`}
-                placeholder="Resumo executivo do negócio, histórico dos fundadores, reputação e momento atual da empresa..."
-                value={brandContext}
-                onChange={(e) => {
-                  setBrandContext(e.target.value);
-                  setDirty(true);
-                }}
-                onBlur={handleBlur}
-              />
-            </div>
-          </div>
-
-          {/* Arquétipos e Diferenciais */}
-          <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
-            <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
-              <Sparkles size={18} className="text-indigo-600" />
-              Arquétipos & Diferenciais
-            </h3>
-
-            <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="text-xs font-semibold text-zinc-700">Arquétipo Principal</label>
-                <select
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-700">Nicho de Mercado / Especialidade</label>
+                  <button
+                    type="button"
+                    disabled={generatingAiField === "marketNiche"}
+                    onClick={() => handleGenerateAiField("marketNiche")}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                  >
+                    <Sparkles size={12} className={generatingAiField === "marketNiche" ? "animate-spin" : ""} />
+                    {generatingAiField === "marketNiche" ? "Gerando..." : "Sugerir com IA"}
+                  </button>
+                </div>
+                <input
                   className={control}
-                  value={archetype}
+                  placeholder="Ex: Clínicas Odontológicas Premium, Consultoria Tributária B2B..."
+                  value={marketNiche}
                   onChange={(e) => {
-                    setArchetype(e.target.value);
+                    setMarketNiche(e.target.value);
                     setDirty(true);
-                    scheduleAutoSave();
                   }}
-                >
-                  <option value="">Selecione o Arquétipo</option>
-                  {ARCHETYPES.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-                {archetype && (
-                  <p className="mt-1 text-[11px] text-zinc-500">
-                    {ARCHETYPES.find((a) => a.id === archetype)?.desc}
-                  </p>
-                )}
+                  onBlur={handleBlur}
+                />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-zinc-700">Arquétipo Secundário (opcional)</label>
-                <select
-                  className={control}
-                  value={secondaryArchetype}
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-700">Proposta de Valor Única</label>
+                  <button
+                    type="button"
+                    disabled={generatingAiField === "valueProposition"}
+                    onClick={() => handleGenerateAiField("valueProposition")}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                  >
+                    <Sparkles size={12} className={generatingAiField === "valueProposition" ? "animate-spin" : ""} />
+                    {generatingAiField === "valueProposition" ? "Gerando..." : "Sugerir com IA"}
+                  </button>
+                </div>
+                <textarea
+                  className={`${control} min-h-[90px]`}
+                  placeholder="O que a sua empresa entrega que ninguém mais entrega? Qual é a promessa transformadora?"
+                  value={valueProposition}
                   onChange={(e) => {
-                    setSecondaryArchetype(e.target.value);
+                    setValueProposition(e.target.value);
                     setDirty(true);
-                    scheduleAutoSave();
                   }}
-                >
-                  <option value="">Nenhum / Opcional</option>
-                  {ARCHETYPES.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-                {secondaryArchetype && (
-                  <p className="mt-1 text-[11px] text-zinc-500">
-                    {ARCHETYPES.find((a) => a.id === secondaryArchetype)?.desc}
-                  </p>
-                )}
+                  onBlur={handleBlur}
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-700">Contexto da Empresa / História da Marca</label>
+                  <button
+                    type="button"
+                    disabled={generatingAiField === "brandContext"}
+                    onClick={() => handleGenerateAiField("brandContext")}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+                  >
+                    <Sparkles size={12} className={generatingAiField === "brandContext" ? "animate-spin" : ""} />
+                    {generatingAiField === "brandContext" ? "Gerando..." : "Sugerir com IA"}
+                  </button>
+                </div>
+                <textarea
+                  className={`${control} min-h-[110px]`}
+                  placeholder="Resumo executivo do negócio, histórico dos fundadores, reputação e momento atual da empresa..."
+                  value={brandContext}
+                  onChange={(e) => {
+                    setBrandContext(e.target.value);
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700">Promessa Central de Valor</label>
+                <input
+                  className={control}
+                  placeholder="Ex: Treinos seguros e orientados sem dores..."
+                  value={corePromise}
+                  onChange={(e) => {
+                    setCorePromise(e.target.value);
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
+                />
               </div>
             </div>
+
+            {/* Arquétipos e Diferenciais */}
+            <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
+              <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
+                <Sparkles size={18} className="text-indigo-600" />
+                Arquétipos & Diferenciais
+              </h3>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="text-xs font-semibold text-zinc-700">Arquétipo Principal</label>
+                  <select
+                    className={control}
+                    value={normalizeArchetypeId(archetype)}
+                    onChange={(e) => {
+                      setArchetype(e.target.value);
+                      setDirty(true);
+                      scheduleAutoSave();
+                    }}
+                  >
+                    <option value="">Selecione o Arquétipo</option>
+                    {ARCHETYPES.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  {archetype && (
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      {ARCHETYPES.find((a) => a.id === normalizeArchetypeId(archetype))?.desc}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-zinc-700">Arquétipo Secundário (opcional)</label>
+                  <select
+                    className={control}
+                    value={normalizeArchetypeId(secondaryArchetype)}
+                    onChange={(e) => {
+                      setSecondaryArchetype(e.target.value);
+                      setDirty(true);
+                      scheduleAutoSave();
+                    }}
+                  >
+                    <option value="">Nenhum / Opcional</option>
+                    {ARCHETYPES.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  {secondaryArchetype && (
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      {ARCHETYPES.find((a) => a.id === normalizeArchetypeId(secondaryArchetype))?.desc}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-zinc-700">Objeções Comerciais Críticas</label>
+                <textarea
+                  className={`${control} min-h-[70px]`}
+                  placeholder="Ex: Não tenho tempo; Acho que musculação piora minha dor..."
+                  value={salesObjections}
+                  onChange={(e) => {
+                    setSalesObjections(e.target.value);
+                    setDirty(true);
+                  }}
+                  onBlur={handleBlur}
+                />
+              </div>
 
             <div>
               <label className="text-xs font-semibold text-zinc-700">Diferenciais Competitivos da Marca</label>
@@ -803,6 +878,7 @@ export function ClientStrategyPanel({
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {/* CONTEÚDO DA SUB-ABA 2: PÚBLICOS & DORES */}
@@ -910,6 +986,27 @@ export function ClientStrategyPanel({
                   </button>
                 );
               })}
+
+              {/* Tons personalizados do DNA do cliente */}
+              {selectedTones
+                .filter((t) => !PRESET_TONES.includes(t))
+                .map((customTone) => (
+                  <span
+                    key={customTone}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-purple-900 shadow-2xs"
+                  >
+                    <Check size={12} className="text-purple-700" />
+                    {customTone}
+                    <button
+                      type="button"
+                      onClick={() => removeItem(setSelectedTones, customTone)}
+                      className="ml-0.5 text-purple-600 hover:text-purple-900 cursor-pointer"
+                      title="Remover tom"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </span>
+                ))}
             </div>
 
             <div className="flex gap-2 max-w-md pt-2">

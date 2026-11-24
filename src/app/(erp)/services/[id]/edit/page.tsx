@@ -34,6 +34,17 @@ export default function EditServicePage() {
   const [defaultSupplierName, setDefaultSupplierName] = useState("");
   const [defaultCostPeriodicity, setDefaultCostPeriodicity] = useState<"MONTHLY" | "ONE_TIME" | "YEARLY">("MONTHLY");
 
+  // Modelos de Projeto e Onboarding
+  interface ProjectTemplateOption {
+    id: string;
+    code: string;
+    name: string;
+    description?: string;
+  }
+  const [templates, setTemplates] = useState<ProjectTemplateOption[]>([]);
+  const [deliveryTemplateId, setDeliveryTemplateId] = useState<string | null>(null);
+  const [onboardingTemplateId, setOnboardingTemplateId] = useState<string | null>(null);
+
   // Quick category creation
   const [newCatModalOpen, setNewCatModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState("");
@@ -44,8 +55,9 @@ export default function EditServicePage() {
     Promise.all([
       fetch(`/api/services/${id}`).then((r) => r.json()),
       fetch("/api/services?type=categories").then((r) => r.json()),
+      fetch("/api/projects/templates").then((r) => r.json()),
     ])
-      .then(([serviceData, categoriesData]) => {
+      .then(([serviceData, categoriesData, templatesRes]) => {
         setName(serviceData.name || "");
         setCategoryId(serviceData.categoryId || "");
         setDescription(serviceData.description || "");
@@ -57,7 +69,12 @@ export default function EditServicePage() {
         setDefaultSupplierId(serviceData.defaultSupplierId || null);
         setDefaultSupplierName(serviceData.defaultSupplierName || "");
         setDefaultCostPeriodicity(serviceData.defaultCostPeriodicity || "MONTHLY");
+        setDeliveryTemplateId(serviceData.deliveryTemplateId || null);
+        setOnboardingTemplateId(serviceData.onboardingTemplateId || null);
         setCategories(categoriesData || []);
+        if (templatesRes && templatesRes.success && Array.isArray(templatesRes.data)) {
+          setTemplates(templatesRes.data);
+        }
       })
       .catch((e) => setError("Erro ao carregar dados do serviço"))
       .finally(() => setLoading(false));
@@ -150,6 +167,8 @@ export default function EditServicePage() {
           status,
           defaultSupplierId: defaultSupplierId || null,
           defaultCostPeriodicity,
+          deliveryTemplateId: deliveryTemplateId || null,
+          onboardingTemplateId: onboardingTemplateId || null,
         }),
       });
 
@@ -386,6 +405,66 @@ export default function EditServicePage() {
                 onChange={(e) => setDescription(e.target.value)}
                 className="mt-1 w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900"
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Vínculo de Modelos Operacionais e Onboarding Separados */}
+        <div className="p-6 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold text-zinc-900">Modelos Operacionais & Onboarding</h2>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              Separe o modelo de projeto para a entrega contínua do modelo de onboarding inicial de boas-vindas do cliente.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            {/* Campo 1: Modelo de Projeto / Entrega Operacional */}
+            <div>
+              <label className="block font-medium text-zinc-700">
+                Modelo de Projeto / Entrega Operacional
+              </label>
+              <select
+                value={deliveryTemplateId || ""}
+                onChange={(e) => setDeliveryTemplateId(e.target.value || null)}
+                className="mt-1 w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900 font-medium"
+              >
+                <option value="">Sem modelo de entrega vinculado</option>
+                {templates
+                  .filter((t) => !t.code?.startsWith("ONB-") && !t.name?.toLowerCase().includes("onboarding"))
+                  .map((tmpl) => (
+                    <option key={tmpl.id} value={tmpl.id}>
+                      {tmpl.name} ({tmpl.code})
+                    </option>
+                  ))}
+              </select>
+              <span className="text-[10px] text-zinc-400 mt-1 block">
+                Define o fluxo de tarefas contínuas/recorrentes da equipe (ex: Social Media, Tráfego, Produção).
+              </span>
+            </div>
+
+            {/* Campo 2: Modelo de Onboarding Inicial */}
+            <div>
+              <label className="block font-medium text-zinc-700">
+                Modelo de Onboarding Inicial
+              </label>
+              <select
+                value={onboardingTemplateId || ""}
+                onChange={(e) => setOnboardingTemplateId(e.target.value || null)}
+                className="mt-1 w-full px-3.5 py-2.5 rounded-xl bg-zinc-50 border border-zinc-200 text-zinc-900 focus:bg-white focus:outline-none focus:border-zinc-900 font-medium"
+              >
+                <option value="">Sem onboarding inicial</option>
+                {templates
+                  .filter((t) => t.code?.startsWith("ONB-") || t.name?.toLowerCase().includes("onboarding"))
+                  .map((tmpl) => (
+                    <option key={tmpl.id} value={tmpl.id}>
+                      {tmpl.name} ({tmpl.code})
+                    </option>
+                  ))}
+              </select>
+              <span className="text-[10px] text-zinc-400 mt-1 block">
+                Define o projeto inicial de boas-vindas, briefing e setup para novos clientes (códigos ONB-*).
+              </span>
             </div>
           </div>
         </div>

@@ -23,5 +23,5 @@ describe("Content workflow",()=>{
  it("limits calendar to selected month",()=>{expect(validateCalendarMonth([{scheduledDate:"2026-11-01"}],"2026-11")).toBe(true);expect(validateCalendarMonth([{scheduledDate:"2026-12-01"}],"2026-11")).toBe(false);});
  it("rejects invalid dates and unsupported formats",()=>{expect(calendarPlanSchema.safeParse([{title:"Pauta",centralIdea:"Ideia",scheduledDate:"2026-02-30",scheduledTime:"18:00",format:"Inventado"}]).success).toBe(false);});
  it("uses internal storage rather than all customers for own brand",()=>{expect(contentCompanyId({id:"otimizza",isOtimizza:true})).toBe(INTERNAL_COMPANY_ID);expect(contentCompanyId({id:"customer",isOtimizza:false})).toBe("customer");});
- it("has individual instructions and excludes invented contact data",()=>{expect(Object.keys(identityFieldPrompts)).toHaveLength(13);expect(identityAiFieldSchema.safeParse("instagramHandle").success).toBe(false);expect(new Set(Object.values(identityFieldPrompts).map(p=>p.instruction)).size).toBe(13);});
+ it("has individual instructions and excludes invented contact data",()=>{expect(Object.keys(identityFieldPrompts)).toHaveLength(17);expect(identityAiFieldSchema.safeParse("instagramHandle").success).toBe(false);expect(new Set(Object.values(identityFieldPrompts).map(p=>p.instruction)).size).toBe(17);});
 });

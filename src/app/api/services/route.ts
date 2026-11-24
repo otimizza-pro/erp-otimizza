@@ -58,6 +58,8 @@ export async function POST(request: Request) {
       defaultPrice: parseFloat(body.defaultPrice || "0"),
       defaultCost: parseFloat(body.defaultCost || "0"),
       billingUnit: body.billingUnit || "MES",
+      deliveryTemplateId: body.deliveryTemplateId || null,
+      onboardingTemplateId: body.onboardingTemplateId || null,
     });
     return NextResponse.json(service, { status: 201 });
   } catch (error: unknown) {

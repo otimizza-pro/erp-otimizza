@@ -29,6 +29,12 @@ export interface ServiceItem {
   defaultCost: number; // Em reais com 2 decimais (ex: 450.00)
   billingUnit: BillingUnit;
   status: ServiceStatus;
+  deliveryTemplateId?: string | null;
+  deliveryTemplateName?: string | null;
+  deliveryTemplateCode?: string | null;
+  onboardingTemplateId?: string | null;
+  onboardingTemplateName?: string | null;
+  onboardingTemplateCode?: string | null;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string | null;
@@ -65,6 +71,8 @@ export interface CreateServiceDTO {
   defaultPrice: number;
   defaultCost: number;
   billingUnit: BillingUnit;
+  deliveryTemplateId?: string | null;
+  onboardingTemplateId?: string | null;
 }
 
 export interface CreateComboDTO {

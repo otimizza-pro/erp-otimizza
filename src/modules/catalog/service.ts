@@ -36,6 +36,12 @@ interface DbServiceRow {
   default_cost: string;
   billing_unit: "HORA" | "MES" | "UNIDADE" | "PROJETO" | "ANUAL";
   status: "ACTIVE" | "ARCHIVED";
+  delivery_template_id?: string | null;
+  delivery_template_name?: string | null;
+  delivery_template_code?: string | null;
+  onboarding_template_id?: string | null;
+  onboarding_template_name?: string | null;
+  onboarding_template_code?: string | null;
   created_at: Date;
   updated_at: Date;
   archived_at: Date | null;
@@ -224,10 +230,14 @@ export async function listServices(options?: {
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
   const sql = `
-    SELECT s.*, c.name as category_name, sup.name as default_supplier_name
+    SELECT s.*, c.name as category_name, sup.name as default_supplier_name,
+           dpt.name as delivery_template_name, dpt.code as delivery_template_code,
+           opt.name as onboarding_template_name, opt.code as onboarding_template_code
     FROM services s
     LEFT JOIN service_categories c ON s.category_id = c.id
     LEFT JOIN suppliers sup ON s.default_supplier_id = sup.id
+    LEFT JOIN project_templates dpt ON s.delivery_template_id = dpt.id
+    LEFT JOIN project_templates opt ON s.onboarding_template_id = opt.id
     ${whereClause}
     ORDER BY s.name ASC
   `;
@@ -247,6 +257,12 @@ export async function listServices(options?: {
     defaultCost: parseFloat(r.default_cost || "0"),
     billingUnit: r.billing_unit,
     status: r.status,
+    deliveryTemplateId: r.delivery_template_id || null,
+    deliveryTemplateName: r.delivery_template_name || null,
+    deliveryTemplateCode: r.delivery_template_code || null,
+    onboardingTemplateId: r.onboarding_template_id || null,
+    onboardingTemplateName: r.onboarding_template_name || null,
+    onboardingTemplateCode: r.onboarding_template_code || null,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
     archivedAt: r.archived_at ? r.archived_at.toISOString() : null,
@@ -255,10 +271,14 @@ export async function listServices(options?: {
 
 export async function getServiceById(id: string): Promise<ServiceItem | null> {
   const res = await query<DbServiceRow>(
-    `SELECT s.*, c.name as category_name, sup.name as default_supplier_name
+    `SELECT s.*, c.name as category_name, sup.name as default_supplier_name,
+            dpt.name as delivery_template_name, dpt.code as delivery_template_code,
+            opt.name as onboarding_template_name, opt.code as onboarding_template_code
      FROM services s
      LEFT JOIN service_categories c ON s.category_id = c.id
      LEFT JOIN suppliers sup ON s.default_supplier_id = sup.id
+     LEFT JOIN project_templates dpt ON s.delivery_template_id = dpt.id
+     LEFT JOIN project_templates opt ON s.onboarding_template_id = opt.id
      WHERE s.id = $1`,
     [id]
   );
@@ -278,6 +298,12 @@ export async function getServiceById(id: string): Promise<ServiceItem | null> {
     defaultCost: parseFloat(r.default_cost || "0"),
     billingUnit: r.billing_unit,
     status: r.status,
+    deliveryTemplateId: r.delivery_template_id || null,
+    deliveryTemplateName: r.delivery_template_name || null,
+    deliveryTemplateCode: r.delivery_template_code || null,
+    onboardingTemplateId: r.onboarding_template_id || null,
+    onboardingTemplateName: r.onboarding_template_name || null,
+    onboardingTemplateCode: r.onboarding_template_code || null,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
     archivedAt: r.archived_at ? r.archived_at.toISOString() : null,
@@ -298,8 +324,9 @@ export async function createService(data: CreateServiceDTO): Promise<ServiceItem
   const res = await query<DbServiceRow>(
     `INSERT INTO services (
       category_id, name, description, default_price, default_cost, billing_unit, status,
-      default_supplier_id, default_cost_periodicity, presentation
-    ) VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE', $7, $8, $9)
+      default_supplier_id, default_cost_periodicity, presentation,
+      delivery_template_id, onboarding_template_id
+    ) VALUES ($1, $2, $3, $4, $5, $6, 'ACTIVE', $7, $8, $9, $10, $11)
     RETURNING *`,
     [
       data.categoryId || null,
@@ -311,6 +338,8 @@ export async function createService(data: CreateServiceDTO): Promise<ServiceItem
       data.defaultSupplierId || null,
       data.defaultCostPeriodicity || "MONTHLY",
       JSON.stringify(ServicePresentationSchema.parse(data.presentation || {})),
+      data.deliveryTemplateId || null,
+      data.onboardingTemplateId || null,
     ]
   );
 
@@ -321,21 +350,11 @@ export async function createService(data: CreateServiceDTO): Promise<ServiceItem
     ["services", r.id, "INSERT", JSON.stringify({ name: r.name, price: r.default_price })]
   );
 
-  return {
-    id: r.id,
-    categoryId: r.category_id,
-    defaultSupplierId: r.default_supplier_id || null,
-    defaultCostPeriodicity: r.default_cost_periodicity || "MONTHLY",
-    presentation: ServicePresentationSchema.parse(r.presentation || {}),
-    name: r.name,
-    description: r.description,
-    defaultPrice: parseFloat(r.default_price || "0"),
-    defaultCost: parseFloat(r.default_cost || "0"),
-    billingUnit: r.billing_unit,
-    status: r.status,
-    createdAt: r.created_at.toISOString(),
-    updatedAt: r.updated_at.toISOString(),
-  };
+  const created = await getServiceById(r.id);
+  if (!created) {
+    throw new Error("Erro ao carregar serviço recém-criado.");
+  }
+  return created;
 }
 
 export async function updateService(
@@ -347,7 +366,7 @@ export async function updateService(
     throw new Error("Serviço não encontrado.");
   }
 
-  const res = await query<DbServiceRow>(
+  await query<DbServiceRow>(
     `UPDATE services SET
       category_id = COALESCE($1, category_id),
       name = COALESCE($2, name),
@@ -357,6 +376,8 @@ export async function updateService(
       billing_unit = COALESCE($6, billing_unit),
       status = COALESCE($7, status),
       presentation = $9::jsonb,
+      delivery_template_id = $10,
+      onboarding_template_id = $11,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = $8
     RETURNING *`,
@@ -370,23 +391,16 @@ export async function updateService(
       data.status || null,
       id,
       JSON.stringify(ServicePresentationSchema.parse(data.presentation ?? existing.presentation ?? {})),
+      data.deliveryTemplateId !== undefined ? (data.deliveryTemplateId || null) : (existing.deliveryTemplateId || null),
+      data.onboardingTemplateId !== undefined ? (data.onboardingTemplateId || null) : (existing.onboardingTemplateId || null),
     ]
   );
 
-  const r = res.rows[0];
-  return {
-    id: r.id,
-    categoryId: r.category_id,
-    presentation: ServicePresentationSchema.parse(r.presentation || {}),
-    name: r.name,
-    description: r.description,
-    defaultPrice: parseFloat(r.default_price || "0"),
-    defaultCost: parseFloat(r.default_cost || "0"),
-    billingUnit: r.billing_unit,
-    status: r.status,
-    createdAt: r.created_at.toISOString(),
-    updatedAt: r.updated_at.toISOString(),
-  };
+  const updated = await getServiceById(id);
+  if (!updated) {
+    throw new Error("Erro ao carregar serviço atualizado.");
+  }
+  return updated;
 }
 
 export async function archiveService(id: string): Promise<void> {

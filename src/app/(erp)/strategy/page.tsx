@@ -37,6 +37,7 @@ import {
   Layers,
   HelpCircle,
   Loader2,
+  Search,
 } from "lucide-react";
 import { InstagramIcon as Instagram } from "@/components/ui/instagram";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
@@ -90,20 +91,108 @@ const PRESET_TONE_CATEGORIES = [
 
 const PRESET_TONES = Array.from(new Set(PRESET_TONE_CATEGORIES.flatMap((c) => c.tones)));
 
-const TARGET_AUDIENCE_OPTIONS = [
-  "Consumidor final / B2C",
-  "Empresários / Donos de PME",
-  "Executivos e C-Level / B2B",
-  "Profissionais Liberais / Autônomos",
-  "Jovens e Estudantes",
-  "Famílias e Pais/Mães",
-  "Público 50+ / Terceira Idade",
-  "Público Alto Padrão / Luxo",
-  "Compradores Corporativos / Procurement",
-  "Investidores / Parceiros",
-  "Atletas e Praticantes de Esportes",
-  "Comunidade Técnica / Especialistas",
+const TARGET_AUDIENCE_CATEGORIES = [
+  {
+    category: "B2C, Família & Estilo de Vida",
+    shortName: "B2C & Pessoas",
+    description: "Consumidores finais e perfis demográficos da sociedade",
+    audiences: [
+      "Consumidor final / B2C",
+      "Famílias e Pais/Mães",
+      "Mulheres / Mães e Gestantes",
+      "Homens / Pais de Família",
+      "Jovens e Estudantes",
+      "Público 50+ / Terceira Idade",
+      "Público Alto Padrão / Luxo",
+      "Público Econômico / Sensível a Preço",
+      "Noivas, Noivos & Casais",
+      "Donos de Pets / Tutores de Animais",
+      "Crianças e Adolescentes (via Pais)",
+    ],
+  },
+  {
+    category: "B2B, Negócios & Liderança",
+    shortName: "B2B & Negócios",
+    description: "Empresas, tomadores de decisão e mundo corporativo",
+    audiences: [
+      "Empresários / Donos de PME",
+      "Executivos e C-Level / B2B",
+      "Gestores de RH e Pessoas",
+      "Gestores Financeiros e CFOs",
+      "Gestores de Vendas e Comercial",
+      "Gestores de TI, CTOs & Inovação",
+      "Compradores Corporativos / Procurement",
+      "Startups & Empresas Scale-Up",
+      "Franqueados e Redes de Franquias",
+      "Revendedores, Lojistas & Distribuidores",
+      "Empresas Familiares em Transição",
+    ],
+  },
+  {
+    category: "Saúde, Bem-Estar, Fitness & Estética",
+    shortName: "Saúde & Estética",
+    description: "Pacientes, praticantes e clientes do setor de saúde",
+    audiences: [
+      "Pacientes em Tratamento / Consultórios",
+      "Familiares e Cuidadores de Pacientes",
+      "Pessoas com Dor Crônica ou Lesões",
+      "Atletas e Praticantes de Esportes",
+      "Interessados em Emagrecimento & Longevidade",
+      "Interessados em Estética & Autocuidado",
+      "Pessoas com Ansiedade, Estresse ou Burnout",
+      "Mulheres no Pós-Parto ou Menopausa",
+      "Pessoas com Condições Específicas / PCD / Autismo",
+    ],
+  },
+  {
+    category: "Serviços Profissionais & Especialistas",
+    shortName: "Profissionais",
+    description: "Profissionais liberais, operadores técnicos e especialistas",
+    audiences: [
+      "Profissionais Liberais / Autônomos",
+      "Médicos, Dentistas & Clínicas",
+      "Advogados, Escritórios & Jurídico",
+      "Contadores, Assessores & BPO Financeiro",
+      "Engenheiros, Arquitetos & Designers de Interiores",
+      "Corretores de Imóveis & Imobiliárias",
+      "Consultores e Mentores Especializados",
+      "Comunidade Técnica / Especialistas",
+      "Criadores de Conteúdo & Infoprodutores",
+    ],
+  },
+  {
+    category: "Construção, Imóveis, Indústria & Agro",
+    shortName: "Imóveis & Agro",
+    description: "Mercado imobiliário, produtivo e rural",
+    audiences: [
+      "Proprietários de Imóveis / Reformas",
+      "Compradores de Primeiro Imóvel / Moradia",
+      "Investidores Imobiliários / Locadores",
+      "Construtoras, Empreiteiras & Engenharia",
+      "Indústrias, Fábricas & Manufatura",
+      "Produtores Rurais / Agronegócio & Fazendeiros",
+      "Fornecedores de Insumos & Matéria-Prima",
+      "Condomínios & Síndicos Profissionais",
+    ],
+  },
+  {
+    category: "Educação, Carreiras & Investimentos",
+    shortName: "Educação & Sócios",
+    description: "Desenvolvimento profissional, ensino e capital",
+    audiences: [
+      "Alunos e Estudantes de Cursos / Pós",
+      "Concursandos e Vestibulandos",
+      "Profissionais em Transição de Carreira",
+      "Investidores / Parceiros",
+      "Comunidade Acadêmica e Pesquisadores",
+      "Líderes Comunitários e Terceiro Setor / ONGs",
+    ],
+  },
 ];
+
+const TARGET_AUDIENCE_OPTIONS = Array.from(
+  new Set(TARGET_AUDIENCE_CATEGORIES.flatMap((c) => c.audiences))
+);
 
 type StrategyTab =
   | "POSITIONING"
@@ -196,9 +285,22 @@ function StrategyContent() {
 
   // Audiences
   const [targetAudiences, setTargetAudiences] = useState<string[]>([]);
+  const [audienceSearch, setAudienceSearch] = useState("");
+  const [selectedAudienceCategory, setSelectedAudienceCategory] = useState<string>("ALL");
+  const [newCustomAudience, setNewCustomAudience] = useState("");
   const [painPoints, setPainPoints] = useState<string[]>([]);
   const [newPain, setNewPain] = useState("");
   const [salesObjections, setSalesObjections] = useState("");
+
+  const addCustomAudience = () => {
+    const trimmed = newCustomAudience.trim();
+    if (!trimmed) return;
+    if (!targetAudiences.includes(trimmed)) {
+      setTargetAudiences((prev) => [...prev, trimmed]);
+      markDirty("targetAudiences");
+    }
+    setNewCustomAudience("");
+  };
 
   // Channels
   const [instagramHandle, setInstagramHandle] = useState("");
@@ -223,6 +325,7 @@ function StrategyContent() {
     }
   }, [activeClientId]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const loadStrategyData = useCallback(async (clientId: string) => {
     if (!clientId) return;
     setLoading(true);
@@ -1495,22 +1598,23 @@ function StrategyContent() {
             {activeTab === "AUDIENCES" && (
               <div className="space-y-6">
                 {/* Categorias canônicas de 'Com quem a marca fala' */}
-                <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                <div className="p-6 rounded-2xl bg-white border border-zinc-200 shadow-2xs space-y-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-100 pb-4">
                     <div>
                       <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
                         <Users className="w-4 h-4 text-purple-600" />
                         Com Quem a Marca Fala (Categorias Gerais)
                       </h3>
                       <p className="text-xs text-zinc-500 mt-0.5">
-                        Categorias amplas de audiência que recebem as comunicações institucionais da marca.
+                        Categorias amplas e segmentos de mercado que recebem as comunicações institucionais da marca.
                       </p>
                     </div>
                     <IdentityAiButton
                       clientId={activeClientId}
                       field="targetAudiences"
                       draft={{ targetAudiences }}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-3 py-1.5 text-[11px] font-semibold text-purple-700 transition cursor-pointer"
+                      currentValue={targetAudiences.join("\n")}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-3 py-1.5 text-[11px] font-semibold text-purple-700 transition cursor-pointer self-start sm:self-auto"
                       onApply={(val) => {
                         const items = Array.isArray(val) ? val : [val];
                         setTargetAudiences((prev) => Array.from(new Set([...prev, ...items])));
@@ -1519,29 +1623,191 @@ function StrategyContent() {
                     />
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
-                    {TARGET_AUDIENCE_OPTIONS.map((audOption) => {
-                      const isSelected = targetAudiences.includes(audOption);
-                      return (
+                  {/* Resumo / Segmentos Ativos */}
+                  {targetAudiences.length > 0 && (
+                    <div className="p-3.5 rounded-xl bg-purple-50/50 border border-purple-100 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-purple-600" />
+                          Segmentos e Públicos Ativos ({targetAudiences.length})
+                        </span>
                         <button
-                          key={audOption}
                           type="button"
                           onClick={() => {
-                            setTargetAudiences(prev =>
-                              isSelected ? prev.filter(a => a !== audOption) : [...prev, audOption]
-                            );
+                            setTargetAudiences([]);
                             markDirty("targetAudiences");
                           }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer ${isSelected
-                              ? "bg-purple-600 text-white border-purple-600 shadow-xs"
-                              : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
-                            }`}
+                          className="text-[10px] text-purple-700/80 hover:text-purple-900 underline cursor-pointer"
                         >
-                          {isSelected && <Check className="w-3 h-3 inline mr-1" />}
-                          {audOption}
+                          Limpar todos
                         </button>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {targetAudiences.map((aud) => {
+                          const isCustom = !TARGET_AUDIENCE_OPTIONS.includes(aud);
+                          return (
+                            <span
+                              key={aud}
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-2xs ${
+                                isCustom
+                                  ? "bg-purple-700 text-white border border-purple-600"
+                                  : "bg-purple-600 text-white"
+                              }`}
+                            >
+                              {aud}
+                              {isCustom && (
+                                <span className="text-[9px] bg-purple-800/80 px-1 py-0.2 rounded text-purple-200 uppercase tracking-wider">
+                                  Custom
+                                </span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTargetAudiences((prev) => prev.filter((a) => a !== aud));
+                                  markDirty("targetAudiences");
+                                }}
+                                className="text-white/80 hover:text-white cursor-pointer"
+                                title="Remover"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Barra de Busca e Filtro de Segmento */}
+                  <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between">
+                    <div className="relative flex-1">
+                      <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por segmento (ex: saúde, luxo, agro, B2B, famílias, médicos)..."
+                        value={audienceSearch}
+                        onChange={(e) => setAudienceSearch(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 text-zinc-900"
+                      />
+                    </div>
+                    {/* Filtros rápidos de categoria */}
+                    <div className="flex items-center gap-1 overflow-x-auto pb-1 sm:pb-0">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAudienceCategory("ALL")}
+                        className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                          selectedAudienceCategory === "ALL"
+                            ? "bg-zinc-900 text-white"
+                            : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                        }`}
+                      >
+                        Todos
+                      </button>
+                      {TARGET_AUDIENCE_CATEGORIES.map((cat) => (
+                        <button
+                          key={cat.category}
+                          type="button"
+                          onClick={() => setSelectedAudienceCategory(cat.category)}
+                          className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition cursor-pointer ${
+                            selectedAudienceCategory === cat.category
+                              ? "bg-zinc-900 text-white"
+                              : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                          }`}
+                        >
+                          {cat.shortName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Grid de Categorias com Opções Expandidas */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {TARGET_AUDIENCE_CATEGORIES.filter(
+                      (cat) => selectedAudienceCategory === "ALL" || selectedAudienceCategory === cat.category
+                    ).map((cat) => {
+                      const matchedAudiences = cat.audiences.filter(
+                        (a) => !audienceSearch || a.toLowerCase().includes(audienceSearch.toLowerCase())
+                      );
+                      if (audienceSearch && matchedAudiences.length === 0) return null;
+
+                      const activeCount = cat.audiences.filter((a) => targetAudiences.includes(a)).length;
+
+                      return (
+                        <div key={cat.category} className="p-4 rounded-xl border border-zinc-200 bg-zinc-50/50 space-y-2.5">
+                          <div className="flex items-center justify-between border-b border-zinc-200/60 pb-2">
+                            <div>
+                              <span className="text-xs font-bold text-zinc-900 block">
+                                {cat.category}
+                              </span>
+                              <span className="text-[11px] text-zinc-500 block">
+                                {cat.description}
+                              </span>
+                            </div>
+                            {activeCount > 0 && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 shrink-0">
+                                {activeCount} ativo(s)
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {matchedAudiences.map((audOption) => {
+                              const isSelected = targetAudiences.includes(audOption);
+                              return (
+                                <button
+                                  key={audOption}
+                                  type="button"
+                                  onClick={() => {
+                                    setTargetAudiences((prev) =>
+                                      isSelected ? prev.filter((a) => a !== audOption) : [...prev, audOption]
+                                    );
+                                    markDirty("targetAudiences");
+                                  }}
+                                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition border cursor-pointer ${
+                                    isSelected
+                                      ? "bg-purple-600 text-white border-purple-600 shadow-2xs font-semibold"
+                                      : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100 hover:border-zinc-300"
+                                  }`}
+                                >
+                                  {isSelected && <Check className="w-3 h-3 inline mr-1" />}
+                                  {audOption}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       );
                     })}
+                  </div>
+
+                  {/* Adicionar Segmento Personalizado */}
+                  <div className="pt-3 border-t border-zinc-100 space-y-2">
+                    <label className="text-xs font-bold text-zinc-800 block">
+                      Não encontrou seu nicho exato? Adicione um público ou segmento personalizado:
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Ex: Clínicas de Vacinação Infantil, Pilotos de Drone, Mães Atípicas..."
+                        value={newCustomAudience}
+                        onChange={(e) => setNewCustomAudience(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addCustomAudience();
+                          }
+                        }}
+                        className="flex-1 px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-600 text-zinc-900"
+                      />
+                      <button
+                        type="button"
+                        onClick={addCustomAudience}
+                        disabled={!newCustomAudience.trim()}
+                        className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition disabled:opacity-50 cursor-pointer"
+                      >
+                        + Adicionar
+                      </button>
+                    </div>
                   </div>
                 </div>
 

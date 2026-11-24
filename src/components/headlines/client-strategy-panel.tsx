@@ -1091,7 +1091,7 @@ export function ClientStrategyPanel({
             <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
               <h4 className="text-sm font-bold text-zinc-950">Com Quem Fala (Destinatário)</h4>
               <div className="space-y-2">
-                {COMMUNICATION_OPTIONS.audienceTypes.slice(0, 7).map((aud) => {
+                {COMMUNICATION_OPTIONS.audienceTypes.map((aud) => {
                   const active = communicationProfile.audienceTypes?.includes(aud);
                   return (
                     <button

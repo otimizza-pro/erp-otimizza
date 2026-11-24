@@ -355,7 +355,7 @@ function StrategyContent() {
           const errData = await res.json();
           setConflict(
             errData.message ||
-              "Conflito detectado: este registro foi alterado em outra sessão. Recarregue para atualizar."
+            "Conflito detectado: este registro foi alterado em outra sessão. Recarregue para atualizar."
           );
           setSaving(false);
           return;
@@ -610,11 +610,10 @@ function StrategyContent() {
               type="button"
               onClick={() => persistChanges(true)}
               disabled={saving}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${
-                dirty
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${dirty
                   ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs"
                   : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
-              }`}
+                }`}
             >
               {saving ? (
                 <>
@@ -654,11 +653,10 @@ function StrategyContent() {
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab(tab.id)}
-                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${
-                    isActive
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg transition whitespace-nowrap cursor-pointer ${isActive
                       ? "bg-zinc-900 text-white shadow-2xs font-bold"
                       : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/70 font-medium"
-                  }`}
+                    }`}
                 >
                   <Icon className={`w-3.5 h-3.5 ${isActive ? "text-zinc-200" : "text-zinc-400"}`} />
                   {tab.label}
@@ -931,11 +929,10 @@ function StrategyContent() {
                                     );
                                     markDirty("toneOfVoice");
                                   }}
-                                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition border cursor-pointer ${
-                                    isSelected
+                                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition border cursor-pointer ${isSelected
                                       ? "bg-purple-600 text-white border-purple-600 shadow-2xs font-semibold"
                                       : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-100"
-                                  }`}
+                                    }`}
                                 >
                                   {isSelected && <Check className="w-3 h-3 inline mr-1" />}
                                   {tone}
@@ -1380,11 +1377,10 @@ function StrategyContent() {
                             <div className="flex items-start justify-between gap-2">
                               <div>
                                 <span
-                                  className={`text-[11px] font-medium px-2 py-0.5 rounded-md border ${
-                                    item.type === "PRODUCT"
+                                  className={`text-[11px] font-medium px-2 py-0.5 rounded-md border ${item.type === "PRODUCT"
                                       ? "bg-amber-50 text-amber-800 border-amber-200"
                                       : "bg-blue-50 text-blue-800 border-blue-200"
-                                  }`}
+                                    }`}
                                 >
                                   {item.type === "PRODUCT" ? "Produto" : "Serviço"}
                                 </span>
@@ -1536,11 +1532,10 @@ function StrategyContent() {
                             );
                             markDirty("targetAudiences");
                           }}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer ${
-                            isSelected
+                          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer ${isSelected
                               ? "bg-purple-600 text-white border-purple-600 shadow-xs"
                               : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
-                          }`}
+                            }`}
                         >
                           {isSelected && <Check className="w-3 h-3 inline mr-1" />}
                           {audOption}
@@ -1564,6 +1559,7 @@ function StrategyContent() {
                   <ClientAudiencesManager
                     clientId={activeClientId}
                     clientName={activeCompany.name}
+                    catalogItems={catalogItems.map((it) => ({ id: it.id, name: it.name, type: it.type }))}
                   />
                 </div>
 
@@ -1902,435 +1898,430 @@ function StrategyContent() {
 
       {/* Modal de Criação / Edição de Produto ou Serviço */}
       {catalogModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-zinc-200">
-            {/* Header Fixo */}
-            <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between gap-4 bg-zinc-50/50">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                    catalogType === "SERVICE"
-                      ? "bg-blue-50 text-blue-600 border-blue-200"
-                      : "bg-amber-50 text-amber-600 border-amber-200"
-                  }`}
-                >
-                  {catalogType === "SERVICE" ? (
-                    <Briefcase className="w-5 h-5" />
-                  ) : (
-                    <Package className="w-5 h-5" />
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-base text-zinc-950">
-                      {editingCatalogItem ? "Editar Oferta do Catálogo" : "Nova Oferta do Catálogo"}
-                    </h3>
-                    <span
-                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${
-                        catalogType === "SERVICE"
-                          ? "bg-blue-100/70 text-blue-800 border-blue-200"
-                          : "bg-amber-100/70 text-amber-800 border-amber-200"
-                      }`}
-                    >
-                      {catalogType === "SERVICE" ? "Serviço" : "Produto"}
-                    </span>
-                  </div>
-                  <p className="text-xs text-zinc-500 mt-0.5">
-                    Cadastre em detalhes o que o seu cliente comercializa para orientar pautas, roteiros e anúncios da IA.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setCatalogModalOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-zinc-200/70 text-zinc-400 hover:text-zinc-700 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Conteúdo com Scroll */}
-            <form onSubmit={handleSaveCatalogModal} className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Barra Superior: Tipo e Nome */}
-              <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-zinc-700">Tipo da Oferta:</span>
-                    <div className="inline-flex rounded-xl bg-zinc-200/70 p-1 border border-zinc-200">
-                      <button
-                        type="button"
-                        onClick={() => setCatalogType("SERVICE")}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                          catalogType === "SERVICE"
-                            ? "bg-white text-blue-700 shadow-2xs"
-                            : "text-zinc-600 hover:text-zinc-900"
-                        }`}
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs">
+                <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden border border-zinc-200">
+                  {/* Header Fixo */}
+                  <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between gap-4 bg-zinc-50/50">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${catalogType === "SERVICE"
+                            ? "bg-blue-50 text-blue-600 border-blue-200"
+                            : "bg-amber-50 text-amber-600 border-amber-200"
+                          }`}
                       >
-                        <Briefcase className="w-3.5 h-3.5" />
-                        Serviço
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCatalogType("PRODUCT")}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                          catalogType === "PRODUCT"
-                            ? "bg-white text-amber-700 shadow-2xs"
-                            : "text-zinc-600 hover:text-zinc-900"
-                        }`}
-                      >
-                        <Package className="w-3.5 h-3.5" />
-                        Produto
-                      </button>
-                    </div>
-                  </div>
-
-                  <span className="text-[11px] text-zinc-500">
-                    {catalogType === "SERVICE"
-                      ? "Prestação de serviços, consultorias, atendimentos e cursos."
-                      : "Bens físicos, produtos em embalagem, e-commerce ou manufaturados."}
-                  </span>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-zinc-800 block mb-1">
-                    Nome Comercial da Oferta *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Consultoria de Gestão Financeira 1 a 1, Clareamento Dental a Laser, Móveis Planejados de Cozinha..."
-                    value={catalogName}
-                    onChange={(e) => setCatalogName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 font-medium"
-                  />
-                </div>
-              </div>
-
-              {/* Grid de 2 Colunas */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Coluna 1: Proposta, Escopo e Diferenciais */}
-                <div className="space-y-4">
-                  {/* Descrição Completa */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="text-xs font-bold text-zinc-800">
-                        Descrição Completa da Oferta
-                      </label>
-                      <IdentityAiButton
-                        clientId={activeClientId}
-                        field="valueProposition"
-                        draft={{
-                          valueProposition: catalogDescription,
-                          marketNiche: `${catalogType === "SERVICE" ? "Serviço" : "Produto"}: ${catalogName || activeCompany.name}`,
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/80 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition cursor-pointer"
-                        onApply={(val) => {
-                          setCatalogDescription(Array.isArray(val) ? val.join("\n") : val);
-                        }}
-                      />
-                    </div>
-                    <textarea
-                      rows={3}
-                      placeholder="Explique o que é a oferta, como ela é executada, duração, objetivo e particularidades técnicas..."
-                      value={catalogDescription}
-                      onChange={(e) => setCatalogDescription(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y"
-                    />
-                  </div>
-
-                  {/* Entregáveis / O que está incluso */}
-                  <div>
-                    <label className="text-xs font-bold text-zinc-800 block mb-1">
-                      O que está Incluso / Entregáveis e Escopo
-                    </label>
-                    <textarea
-                      rows={3}
-                      placeholder="Ex: - Diagnóstico de maturidade inicial&#10;- 4 sessões práticas individuais de 1h&#10;- Suporte direto via WhatsApp por 60 dias&#10;- Relatório em PDF com recomendações"
-                      value={catalogDeliverables}
-                      onChange={(e) => setCatalogDeliverables(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y"
-                    />
-                    <p className="text-[11px] text-zinc-500 mt-1">
-                      Escopo prático do que o cliente final recebe ao adquirir esta oferta.
-                    </p>
-                  </div>
-
-                  {/* Diferenciais Competitivos Desta Oferta (Tags / Lista) */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-zinc-800">
-                        Diferenciais Específicos Desta Oferta
-                      </label>
-                      <IdentityAiButton
-                        clientId={activeClientId}
-                        field="differentials"
-                        draft={{
-                          differentials: catalogDiffsList,
-                          marketNiche: `${catalogType === "SERVICE" ? "Serviço" : "Produto"}: ${catalogName || activeCompany.name}. ${catalogDescription}`,
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition cursor-pointer"
-                        onApply={(val) => {
-                          const items = Array.isArray(val) ? val : [val];
-                          setCatalogDiffsList((prev) => Array.from(new Set([...prev, ...items.map((s) => s.trim())])));
-                        }}
-                      />
-                    </div>
-
-                    {/* Tags dos diferenciais */}
-                    {catalogDiffsList.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 p-2 bg-zinc-50 rounded-xl border border-zinc-200">
-                        {catalogDiffsList.map((diff, dIdx) => (
-                          <span
-                            key={dIdx}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-medium"
-                          >
-                            <span>{diff}</span>
-                            <button
-                              type="button"
-                              onClick={() => setCatalogDiffsList((prev) => prev.filter((_, i) => i !== dIdx))}
-                              className="p-0.5 hover:bg-emerald-200 rounded-full transition cursor-pointer"
-                            >
-                              <X className="w-3 h-3 text-emerald-700" />
-                            </button>
-                          </span>
-                        ))}
+                        {catalogType === "SERVICE" ? (
+                          <Briefcase className="w-5 h-5" />
+                        ) : (
+                          <Package className="w-5 h-5" />
+                        )}
                       </div>
-                    )}
-
-                    {/* Input de Adicionar Diferencial */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="+ Adicionar diferencial competitivo..."
-                        value={newCatalogDiff}
-                        onChange={(e) => setNewCatalogDiff(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && newCatalogDiff.trim()) {
-                            e.preventDefault();
-                            if (!catalogDiffsList.includes(newCatalogDiff.trim())) {
-                              setCatalogDiffsList((prev) => [...prev, newCatalogDiff.trim()]);
-                            }
-                            setNewCatalogDiff("");
-                          }
-                        }}
-                        className="flex-1 px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 text-zinc-900"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (newCatalogDiff.trim()) {
-                            if (!catalogDiffsList.includes(newCatalogDiff.trim())) {
-                              setCatalogDiffsList((prev) => [...prev, newCatalogDiff.trim()]);
-                            }
-                            setNewCatalogDiff("");
-                          }
-                        }}
-                        className="px-3.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition cursor-pointer"
-                      >
-                        Adicionar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Coluna 2: Dores Resolvidas, Metodologia e Públicos */}
-                <div className="space-y-4">
-                  {/* Dores que a Oferta Resolve (Multi-itens + IA) */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
                       <div>
-                        <label className="text-xs font-bold text-zinc-800 block">
-                          Dores do Cliente que Resolve (Múltiplos Itens)
-                        </label>
-                        <span className="text-[11px] text-zinc-500">
-                          Problemas específicos que essa oferta soluciona
-                        </span>
-                      </div>
-                      <IdentityAiButton
-                        clientId={activeClientId}
-                        field="painPoints"
-                        label="Sugerir dores com IA"
-                        draft={{
-                          painPoints: catalogPainsList,
-                          marketNiche: `${catalogType === "SERVICE" ? "Serviço" : "Produto"}: ${catalogName || activeCompany.name}. Descrição: ${catalogDescription}`,
-                        }}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-2.5 py-1 text-[11px] font-semibold text-purple-700 transition cursor-pointer"
-                        onApply={(val) => {
-                          const items = Array.isArray(val) ? val : [val];
-                          setCatalogPainsList((prev) => Array.from(new Set([...prev, ...items.map((s) => s.trim())])));
-                        }}
-                      />
-                    </div>
-
-                    {/* Lista de Dores (Tags) */}
-                    {catalogPainsList.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5 p-2.5 bg-rose-50/40 rounded-xl border border-rose-200/80 min-h-[52px]">
-                        {catalogPainsList.map((pain, pIdx) => (
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-base text-zinc-950">
+                            {editingCatalogItem ? "Editar Oferta do Catálogo" : "Nova Oferta do Catálogo"}
+                          </h3>
                           <span
-                            key={pIdx}
-                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white text-rose-900 border border-rose-200 text-xs font-medium shadow-2xs"
-                          >
-                            <span>{pain}</span>
-                            <button
-                              type="button"
-                              onClick={() => setCatalogPainsList((prev) => prev.filter((_, i) => i !== pIdx))}
-                              className="p-0.5 hover:bg-rose-100 rounded-full transition cursor-pointer"
-                              title="Remover dor"
-                            >
-                              <X className="w-3 h-3 text-rose-600" />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="p-3 text-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 text-[11px] text-zinc-500">
-                        Nenhuma dor cadastrada ainda. Adicione as dores do seu cliente abaixo ou gere com a IA.
-                      </div>
-                    )}
-
-                    {/* Input de Adicionar Dor */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="+ Digite uma dor específica resolvida e pressione Enter..."
-                        value={newCatalogPain}
-                        onChange={(e) => setNewCatalogPain(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && newCatalogPain.trim()) {
-                            e.preventDefault();
-                            if (!catalogPainsList.includes(newCatalogPain.trim())) {
-                              setCatalogPainsList((prev) => [...prev, newCatalogPain.trim()]);
-                            }
-                            setNewCatalogPain("");
-                          }
-                        }}
-                        className="flex-1 px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-600 text-zinc-900"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (newCatalogPain.trim()) {
-                            if (!catalogPainsList.includes(newCatalogPain.trim())) {
-                              setCatalogPainsList((prev) => [...prev, newCatalogPain.trim()]);
-                            }
-                            setNewCatalogPain("");
-                          }
-                        }}
-                        className="px-3.5 py-2 bg-rose-600 text-white rounded-xl text-xs font-semibold hover:bg-rose-700 transition cursor-pointer"
-                      >
-                        Adicionar
-                      </button>
-                    </div>
-
-                    {/* Banner explicativo de inteligência */}
-                    <div className="p-2.5 rounded-xl bg-purple-50/60 border border-purple-200 text-purple-900 text-xs flex items-start gap-2">
-                      <Sparkles className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
-                      <p className="leading-relaxed text-[11px]">
-                        <strong>Inteligência de Conteúdo:</strong> Cada dor cadastrada acima pode ser selecionada isoladamente pela IA no Brainstorm e Estúdio Criativo para criar roteiros e carrosséis com foco cirúrgico em cada problema.
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Modo de Solução / Abordagem Metodológica */}
-                  <div>
-                    <label className="text-xs font-bold text-zinc-800 block mb-1">
-                      Modo de Solução / Abordagem Metodológica
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="Ex: Método 3D: Diagnóstico 360°, Plano de Ação em 15 dias e Acompanhamento Semanal com dashboards..."
-                      value={catalogSolution}
-                      onChange={(e) => setCatalogSolution(e.target.value)}
-                      className="w-full px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y"
-                    />
-                    <p className="text-[11px] text-zinc-500 mt-1">
-                      Como a solução é implementada ou qual é o método/mecanismo exclusivo da empresa.
-                    </p>
-                  </div>
-
-                  {/* Vínculo com Públicos-Alvo / Personas */}
-                  <div className="space-y-2 pt-2 border-t border-zinc-100">
-                    <label className="text-xs font-bold text-zinc-800 block">
-                      Personas e Públicos Destinatários Desta Oferta
-                    </label>
-                    {availableAudiences.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {availableAudiences.map((aud) => {
-                          const isSelected = catalogAudienceIds.includes(aud.id);
-                          return (
-                            <button
-                              key={aud.id}
-                              type="button"
-                              onClick={() => {
-                                setCatalogAudienceIds((prev) =>
-                                  isSelected ? prev.filter((id) => id !== aud.id) : [...prev, aud.id]
-                                );
-                              }}
-                              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer flex items-center gap-1.5 ${
-                                isSelected
-                                  ? "bg-purple-600 text-white border-purple-600 shadow-2xs"
-                                  : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
+                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-md border ${catalogType === "SERVICE"
+                                ? "bg-blue-100/70 text-blue-800 border-blue-200"
+                                : "bg-amber-100/70 text-amber-800 border-amber-200"
                               }`}
-                            >
-                              {isSelected ? (
-                                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                              ) : (
-                                <Plus className="w-3.5 h-3.5 text-zinc-400" />
-                              )}
-                              <span>{aud.name}</span>
-                            </button>
-                          );
-                        })}
+                          >
+                            {catalogType === "SERVICE" ? "Serviço" : "Produto"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 mt-0.5">
+                          Cadastre em detalhes o que o seu cliente comercializa para orientar pautas, roteiros e anúncios da IA.
+                        </p>
                       </div>
-                    ) : (
-                      <p className="text-[11px] text-zinc-400 italic">
-                        Nenhuma persona específica cadastrada na aba &quot;Públicos&quot;. Esta oferta será associada ao público institucional geral.
-                      </p>
-                    )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setCatalogModalOpen(false)}
+                      className="p-1.5 rounded-xl hover:bg-zinc-200/70 text-zinc-400 hover:text-zinc-700 transition cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                </div>
-              </div>
 
-              {/* Rodapé Fixo */}
-              <div className="flex items-center justify-between pt-4 border-t border-zinc-200 mt-6">
-                <div className="text-[11px] text-zinc-500 hidden sm:block">
-                  <span className="font-semibold text-zinc-700">{catalogPainsList.length}</span> dores cadastradas •{" "}
-                  <span className="font-semibold text-zinc-700">{catalogDiffsList.length}</span> diferenciais •{" "}
-                  <span className="font-semibold text-zinc-700">{catalogAudienceIds.length}</span> públicos vinculados
-                </div>
+                        {/* Conteúdo com Scroll */}
+                        <form onSubmit={handleSaveCatalogModal} className="flex-1 overflow-y-auto p-6 space-y-6">
+                          {/* Barra Superior: Tipo e Nome */}
+                          <div className="p-4 rounded-xl bg-zinc-50 border border-zinc-200 space-y-3">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-zinc-700">Tipo da Oferta:</span>
+                                <div className="inline-flex rounded-xl bg-zinc-200/70 p-1 border border-zinc-200">
+                                  <button
+                                    type="button"
+                                    onClick={() => setCatalogType("SERVICE")}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${catalogType === "SERVICE"
+                                        ? "bg-white text-blue-700 shadow-2xs"
+                                        : "text-zinc-600 hover:text-zinc-900"
+                                      }`}
+                                  >
+                                    <Briefcase className="w-3.5 h-3.5" />
+                                    Serviço
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCatalogType("PRODUCT")}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${catalogType === "PRODUCT"
+                                        ? "bg-white text-amber-700 shadow-2xs"
+                                        : "text-zinc-600 hover:text-zinc-900"
+                                      }`}
+                                  >
+                                    <Package className="w-3.5 h-3.5" />
+                                    Produto
+                                  </button>
+                                </div>
+                              </div>
 
-                <div className="flex items-center gap-2 ml-auto">
-                  <button
-                    type="button"
-                    onClick={() => setCatalogModalOpen(false)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-zinc-100 transition cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={catalogSaving || !catalogName.trim()}
-                    className="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 transition disabled:opacity-50 cursor-pointer shadow-2xs"
-                  >
-                    {catalogSaving ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Salvando...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-3.5 h-3.5" />
-                        {editingCatalogItem ? "Salvar Alterações" : "Salvar Oferta"}
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
+                              <span className="text-[11px] text-zinc-500">
+                                {catalogType === "SERVICE"
+                                  ? "Prestação de serviços, consultorias, atendimentos e cursos."
+                                  : "Bens físicos, produtos em embalagem, e-commerce ou manufaturados."}
+                              </span>
+                            </div>
+
+                                <div>
+                                  <label className="text-xs font-bold text-zinc-800 block mb-1">
+                                    Nome Comercial da Oferta *
+                                  </label>
+                  <input
+                                    type="text"
+                                    required
+                                    placeholder="Ex: Consultoria de Gestão Financeira 1 a 1, Clareamento Dental a Laser, Móveis Planejados de Cozinha..."
+                                    value={catalogName}
+                                    onChange={(e) => setCatalogName(e.target.value)}
+                                    className="w-full px-3.5 py-2.5 text-xs bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 font-medium"
+                                  />
+                                </div>
+                            </div>
+
+                                {/* Grid de 2 Colunas */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                  {/* Coluna 1: Proposta, Escopo e Diferenciais */}
+                                  <div className="space-y-4">
+                                    {/* Descrição Completa */}
+                                    <div>
+                                      <div className="flex items-center justify-between mb-1.5">
+                                        <label className="text-xs font-bold text-zinc-800">
+                                          Descrição Completa da Oferta
+                                        </label>
+                                        <IdentityAiButton
+                                          clientId={activeClientId}
+                                          field="valueProposition"
+                                          draft={{
+                                            valueProposition: catalogDescription,
+                                            marketNiche: `${catalogType === "SERVICE" ? "Serviço" : "Produto"}: ${catalogName || activeCompany.name}`,
+                                          }}
+                                          className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/80 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 transition cursor-pointer"
+                                          onApply={(val) => {
+                                            setCatalogDescription(Array.isArray(val) ? val.join("\n") : val);
+                                          }}
+                                        />
+                                      </div>
+                                      <textarea
+                                        rows={3}
+                                        placeholder="Explique o que é a oferta, como ela é executada, duração, objetivo e particularidades técnicas..."
+                                        value={catalogDescription}
+                                        onChange={(e) => setCatalogDescription(e.target.value)}
+                                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y"
+                                      />
+                                    </div>
+
+                                    {/* Entregáveis / O que está incluso */}
+                                    <div>
+                                      <label className="text-xs font-bold text-zinc-800 block mb-1">
+                                        O que está Incluso / Entregáveis e Escopo
+                                      </label>
+                                      <textarea
+                                        rows={3}
+                                        placeholder="Ex: - Diagnóstico de maturidade inicial&#10;- 4 sessões práticas individuais de 1h&#10;- Suporte direto via WhatsApp por 60 dias&#10;- Relatório em PDF com recomendações"
+                                        value={catalogDeliverables}
+                                        onChange={(e) => setCatalogDeliverables(e.target.value)}
+                                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y"
+                                      />
+                                      <p className="text-[11px] text-zinc-500 mt-1">
+                                        Escopo prático do que o cliente final recebe ao adquirir esta oferta.
+                                      </p>
+                                    </div>
+
+                                    {/* Diferenciais Competitivos Desta Oferta (Tags / Lista) */}
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <label className="text-xs font-bold text-zinc-800">
+                                          Diferenciais Específicos Desta Oferta
+                                        </label>
+                                        <IdentityAiButton
+                                          clientId={activeClientId}
+                                          field="differentials"
+                                          draft={{
+                                            differentials: catalogDiffsList,
+                                            marketNiche: `${catalogType === "SERVICE" ? "Serviço" : "Produto"}: ${catalogName || activeCompany.name}. ${catalogDescription}`,
+                                          }}
+                                          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/80 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 transition cursor-pointer"
+                                          onApply={(val) => {
+                                            const items = Array.isArray(val) ? val : [val];
+                                            setCatalogDiffsList((prev) => Array.from(new Set([...prev, ...items.map((s) => s.trim())])));
+                                          }}
+                                        />
+                                      </div>
+
+                                      {/* Tags dos diferenciais */}
+                                      {catalogDiffsList.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5 p-2 bg-zinc-50 rounded-xl border border-zinc-200">
+                                          {catalogDiffsList.map((diff, dIdx) => (
+                                            <span
+                                              key={dIdx}
+                                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-900 border border-emerald-200 text-xs font-medium"
+                                            >
+                                              <span>{diff}</span>
+                                              <button
+                                                type="button"
+                                                onClick={() => setCatalogDiffsList((prev) => prev.filter((_, i) => i !== dIdx))}
+                                                className="p-0.5 hover:bg-emerald-200 rounded-full transition cursor-pointer"
+                                              >
+                                                <X className="w-3 h-3 text-emerald-700" />
+                                              </button>
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
+
+                                      {/* Input de Adicionar Diferencial */}
+                                      <div className="flex items-center gap-2">
+                                        <input
+                                          type="text"
+                                          placeholder="+ Adicionar diferencial competitivo..."
+                                          value={newCatalogDiff}
+                                          onChange={(e) => setNewCatalogDiff(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter" && newCatalogDiff.trim()) {
+                                              e.preventDefault();
+                                              if (!catalogDiffsList.includes(newCatalogDiff.trim())) {
+                                                setCatalogDiffsList((prev) => [...prev, newCatalogDiff.trim()]);
+                                              }
+                                              setNewCatalogDiff("");
+                                            }
+                                          }}
+                                          className="flex-1 px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600 text-zinc-900"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (newCatalogDiff.trim()) {
+                                              if (!catalogDiffsList.includes(newCatalogDiff.trim())) {
+                                                setCatalogDiffsList((prev) => [...prev, newCatalogDiff.trim()]);
+                                              }
+                                              setNewCatalogDiff("");
+                                            }
+                                          }}
+                                          className="px-3.5 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition cursor-pointer"
+                                        >
+                                          Adicionar
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Coluna 2: Dores Resolvidas, Metodologia e Públicos */}
+                                  <div className="space-y-4">
+                                    {/* Dores que a Oferta Resolve (Multi-itens + IA) */}
+                                    <div className="space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <label className="text-xs font-bold text-zinc-800 block">
+                                            Dores do Cliente que Resolve (Múltiplos Itens)
+                                          </label>
+                                          <span className="text-[11px] text-zinc-500">
+                                            Problemas específicos que essa oferta soluciona
+                                          </span>
+                                        </div>
+                                        <IdentityAiButton
+                                          clientId={activeClientId}
+                                          field="painPoints"
+                                          label="Sugerir dores com IA"
+                                          draft={{
+                                            painPoints: catalogPainsList,
+                                            marketNiche: `${catalogType === "SERVICE" ? "Serviço" : "Produto"}: ${catalogName || activeCompany.name}. Descrição: ${catalogDescription}`,
+                                          }}
+                                          className="inline-flex items-center gap-1.5 rounded-full border border-purple-200 bg-purple-50/70 hover:bg-purple-100/80 px-2.5 py-1 text-[11px] font-semibold text-purple-700 transition cursor-pointer"
+                                          onApply={(val) => {
+                                            const items = Array.isArray(val) ? val : [val];
+                                            setCatalogPainsList((prev) => Array.from(new Set([...prev, ...items.map((s) => s.trim())])));
+                                          }}
+                                        />
+                                      </div>
+
+                                      {/* Lista de Dores (Tags) */}
+                                      {catalogPainsList.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1.5 p-2.5 bg-rose-50/40 rounded-xl border border-rose-200/80 min-h-[52px]">
+                                          {catalogPainsList.map((pain, pIdx) => (
+                                            <span
+                                              key={pIdx}
+                                              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white text-rose-900 border border-rose-200 text-xs font-medium shadow-2xs"
+                                            >
+                                              <span>{pain}</span>
+                                              <button
+                                                type="button"
+                                                onClick={() => setCatalogPainsList((prev) => prev.filter((_, i) => i !== pIdx))}
+                                                className="p-0.5 hover:bg-rose-100 rounded-full transition cursor-pointer"
+                                                title="Remover dor"
+                                              >
+                                                <X className="w-3 h-3 text-rose-600" />
+                                              </button>
+                                            </span>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div className="p-3 text-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 text-[11px] text-zinc-500">
+                                          Nenhuma dor cadastrada ainda. Adicione as dores do seu cliente abaixo ou gere com a IA.
+                                        </div>
+                                      )}
+
+                                      {/* Input de Adicionar Dor */}
+                                      <div className="flex items-center gap-2">
+                                        <input
+                                          type="text"
+                                          placeholder="+ Digite uma dor específica resolvida e pressione Enter..."
+                                          value={newCatalogPain}
+                                          onChange={(e) => setNewCatalogPain(e.target.value)}
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter" && newCatalogPain.trim()) {
+                                              e.preventDefault();
+                                              if (!catalogPainsList.includes(newCatalogPain.trim())) {
+                                                setCatalogPainsList((prev) => [...prev, newCatalogPain.trim()]);
+                                              }
+                                              setNewCatalogPain("");
+                                            }
+                                          }}
+                                          className="flex-1 px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-600 text-zinc-900"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (newCatalogPain.trim()) {
+                                              if (!catalogPainsList.includes(newCatalogPain.trim())) {
+                                                setCatalogPainsList((prev) => [...prev, newCatalogPain.trim()]);
+                                              }
+                                              setNewCatalogPain("");
+                                            }
+                                          }}
+                                          className="px-3.5 py-2 bg-rose-600 text-white rounded-xl text-xs font-semibold hover:bg-rose-700 transition cursor-pointer"
+                                        >
+                                          Adicionar
+                                        </button>
+                                      </div>
+
+                                      {/* Banner explicativo de inteligência */}
+                                      <div className="p-2.5 rounded-xl bg-purple-50/60 border border-purple-200 text-purple-900 text-xs flex items-start gap-2">
+                                        <Sparkles className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                                        <p className="leading-relaxed text-[11px]">
+                                          <strong>Inteligência de Conteúdo:</strong> Cada dor cadastrada acima pode ser selecionada isoladamente pela IA no Brainstorm e Estúdio Criativo para criar roteiros e carrosséis com foco cirúrgico em cada problema.
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Modo de Solução / Abordagem Metodológica */}
+                                    <div>
+                                      <label className="text-xs font-bold text-zinc-800 block mb-1">
+                                        Modo de Solução / Abordagem Metodológica
+                                      </label>
+                                      <textarea
+                                        rows={2}
+                                        placeholder="Ex: Método 3D: Diagnóstico 360°, Plano de Ação em 15 dias e Acompanhamento Semanal com dashboards..."
+                                        value={catalogSolution}
+                                        onChange={(e) => setCatalogSolution(e.target.value)}
+                                        className="w-full px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y"
+                                      />
+                                      <p className="text-[11px] text-zinc-500 mt-1">
+                                        Como a solução é implementada ou qual é o método/mecanismo exclusivo da empresa.
+                                      </p>
+                                    </div>
+
+                                    {/* Vínculo com Públicos-Alvo / Personas */}
+                                    <div className="space-y-2 pt-2 border-t border-zinc-100">
+                                      <label className="text-xs font-bold text-zinc-800 block">
+                                        Personas e Públicos Destinatários Desta Oferta
+                                      </label>
+                                      {availableAudiences.length > 0 ? (
+                                        <div className="flex flex-wrap gap-2">
+                                          {availableAudiences.map((aud) => {
+                                            const isSelected = catalogAudienceIds.includes(aud.id);
+                                            return (
+                                              <button
+                                                key={aud.id}
+                                                type="button"
+                                                onClick={() => {
+                                                  setCatalogAudienceIds((prev) =>
+                                                    isSelected ? prev.filter((id) => id !== aud.id) : [...prev, aud.id]
+                                                  );
+                                                }}
+                                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition border cursor-pointer flex items-center gap-1.5 ${isSelected
+                                                    ? "bg-purple-600 text-white border-purple-600 shadow-2xs"
+                                                    : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100"
+                                                  }`}
+                                              >
+                                                {isSelected ? (
+                                                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                                                ) : (
+                                                  <Plus className="w-3.5 h-3.5 text-zinc-400" />
+                                                )}
+                                                <span>{aud.name}</span>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      ) : (
+                                        <p className="text-[11px] text-zinc-400 italic">
+                                          Nenhuma persona específica cadastrada na aba &quot;Públicos&quot;. Esta oferta será associada ao público institucional geral.
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                    {/* Rodapé Fixo */}
+                                    <div className="flex items-center justify-between pt-4 border-t border-zinc-200 mt-6">
+                                      <div className="text-[11px] text-zinc-500 hidden sm:block">
+                                        <span className="font-semibold text-zinc-700">{catalogPainsList.length}</span> dores cadastradas •{" "}
+                                        <span className="font-semibold text-zinc-700">{catalogDiffsList.length}</span> diferenciais •{" "}
+                                        <span className="font-semibold text-zinc-700">{catalogAudienceIds.length}</span> públicos vinculados
+                                      </div>
+
+                                        <div className="flex items-center gap-2 ml-auto">
+                                          <button
+                                            type="button"
+                                            onClick={() => setCatalogModalOpen(false)}
+                                            className="px-4 py-2 rounded-xl text-xs font-semibold text-zinc-600 hover:bg-zinc-100 transition cursor-pointer"
+                                          >
+                                            Cancelar
+                                          </button>
+                                          <button
+                                            type="submit"
+                                            disabled={catalogSaving || !catalogName.trim()}
+                                            className="inline-flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 transition disabled:opacity-50 cursor-pointer shadow-2xs"
+                                          >
+                                            {catalogSaving ? (
+                                              <>
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                Salvando...
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Save className="w-3.5 h-3.5" />
+                                                {editingCatalogItem ? "Salvar Alterações" : "Salvar Oferta"}
+                                              </>
+                                            )}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </form>
+                                  </div>
+                                </div>
       )}
-    </div>
-  );
+                              </div>
+                              );
 }

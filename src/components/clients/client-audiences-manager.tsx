@@ -45,12 +45,14 @@ interface ClientAudiencesManagerProps {
   clientId: string;
   clientName?: string;
   onAudiencesChange?: (audiences: ClientAudienceItem[]) => void;
+  catalogItems?: Array<{ id: string; name: string; type?: string }>;
 }
 
 export function ClientAudiencesManager({
   clientId,
   clientName,
   onAudiencesChange,
+  catalogItems: propCatalogItems,
 }: ClientAudiencesManagerProps) {
   const [audiences, setAudiences] = useState<ClientAudienceItem[]>([]);
   const [catalogItems, setCatalogItems] = useState<{ id: string; name: string; type: string }[]>([]);
@@ -88,6 +90,39 @@ export function ClientAudiencesManager({
   useEffect(() => {
     onAudiencesChangeRef.current = onAudiencesChange;
   }, [onAudiencesChange]);
+
+  const loadCatalog = useCallback(async () => {
+    if (!clientId) return;
+    try {
+      const res = await fetch(`/api/clients/${encodeURIComponent(clientId)}/catalog`, { cache: "no-store" });
+      if (res.ok) {
+        const catData = await res.json();
+        if (Array.isArray(catData.items)) {
+          setCatalogItems(
+            catData.items.map((it: { id: string; name: string; type: string }) => ({
+              id: it.id,
+              name: it.name,
+              type: it.type || "PRODUCT",
+            }))
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("Erro ao recarregar catálogo no audiences manager:", e);
+    }
+  }, [clientId]);
+
+  useEffect(() => {
+    if (propCatalogItems && propCatalogItems.length > 0) {
+      setCatalogItems(
+        propCatalogItems.map((it) => ({
+          id: it.id,
+          name: it.name,
+          type: it.type || "PRODUCT",
+        }))
+      );
+    }
+  }, [propCatalogItems]);
 
   const loadAudiences = useCallback(async () => {
     if (!clientId) {
@@ -138,6 +173,7 @@ export function ClientAudiencesManager({
   }, [loadAudiences]);
 
   const openCreateModal = () => {
+    void loadCatalog();
     setEditingAudience(null);
     setFormName("");
     setFormDescription("");
@@ -153,6 +189,7 @@ export function ClientAudiencesManager({
   };
 
   const openEditModal = (aud: ClientAudienceItem) => {
+    void loadCatalog();
     setEditingAudience(aud);
     setFormName(aud.name);
     setFormDescription(aud.description || "");
@@ -600,23 +637,47 @@ export function ClientAudiencesManager({
               </div>
 
               {/* Vínculo de Produtos e Serviços */}
-              {catalogItems.length > 0 && (
-                <div className="p-3.5 rounded-xl bg-purple-50/40 border border-purple-200/80 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
-                      <Package className="w-3.5 h-3.5 text-purple-600" />
-                      Produtos e Serviços Associados a Este Público
-                    </label>
-                    <span className="text-[11px] text-purple-700 font-medium">
-                      {formCatalogItemIds.length} selecionado(s)
+              <div className="p-4 rounded-xl bg-purple-50/50 border border-purple-200/80 space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                    <Package className="w-4 h-4 text-purple-600" />
+                    Produtos & Serviços Associados a Este Público
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold text-purple-800 bg-purple-100/70 px-2 py-0.5 rounded-md border border-purple-200">
+                      {formCatalogItemIds.length} de {catalogItems.length} selecionado(s)
                     </span>
+                    {catalogItems.length > 0 && (
+                      <div className="flex items-center gap-1 text-[11px]">
+                        <button
+                          type="button"
+                          onClick={() => setFormCatalogItemIds(catalogItems.map((c) => c.id))}
+                          className="text-purple-700 hover:text-purple-900 font-medium underline cursor-pointer"
+                        >
+                          Todos
+                        </button>
+                        <span className="text-purple-300">•</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormCatalogItemIds([])}
+                          className="text-purple-700 hover:text-purple-900 font-medium underline cursor-pointer"
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-[11px] text-purple-800/80">
-                    Selecione quais ofertas deste cliente são consumidas ou procuradas por este perfil:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 pt-1">
+                </div>
+
+                <p className="text-[11px] text-purple-800/90 leading-relaxed">
+                  Vincule quais produtos e serviços deste cliente são consumidos ou destinados a esta persona. A IA usará este vínculo para sugerir a oferta certa em cada conteúdo:
+                </p>
+
+                {catalogItems.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
                     {catalogItems.map((item) => {
                       const selected = formCatalogItemIds.includes(item.id);
+                      const isService = item.type === "SERVICE";
                       return (
                         <button
                           key={item.id}
@@ -626,20 +687,52 @@ export function ClientAudiencesManager({
                               selected ? prev.filter((id) => id !== item.id) : [...prev, item.id]
                             );
                           }}
-                          className={`inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border font-medium transition cursor-pointer ${
+                          className={`inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border font-semibold transition cursor-pointer select-none shadow-2xs ${
                             selected
-                              ? "bg-purple-600 text-white border-purple-600 shadow-2xs"
-                              : "bg-white text-zinc-700 border-zinc-200 hover:border-purple-300"
+                              ? "bg-purple-600 text-white border-purple-600 ring-2 ring-purple-600/30"
+                              : "bg-white text-zinc-700 border-zinc-200 hover:border-purple-300 hover:bg-purple-50/30"
                           }`}
                         >
-                          {selected ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3 text-zinc-400" />}
-                          {item.name}
+                          {selected ? (
+                            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                          ) : (
+                            <Plus className="w-3.5 h-3.5 text-zinc-400" />
+                          )}
+                          <span>{item.name}</span>
+                          <span
+                            className={`text-[9px] uppercase px-1.5 py-0.2 rounded font-bold ${
+                              selected
+                                ? "bg-white/20 text-white"
+                                : isService
+                                ? "bg-blue-50 text-blue-700"
+                                : "bg-amber-50 text-amber-700"
+                            }`}
+                          >
+                            {isService ? "Serviço" : "Produto"}
+                          </span>
                         </button>
                       );
                     })}
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="p-3 bg-white/80 rounded-xl border border-dashed border-purple-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-purple-900">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-purple-400 shrink-0" />
+                      <span>
+                        Nenhum produto ou serviço cadastrado ainda no catálogo do cliente.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void loadCatalog()}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-100 hover:bg-purple-200 text-purple-800 rounded-lg text-[11px] font-semibold transition cursor-pointer self-start sm:self-auto shrink-0"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      Recarregar catálogo
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Pilar 1: Dados Demográficos (Quem são) */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">

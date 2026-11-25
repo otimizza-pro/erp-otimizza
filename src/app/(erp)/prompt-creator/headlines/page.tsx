@@ -1432,46 +1432,108 @@ function Workspace({ clientId, companyName, projectPost }: {
                 </Link>
               </div>
             ) : (
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <button
+                    type="button"
                     onClick={() => {
                       setSelectedPillarId("");
                       setSelectedLineId("");
                     }}
                     className={
-                      "rounded-xl px-3.5 py-1.5 text-xs font-bold border transition cursor-pointer " +
+                      "rounded-xl px-3.5 py-1.5 text-xs font-bold border transition cursor-pointer inline-flex items-center gap-1.5 " +
                       (!selectedPillarId
                         ? "bg-zinc-900 text-white border-zinc-900 shadow-2xs"
                         : "bg-zinc-50 text-zinc-700 border-zinc-200 hover:bg-zinc-100")
                     }
                   >
+                    <Layers size={13} />
                     Todos os Pilares ({pillars.length})
                   </button>
+                  {selectedPillarId && (
+                    <span className="text-xs text-emerald-700 font-semibold">
+                      Filtro ativo: {pillars.find((p) => p.id === selectedPillarId)?.name}
+                      {selectedLineId ? ` → ${editorialLines.find((l) => l.id === selectedLineId)?.theme || ""}` : ""}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {pillars.map((pillar) => {
+                    const pillarLines = editorialLines.filter((l) => l.pillar_id === pillar.id);
                     const countPillarIdeas = savedIdeas.filter((i) => i.pillar_id === pillar.id).length;
                     const isSelected = selectedPillarId === pillar.id;
                     return (
-                      <button
+                      <div
                         key={pillar.id}
-                        onClick={() => {
-                          setSelectedPillarId(isSelected ? "" : pillar.id);
-                          setSelectedLineId("");
-                        }}
                         className={
-                          "rounded-xl px-3.5 py-1.5 text-xs font-bold border transition flex items-center gap-1.5 cursor-pointer " +
+                          "rounded-2xl border p-4 transition flex flex-col justify-between gap-3 " +
                           (isSelected
-                            ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
-                            : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50")
+                            ? "border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-500/15 shadow-xs"
+                            : "border-zinc-200 bg-zinc-50/50 hover:border-zinc-300")
                         }
                       >
-                        {pillar.name}
-                        {countPillarIdeas > 0 && (
-                          <span className={"rounded-full px-1.5 py-0.2 text-[10px] " + (isSelected ? "bg-emerald-800 text-white" : "bg-zinc-100 text-zinc-600")}>
-                            {countPillarIdeas}
-                          </span>
-                        )}
-                      </button>
+                        <div className="space-y-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedPillarId(isSelected ? "" : pillar.id);
+                                setSelectedLineId("");
+                              }}
+                              className="text-left group cursor-pointer flex-1"
+                            >
+                              <h3
+                                className={
+                                  "text-xs font-bold leading-snug transition " +
+                                  (isSelected ? "text-emerald-900" : "text-zinc-900 group-hover:text-emerald-700")
+                                }
+                              >
+                                {pillar.name}
+                              </h3>
+                            </button>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="rounded-full bg-white border border-zinc-200 px-2 py-0.5 text-[10px] font-semibold text-zinc-600">
+                                {pillarLines.length} {pillarLines.length === 1 ? "tema" : "temas"}
+                              </span>
+                              {countPillarIdeas > 0 && (
+                                <span className="rounded-full bg-emerald-100 border border-emerald-200 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+                                  {countPillarIdeas}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {pillarLines.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {pillarLines.map((line) => {
+                                const isLineSelected = selectedLineId === line.id;
+                                return (
+                                  <button
+                                    key={line.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedPillarId(pillar.id);
+                                      setSelectedLineId(isLineSelected ? "" : line.id);
+                                    }}
+                                    className={
+                                      "rounded-lg px-2 py-1 text-[11px] font-medium border transition cursor-pointer text-left " +
+                                      (isLineSelected
+                                        ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs font-semibold"
+                                        : "bg-white text-zinc-700 border-zinc-200 hover:border-emerald-300 hover:bg-emerald-50/40")
+                                    }
+                                    title={line.objective || line.theme}
+                                  >
+                                    {line.theme}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-zinc-400 italic">Nenhum tema cadastrado neste pilar.</p>
+                          )}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

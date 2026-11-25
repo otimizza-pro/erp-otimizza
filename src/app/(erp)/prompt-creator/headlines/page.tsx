@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ProjectPostPicker, type PlannedProjectPost } from "@/components/content-studio/project-post-picker";
 import { SocialWorkflowStepper } from "@/components/content-studio/social-workflow-stepper";
+import { toast } from "@/components/ui/toast-provider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
 import { contentCompanyId } from "@/modules/clients/internal-company";
@@ -95,6 +96,7 @@ interface SavedIdea extends IdeaSource {
   status: "IDEA" | "SAVED_FOR_LATER" | "REJECTED" | "HEADLINES_IN_PROGRESS" | "HEADLINE_CHOSEN" | "IN_CREATION" | "DONE" | "ARCHIVED";
   rejection_reason?: string;
   team?: "A" | "B";
+  model_name?: string | null;
   workspace_id: string | null;
   content_id: string | null;
   post_status?: string | null;
@@ -129,6 +131,7 @@ interface BrainstormAiIdea extends IdeaSource {
   goal?: string;
   rationale?: string;
   team?: "A" | "B";
+  model_name?: string | null;
   offer_name?: string;
   offer_id?: string | null;
   audience_angle?: string;
@@ -858,9 +861,17 @@ function Workspace({ clientId, companyName, projectPost }: {
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || "Não foi possível sugerir caminhos.");
-      setFocusSuggestions(data.paths || []);
+      const paths = data.paths || [];
+      setFocusSuggestions(paths);
+      if (paths.length > 0) {
+        toast.success(`${paths.length} caminhos de foco sugeridos logo abaixo!`);
+      } else {
+        toast.info("Nenhum caminho sugerido para os dados atuais.");
+      }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Erro ao sugerir caminhos de foco.");
+      const msg = e instanceof Error ? e.message : "Erro ao sugerir caminhos de foco.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSuggestingFocus(false);
     }
@@ -1840,6 +1851,15 @@ function Workspace({ clientId, companyName, projectPost }: {
                             Rejeitar
                           </button>
                         </div>
+
+                        {idea.model_name && (
+                          <div className="pt-2 border-t border-zinc-200/70 flex items-center justify-between text-[10px] text-zinc-500 font-mono">
+                            <span>Gerado por:</span>
+                            <span className="truncate max-w-[200px] font-semibold text-zinc-700" title={idea.model_name}>
+                              {idea.model_name}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </article>
                   ))}
@@ -2053,6 +2073,15 @@ function Workspace({ clientId, companyName, projectPost }: {
                             <Trash2 size={15} />
                           </button>
                         </div>
+
+                        {idea.model_name && (
+                          <div className="pt-2 border-t border-zinc-200/70 flex items-center justify-between text-[10px] text-zinc-500 font-mono">
+                            <span>Gerado por:</span>
+                            <span className="truncate max-w-[200px] font-semibold text-zinc-700" title={idea.model_name}>
+                              {idea.model_name}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </article>
                   );

@@ -29,6 +29,7 @@ export interface BrainstormIdea {
   status: "IDEA" | "SAVED_FOR_LATER" | "REJECTED" | "HEADLINES_IN_PROGRESS" | "HEADLINE_CHOSEN" | "IN_CREATION" | "DONE" | "ARCHIVED";
   rejection_reason?: string;
   team?: "A" | "B";
+  model_name?: string | null;
   workspace_id: string | null;
   content_id: string | null;
   post_status?: string | null;
@@ -306,23 +307,86 @@ DIRETRIZES FUNDAMENTAIS:
     })),
   });
 
-  const response = await generateWithOpenRouter({
-    model: strategyModel(),
-    maxTokens: Math.max(6000, count * 2700),
-    reasoningEffort: "low",
-    temperature: 0.7,
-    messages: [
-      { role: "system", content: systemPrompt + "\nUse uma frase curta por campo descritivo e entregue apenas o JSON solicitado." },
-      { role: "user", content: userContent },
-    ],
-  });
+  const TEAM_A_FALLBACKS = [
+    "deepseek/deepseek-v4.1-flash-1017",
+    "mistralai/mistral-nemo",
+    "particle-ai/particle-1:free",
+    "nvidia/nemotron-3.5-super-vl:free",
+  ];
+  const TEAM_B_FALLBACKS = [
+    "meta-llama/llama-3.1-8b-instruct",
+    "google/gemma-3-4b-it",
+    "dots-studio/dots-3-note-preview:free",
+    "qwen/qwen3.7-flash",
+  ];
 
-  const parsed = parseAiJson(response.text, z.array(aiIdeaSchema));
-  if (response.usage?.prompt_tokens != null && response.usage.completion_tokens != null) {
-    onTokens?.(Math.round(response.usage.prompt_tokens + response.usage.completion_tokens));
+  const isSingleTest = input.count === 1;
+  const perModelCount = isSingleTest ? 1 : 2;
+  const modelsToRun: Array<{ team: "A" | "B"; model: string }> = isSingleTest
+    ? [{ team: input.team === "B" ? "B" : "A", model: strategyModel() }]
+    : [
+        ...(input.team === "A" || input.team === "BOTH" || !input.team
+          ? TEAM_A_FALLBACKS.map((fb, idx) => ({
+              team: "A" as const,
+              model: process.env[`OPENROUTER_HEADLINE_TEAM_A_${idx + 1}_MODEL`]?.trim() || fb,
+            }))
+          : []),
+        ...(input.team === "B" || input.team === "BOTH" || !input.team
+          ? TEAM_B_FALLBACKS.map((fb, idx) => ({
+              team: "B" as const,
+              model: process.env[`OPENROUTER_HEADLINE_TEAM_B_${idx + 1}_MODEL`]?.trim() || fb,
+            }))
+          : []),
+      ];
+
+  const systemInstruction = systemPrompt.replace(`até ${count} objetos`, `exatamente ${perModelCount} objetos`) +
+    "\nUse uma frase curta por campo descritivo e entregue apenas o JSON solicitado.";
+
+  let totalMeasuredTokens = 0;
+  const results = await Promise.allSettled(
+    modelsToRun.map(async (entry) => {
+      const response = await generateWithOpenRouter({
+        model: entry.model,
+        maxTokens: isSingleTest ? 6000 : 3500,
+        reasoningEffort: "low",
+        temperature: 0.75,
+        disableFallback: !isSingleTest,
+        messages: [
+          { role: "system", content: systemInstruction },
+          { role: "user", content: userContent },
+        ],
+      });
+      const parsed = parseAiJson(response.text, z.array(aiIdeaSchema));
+      if (response.usage?.prompt_tokens != null && response.usage.completion_tokens != null) {
+        totalMeasuredTokens += Math.round(response.usage.prompt_tokens + response.usage.completion_tokens);
+      }
+      return parsed.slice(0, perModelCount).map((idea) => ({
+        ...idea,
+        team: entry.team,
+        model_name: response.model || entry.model,
+      }));
+    })
+  );
+
+  if (totalMeasuredTokens > 0) {
+    onTokens?.(totalMeasuredTokens);
   }
 
-  return parsed.slice(0, count).map((idea) => {
+  const collected: Array<z.infer<typeof aiIdeaSchema> & { model_name: string }> = [];
+  let firstError: unknown = null;
+  for (const res of results) {
+    if (res.status === "fulfilled") {
+      collected.push(...res.value);
+    } else if (!firstError) {
+      firstError = res.reason;
+    }
+  }
+
+  if (collected.length === 0 && firstError) {
+    throw firstError;
+  }
+
+  return collected.map((idea) => {
     const matchedPillar = targetPillar || pillars.find(
       (p) => p.name.toLowerCase().trim() === idea.pillar_name.toLowerCase().trim()
     ) || (external ? undefined : pillars[0]);
@@ -340,6 +404,7 @@ DIRETRIZES FUNDAMENTAIS:
       editorial_line_id: matchedLine?.id,
       format: input.format || idea.format,
       team: input.team === "A" || input.team === "B" ? input.team : idea.team,
+      model_name: idea.model_name,
       offer_name: input.offerName || "",
       offer_id: input.offerId || null,
       audience_angle: input.audienceAngle || "",
@@ -432,7 +497,7 @@ export async function searchBrainstormIdeas(input: BrainstormSearchInput) {
           pillarId: idea.pillar_id, editorialLineId: idea.editorial_line_id,
           pillarName: idea.pillar_name, themeName: idea.theme_name, angle: idea.angle,
           format: idea.format, targetAudience: idea.target_audience, painOrDesire: idea.pain_or_desire,
-          goal: idea.goal, rationale: idea.rationale, team: idea.team, status: "IDEA",
+          goal: idea.goal, rationale: idea.rationale, team: idea.team, modelName: idea.model_name, status: "IDEA",
         }, db.query.bind(db));
         await db.query(
           `UPDATE content_brainstorm_ideas SET search_id = $2, source_title = $3, source_url = $4, source_date = $5
@@ -481,6 +546,7 @@ type SaveBrainstormIdeaInput = {
   status?: BrainstormIdea["status"];
   rejectionReason?: string;
   team?: "A" | "B";
+  modelName?: string | null;
 };
 
 export async function saveBrainstormIdea(input: SaveBrainstormIdeaInput, execute = query): Promise<BrainstormIdea> {
@@ -490,8 +556,8 @@ export async function saveBrainstormIdea(input: SaveBrainstormIdeaInput, execute
     `INSERT INTO content_brainstorm_ideas (
       client_id, pillar_id, editorial_line_id, pillar_name, theme_name,
       title, angle, format, target_audience, pain_or_desire, goal, rationale,
-      status, rejection_reason, team, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+      status, rejection_reason, team, model_name, created_by
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
     RETURNING *`,
     [
       input.clientId,
@@ -509,6 +575,7 @@ export async function saveBrainstormIdea(input: SaveBrainstormIdeaInput, execute
       statusToUse,
       input.rejectionReason || "",
       input.team || "A",
+      input.modelName || null,
       input.userId,
     ]
   );

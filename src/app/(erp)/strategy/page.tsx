@@ -715,13 +715,6 @@ function StrategyContent() {
               Linha Editorial
             </Link>
             <Link
-              href="/social/format-guidelines"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-700 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 transition"
-              title="Padrões de Formatos (Reels, Carrossel, Headlines)"
-            >
-              Padrões de Formatos
-            </Link>
-            <Link
               href="/prompt-creator/headlines"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-zinc-950 rounded-xl hover:bg-zinc-800 transition shadow-2xs"
             >

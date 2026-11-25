@@ -16,6 +16,7 @@ const searchSchema = z.object({
   format: z.enum(["Carrossel", "Reels", "Post estático", "Stories"]).optional(),
   count: z.number().int().min(1).max(10).default(5),
   team: z.enum(["A", "B", "BOTH"]).default("BOTH"),
+  refineWithOpposingTeam: z.boolean().default(true),
   offerName: z.string().trim().max(255).optional(),
   offerId: uuidSchema.optional(),
   audienceAngle: z.string().trim().max(255).optional(),

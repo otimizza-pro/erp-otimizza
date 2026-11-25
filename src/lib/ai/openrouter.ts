@@ -98,6 +98,8 @@ export const AI_TEAM_B_DEFAULTS = [
   "nvidia/nemotron-3-ultra-550b-a55b:free",
 ] as const;
 
+export const autoRouterModel = () => process.env.OPENROUTER_AUTO_ROUTER_MODEL?.trim() || "openrouter/auto";
+
 export function getAiFallbackModels(): string[] {
   const envModels: string[] = [];
   for (const team of ["A", "B"] as const) {
@@ -107,6 +109,7 @@ export function getAiFallbackModels(): string[] {
       envModels.push(envVal || defaults[i]);
     }
   }
+  envModels.push(autoRouterModel());
   return Array.from(new Set(envModels.filter(Boolean)));
 }
 

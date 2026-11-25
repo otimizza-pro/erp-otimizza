@@ -97,6 +97,17 @@ interface SavedIdea extends IdeaSource {
   rejection_reason?: string;
   team?: "A" | "B";
   model_name?: string | null;
+  refinement_history?: {
+    generator_team: "A" | "B";
+    generator_model: string;
+    reviewer_team: "A" | "B";
+    reviewer_model: string;
+    ai_score: number;
+    reviewer_reason: string;
+    reviewer_suggestion: string;
+    initial_title: string;
+    initial_rationale: string;
+  } | null;
   workspace_id: string | null;
   content_id: string | null;
   post_status?: string | null;
@@ -132,6 +143,7 @@ interface BrainstormAiIdea extends IdeaSource {
   rationale?: string;
   team?: "A" | "B";
   model_name?: string | null;
+  refinement_history?: SavedIdea["refinement_history"];
   offer_name?: string;
   offer_id?: string | null;
   audience_angle?: string;
@@ -386,6 +398,7 @@ function Workspace({ clientId, companyName, projectPost }: {
 
   // Times A e B no Brainstorm e dados do fluxo de criação
   const [brainstormTeam, setBrainstormTeam] = useState<"BOTH" | "A" | "B">("BOTH");
+  const [refineWithOpposingTeam, setRefineWithOpposingTeam] = useState(true);
   const [filterTeam, setFilterTeam] = useState<"ALL" | "A" | "B">("ALL");
   const [activeContentData, setActiveContentData] = useState<{
     format: string;
@@ -815,6 +828,7 @@ function Workspace({ clientId, companyName, projectPost }: {
           direction: brainstormDirection.trim() || undefined,
           count: 5,
           team: brainstormTeam,
+          refineWithOpposingTeam,
           format: brainstormFormat === "Todos" ? undefined : brainstormFormat,
           offerName: activeOfferName,
           offerId: activeOfferId,
@@ -1782,6 +1796,18 @@ function Workspace({ clientId, companyName, projectPost }: {
                       Time B (Storytelling)
                     </button>
                   </div>
+                  <label className="mt-2.5 flex items-center gap-2 text-xs text-zinc-700 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={refineWithOpposingTeam}
+                      onChange={(e) => setRefineWithOpposingTeam(e.target.checked)}
+                      className="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 h-4 w-4 cursor-pointer"
+                    />
+                    <span className="font-semibold">Lapidação Anti-IA (Time A ↔ Time B)</span>
+                    <span className="text-[11px] text-zinc-500">
+                      — O time oposto avalia de 0 a 10 se soa como IA e devolve para lapidação final
+                    </span>
+                  </label>
                 </div>
               </div>
               <div>
@@ -1913,6 +1939,45 @@ function Workspace({ clientId, companyName, projectPost }: {
                             Rejeitar
                           </button>
                         </div>
+
+                        {idea.refinement_history && (
+                          <details className="pt-2 border-t border-zinc-200/70 text-[11px] text-zinc-600">
+                            <summary className="cursor-pointer font-semibold text-emerald-800 hover:text-emerald-950 flex items-center justify-between select-none">
+                              <span>Ver histórico da lapidação entre IAs</span>
+                              <span
+                                className={
+                                  "px-1.5 py-0.5 rounded font-mono text-[10px] font-bold " +
+                                  (idea.refinement_history.ai_score <= 3
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : idea.refinement_history.ai_score <= 6
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-rose-100 text-rose-800")
+                                }
+                              >
+                                Nota IA: {idea.refinement_history.ai_score}/10
+                              </span>
+                            </summary>
+                            <div className="mt-2 space-y-2 rounded-lg bg-white border border-zinc-200 p-2.5 text-[11px] leading-relaxed">
+                              <div>
+                                <span className="font-bold text-zinc-800 block">
+                                  1. Ideia Inicial (Time {idea.refinement_history.generator_team} · {idea.refinement_history.generator_model}):
+                                </span>
+                                <p className="text-zinc-600 italic">{idea.refinement_history.initial_title}</p>
+                              </div>
+                              <div>
+                                <span className="font-bold text-zinc-800 block">
+                                  2. Auditoria Anti-IA (Time {idea.refinement_history.reviewer_team} · {idea.refinement_history.reviewer_model}):
+                                </span>
+                                <p className="text-zinc-600">
+                                  <strong>Motivo:</strong> {idea.refinement_history.reviewer_reason}
+                                </p>
+                                <p className="text-zinc-600">
+                                  <strong>Sugestão:</strong> {idea.refinement_history.reviewer_suggestion}
+                                </p>
+                              </div>
+                            </div>
+                          </details>
+                        )}
 
                         {idea.model_name && (
                           <div className="pt-2 border-t border-zinc-200/70 flex items-center justify-between text-[10px] text-zinc-500 font-mono">
@@ -2135,6 +2200,45 @@ function Workspace({ clientId, companyName, projectPost }: {
                             <Trash2 size={15} />
                           </button>
                         </div>
+
+                        {idea.refinement_history && (
+                          <details className="pt-2 border-t border-zinc-200/70 text-[11px] text-zinc-600">
+                            <summary className="cursor-pointer font-semibold text-emerald-800 hover:text-emerald-950 flex items-center justify-between select-none">
+                              <span>Ver histórico da lapidação entre IAs</span>
+                              <span
+                                className={
+                                  "px-1.5 py-0.5 rounded font-mono text-[10px] font-bold " +
+                                  (idea.refinement_history.ai_score <= 3
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : idea.refinement_history.ai_score <= 6
+                                    ? "bg-amber-100 text-amber-800"
+                                    : "bg-rose-100 text-rose-800")
+                                }
+                              >
+                                Nota IA: {idea.refinement_history.ai_score}/10
+                              </span>
+                            </summary>
+                            <div className="mt-2 space-y-2 rounded-lg bg-white border border-zinc-200 p-2.5 text-[11px] leading-relaxed">
+                              <div>
+                                <span className="font-bold text-zinc-800 block">
+                                  1. Ideia Inicial (Time {idea.refinement_history.generator_team} · {idea.refinement_history.generator_model}):
+                                </span>
+                                <p className="text-zinc-600 italic">{idea.refinement_history.initial_title}</p>
+                              </div>
+                              <div>
+                                <span className="font-bold text-zinc-800 block">
+                                  2. Auditoria Anti-IA (Time {idea.refinement_history.reviewer_team} · {idea.refinement_history.reviewer_model}):
+                                </span>
+                                <p className="text-zinc-600">
+                                  <strong>Motivo:</strong> {idea.refinement_history.reviewer_reason}
+                                </p>
+                                <p className="text-zinc-600">
+                                  <strong>Sugestão:</strong> {idea.refinement_history.reviewer_suggestion}
+                                </p>
+                              </div>
+                            </div>
+                          </details>
+                        )}
 
                         {idea.model_name && (
                           <div className="pt-2 border-t border-zinc-200/70 flex items-center justify-between text-[10px] text-zinc-500 font-mono">

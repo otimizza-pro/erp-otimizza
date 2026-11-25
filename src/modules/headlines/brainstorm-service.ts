@@ -9,6 +9,18 @@ import {
   type BrainstormSource,
 } from "./brainstorm-sources";
 
+export interface BrainstormRefinementHistory {
+  generator_team: "A" | "B";
+  generator_model: string;
+  reviewer_team: "A" | "B";
+  reviewer_model: string;
+  ai_score: number;
+  reviewer_reason: string;
+  reviewer_suggestion: string;
+  initial_title: string;
+  initial_rationale: string;
+}
+
 export interface BrainstormIdea {
   id: string;
   client_id: string;
@@ -30,6 +42,7 @@ export interface BrainstormIdea {
   rejection_reason?: string;
   team?: "A" | "B";
   model_name?: string | null;
+  refinement_history?: BrainstormRefinementHistory | null;
   workspace_id: string | null;
   content_id: string | null;
   post_status?: string | null;
@@ -165,6 +178,7 @@ type BrainstormSearchInput = {
   format?: string;
   count?: number;
   team?: "A" | "B" | "BOTH";
+  refineWithOpposingTeam?: boolean;
   offerName?: string;
   offerId?: string | null;
   audienceAngle?: string;
@@ -321,20 +335,23 @@ DIRETRIZES FUNDAMENTAIS:
   ];
 
   const isSingleTest = input.count === 1;
+  const shouldDebate = !isSingleTest && input.refineWithOpposingTeam !== false;
   const perModelCount = isSingleTest ? 1 : 2;
-  const modelsToRun: Array<{ team: "A" | "B"; model: string }> = isSingleTest
-    ? [{ team: input.team === "B" ? "B" : "A", model: strategyModel() }]
+  const modelsToRun: Array<{ team: "A" | "B"; model: string; slotIndex: number }> = isSingleTest
+    ? [{ team: input.team === "B" ? "B" : "A", model: strategyModel(), slotIndex: 0 }]
     : [
         ...(input.team === "A" || input.team === "BOTH" || !input.team
           ? TEAM_A_FALLBACKS.map((fb, idx) => ({
               team: "A" as const,
               model: process.env[`OPENROUTER_HEADLINE_TEAM_A_${idx + 1}_MODEL`]?.trim() || fb,
+              slotIndex: idx,
             }))
           : []),
         ...(input.team === "B" || input.team === "BOTH" || !input.team
           ? TEAM_B_FALLBACKS.map((fb, idx) => ({
               team: "B" as const,
               model: process.env[`OPENROUTER_HEADLINE_TEAM_B_${idx + 1}_MODEL`]?.trim() || fb,
+              slotIndex: idx,
             }))
           : []),
       ];
@@ -342,9 +359,16 @@ DIRETRIZES FUNDAMENTAIS:
   const systemInstruction = systemPrompt.replace(`até ${count} objetos`, `exatamente ${perModelCount} objetos`) +
     "\nUse uma frase curta por campo descritivo e entregue apenas o JSON solicitado.";
 
+  const critiqueSchema = z.object({
+    ai_score: z.number().min(0).max(10),
+    reason: z.string().min(1).max(1500),
+    suggestion: z.string().min(1).max(1500),
+  });
+
   let totalMeasuredTokens = 0;
   const results = await Promise.allSettled(
     modelsToRun.map(async (entry) => {
+      // Rodada 1: Geração inicial
       const response = await generateWithOpenRouter({
         model: entry.model,
         maxTokens: isSingleTest ? 6000 : 3500,
@@ -356,14 +380,152 @@ DIRETRIZES FUNDAMENTAIS:
           { role: "user", content: userContent },
         ],
       });
-      const parsed = parseAiJson(response.text, z.array(aiIdeaSchema));
+      const initialIdeas = parseAiJson(response.text, z.array(aiIdeaSchema)).slice(0, perModelCount);
       if (response.usage?.prompt_tokens != null && response.usage.completion_tokens != null) {
         totalMeasuredTokens += Math.round(response.usage.prompt_tokens + response.usage.completion_tokens);
       }
-      return parsed.slice(0, perModelCount).map((idea) => ({
+
+      if (!shouldDebate || initialIdeas.length === 0) {
+        return initialIdeas.map((idea) => ({
+          ...idea,
+          team: entry.team,
+          model_name: response.model || entry.model,
+          refinement_history: null as BrainstormRefinementHistory | null,
+        }));
+      }
+
+      // Rodada 2: Auditoria Anti-IA pelo Time Oposto
+      const reviewerTeam: "A" | "B" = entry.team === "A" ? "B" : "A";
+      const reviewerFallbacks = reviewerTeam === "A" ? TEAM_A_FALLBACKS : TEAM_B_FALLBACKS;
+      const reviewerModel =
+        process.env[`OPENROUTER_HEADLINE_TEAM_${reviewerTeam}_${entry.slotIndex + 1}_MODEL`]?.trim() ||
+        reviewerFallbacks[entry.slotIndex];
+
+      let critique: z.infer<typeof critiqueSchema> | null = null;
+      let actualReviewerModel = reviewerModel;
+
+      try {
+        const critiqueRes = await generateWithOpenRouter({
+          model: reviewerModel,
+          maxTokens: 1200,
+          reasoningEffort: "low",
+          temperature: 0.4,
+          messages: [
+            {
+              role: "system",
+              content:
+                "Você é um editor-chefe humano e crítico rigoroso de conteúdo para Instagram. " +
+                "Avalie de 0 a 10 o quanto as ideias enviadas soam com 'cara de IA' (sendo 10 = muito artificial/robótico/clichê e 0 = 100% natural, parece um humano real escrevendo). " +
+                "Retorne SOMENTE JSON: { \"ai_score\": number, \"reason\": \"por que deu essa nota\", \"suggestion\": \"sugestão prática de melhoria para soar humano\" }.",
+            },
+            {
+              role: "user",
+              content: JSON.stringify({
+                empresa: {
+                  nome: context.company.name,
+                  nicho: context.identity.market_niche,
+                  posicionamento: context.identity.value_proposition,
+                  tom_de_voz: context.identity.tone_of_voice,
+                },
+                ideias_para_avaliar: initialIdeas.map((i) => ({
+                  title: i.title,
+                  angle: i.angle,
+                  pain_or_desire: i.pain_or_desire,
+                  rationale: i.rationale,
+                })),
+              }),
+            },
+          ],
+        });
+        critique = parseAiJson(critiqueRes.text, critiqueSchema);
+        actualReviewerModel = critiqueRes.model || reviewerModel;
+        if (critiqueRes.usage?.prompt_tokens != null && critiqueRes.usage.completion_tokens != null) {
+          totalMeasuredTokens += Math.round(critiqueRes.usage.prompt_tokens + critiqueRes.usage.completion_tokens);
+        }
+      } catch {
+        // Se a auditoria falhar, preserva as ideias iniciais sem quebrar a entrega
+      }
+
+      if (!critique) {
+        return initialIdeas.map((idea) => ({
+          ...idea,
+          team: entry.team,
+          model_name: response.model || entry.model,
+          refinement_history: null as BrainstormRefinementHistory | null,
+        }));
+      }
+
+      // Rodada 3: Lapidação Final pelo Gerador Original
+      try {
+        const refineRes = await generateWithOpenRouter({
+          model: entry.model,
+          maxTokens: 3500,
+          reasoningEffort: "low",
+          temperature: 0.7,
+          messages: [
+            {
+              role: "system",
+              content:
+                systemInstruction +
+                "\n\nREFINAMENTO OBRIGATÓRIO: Você recebeu a nota e a crítica anti-IA do revisor. " +
+                "Corrija os pontos apontados, elimine qualquer tom artificial e devolva as versões finais lapidadas no mesmo formato JSON.",
+            },
+            {
+              role: "user",
+              content: JSON.stringify({
+                ideias_iniciais: initialIdeas,
+                nota_cara_de_ia_0_a_10: critique.ai_score,
+                critica_do_revisor: critique.reason,
+                sugestao_de_melhoria: critique.suggestion,
+              }),
+            },
+          ],
+        });
+        const refinedIdeas = parseAiJson(refineRes.text, z.array(aiIdeaSchema)).slice(0, perModelCount);
+        if (refineRes.usage?.prompt_tokens != null && refineRes.usage.completion_tokens != null) {
+          totalMeasuredTokens += Math.round(refineRes.usage.prompt_tokens + refineRes.usage.completion_tokens);
+        }
+
+        if (refinedIdeas.length > 0) {
+          return refinedIdeas.map((refined, idx) => {
+            const orig = initialIdeas[idx] || initialIdeas[0];
+            return {
+              ...refined,
+              team: entry.team,
+              model_name: refineRes.model || response.model || entry.model,
+              refinement_history: {
+                generator_team: entry.team,
+                generator_model: response.model || entry.model,
+                reviewer_team: reviewerTeam,
+                reviewer_model: actualReviewerModel,
+                ai_score: critique!.ai_score,
+                reviewer_reason: critique!.reason,
+                reviewer_suggestion: critique!.suggestion,
+                initial_title: orig.title,
+                initial_rationale: orig.rationale,
+              } satisfies BrainstormRefinementHistory,
+            };
+          });
+        }
+      } catch {
+        // Fallback para ideias iniciais caso o refinamento falhe
+      }
+
+      return initialIdeas.map((idea) => ({
         ...idea,
         team: entry.team,
         model_name: response.model || entry.model,
+        refinement_history: {
+          generator_team: entry.team,
+          generator_model: response.model || entry.model,
+          reviewer_team: reviewerTeam,
+          reviewer_model: actualReviewerModel,
+          ai_score: critique!.ai_score,
+          reviewer_reason: critique!.reason,
+          reviewer_suggestion: critique!.suggestion,
+          initial_title: idea.title,
+          initial_rationale: idea.rationale,
+        } satisfies BrainstormRefinementHistory,
       }));
     })
   );
@@ -372,7 +534,12 @@ DIRETRIZES FUNDAMENTAIS:
     onTokens?.(totalMeasuredTokens);
   }
 
-  const collected: Array<z.infer<typeof aiIdeaSchema> & { model_name: string }> = [];
+  const collected: Array<
+    z.infer<typeof aiIdeaSchema> & {
+      model_name: string;
+      refinement_history: BrainstormRefinementHistory | null;
+    }
+  > = [];
   let firstError: unknown = null;
   for (const res of results) {
     if (res.status === "fulfilled") {
@@ -497,7 +664,8 @@ export async function searchBrainstormIdeas(input: BrainstormSearchInput) {
           pillarId: idea.pillar_id, editorialLineId: idea.editorial_line_id,
           pillarName: idea.pillar_name, themeName: idea.theme_name, angle: idea.angle,
           format: idea.format, targetAudience: idea.target_audience, painOrDesire: idea.pain_or_desire,
-          goal: idea.goal, rationale: idea.rationale, team: idea.team, modelName: idea.model_name, status: "IDEA",
+          goal: idea.goal, rationale: idea.rationale, team: idea.team, modelName: idea.model_name,
+          refinementHistory: idea.refinement_history, status: "IDEA",
         }, db.query.bind(db));
         await db.query(
           `UPDATE content_brainstorm_ideas SET search_id = $2, source_title = $3, source_url = $4, source_date = $5
@@ -547,6 +715,7 @@ type SaveBrainstormIdeaInput = {
   rejectionReason?: string;
   team?: "A" | "B";
   modelName?: string | null;
+  refinementHistory?: BrainstormRefinementHistory | null;
 };
 
 export async function saveBrainstormIdea(input: SaveBrainstormIdeaInput, execute = query): Promise<BrainstormIdea> {
@@ -556,8 +725,8 @@ export async function saveBrainstormIdea(input: SaveBrainstormIdeaInput, execute
     `INSERT INTO content_brainstorm_ideas (
       client_id, pillar_id, editorial_line_id, pillar_name, theme_name,
       title, angle, format, target_audience, pain_or_desire, goal, rationale,
-      status, rejection_reason, team, model_name, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      status, rejection_reason, team, model_name, refinement_history, created_by
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *`,
     [
       input.clientId,
@@ -576,6 +745,7 @@ export async function saveBrainstormIdea(input: SaveBrainstormIdeaInput, execute
       input.rejectionReason || "",
       input.team || "A",
       input.modelName || null,
+      input.refinementHistory ? JSON.stringify(input.refinementHistory) : null,
       input.userId,
     ]
   );

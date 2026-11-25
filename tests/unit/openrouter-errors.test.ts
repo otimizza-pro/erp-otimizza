@@ -96,7 +96,7 @@ describe("Falhas de IA não viram sucesso local", () => {
   it("só retorna erro após tentar todas as IAs do Time A e Time B", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response("indisponivel", { status: 502 }));
     await expect(generateWithOpenRouter(request)).rejects.toMatchObject({ code: "AI_PROVIDER_ERROR" });
-    expect(fetch).toHaveBeenCalledTimes(9);
+    expect(fetch).toHaveBeenCalledTimes(10);
   });
   it("JSON fora do contrato não é aceito como sucesso", () => {
     expect(() => parseAiJson('["uma ideia"]', z.array(z.string()).length(5))).toThrow(/Nenhum resultado foi salvo/);

@@ -9,6 +9,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
 import { contentCompanyId } from "@/modules/clients/internal-company";
 import { briefSchema, blankBrief, fieldGroups, structures, angles, triggers, awareness, formats, missingBrief, sameBrief, type HeadlineBrief } from "@/modules/headlines/schema";
+import { buildCohesiveHeadlineSuggestion } from "@/modules/headlines/cohesive-suggestion";
 import { makeHeadlinePrompt } from "@/modules/headlines/prompt";
 import {
   brainstormModes,
@@ -399,6 +400,7 @@ function Workspace({ clientId, companyName, projectPost }: {
   // Times A e B no Brainstorm e dados do fluxo de criação
   const [brainstormTeam, setBrainstormTeam] = useState<"BOTH" | "A" | "B">("BOTH");
   const [refineWithOpposingTeam, setRefineWithOpposingTeam] = useState(true);
+  const [cohesiveCursor, setCohesiveCursor] = useState(0);
   const [filterTeam, setFilterTeam] = useState<"ALL" | "A" | "B">("ALL");
   const [activeContentData, setActiveContentData] = useState<{
     format: string;
@@ -408,7 +410,7 @@ function Workspace({ clientId, companyName, projectPost }: {
 
   // Estado do Brainstorm de Conteúdo & Oferta/Ângulo
   const [strategySummaryOpen, setStrategySummaryOpen] = useState(false);
-  const [catalogOffers, setCatalogOffers] = useState<{ id: string; name: string; type: string; category?: string }[]>([]);
+  const [catalogOffers, setCatalogOffers] = useState<{ id: string; name: string; type: string; category?: string; target_pain_points?: string | null }[]>([]);
   const [selectedOffer, setSelectedOffer] = useState<string>("");
   const [customOfferName, setCustomOfferName] = useState("");
   const [selectedAngleId, setSelectedAngleId] = useState<BrainstormAngleId>("EXPLORE");
@@ -2596,35 +2598,137 @@ function Workspace({ clientId, companyName, projectPost }: {
                   {select("intensity", "Intensidade", options(["Sutil", "Moderada", "Forte"]))}
                 </div>
 
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                  <div>
+                    <span className="text-xs font-bold text-emerald-950 block">
+                      Preenchimento Coeso (Produto → Dor → Público → Framework)
+                    </span>
+                    <span className="text-[11px] text-emerald-800/80">
+                      Alterna combinações 100% conectadas entre si para você testar ângulos sem misturar dores.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const s = buildCohesiveHeadlineSuggestion({
+                        catalogItems: catalogOffers,
+                        audiences: [],
+                        cursor: cohesiveCursor,
+                      });
+                      setCohesiveCursor(s.nextIndex);
+                      setBrief((prev) => ({
+                        ...prev,
+                        offer: s.offerName,
+                        pain: s.pain,
+                        audience: prev.audience || s.audience,
+                        awareness: s.awareness,
+                        structures: [s.structure],
+                        angles: [s.angle],
+                        triggers: [s.trigger],
+                      }));
+                      toast.success("Sugestão coesa aplicada!", `${s.offerName} → ${s.structure}`);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white shadow-2xs transition cursor-pointer shrink-0"
+                  >
+                    <Sparkles size={14} />
+                    Sugestão Coesa
+                  </button>
+                </div>
+
                 {Object.entries(fieldGroups).map(([group, fields]) => (
-                  <details key={group} open={group === "Estratégia"} className="rounded-xl border border-zinc-200 p-4">
-                    <summary className="font-bold cursor-pointer text-zinc-900">{group}</summary>
+                  <details key={group} open={group === "Estratégia"} className="rounded-xl border border-zinc-200 bg-zinc-50/40 p-4">
+                    <summary className="font-bold cursor-pointer text-zinc-900 text-sm">{group}</summary>
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
-                      {fields.map(([key, label]) => (
-                        <label className="text-xs font-semibold text-zinc-700" key={key}>
-                          {label}
-                          <textarea
-                            aria-label={label}
-                            rows={3}
-                            className={control}
-                            value={String(brief[key])}
-                            onChange={(e) => update(key, e.target.value)}
-                          />
-                        </label>
-                      ))}
+                      {fields.map(([key, label]) => {
+                        if (key === "offer" && catalogOffers.length > 0) {
+                          return (
+                            <label className="text-xs font-semibold text-zinc-700" key={key}>
+                              {label} (Catálogo)
+                              <select
+                                aria-label={label}
+                                className={control}
+                                value={brief.offer}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const matched = catalogOffers.find((o) => o.name === val);
+                                  const firstPain = (matched?.target_pain_points || "")
+                                    .split(/\r?\n/)
+                                    .map((s) => s.trim())
+                                    .filter(Boolean)[0];
+                                  setBrief((prev) => ({
+                                    ...prev,
+                                    offer: val,
+                                    pain: firstPain && !prev.pain.trim() ? firstPain : prev.pain,
+                                  }));
+                                }}
+                              >
+                                <option value="">Selecione uma oferta...</option>
+                                <option value="Institucional / Marca">Institucional / Marca</option>
+                                {catalogOffers.map((item) => (
+                                  <option key={item.id} value={item.name}>
+                                    {item.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          );
+                        }
+
+                        const matchedOffer = catalogOffers.find((o) => o.name === brief.offer);
+                        const offerPains =
+                          key === "pain" && matchedOffer?.target_pain_points
+                            ? matchedOffer.target_pain_points
+                                .split(/\r?\n/)
+                                .map((s) => s.trim())
+                                .filter(Boolean)
+                            : [];
+
+                        return (
+                          <div key={key} className="space-y-1.5">
+                            <label className="text-xs font-semibold text-zinc-700 block">
+                              {label}
+                              <textarea
+                                aria-label={label}
+                                rows={3}
+                                className={control}
+                                value={String(brief[key])}
+                                onChange={(e) => update(key, e.target.value)}
+                              />
+                            </label>
+                            {offerPains.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {offerPains.slice(0, 4).map((p) => (
+                                  <button
+                                    key={p}
+                                    type="button"
+                                    onClick={() => update("pain", p)}
+                                    className="rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800 transition cursor-pointer text-left"
+                                  >
+                                    + {p.slice(0, 50)}{p.length > 50 ? "..." : ""}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </details>
                 ))}
 
-                {multi("structures", "Estruturas: distribua entre as versões", structures)}
-                {multi("angles", "Ângulos", angles)}
-                {multi("triggers", "Gatilhos psicológicos", triggers)}
+                {multi("structures", "Estruturas / Frameworks de Copywriting", structures)}
+                {multi("angles", "Ângulos de Abordagem", angles)}
+                {multi("triggers", "Gatilhos Psicológicos", triggers)}
               </section>
 
               {/* PROMPT COMPLETO E DISPARO DE RODADA */}
               <section className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs">
-                <h2 className="text-xl font-bold text-zinc-950">Prompt completo</h2>
-                <textarea aria-label="Prompt completo" readOnly rows={12} className={control + " font-mono text-xs"} value={preview} />
+                <details className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+                  <summary className="text-xs font-bold text-zinc-700 cursor-pointer select-none">
+                    Ver prompt técnico completo enviado para a IA
+                  </summary>
+                  <textarea aria-label="Prompt completo" readOnly rows={10} className={control + " mt-2 font-mono text-xs"} value={preview} />
+                </details>
                 {missingBrief(brief).length > 0 && <p className="text-sm text-amber-800">Falta: {missingBrief(brief).join(", ")}.</p>}
                 <div className="flex flex-wrap gap-3">
                   <button

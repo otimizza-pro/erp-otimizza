@@ -1045,9 +1045,9 @@ function ContentStudioPageContent() {
         {/* ==================================================================== */}
         {activeTab === "STUDIO" && (
           <div className="space-y-6">
-            {/* BARRA DE SELEÇÃO DE CLIENTE & PONTO DE PARTIDA */}
+            {/* BARRA DE SELEÇÃO DE CLIENTE & AGENDAMENTO */}
             <div className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* 1. Selecionar Cliente com Digitação e Busca */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
@@ -1056,51 +1056,10 @@ function ContentStudioPageContent() {
                   <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs font-semibold text-zinc-800">{selectedCompany.name}<p className="mt-1 text-[10px] font-normal text-zinc-400">Empresa selecionada no cabeçalho</p></div>
                 </div>
 
-                {/* 2. Selecionar da Linha Editorial */}
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500">
-                      2. Ponto de Partida Editorial
-                      <Link href="/prompt-creator/configuracoes?tab=editorial" className="ml-2 normal-case text-emerald-700 underline">Configurar</Link>
-                    </label>
-                    <div className="flex items-center gap-1.5">
-                      <Link href="/prompt-creator/configuracoes?tab=editorial&ia=1" className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-[11px] font-semibold text-purple-700">Gerar com IA</Link>
-                      <button
-                        type="button"
-                        onClick={() => setEditorialModalOpen(true)}
-                        className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 hover:underline"
-                      >
-                        + Nova
-                      </button>
-                    </div>
-                  </div>
-                  <select
-                    onChange={(e) => {
-                      setSelectedThemeId(e.target.value);
-                      const line = editorialLines.find((l) => l.id === e.target.value);
-                      if (line) {
-                      }
-                    }}
-                    value={selectedThemeId}
-                    className="w-full px-3 py-2 rounded-xl border border-zinc-200 bg-white text-xs text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-950"
-                  >
-                    <option value="">
-                      {editorialLines.length === 0
-                        ? "Nenhum pilar salvo. Clique em 'Gerar com IA' ao lado!"
-                        : "Escolher pilar da linha editorial..."}
-                    </option>
-                    {editorialLines.map((el) => (
-                      <option key={el.id} value={el.id}>
-                        [{el.pillar_name}] {el.theme}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* 3. Agendamento no Calendário */}
+                {/* 2. Agendamento no Calendário */}
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1.5">
-                    3. Data & Horário de Publicação
+                    2. Data & Horário de Publicação
                   </label>
                   <div className="flex gap-2">
                     <input
@@ -1716,7 +1675,7 @@ function ContentStudioPageContent() {
 
                       {selectedClientId && (
                         <Link
-                          href={`/clients/${selectedClientId}/identity`}
+                          href="/strategy"
                           target="_blank"
                           className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-900 underline"
                         >

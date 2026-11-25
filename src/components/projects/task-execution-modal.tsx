@@ -150,21 +150,31 @@ export function TaskExecutionModal({
       const res = await fetch(`/api/projects/tasks/${taskId}/briefing`);
       const json = await res.json();
       if (json.success && json.session) {
+        const clientExt = json.clientIdentity || {};
+        const ext = json.session.extracted_identity || {};
+        const audiencesList = Array.isArray(json.audiences) ? json.audiences : [];
+
+        const normalizedInstagram = clientExt.instagram_handle
+          ? (String(clientExt.instagram_handle).startsWith("http")
+              ? String(clientExt.instagram_handle)
+              : `https://instagram.com/${String(clientExt.instagram_handle).replace(/^@/, "")}`)
+          : (json.session.instagram_url || "");
+
         setBriefingSession(json.session);
         setCompanyName(json.session.company_name || project.clientName || project.name || "");
         setContactName(json.session.contact_name || project.clientName || "Decisor");
-        setWebsiteUrl(json.session.website_url || "");
+        setWebsiteUrl(clientExt.website_url || json.session.website_url || "");
         setMapsUrl(json.session.maps_url || "");
-        setInstagramUrl(json.session.instagram_url || "");
+        setInstagramUrl(normalizedInstagram);
         setInitialNotes(json.session.initial_notes || "");
         setCompetitorNotes(json.session.competitor_notes || "");
         setCnpj(json.cnpj || json.session.cnpj || "");
         setCnaeCode(json.cnaeCode || json.session.cnae_code || "");
         setCnaeDescription(json.cnaeDescription || json.session.cnae_description || "");
-        setBrandHistory(json.brandHistory || json.session.brand_history || "");
-        setCorePromise(json.corePromise || json.session.core_promise || "");
+        setBrandHistory(clientExt.brand_history || json.brandHistory || json.session.brand_history || "");
+        setCorePromise(clientExt.core_promise || json.corePromise || json.session.core_promise || "");
         setNonNegotiables(json.nonNegotiables || json.session.non_negotiables || "");
-        setSalesObjections(json.salesObjections || json.session.sales_objections || "");
+        setSalesObjections(clientExt.sales_objections || json.salesObjections || json.session.sales_objections || "");
 
         if (Array.isArray(json.catalogItems) && json.catalogItems.length > 0) {
           setCatalogItems(json.catalogItems);
@@ -176,26 +186,26 @@ export function TaskExecutionModal({
           setClientIdentity(json.clientIdentity);
         }
 
-        const ext = json.session.extracted_identity || {};
-        const clientExt = json.clientIdentity || {};
-        const audiencesList = Array.isArray(json.audiences) ? json.audiences : [];
-
         setCategory(clientExt.market_niche || json.category || ext.marketNiche || "");
-        setServicesOffered(json.servicesOffered || ext.valueProposition || clientExt.value_proposition || "");
+        setServicesOffered(clientExt.value_proposition || json.servicesOffered || ext.valueProposition || "");
 
         setBriefingToneOfVoice(
-          Array.isArray(ext.toneOfVoice) && ext.toneOfVoice.length > 0
-            ? ext.toneOfVoice.join(", ")
-            : (Array.isArray(clientExt.tone_of_voice) && clientExt.tone_of_voice.length > 0
-                ? clientExt.tone_of_voice.join(", ")
+          Array.isArray(clientExt.tone_of_voice) && clientExt.tone_of_voice.length > 0
+            ? clientExt.tone_of_voice.join(", ")
+            : (Array.isArray(ext.toneOfVoice) && ext.toneOfVoice.length > 0
+                ? ext.toneOfVoice.join(", ")
                 : (ext.toneOfVoice || "Direto, especialista e focado em resultados reais"))
         );
         setBriefingDifferentials(
-          ext.differentials || (Array.isArray(clientExt.differentials) ? clientExt.differentials.join("\n") : "")
+          Array.isArray(clientExt.differentials) && clientExt.differentials.length > 0
+            ? clientExt.differentials.join("\n")
+            : (ext.differentials || "")
         );
         const audienceSummary = audiencesList.length > 0
           ? audiencesList.map((a: { name: string; description?: string }) => `${a.name}${a.description ? `: ${a.description}` : ""}`).join("\n")
-          : (ext.targetAudience || (Array.isArray(clientExt.target_audiences) ? clientExt.target_audiences.join("\n") : ""));
+          : (Array.isArray(clientExt.target_audiences) && clientExt.target_audiences.length > 0
+              ? clientExt.target_audiences.join("\n")
+              : (ext.targetAudience || ""));
         setBriefingTargetAudience(audienceSummary);
         setBriefingCompetitors(
           ext.competitors || json.session.competitor_notes || ""
@@ -386,6 +396,15 @@ export function TaskExecutionModal({
           instagramUrl,
           initialNotes,
           competitorNotes,
+          marketNiche: category,
+          valueProposition: servicesOffered,
+          brandHistory,
+          corePromise,
+          salesObjections,
+          toneOfVoice: briefingToneOfVoice,
+          differentials: briefingDifferentials,
+          targetAudience: briefingTargetAudience,
+          competitors: briefingCompetitors,
         }),
       });
       const json = await res.json();
@@ -1269,7 +1288,7 @@ export function TaskExecutionModal({
                     <div className="flex items-center gap-2">
                       {project.clientId && (
                         <Link
-                          href={`/clients/${project.clientId}/identity`}
+                          href="/strategy"
                           target="_blank"
                           className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-semibold transition"
                         >

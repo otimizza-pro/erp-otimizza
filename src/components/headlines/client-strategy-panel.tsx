@@ -558,7 +558,7 @@ export function ClientStrategyPanel({
           </button>
 
           <Link
-            href={`/clients/${clientId}/identity`}
+            href="/strategy"
             className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition"
             title="Abrir editor avançado de identidade e manuais"
           >

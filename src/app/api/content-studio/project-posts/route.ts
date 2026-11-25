@@ -18,7 +18,8 @@ export async function GET(request: Request) {
     const { rows } = await query(
       `SELECT c.id, c.client_id AS "clientId", COALESCE(NULLIF(cl.trade_name, ''), cl.name) AS "companyName",
               c.title, c.scheduled_date::text AS "scheduledDate", p.id AS "projectId", p.name AS "projectName",
-              c.format, c.status,
+              c.format, c.status, c.editorial_line_id AS "editorialLineId", el.pillar_id AS "pillarId",
+              c.offer_name AS "offerName",
               (NULLIF(btrim(c.central_idea), '') IS NOT NULL) AS "hasIdea",
               (c.status = 'PLANNED'
                 AND NULLIF(btrim(c.central_idea), '') IS NULL
@@ -30,6 +31,7 @@ export async function GET(request: Request) {
        FROM content_calendar_items c
        JOIN projects p ON p.id = c.project_id AND p.client_id = c.client_id
        JOIN clients cl ON cl.id = c.client_id
+       LEFT JOIN client_editorial_lines el ON el.id = c.editorial_line_id
        WHERE c.archived_at IS NULL AND p.archived_at IS NULL AND c.content_type = 'SOCIAL_MEDIA'
          AND ${byId ? "c.id" : "c.client_id"} = $1
        ORDER BY c.project_month DESC, p.name, c.project_post_number`,

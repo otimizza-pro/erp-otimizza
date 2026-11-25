@@ -34,3 +34,54 @@ export async function createSocialMediaMonth(
     [project.id, monthDate, project.clientId, slots.map(slot => slot.number), slots.map(slot => slot.date), slots.map(slot => slot.title)],
   );
 }
+
+export const SOCIAL_MEDIA_POST_FORMATS = ["Carrossel", "Reels", "Post estático", "Stories"] as const;
+
+export type EditorialOption = {
+  id: string;
+  pillarId: string | null;
+  pillarName: string;
+  theme: string;
+  preferredFormats?: string[];
+};
+
+export type AutoOrganizeAssignment = {
+  postId: string;
+  editorialLineId: string | null;
+  offerName: string;
+  format: string;
+};
+
+/**
+ * Distributes editorial pillars/lines, offers/services, and post formats across planned posts,
+ * rotating values so consecutive posts stay varied and aligned with each line's preferred formats.
+ */
+export function buildAutoOrganizedPostAssignments(params: {
+  postIds: string[];
+  editorialLines: EditorialOption[];
+  offers: { name: string }[];
+}): AutoOrganizeAssignment[] {
+  const { postIds, editorialLines, offers } = params;
+  const offerPool = offers.length > 0
+    ? [...offers.map((o) => o.name), "Institucional / Marca"]
+    : ["Institucional / Marca"];
+
+  return postIds.map((postId, idx) => {
+    const line = editorialLines.length > 0 ? editorialLines[idx % editorialLines.length] : null;
+    const offerName = offerPool[idx % offerPool.length];
+    const lineFormats = Array.isArray(line?.preferredFormats)
+      ? line.preferredFormats.filter((f): f is string =>
+          (SOCIAL_MEDIA_POST_FORMATS as readonly string[]).includes(f)
+        )
+      : [];
+    const formatPool = lineFormats.length > 0 ? lineFormats : [...SOCIAL_MEDIA_POST_FORMATS];
+    const format = formatPool[idx % formatPool.length];
+
+    return {
+      postId,
+      editorialLineId: line?.id ?? null,
+      offerName,
+      format,
+    };
+  });
+}

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ProjectPostPicker, type PlannedProjectPost } from "@/components/content-studio/project-post-picker";
 import { SocialWorkflowStepper } from "@/components/content-studio/social-workflow-stepper";
+import { ContentCalendar } from "@/components/operations/content-calendar";
 import { toast } from "@/components/ui/toast-provider";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
@@ -330,9 +331,21 @@ function CandidateCard({
 
 function HeadlineWorkspace() {
   const { selectedCompany } = useCompany();
+  const router = useRouter();
   const params = useSearchParams();
   const postId = params.get("projectPostId");
   const [result, setResult] = useState<{ id: string; post?: PlannedProjectPost; error?: string } | null>(null);
+  const selectedCompanyKey = contentCompanyId(selectedCompany);
+  const prevCompanyKeyRef = useRef(selectedCompanyKey);
+
+  useEffect(() => {
+    if (prevCompanyKeyRef.current !== selectedCompanyKey) {
+      prevCompanyKeyRef.current = selectedCompanyKey;
+      if (postId) {
+        router.replace("/prompt-creator/brainstorm");
+      }
+    }
+  }, [selectedCompanyKey, postId, router]);
 
   useEffect(() => {
     if (!postId) return;
@@ -409,6 +422,7 @@ function Workspace({ clientId, companyName, projectPost }: {
   } | null>(null);
 
   // Estado do Brainstorm de Conteúdo & Oferta/Ângulo
+  const [calendarPreviewOpen, setCalendarPreviewOpen] = useState(false);
   const [strategySummaryOpen, setStrategySummaryOpen] = useState(false);
   const [catalogOffers, setCatalogOffers] = useState<{ id: string; name: string; type: string; category?: string; target_pain_points?: string | null }[]>([]);
   const [selectedOffer, setSelectedOffer] = useState<string>("");
@@ -454,6 +468,31 @@ function Workspace({ clientId, companyName, projectPost }: {
   const [brainstormMode, setBrainstormMode] = useState<BrainstormMode>("PILLARS");
   const [brainstormView, setBrainstormView] = useState<"discover" | "bank" | "rejected">("discover");
   const [brainstormFormat, setBrainstormFormat] = useState("Todos");
+  const hydratedProjectPostKey = useRef("");
+
+  useEffect(() => {
+    if (!projectPost) return;
+    const hydrationKey = `${projectPost.id}:${catalogOffers.length}`;
+    if (hydratedProjectPostKey.current === hydrationKey) return;
+    hydratedProjectPostKey.current = hydrationKey;
+
+    if (projectPost.pillarId) setSelectedPillarId(projectPost.pillarId);
+    if (projectPost.editorialLineId) setSelectedLineId(projectPost.editorialLineId);
+    if (projectPost.format && ["Carrossel", "Reels", "Post estático", "Stories"].includes(projectPost.format)) {
+      setBrainstormFormat(projectPost.format);
+    }
+    if (projectPost.offerName && projectPost.offerName !== "Institucional / Marca") {
+      const matched = catalogOffers.find(
+        (o) => o.name.trim().toLowerCase() === projectPost.offerName!.trim().toLowerCase()
+      );
+      if (matched) {
+        setSelectedOffer(matched.id);
+      } else {
+        setSelectedOffer("custom");
+        setCustomOfferName(projectPost.offerName);
+      }
+    }
+  }, [projectPost, catalogOffers]);
   const [aiGeneratedIdeas, setAiGeneratedIdeas] = useState<BrainstormAiIdea[]>([]);
   const [generatingIdeas, setGeneratingIdeas] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
@@ -1182,13 +1221,65 @@ function Workspace({ clientId, companyName, projectPost }: {
   return (
     <main className="mx-auto max-w-[1800px] space-y-6 p-4 md:p-8 text-zinc-900">
       <SocialWorkflowStepper activeStep="brainstorm" />
-      <section className="space-y-2 rounded-xl border border-zinc-200 bg-white p-4">
-        <ProjectPostPicker clientId={clientId} selected={projectPost} onPostsLoaded={setAvailablePosts} />
-        {projectPost && <div className="flex flex-wrap gap-4 text-sm">
-          <Link className="text-emerald-700 underline" href={`/projects/${projectPost.projectId}`}>{projectPost.projectName}</Link>
-          {projectPost.workspaceId && <Link className="text-emerald-700 underline"
-            href={`/prompt-creator/headlines?workspaceId=${projectPost.workspaceId}&projectPostId=${projectPost.id}`}>Continuar criação</Link>}
-        </div>}
+      <section className="space-y-3 rounded-xl border border-zinc-200 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ProjectPostPicker clientId={clientId} selected={projectPost} onPostsLoaded={setAvailablePosts} />
+          {projectPost && (
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <Link className="text-emerald-700 underline" href={`/projects/${projectPost.projectId}`}>
+                {projectPost.projectName}
+              </Link>
+              {projectPost.workspaceId && (
+                <Link
+                  className="text-emerald-700 underline"
+                  href={`/prompt-creator/headlines?workspaceId=${projectPost.workspaceId}&projectPostId=${projectPost.id}`}
+                >
+                  Continuar criação
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3">
+          <div className="flex items-center gap-2 text-xs text-zinc-500">
+            <Calendar size={14} className="text-emerald-600 shrink-0" />
+            <span>
+              Quer consultar ou planejar datas antes de gerar ideias? Abra o{" "}
+              <strong className="font-semibold text-zinc-700">Calendário de Conteúdo</strong> de{" "}
+              {companyName}.
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCalendarPreviewOpen((prev) => !prev)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition cursor-pointer ${
+                calendarPreviewOpen
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+              }`}
+            >
+              <Calendar size={14} />
+              {calendarPreviewOpen ? "Ocultar Calendário de Conteúdo" : "Abrir Calendário de Conteúdo"}
+              {calendarPreviewOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            <Link
+              href="/prompt-creator?tab=CALENDAR"
+              className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 transition"
+              title="Abrir Calendário de Conteúdo em página dedicada"
+            >
+              Tela cheia
+              <ExternalLink size={12} />
+            </Link>
+          </div>
+        </div>
+
+        {calendarPreviewOpen && (
+          <div className="border-t border-zinc-200 pt-4">
+            <ContentCalendar key={clientId} clientId={clientId} />
+          </div>
+        )}
       </section>
       {/* CABEÇALHO PRINCIPAL COM CONTEXTO DA EMPRESA E ABAS DE SEQUÊNCIA CRIATIVA */}
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-zinc-200 pb-6">

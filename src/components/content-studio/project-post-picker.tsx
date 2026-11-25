@@ -13,6 +13,9 @@ export type PlannedProjectPost = {
   scheduledDate: string | null;
   workspaceId: string | null;
   format?: string;
+  editorialLineId?: string | null;
+  pillarId?: string | null;
+  offerName?: string | null;
   availableForIdea?: boolean;
   hasIdea?: boolean;
 };

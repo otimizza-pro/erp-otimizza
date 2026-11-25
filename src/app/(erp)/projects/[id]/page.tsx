@@ -106,6 +106,12 @@ export default function ProjectWorkspacePage({
   const [timerFeedback, setTimerFeedback] = useState<string | null>(null);
   const [isStartTimerModalOpen, setIsStartTimerModalOpen] = useState<boolean>(false);
   const [stoppingTimer, setStoppingTimer] = useState<ActiveTimerRecord | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; linkedPostsCount: number | null; deleting: boolean; error: string }>({
+    open: false,
+    linkedPostsCount: null,
+    deleting: false,
+    error: "",
+  });
 
   const loadActiveTimers = useCallback(async () => {
     try {
@@ -168,21 +174,47 @@ export default function ProjectWorkspacePage({
     }
   };
 
-  const handleDeleteProject = async () => {
-    if (!confirm("Tem certeza que deseja excluir este projeto permanentemente? Todas as tarefas, checklists e sessões vinculadas serão removidas.")) {
-      return;
-    }
+  const handleDeleteProject = () => {
+    setDeleteDialog({ open: true, linkedPostsCount: null, deleting: false, error: "" });
+  };
+
+  const executeDeleteProject = async (mode: "DELETE" | "FORCE_DELETE" | "ARCHIVE") => {
+    setDeleteDialog((prev) => ({ ...prev, deleting: true, error: "" }));
     try {
-      const res = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+      const url =
+        mode === "ARCHIVE"
+          ? `/api/projects/${id}?archive=true`
+          : mode === "FORCE_DELETE"
+          ? `/api/projects/${id}?force=true`
+          : `/api/projects/${id}`;
+      const res = await fetch(url, { method: "DELETE" });
+      const json = await res.json().catch(() => ({}));
       if (res.ok) {
-        router.push("/projects");
-      } else {
-        const json = await res.json();
-        alert(json.error || "Erro ao excluir projeto.");
+        setDeleteDialog({ open: false, linkedPostsCount: null, deleting: false, error: "" });
+        if (mode === "ARCHIVE") {
+          await loadProject();
+        } else {
+          router.push("/projects");
+        }
+        return;
       }
+      if (json.code === "HAS_LINKED_POSTS") {
+        setDeleteDialog({
+          open: true,
+          linkedPostsCount: typeof json.linkedPostsCount === "number" ? json.linkedPostsCount : 1,
+          deleting: false,
+          error: "",
+        });
+        return;
+      }
+      setDeleteDialog((prev) => ({
+        ...prev,
+        deleting: false,
+        error: json.error || "Erro ao excluir projeto.",
+      }));
     } catch (err) {
       console.error("Erro ao excluir projeto:", err);
-      alert("Erro ao excluir projeto.");
+      setDeleteDialog((prev) => ({ ...prev, deleting: false, error: "Erro ao excluir projeto." }));
     }
   };
 
@@ -1166,6 +1198,73 @@ export default function ProjectWorkspacePage({
           onConfirmStop={handleConfirmStopTimer}
           onDiscard={handleDiscardTimer}
         />
+
+        {deleteDialog.open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  {deleteDialog.linkedPostsCount !== null
+                    ? "Projeto possui posts vinculados"
+                    : "Excluir projeto"}
+                </h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
+                  {deleteDialog.linkedPostsCount !== null
+                    ? `Este projeto possui ${deleteDialog.linkedPostsCount} post(s) no planejamento/calendário. Escolha se deseja arquivar (mantendo o histórico de conteúdos) ou excluir tudo permanentemente.`
+                    : "Deseja excluir este projeto e suas tarefas/briefings, ou apenas arquivá-lo?"}
+                </p>
+              </div>
+
+              {deleteDialog.error && (
+                <p role="alert" className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                  {deleteDialog.error}
+                </p>
+              )}
+
+              <div className="flex flex-col gap-2 pt-1">
+                {deleteDialog.linkedPostsCount === null ? (
+                  <button
+                    type="button"
+                    disabled={deleteDialog.deleting}
+                    onClick={() => void executeDeleteProject("DELETE")}
+                    className="w-full rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50"
+                  >
+                    {deleteDialog.deleting ? "Verificando..." : "Excluir projeto"}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={deleteDialog.deleting}
+                    onClick={() => void executeDeleteProject("FORCE_DELETE")}
+                    className="w-full rounded-xl bg-rose-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50"
+                  >
+                    {deleteDialog.deleting
+                      ? "Excluindo tudo..."
+                      : `Excluir tudo (projeto + ${deleteDialog.linkedPostsCount} post${deleteDialog.linkedPostsCount === 1 ? "" : "s"})`}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  disabled={deleteDialog.deleting}
+                  onClick={() => void executeDeleteProject("ARCHIVE")}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                >
+                  Arquivar projeto (manter histórico)
+                </button>
+
+                <button
+                  type="button"
+                  disabled={deleteDialog.deleting}
+                  onClick={() => setDeleteDialog({ open: false, linkedPostsCount: null, deleting: false, error: "" })}
+                  className="w-full rounded-xl px-4 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

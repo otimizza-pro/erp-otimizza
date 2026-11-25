@@ -102,7 +102,7 @@ function CreationEditor({clientId,companyName,area}:{clientId:string;companyName
   return <div className="space-y-6 pb-12">
     <header className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-zinc-200/80 bg-white p-5 shadow-hourline sm:p-6">
       <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-950 text-white"><Sparkles className="h-5 w-5"/></span><div><p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Criação com IA · {companyName}</p><h1 className="mt-1 text-xl font-bold tracking-tight text-zinc-950">{definition.title}</h1><p className="mt-1 text-xs leading-relaxed text-zinc-500">{definition.description}</p></div></div>
-      <Link href={"/clients/"+clientId+"/identity"} className={secondary}><FileText className="h-3.5 w-3.5"/>Identidade & DNA<ArrowUpRight className="h-3 w-3"/></Link>
+      <Link href="/strategy" className={secondary}><FileText className="h-3.5 w-3.5"/>Identidade & DNA<ArrowUpRight className="h-3 w-3"/></Link>
     </header>
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_290px]">
       <div className="min-w-0 space-y-5">

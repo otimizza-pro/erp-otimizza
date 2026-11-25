@@ -483,11 +483,38 @@ export async function archiveProject(id: string): Promise<void> {
   );
 }
 
-export async function deleteProject(id: string): Promise<void> {
+export class ProjectHasLinkedPostsError extends Error {
+  readonly linkedPostsCount: number;
+  constructor(linkedPostsCount: number) {
+    super("Este projeto tem posts vinculados. Arquive o projeto para manter o histórico ou escolha excluir tudo.");
+    this.name = "ProjectHasLinkedPostsError";
+    this.linkedPostsCount = linkedPostsCount;
+  }
+}
+
+export async function deleteProject(id: string, options?: { force?: boolean }): Promise<void> {
   await withTransaction(async (client) => {
     await client.query("SELECT id FROM projects WHERE id = $1 FOR UPDATE", [id]);
-    const plannedContent = await client.query("SELECT 1 FROM content_calendar_items WHERE project_id = $1 LIMIT 1", [id]);
-    if (plannedContent.rows.length) throw new Error("Este projeto tem posts vinculados. Arquive o projeto para manter o histórico.");
+    const plannedContent = await client.query<{ count: string }>(
+      "SELECT COUNT(*)::text AS count FROM content_calendar_items WHERE project_id = $1",
+      [id]
+    );
+    const linkedPostsCount = Number(plannedContent.rows[0]?.count || 0);
+    if (linkedPostsCount > 0 && !options?.force) {
+      throw new ProjectHasLinkedPostsError(linkedPostsCount);
+    }
+
+    if (linkedPostsCount > 0) {
+      await client.query(
+        `DELETE FROM headline_measurements WHERE content_id IN (
+          SELECT id FROM content_calendar_items WHERE project_id = $1
+        )`,
+        [id]
+      );
+      await client.query("DELETE FROM content_calendar_items WHERE project_id = $1", [id]);
+      await client.query("DELETE FROM project_social_media_months WHERE project_id = $1", [id]);
+      await client.query("DELETE FROM project_social_media_plans WHERE project_id = $1", [id]);
+    }
 
     // 1. Limpar sessões de briefing vinculadas
     await client.query("DELETE FROM client_briefing_sessions WHERE project_id = $1", [id]);

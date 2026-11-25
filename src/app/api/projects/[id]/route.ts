@@ -1,18 +1,24 @@
-import {archiveRecord} from "@/modules/records/archive";
-import {z} from "zod";
+import { archiveRecord } from "@/modules/records/archive";
+import { z } from "zod";
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { getProjectById, updateProject, archiveProject, deleteProject } from "@/modules/projects/service";
+import {
+  getProjectById,
+  updateProject,
+  archiveProject,
+  deleteProject,
+  ProjectHasLinkedPostsError,
+} from "@/modules/projects/service";
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+  try { await requireAdminUser(); } catch { return Response.json({ error: "Acesso não autorizado." }, { status: 401 }); }
 
   try {
     const { id } = await params;
-    const project = await getProjectById(id,true);
+    const project = await getProjectById(id, true);
     if (!project) {
       return NextResponse.json({ success: false, error: "Projeto não encontrado." }, { status: 404 });
     }
@@ -30,7 +36,7 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+  try { await requireAdminUser(); } catch { return Response.json({ error: "Acesso não autorizado." }, { status: 401 }); }
 
   try {
     const { id } = await params;
@@ -50,21 +56,33 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try { await requireAdminUser(); } catch { return Response.json({error: "Acesso não autorizado."},{status:401}); }
+  try { await requireAdminUser(); } catch { return Response.json({ error: "Acesso não autorizado." }, { status: 401 }); }
 
   try {
     const { id } = await params;
     const { searchParams } = new URL(req.url);
     const archiveOnly = searchParams.get("archive") === "true";
+    const force = searchParams.get("force") === "true";
 
     if (archiveOnly) {
       await archiveProject(id);
       return NextResponse.json({ success: true, message: "Projeto arquivado com sucesso." });
     } else {
-      await deleteProject(id);
+      await deleteProject(id, { force });
       return NextResponse.json({ success: true, message: "Projeto excluído com sucesso." });
     }
   } catch (error: unknown) {
+    if (error instanceof ProjectHasLinkedPostsError) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "HAS_LINKED_POSTS",
+          linkedPostsCount: error.linkedPostsCount,
+          error: error.message,
+        },
+        { status: 409 }
+      );
+    }
     console.error("Erro ao excluir/arquivar projeto:", error);
     return NextResponse.json(
       { success: false, error: error instanceof Error ? error.message : "Erro ao excluir/arquivar projeto." },
@@ -73,7 +91,14 @@ export async function DELETE(
   }
 }
 
-export async function PATCH(request:Request,{params}:{params:Promise<{id:string}>}){
- try{await requireAdminUser();}catch{return NextResponse.json({error:"Acesso não autorizado."},{status:401});}
- try{const {id}=await params;const {archived}=z.object({archived:z.boolean()}).parse(await request.json());await archiveRecord('project',id,archived);return NextResponse.json({success:true});}catch(error){return NextResponse.json({error:error instanceof Error?error.message:'Não foi possível alterar o arquivamento.'},{status:400});}
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 }); }
+  try {
+    const { id } = await params;
+    const { archived } = z.object({ archived: z.boolean() }).parse(await request.json());
+    await archiveRecord("project", id, archived);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível alterar o arquivamento." }, { status: 400 });
+  }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { nextProjectMonth, projectPostSlots, socialMediaScheduleSchema } from "@/modules/projects/social-media-schedule";
+import { buildAutoOrganizedPostAssignments } from "@/modules/projects/social-media-planning";
 
 describe("Planejamento mensal de social media", () => {
   it("gera a quantidade configurada nos dias da semana escolhidos, com datas e títulos estáveis", () => {
@@ -33,6 +34,24 @@ describe("Planejamento mensal de social media", () => {
       { date: "2027-01-05", title: "Post Cliente X Jan #01", number: 1 },
       { date: "2027-01-12", title: "Post Cliente X Jan #02", number: 2 },
       { date: "2027-01-20", title: "Post Cliente X Jan #03", number: 3 },
+    ]);
+  });
+
+  it("distribui pilares, ofertas e formatos variados na organização automática", () => {
+    const assignments = buildAutoOrganizedPostAssignments({
+      postIds: ["p1", "p2", "p3", "p4"],
+      editorialLines: [
+        { id: "l1", pillarId: "pil1", pillarName: "Autoridade", theme: "Mitos", preferredFormats: ["Carrossel", "Reels"] },
+        { id: "l2", pillarId: "pil2", pillarName: "Prova Social", theme: "Casos" },
+      ],
+      offers: [{ name: "Pilates" }, { name: "Fisioterapia" }],
+    });
+
+    expect(assignments).toEqual([
+      { postId: "p1", editorialLineId: "l1", offerName: "Pilates", format: "Carrossel" },
+      { postId: "p2", editorialLineId: "l2", offerName: "Fisioterapia", format: "Reels" },
+      { postId: "p3", editorialLineId: "l1", offerName: "Institucional / Marca", format: "Carrossel" },
+      { postId: "p4", editorialLineId: "l2", offerName: "Pilates", format: "Stories" },
     ]);
   });
 });

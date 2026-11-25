@@ -517,6 +517,12 @@ export async function purgeClient(clientId: string): Promise<{
 
     // 7. Limpar dados do Estúdio de Conteúdo / Redes Sociais do cliente
     await client.query(`DELETE FROM digital_presence_materials WHERE client_id = $1`, [clientId]);
+    await client.query(
+      `DELETE FROM headline_measurements WHERE content_id IN (
+        SELECT id FROM content_calendar_items WHERE client_id = $1
+      )`,
+      [clientId]
+    );
     await client.query(`DELETE FROM content_calendar_items WHERE client_id = $1`, [clientId]);
     await client.query(`DELETE FROM client_editorial_lines WHERE client_id = $1`, [clientId]);
     await client.query(`DELETE FROM client_brand_voice_presets WHERE client_id = $1`, [clientId]);

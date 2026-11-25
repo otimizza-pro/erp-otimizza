@@ -3,7 +3,7 @@ import { query } from "@/lib/db/pool";
 import { randomBytes } from "node:crypto";
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { formatContactFirstName } from "@/modules/clients/contact-name";
-import { getClientDnaContext } from "@/modules/clients/dna-briefing-sync";
+import { getClientDnaContext, sanitizeBriefingDifferentials } from "@/modules/clients/dna-briefing-sync";
 import { getCatalogItemsByClientId, syncCatalogItems } from "@/modules/clients/catalog-service";
 
 export const dynamic = "force-dynamic";
@@ -224,8 +224,8 @@ export async function GET(
     const ext = typeof session?.extracted_identity === "string" 
       ? JSON.parse(session.extracted_identity) 
       : (session?.extracted_identity || {});
-    const category = ext.marketNiche || dnaContext?.category || clientIdentity?.market_niche || "";
-    const servicesOffered = ext.valueProposition || dnaContext?.servicesOffered || clientIdentity?.value_proposition || "";
+    const category = clientIdentity?.market_niche || dnaContext?.category || ext.marketNiche || "";
+    const servicesOffered = clientIdentity?.value_proposition || dnaContext?.servicesOffered || ext.valueProposition || "";
 
     return NextResponse.json({
       success: true,
@@ -234,10 +234,10 @@ export async function GET(
       clientIdentity,
       audiences: clientAudiences,
       catalogItems,
-      brandHistory: session?.brand_history || clientIdentity?.brand_history || "",
-      corePromise: session?.core_promise || clientIdentity?.core_promise || "",
+      brandHistory: clientIdentity?.brand_history || session?.brand_history || "",
+      corePromise: clientIdentity?.core_promise || session?.core_promise || "",
       nonNegotiables: session?.non_negotiables || "",
-      salesObjections: session?.sales_objections || clientIdentity?.sales_objections || "",
+      salesObjections: clientIdentity?.sales_objections || session?.sales_objections || "",
       cnpj: session?.cnpj || "",
       cnaeCode: session?.cnae_code || "",
       cnaeDescription: session?.cnae_description || "",
@@ -251,6 +251,97 @@ export async function GET(
       { error: err instanceof Error ? err.message : "Erro interno." },
       { status: 500 }
     );
+  }
+}
+
+function parseStringList(value: unknown, splitCommas = false): string[] | null {
+  if (value === undefined || value === null) return null;
+  if (Array.isArray(value)) {
+    const items = value.filter((v): v is string => typeof v === "string").map((v) => v.trim()).filter(Boolean);
+    return items.length > 0 ? items : null;
+  }
+  if (typeof value === "string") {
+    const pattern = splitCommas ? /[\r\n,;]+/ : /[\r\n]+/;
+    const items = value.split(pattern).map((v) => v.trim()).filter(Boolean);
+    return items.length > 0 ? items : null;
+  }
+  return null;
+}
+
+async function syncTaskBriefingToIdentity(params: {
+  clientId: string;
+  category?: string | null;
+  servicesOffered?: string | null;
+  instagramUrl?: string | null;
+  hasInstagramUrl: boolean;
+  websiteUrl?: string | null;
+  hasWebsiteUrl: boolean;
+  brandHistory?: string | null;
+  corePromise?: string | null;
+  salesObjections?: string | null;
+  toneOfVoice?: string[] | null;
+  differentials?: string[] | null;
+  catalogItems?: Parameters<typeof syncCatalogItems>[1] | null;
+}) {
+  const {
+    clientId,
+    category,
+    servicesOffered,
+    instagramUrl,
+    hasInstagramUrl,
+    websiteUrl,
+    hasWebsiteUrl,
+    brandHistory,
+    corePromise,
+    salesObjections,
+    toneOfVoice,
+    differentials,
+    catalogItems,
+  } = params;
+
+  await query(
+    `
+    INSERT INTO public.client_identities (
+      client_id, market_niche, value_proposition, instagram_handle, website_url,
+      brand_history, core_promise, sales_objections, catalog_items,
+      tone_of_voice, differentials, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9::jsonb, '[]'::jsonb), $12::text[], $13::text[], NOW())
+    ON CONFLICT (client_id) DO UPDATE SET
+      market_niche = COALESCE(EXCLUDED.market_niche, client_identities.market_niche),
+      value_proposition = COALESCE(EXCLUDED.value_proposition, client_identities.value_proposition),
+      instagram_handle = CASE WHEN $10::boolean THEN NULLIF(BTRIM(COALESCE(EXCLUDED.instagram_handle, '')), '') ELSE client_identities.instagram_handle END,
+      website_url = CASE WHEN $11::boolean THEN NULLIF(BTRIM(COALESCE(EXCLUDED.website_url, '')), '') ELSE client_identities.website_url END,
+      brand_history = COALESCE(EXCLUDED.brand_history, client_identities.brand_history),
+      core_promise = COALESCE(EXCLUDED.core_promise, client_identities.core_promise),
+      sales_objections = COALESCE(EXCLUDED.sales_objections, client_identities.sales_objections),
+      catalog_items = CASE WHEN EXCLUDED.catalog_items IS NOT NULL AND jsonb_array_length(EXCLUDED.catalog_items) > 0 THEN EXCLUDED.catalog_items ELSE client_identities.catalog_items END,
+      tone_of_voice = CASE WHEN EXCLUDED.tone_of_voice IS NOT NULL AND COALESCE(array_length(EXCLUDED.tone_of_voice, 1), 0) > 0 THEN EXCLUDED.tone_of_voice ELSE client_identities.tone_of_voice END,
+      differentials = CASE WHEN EXCLUDED.differentials IS NOT NULL AND COALESCE(array_length(EXCLUDED.differentials, 1), 0) > 0 THEN EXCLUDED.differentials ELSE client_identities.differentials END,
+      updated_at = NOW()
+    `,
+    [
+      clientId,
+      category || null,
+      servicesOffered || null,
+      instagramUrl || null,
+      websiteUrl || null,
+      brandHistory || null,
+      corePromise || null,
+      salesObjections || null,
+      catalogItems ? JSON.stringify(catalogItems) : null,
+      hasInstagramUrl,
+      hasWebsiteUrl,
+      toneOfVoice && toneOfVoice.length > 0 ? toneOfVoice : null,
+      differentials && differentials.length > 0 ? sanitizeBriefingDifferentials(differentials) : null,
+    ]
+  );
+
+  if (Array.isArray(catalogItems) && catalogItems.length > 0) {
+    try {
+      await syncCatalogItems(clientId, catalogItems);
+    } catch (syncErr) {
+      console.warn("Aviso ao sincronizar catálogo do cliente:", syncErr);
+    }
   }
 }
 
@@ -348,43 +439,21 @@ export async function POST(
 
       const effectiveClientId = taskRes.rows[0].client_id;
       if (effectiveClientId) {
-        await query(
-          `
-          INSERT INTO public.client_identities (
-            client_id, market_niche, value_proposition, instagram_handle, website_url,
-            brand_history, core_promise, sales_objections, catalog_items, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9::jsonb, '[]'::jsonb), NOW())
-          ON CONFLICT (client_id) DO UPDATE SET
-            market_niche = COALESCE(EXCLUDED.market_niche, client_identities.market_niche),
-            value_proposition = COALESCE(EXCLUDED.value_proposition, client_identities.value_proposition),
-            instagram_handle = COALESCE(NULLIF(EXCLUDED.instagram_handle, ''), client_identities.instagram_handle),
-            website_url = COALESCE(NULLIF(EXCLUDED.website_url, ''), client_identities.website_url),
-            brand_history = COALESCE(EXCLUDED.brand_history, client_identities.brand_history),
-            core_promise = COALESCE(EXCLUDED.core_promise, client_identities.core_promise),
-            sales_objections = COALESCE(EXCLUDED.sales_objections, client_identities.sales_objections),
-            catalog_items = CASE WHEN EXCLUDED.catalog_items IS NOT NULL AND jsonb_array_length(EXCLUDED.catalog_items) > 0 THEN EXCLUDED.catalog_items ELSE client_identities.catalog_items END,
-            updated_at = NOW()
-          `,
-          [
-            effectiveClientId,
-            category || null,
-            servicesOffered || null,
-            instagramUrl || null,
-            websiteUrl || null,
-            brandHistory || null,
-            corePromise || null,
-            salesObjections || null,
-            catalogItems ? JSON.stringify(catalogItems) : null,
-          ]
-        );
-
-        if (Array.isArray(catalogItems) && catalogItems.length > 0) {
-          try {
-            await syncCatalogItems(effectiveClientId, catalogItems);
-          } catch (syncErr) {
-            console.warn("Aviso ao sincronizar catálogo do cliente:", syncErr);
-          }
-        }
+        await syncTaskBriefingToIdentity({
+          clientId: effectiveClientId,
+          category,
+          servicesOffered,
+          instagramUrl,
+          hasInstagramUrl: instagramUrl !== undefined,
+          websiteUrl,
+          hasWebsiteUrl: websiteUrl !== undefined,
+          brandHistory,
+          corePromise,
+          salesObjections,
+          toneOfVoice: parseStringList(extractedIdentity?.toneOfVoice, true),
+          differentials: parseStringList(extractedIdentity?.differentials, false),
+          catalogItems,
+        });
       }
     } else {
       // Atualizar campos pré-preenchidos pela equipe e identidade estratégica
@@ -438,43 +507,21 @@ export async function POST(
       session = updateRes.rows[0];
 
       if (session.client_id) {
-        await query(
-          `
-          INSERT INTO public.client_identities (
-            client_id, market_niche, value_proposition, instagram_handle, website_url,
-            brand_history, core_promise, sales_objections, catalog_items, updated_at
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, COALESCE($9::jsonb, '[]'::jsonb), NOW())
-          ON CONFLICT (client_id) DO UPDATE SET
-            market_niche = COALESCE(EXCLUDED.market_niche, client_identities.market_niche),
-            value_proposition = COALESCE(EXCLUDED.value_proposition, client_identities.value_proposition),
-            instagram_handle = COALESCE(NULLIF(EXCLUDED.instagram_handle, ''), client_identities.instagram_handle),
-            website_url = COALESCE(NULLIF(EXCLUDED.website_url, ''), client_identities.website_url),
-            brand_history = COALESCE(EXCLUDED.brand_history, client_identities.brand_history),
-            core_promise = COALESCE(EXCLUDED.core_promise, client_identities.core_promise),
-            sales_objections = COALESCE(EXCLUDED.sales_objections, client_identities.sales_objections),
-            catalog_items = CASE WHEN EXCLUDED.catalog_items IS NOT NULL AND jsonb_array_length(EXCLUDED.catalog_items) > 0 THEN EXCLUDED.catalog_items ELSE client_identities.catalog_items END,
-            updated_at = NOW()
-          `,
-          [
-            session.client_id,
-            category || null,
-            servicesOffered || null,
-            instagramUrl || null,
-            websiteUrl || null,
-            brandHistory || null,
-            corePromise || null,
-            salesObjections || null,
-            catalogItems ? JSON.stringify(catalogItems) : null,
-          ]
-        );
-
-        if (Array.isArray(catalogItems) && catalogItems.length > 0) {
-          try {
-            await syncCatalogItems(session.client_id, catalogItems);
-          } catch (syncErr) {
-            console.warn("Aviso ao sincronizar catálogo do cliente:", syncErr);
-          }
-        }
+        await syncTaskBriefingToIdentity({
+          clientId: session.client_id,
+          category,
+          servicesOffered,
+          instagramUrl,
+          hasInstagramUrl: instagramUrl !== undefined,
+          websiteUrl,
+          hasWebsiteUrl: websiteUrl !== undefined,
+          brandHistory,
+          corePromise,
+          salesObjections,
+          toneOfVoice: parseStringList(extractedIdentity?.toneOfVoice, true),
+          differentials: parseStringList(extractedIdentity?.differentials, false),
+          catalogItems,
+        });
       }
     }
 

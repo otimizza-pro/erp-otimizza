@@ -4,24 +4,30 @@ import {sanitizeBriefingDifferentials} from "./dna-briefing-sync";
 import {syncCatalogItems} from "./catalog-service";
 
 const text=(value:unknown)=>typeof value==="string"?value.trim():"";
-const list=(value:unknown):string[]=>Array.isArray(value)?value.filter(v=>typeof v==="string"&&v.trim()).map(v=>v.trim()):text(value)?[text(value)]:[];
+const splitList=(value:unknown,splitCommas=false):string[]=>{
+  if(Array.isArray(value))return value.filter((v):v is string=>typeof v==="string"&&Boolean(v.trim())).map(v=>v.trim());
+  const raw=text(value);
+  if(!raw)return [];
+  const pattern=splitCommas?/[\r\n,;]+/:/[\r\n]+/;
+  return raw.split(pattern).map(v=>v.trim()).filter(Boolean);
+};
 
 export function mapBriefingIdentity(extracted:Record<string,unknown>,extras:{instagram?:string;website?:string;notes?:string}={}){
-  const rawDiffs = list(extracted.differentialsList).length ? list(extracted.differentialsList) : list(extracted.differentials);
+  const rawDiffs = splitList(extracted.differentialsList).length ? splitList(extracted.differentialsList) : splitList(extracted.differentials);
   const cleanDiffs = sanitizeBriefingDifferentials(rawDiffs);
 
   return {
     valueProposition: text(extracted.valueProposition),
     marketNiche: text(extracted.marketNiche),
     archetype: text(extracted.archetype),
-    toneOfVoice: list(extracted.toneOfVoice),
+    toneOfVoice: splitList(extracted.toneOfVoice, true),
     brandContext: text(extracted.brandContext) || text(extracted.companyDescription),
-    targetAudiences: list(extracted.targetAudiences).length ? list(extracted.targetAudiences) : list(extracted.targetAudience),
-    painPoints: list(extracted.painPoints),
+    targetAudiences: splitList(extracted.targetAudiences, true).length ? splitList(extracted.targetAudiences, true) : splitList(extracted.targetAudience),
+    painPoints: splitList(extracted.painPoints),
     differentials: cleanDiffs,
-    forbiddenWords: list(extracted.forbiddenWords),
-    mandatoryTerms: list(extracted.mandatoryTerms),
-    defaultCtas: list(extracted.defaultCtas),
+    forbiddenWords: splitList(extracted.forbiddenWords, true),
+    mandatoryTerms: splitList(extracted.mandatoryTerms, true),
+    defaultCtas: splitList(extracted.defaultCtas, true),
     instagramHandle: text(extracted.instagramHandle) || extras.instagram || "",
     websiteUrl: extras.website || text(extracted.websiteUrl),
     notes: extras.notes || "",

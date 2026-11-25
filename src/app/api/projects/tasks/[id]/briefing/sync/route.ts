@@ -79,6 +79,13 @@ export async function POST(
       const ext={...(extracted_identity||{})};
       if(typeof body.valueProposition==="string"&&body.valueProposition.trim())ext.valueProposition=body.valueProposition;
       if(typeof body.marketNiche==="string"&&body.marketNiche.trim())ext.marketNiche=body.marketNiche;
+      if(typeof body.brandHistory==="string"&&body.brandHistory.trim())ext.brandHistory=body.brandHistory;
+      if(typeof body.corePromise==="string"&&body.corePromise.trim())ext.corePromise=body.corePromise;
+      if(typeof body.salesObjections==="string"&&body.salesObjections.trim())ext.salesObjections=body.salesObjections;
+      if(typeof body.toneOfVoice==="string"&&body.toneOfVoice.trim())ext.toneOfVoice=body.toneOfVoice;
+      if(typeof body.differentials==="string"&&body.differentials.trim())ext.differentials=body.differentials;
+      if(typeof body.targetAudience==="string"&&body.targetAudience.trim())ext.targetAudience=body.targetAudience;
+      if(typeof body.competitors==="string"&&body.competitors.trim())ext.competitors=body.competitors;
       await syncBriefingIdentity(client,client_id,ext,{instagram:instagram_url||"",website:website_url||"",notes:[initial_notes,competitor_notes?"Referências: "+competitor_notes:""].filter(Boolean).join("\n")});
       if(session_id)await client.query("UPDATE client_briefing_sessions SET status='COMPLETED',progress_percent=100,completed_at=COALESCE(completed_at,NOW()) WHERE id=$1",[session_id]);
       await client.query("UPDATE project_tasks SET status='DONE',completed_at=NOW() WHERE id=$1",[taskId]);

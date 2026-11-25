@@ -180,7 +180,7 @@ export function TaskExecutionModal({
         const clientExt = json.clientIdentity || {};
         const audiencesList = Array.isArray(json.audiences) ? json.audiences : [];
 
-        setCategory(json.category || ext.marketNiche || clientExt.market_niche || "");
+        setCategory(clientExt.market_niche || json.category || ext.marketNiche || "");
         setServicesOffered(json.servicesOffered || ext.valueProposition || clientExt.value_proposition || "");
 
         setBriefingToneOfVoice(

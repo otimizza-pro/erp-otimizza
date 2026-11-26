@@ -7,15 +7,28 @@ export type PlannedProjectPost = {
   id: string;
   clientId: string;
   title: string;
+  centralIdea?: string | null;
   companyName: string;
   projectId: string;
   projectName: string;
   scheduledDate: string | null;
+  scheduledTime?: string | null;
   workspaceId: string | null;
   format?: string;
   editorialLineId?: string | null;
   pillarId?: string | null;
+  pillarName?: string | null;
+  themeName?: string | null;
+  themeObjective?: string | null;
   offerName?: string | null;
+  targetAudienceName?: string | null;
+  toneOfVoice?: string | null;
+  callToAction?: string | null;
+  editorialBrief?: Record<string, unknown> | null;
+  headlineBrief?: Record<string, unknown> | null;
+  formatConfig?: Record<string, unknown> | null;
+  selectedHeadline?: string | null;
+  selectedSubheadline?: string | null;
   availableForIdea?: boolean;
   hasIdea?: boolean;
 };
@@ -51,11 +64,11 @@ export function ProjectPostPicker({ clientId, selected, onPostsLoaded }: {
   const posts = current?.posts ?? [];
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-semibold">Post de projeto
+      <label className="block text-sm font-semibold">Post / Pauta do Projeto
         <select className="ml-2 max-w-full rounded-lg border border-zinc-200 p-2 text-sm"
           value={selected?.id || ""} onChange={event => {
             const id = event.target.value;
-            router.push(id ? `/prompt-creator/brainstorm?projectPostId=${id}` : "/prompt-creator/brainstorm");
+            router.push(id ? `/prompt-creator?projectPostId=${id}` : "/prompt-creator");
           }}>
           <option value="">{!current ? "Carregando posts…" : posts.length ? "Selecionar um post planejado" : "Nenhum post de projeto disponível"}</option>
           {selected && !posts.some(post => post.id === selected.id) &&

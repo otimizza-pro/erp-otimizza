@@ -750,11 +750,11 @@ function StrategyContent() {
               Linha Editorial
             </Link>
             <Link
-              href="/prompt-creator/headlines"
+              href="/prompt-creator"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-zinc-950 rounded-xl hover:bg-zinc-800 transition shadow-2xs"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              Brainstorm
+              Estúdio Criativo
             </Link>
 
             {/* Botão de Salvar Manual */}

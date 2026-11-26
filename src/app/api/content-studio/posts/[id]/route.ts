@@ -69,6 +69,7 @@ export async function PUT(
         copy_google_ads = COALESCE($22, copy_google_ads),
         published_url = CASE WHEN $26::boolean THEN NULLIF(btrim($27::text), '') ELSE published_url END,
         editorial_brief = COALESCE($15::jsonb, editorial_brief),
+        format_config = COALESCE($28::jsonb, format_config),
         headline_brief = CASE WHEN headline_brief IS NOT NULL THEN headline_brief || $16::jsonb ELSE headline_brief END,
         headline_content_stale = CASE
           WHEN (headline_brief IS NOT NULL AND headline_brief IS DISTINCT FROM headline_brief || $16::jsonb OR $3::text IS NOT NULL AND selected_headline IS DISTINCT FROM $3)
@@ -118,6 +119,7 @@ export async function PUT(
       body.confirmContentRevision === true,
       body.publishedUrl !== undefined,
       typeof body.publishedUrl === "string" ? body.publishedUrl : null,
+      body.formatConfig && typeof body.formatConfig === "object" ? JSON.stringify(body.formatConfig) : null,
     ]);
       if(result.rowCount&&Object.keys(sharedPatch).length)await db.query('UPDATE headline_workspaces SET brief=brief || $2::jsonb,revision=revision+1,updated_at=NOW() WHERE content_id=$1',[id,JSON.stringify(sharedPatch)]);
       return result;

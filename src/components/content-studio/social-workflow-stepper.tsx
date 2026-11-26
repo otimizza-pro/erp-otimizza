@@ -14,12 +14,12 @@ const STEPS: Array<{
   icon: React.ComponentType<{ className?: string }>;
 }> = [
   { id: "editorial", number: "1", label: "Linha Editorial", href: "/social/editorial", icon: Layers },
-  { id: "brainstorm", number: "2", label: "Brainstorm & Pautas", href: "/prompt-creator/headlines", icon: Lightbulb },
-  { id: "studio", number: "3", label: "Estúdio Criativo", href: "/prompt-creator", icon: Sparkles },
-  { id: "calendar", number: "4", label: "Calendário & Feed", href: "/prompt-creator/saved", icon: Calendar },
+  { id: "studio", number: "2", label: "Estúdio Criativo", href: "/prompt-creator", icon: Sparkles },
+  { id: "calendar", number: "3", label: "Feed & Criativos", href: "/prompt-creator/saved", icon: Calendar },
 ];
 
 export function SocialWorkflowStepper({ activeStep }: { activeStep: SocialWorkflowStep }) {
+  const normalizedActive: SocialWorkflowStep = activeStep === "brainstorm" ? "studio" : activeStep;
   return (
     <nav
       aria-label="Esteira de Produção Social Media"
@@ -27,7 +27,7 @@ export function SocialWorkflowStepper({ activeStep }: { activeStep: SocialWorkfl
     >
       {STEPS.map((step, index) => {
         const Icon = step.icon;
-        const isActive = step.id === activeStep;
+        const isActive = step.id === normalizedActive;
         return (
           <React.Fragment key={step.id}>
             <Link

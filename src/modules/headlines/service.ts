@@ -9,7 +9,18 @@ export function teamModels() {
  return Object.fromEntries((["A","B"] as const).map(team=>[team,defaults[team].map((fallback,index)=>({slot:index+1,model:process.env[`OPENROUTER_HEADLINE_TEAM_${team}_${index+1}_MODEL`]?.trim()||fallback}))]));
 }
 export async function ownedWorkspace(id:string,user:string) {
- const r=await query("SELECT w.*,c.selected_headline,c.selected_subheadline,c.headline_candidate_id,c.headline_content_stale,c.offer_name,c.editorial_line_id,c.format AS content_format FROM headline_workspaces w JOIN content_calendar_items c ON c.id=w.content_id WHERE w.id=$1 AND w.user_id=$2",[id,user]);
+ const r=await query(
+  `SELECT w.*,c.selected_headline,c.selected_subheadline,c.headline_candidate_id,c.headline_content_stale,
+          c.offer_name,c.editorial_line_id,c.format AS content_format,c.format_config,c.editorial_brief,
+          c.central_idea,c.target_audience_name,c.tone_of_voice,c.call_to_action,
+          c.scheduled_date::text AS scheduled_date,c.scheduled_time::text AS scheduled_time,
+          c.project_id,p.name AS project_name
+   FROM headline_workspaces w
+   JOIN content_calendar_items c ON c.id=w.content_id
+   LEFT JOIN projects p ON p.id=c.project_id
+   WHERE w.id=$1 AND w.user_id=$2`,
+  [id,user],
+ );
  if(!r.rows[0])throw new Error("Peça não encontrada neste usuário.");return r.rows[0];
 }
 export async function workspaceState(id:string,user:string) {
@@ -29,9 +40,42 @@ export async function createWorkspace(clientId:string,user:string,contentId?:str
    const c=await db.query("SELECT * FROM content_calendar_items WHERE id=$1 AND client_id=$2 FOR UPDATE",[id,clientId]);if(!c.rowCount)throw new Error("A pauta não pertence a este cliente.");
    const item=c.rows[0];const normalizedFmt=item.format==='Post estático'?'Estático':(['Reels','Carrossel','Stories','Pesquisa','Landing page'].includes(item.format)?item.format:'Estático');
    const normalizedPlacement=normalizedFmt==='Reels'?'Reels':normalizedFmt==='Stories'?'Stories':'Feed';
-   initial=item.headline_brief||{...(item.editorial_brief||{}),offer:item.offer_name||'',themeId:item.editorial_line_id||'',bigIdea:item.central_idea||'',format:normalizedFmt,placement:normalizedPlacement,audience:item.editorial_brief?.audience||item.target_audience_name||'',tone:item.tone_of_voice||'',cta:item.call_to_action||''};
    const existing=await db.query("SELECT id,user_id FROM headline_workspaces WHERE content_id=$1",[id]);
    if(existing.rows[0]) {if(existing.rows[0].user_id!==user)throw new Error("Peça de outro usuário.");return existing.rows[0].id as string;}
+   const clientCtx=await loadAiClientContext(clientId).catch(()=>null);
+   const dna=clientCtx?.identity||{};
+   const profile=(dna.commercial_profile as Record<string,string>|undefined)||{};
+   const catalogMatch=item.offer_name&&item.offer_name!=="Institucional / Marca"?(clientCtx?.catalogItems||[]).find(o=>String(o.name||"").trim().toLowerCase()===String(item.offer_name).trim().toLowerCase()):undefined;
+   const editorialMatch=item.editorial_line_id?(clientCtx?.editorialLines||[]).find(l=>String(l.id)===String(item.editorial_line_id)):undefined;
+   const first=(val:unknown)=>Array.isArray(val)&&val.length?String(val[0]||""):typeof val==="string"?val:"";
+   const defaultAudience=item.editorial_brief?.audience||item.target_audience_name||String(clientCtx?.audiences.find(a=>a.is_default)?.name||clientCtx?.audiences[0]?.name||clientCtx?.communicationProfile?.audienceTypes[0]||"");
+   const matchedAudience=clientCtx?.audiences.find(a=>String(a.name)===defaultAudience);
+   const defaultSpeaker=item.editorial_brief?.speaker||(clientCtx?.communicationProfile?.speakerTypes.length===1?clientCtx.communicationProfile.speakerTypes[0]:"");
+   const defaultVoice=item.editorial_brief?.voice||(clientCtx?.communicationProfile?.contentVoices.length===1?clientCtx.communicationProfile.contentVoices[0]:"");
+   const defaultPain=item.editorial_brief?.pain||(catalogMatch?.target_pain_points?String(catalogMatch.target_pain_points).split(/\r?\n/)[0]?.trim():"")||first(matchedAudience?.pain_points)||first(dna.pain_points)||"";
+   const defaultDesire=first(matchedAudience?.desires)||"";
+   const defaultObjection=first(matchedAudience?.objections)||first(dna.sales_objections)||"";
+   const defaultGoal=item.editorial_brief?.goal||String(editorialMatch?.objective||profile.commercialObjective||"");
+   initial=item.headline_brief||{
+    ...(item.editorial_brief||{}),
+    offer:item.offer_name||profile.requestedScope||'',
+    themeId:item.editorial_line_id||'',
+    bigIdea:item.central_idea||'',
+    format:normalizedFmt,
+    placement:normalizedPlacement,
+    audience:defaultAudience,
+    speaker:defaultSpeaker,
+    voice:defaultVoice,
+    pain:defaultPain,
+    desire:defaultDesire,
+    objection:defaultObjection,
+    goal:defaultGoal,
+    value:String(dna.value_proposition||""),
+    differential:Array.isArray(dna.differentials)?dna.differentials.join("; "):"",
+    tone:item.tone_of_voice||item.editorial_brief?.tone||first(dna.tone_of_voice)||'',
+    cta:item.call_to_action||item.editorial_brief?.cta||first(dna.default_ctas)||'',
+    forbiddenWords:Array.isArray(dna.forbidden_words)?dna.forbidden_words.join("; "):"",
+   };
   } else id=(await db.query("INSERT INTO content_calendar_items(client_id,title,central_idea,format,status) VALUES($1,'Nova pauta de headlines','','Post estático','PLANNED') RETURNING id",[clientId])).rows[0].id;
   return (await db.query("INSERT INTO headline_workspaces(client_id,user_id,content_id,brief) VALUES($1,$2,$3,$4::jsonb) RETURNING id",[clientId,user,id,JSON.stringify(initial)])).rows[0].id as string;
  });

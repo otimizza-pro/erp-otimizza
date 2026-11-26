@@ -133,6 +133,8 @@ export function TaskExecutionModal({
 
   // Checklist state
   const [newChecklistText, setNewChecklistText] = useState<string>("");
+  const [projectPosts, setProjectPosts] = useState<Array<{ id: string; title: string; format?: string | null; scheduledDate?: string | null; pillarName?: string | null; offerName?: string | null; status: string }>>([]);
+  const [loadingProjectPosts, setLoadingProjectPosts] = useState(false);
 
   // Status and Priority update
   const [status, setStatus] = useState<TaskStatus>(task?.status || "TODO");
@@ -243,8 +245,25 @@ export function TaskExecutionModal({
       ) {
         loadBriefingSession();
       }
+      if (
+        project.id &&
+        (project.hasEditorialPlan ||
+          /estratégia|pilares|calendário|editorial|post|conteúdo|conteudo|social|roteiro|carrossel|reels|headline|copy|criativo|arte|anúncio|anuncio|ads|pauta/i.test(task.title))
+      ) {
+        setLoadingProjectPosts(true);
+        fetch(`/api/projects/${project.id}/social-media`)
+          .then(r => (r.ok ? r.json() : null))
+          .then(d => {
+            if (d && Array.isArray(d.posts)) setProjectPosts(d.posts);
+            else setProjectPosts([]);
+          })
+          .catch(() => setProjectPosts([]))
+          .finally(() => setLoadingProjectPosts(false));
+      } else {
+        setProjectPosts([]);
+      }
     }
-  }, [isOpen, task, loadBriefingSession]);
+  }, [isOpen, task, project.id, project.hasEditorialPlan, loadBriefingSession]);
 
   if (!isOpen || !task) return null;
 
@@ -253,7 +272,7 @@ export function TaskExecutionModal({
   const isAccessTask = titleLower.includes("acesso") || titleLower.includes("redes sociais");
   const isAuditTask = titleLower.includes("auditar") || titleLower.includes("concorrente");
   const isStrategyTask = titleLower.includes("estratégia") || titleLower.includes("pilares");
-  const isCalendarTask = titleLower.includes("calendário") || titleLower.includes("editorial");
+  const isCalendarTask = titleLower.includes("calendário") || titleLower.includes("editorial") || /post|conte[uú]do|social|roteiro|carrossel|reels|headline|copy|criativo|arte|an[uú]ncio|ads|pauta/i.test(task.title);
 
   const isLinkUnlocked = true;
 
@@ -1557,11 +1576,11 @@ export function TaskExecutionModal({
 
                   <div className="pt-2 flex flex-wrap items-center gap-2">
                     <Link
-                      href="/prompt-creator"
+                      href={`/prompt-creator${project.clientId ? `?clientId=${encodeURIComponent(project.clientId)}` : ""}`}
                       className="inline-flex items-center gap-1.5 px-4 py-2 bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-semibold rounded-xl transition"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      Abrir no Estúdio de Conteúdo
+                      Abrir no Estúdio Criativo
                     </Link>
 
                     <Link
@@ -1575,23 +1594,50 @@ export function TaskExecutionModal({
                 </div>
               )}
 
-              {/* 5. CASO CRIAR CALENDÁRIO EDITORIAL */}
+              {/* 5. CASO CRIAR CALENDÁRIO EDITORIAL OU CONTEÚDO DO PROJETO */}
               {isCalendarTask && (
                 <div className="space-y-4">
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
-                    <h4 className="font-bold text-slate-900 text-xs">Produção e Calendário de Conteúdo</h4>
+                    <h4 className="font-bold text-slate-900 text-xs">Produção de Conteúdo do Projeto</h4>
                     <p className="text-xs text-slate-600">
-                      Acesse as ferramentas de criação de prompts e feed planejado para este cliente.
+                      Abra qualquer pauta já configurada neste projeto diretamente no Estúdio Criativo com formato, oferta, pilar e briefing pré-preenchidos.
                     </p>
                   </div>
 
+                  {loadingProjectPosts ? (
+                    <p className="text-xs text-slate-500">Carregando pautas planejadas do projeto...</p>
+                  ) : projectPosts.length > 0 && (
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                      {projectPosts.map(p => (
+                        <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-900 truncate">{p.title}</p>
+                            <p className="text-[11px] text-slate-500">
+                              {p.format || "Formato a definir"}
+                              {p.scheduledDate ? ` · ${formatDateBR(p.scheduledDate)}` : ""}
+                              {p.pillarName ? ` · ${p.pillarName}` : ""}
+                              {p.offerName ? ` · ${p.offerName}` : ""}
+                            </p>
+                          </div>
+                          <Link
+                            href={`/prompt-creator?projectPostId=${p.id}`}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition shrink-0"
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                            Criar no Estúdio
+                          </Link>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="flex flex-wrap items-center gap-2.5">
                     <Link
-                      href="/prompt-creator"
+                      href={`/prompt-creator${project.clientId ? `?clientId=${encodeURIComponent(project.clientId)}` : ""}`}
                       className="inline-flex items-center gap-2 px-4 py-2.5 bg-zinc-950 hover:bg-zinc-800 text-white text-xs font-bold rounded-xl transition shadow-xs"
                     >
                       <Sparkles className="w-4 h-4" />
-                      Criar Prompts & Roteiros
+                      Abrir Estúdio Criativo
                     </Link>
 
                     <Link
@@ -1599,7 +1645,7 @@ export function TaskExecutionModal({
                       className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-xl transition shadow-2xs"
                     >
                       <Calendar className="w-4 h-4 text-zinc-800" />
-                      Ver Feed & Posts Salvos
+                      Ver Feed & Criativos Salvos
                     </Link>
                   </div>
                 </div>

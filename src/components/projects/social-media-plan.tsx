@@ -3,12 +3,32 @@
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { nextProjectMonth, type SocialMediaSchedule } from "@/modules/projects/social-media-schedule";
+import { FUNNEL_STAGES, JOURNEY_STAGES } from "@/modules/clients/content-brief";
+import {
+  CAROUSEL_DENSITY_OPTIONS,
+  CAROUSEL_SLIDE_COUNTS,
+  CAROUSEL_TYPE_OPTIONS,
+  CAPTION_EMOJI_OPTIONS,
+  CAPTION_LENGTH_OPTIONS,
+  CAPTION_STRUCTURE_OPTIONS,
+  DEFAULT_CTAS,
+  DEFAULT_TONES,
+  LP_GOAL_OPTIONS,
+  REELS_DURATION_OPTIONS,
+  REELS_STYLE_OPTIONS,
+  normalizeWriterFormat,
+  parseFormatSpecs,
+  type FormatSpecsConfig,
+} from "@/modules/headlines/format-specs";
 import { confirmAction } from "@/components/ui/confirm-dialog";
 import {
   Calendar as CalendarIcon,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Sparkles,
+  Sliders,
   Check,
   RotateCcw,
   Trash2,
@@ -386,7 +406,9 @@ export function SocialMediaScheduleFields({
 type ProjectPost = {
   id: string;
   title: string;
+  centralIdea?: string | null;
   scheduledDate: string | null;
+  scheduledTime?: string | null;
   status: string;
   archivedAt: string | null;
   format?: string | null;
@@ -394,7 +416,13 @@ type ProjectPost = {
   pillarId?: string | null;
   pillarName?: string | null;
   themeName?: string | null;
+  themeObjective?: string | null;
   offerName?: string | null;
+  targetAudienceName?: string | null;
+  toneOfVoice?: string | null;
+  callToAction?: string | null;
+  editorialBrief?: Record<string, unknown> | null;
+  formatConfig?: Record<string, unknown> | null;
   projectPostNumber?: number | null;
 };
 type EditorialLineOption = {
@@ -402,6 +430,7 @@ type EditorialLineOption = {
   pillarId: string | null;
   pillarName: string;
   theme: string;
+  objective?: string | null;
   preferredFormats?: string[];
 };
 type CatalogOfferOption = {
@@ -409,6 +438,15 @@ type CatalogOfferOption = {
   name: string;
   type: string;
   category?: string | null;
+  targetPainPoints?: string | null;
+};
+type ClientStrategyOptions = {
+  audiences: { id: string; name: string; painPoints?: string[]; isDefault?: boolean }[];
+  speakers: string[];
+  voices: string[];
+  tones: string[];
+  ctas: string[];
+  pains: string[];
 };
 type Plan = {
   schedule: SocialMediaSchedule | null;
@@ -416,6 +454,7 @@ type Plan = {
   posts: ProjectPost[];
   editorialLines?: EditorialLineOption[];
   catalogOffers?: CatalogOfferOption[];
+  clientStrategy?: ClientStrategyOptions;
 };
 const POST_FORMATS = ["Carrossel", "Reels", "Post estático", "Stories", "Post em texto"];
 const actionClass = "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50 transition cursor-pointer";
@@ -433,6 +472,9 @@ export function ProjectSocialMediaPlan({ projectId, startDate, archived }: {
   const [busy, setBusy] = useState(false);
   const [savingPostId, setSavingPostId] = useState<string | null>(null);
   const [titleDrafts, setTitleDrafts] = useState<Record<string, string>>({});
+  const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>({});
+  const [ideaDrafts, setIdeaDrafts] = useState<Record<string, string>>({});
+  const [goalDrafts, setGoalDrafts] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const url = `/api/projects/${projectId}/social-media`;
@@ -449,8 +491,17 @@ export function ProjectSocialMediaPlan({ projectId, startDate, archived }: {
         setPlan(data);
         setSchedule(data.schedule ?? defaultSchedule);
         const drafts: Record<string, string> = {};
-        for (const p of data.posts) drafts[p.id] = p.title;
+        const nextIdeas: Record<string, string> = {};
+        const nextGoals: Record<string, string> = {};
+        for (const p of data.posts) {
+          drafts[p.id] = p.title;
+          nextIdeas[p.id] = p.centralIdea || "";
+          const briefGoal = typeof p.editorialBrief?.goal === "string" ? p.editorialBrief.goal : "";
+          nextGoals[p.id] = briefGoal || p.themeObjective || "";
+        }
         setTitleDrafts(drafts);
+        setIdeaDrafts(nextIdeas);
+        setGoalDrafts(nextGoals);
       })
       .catch(reason => { if (!controller.signal.aborted) setError(reason.message); });
     return () => controller.abort();
@@ -492,10 +543,17 @@ export function ProjectSocialMediaPlan({ projectId, startDate, archived }: {
     postId: string,
     patch: {
       title?: string;
+      centralIdea?: string | null;
       scheduledDate?: string | null;
+      scheduledTime?: string | null;
       format?: string | null;
       editorialLineId?: string | null;
       offerName?: string | null;
+      targetAudienceName?: string | null;
+      toneOfVoice?: string | null;
+      callToAction?: string | null;
+      editorialBrief?: Record<string, unknown> | null;
+      formatConfig?: Record<string, unknown> | null;
     }
   ) {
     setSavingPostId(postId);
@@ -735,12 +793,23 @@ export function ProjectSocialMediaPlan({ projectId, startDate, archived }: {
                             <ArrowUpRight className="h-3.5 w-3.5" />
                           </Link>
                           <Link
-                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition"
-                            href={`/prompt-creator/brainstorm?projectPostId=${post.id}`}
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white hover:bg-emerald-700 transition shadow-2xs"
+                            href={`/prompt-creator?projectPostId=${post.id}`}
                           >
-                            Abrir no brainstorm
+                            <Sparkles className="h-3.5 w-3.5" />
+                            Abrir no Estúdio Criativo
                             <ArrowUpRight className="h-3.5 w-3.5" />
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedPosts(prev => ({ ...prev, [post.id]: !prev[post.id] }))}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
+                            title="Definir público, tom, CTA e especificações técnicas deste post"
+                          >
+                            <Sliders className="h-3 w-3" />
+                            Especificações
+                            {expandedPosts[post.id] ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                          </button>
                           <button
                             type="button"
                             disabled={isSaving}
@@ -826,6 +895,266 @@ export function ProjectSocialMediaPlan({ projectId, startDate, archived }: {
                       </select>
                     </label>
                   </div>
+
+                  {/* Resumo estratégico rápido */}
+                  {(() => {
+                    const specs = parseFormatSpecs(post.formatConfig);
+                    const writerFmt = normalizeWriterFormat(post.format);
+                    const eb = (post.editorialBrief || {}) as Record<string, unknown>;
+                    const specPill =
+                      writerFmt === "REELS"
+                        ? `${specs.reelsDuration.split("(")[0].trim()} · ${specs.reelsStyle.split("(")[0].trim()}`
+                        : writerFmt === "CAROUSEL"
+                          ? `${specs.carouselSlides} slides · ${specs.carouselType.split("/")[0].trim()}`
+                          : `${specs.captionLength.split("(")[0].trim()} · ${specs.captionStructure.split("(")[0].trim()}`;
+                    const aud = post.targetAudienceName || (typeof eb.audience === "string" ? eb.audience : "");
+                    const funnel = typeof eb.funnel === "string" ? FUNNEL_STAGES[eb.funnel as keyof typeof FUNNEL_STAGES] : "";
+                    return (
+                      <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-600">
+                        <span className="rounded-md bg-slate-100 px-2 py-0.5 font-medium">{specPill}</span>
+                        {aud && <span className="rounded-md bg-emerald-50 text-emerald-800 px-2 py-0.5 font-medium">Público: {aud}</span>}
+                        {funnel && <span className="rounded-md bg-blue-50 text-blue-800 px-2 py-0.5 font-medium">{funnel}</span>}
+                        {post.centralIdea?.trim() && <span className="rounded-md bg-amber-50 text-amber-900 px-2 py-0.5 font-medium truncate max-w-xs">Pauta: {post.centralIdea}</span>}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Detalhes & Especificações Técnicas Expansíveis do Post */}
+                  {expandedPosts[post.id] && (() => {
+                    const specs = parseFormatSpecs(post.formatConfig);
+                    const writerFmt = normalizeWriterFormat(post.format);
+                    const eb = (post.editorialBrief || {}) as Record<string, string | undefined>;
+                    const strat = plan?.clientStrategy;
+                    const audiences = Array.from(new Set(strat?.audiences.map(a => a.name) || []));
+                    const speakers = Array.from(new Set(strat?.speakers || []));
+                    const voices = Array.from(new Set(strat?.voices || []));
+                    const tones = Array.from(new Set([...(strat?.tones || []), ...DEFAULT_TONES]));
+                    const ctas = Array.from(new Set([...(strat?.ctas || []), ...DEFAULT_CTAS]));
+                    const matchedOfferObj = catalogOffers.find(o => o.name === post.offerName);
+                    const offerPains = (matchedOfferObj?.targetPainPoints || "").split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+                    const pains = Array.from(new Set([...offerPains, ...(strat?.audiences.flatMap(a => a.painPoints || []) || []), ...(strat?.pains || [])]));
+
+                    const patchBrief = (briefPatch: Record<string, string>) => {
+                      const merged = {
+                        themeId: post.editorialLineId || eb.themeId || "",
+                        speaker: eb.speaker || speakers[0] || "",
+                        voice: eb.voice || voices[0] || "",
+                        audience: post.targetAudienceName || eb.audience || audiences[0] || "",
+                        funnel: eb.funnel || "TOP",
+                        journey: eb.journey || "DISCOVERY",
+                        goal: goalDrafts[post.id] || eb.goal || post.themeObjective || "",
+                        pain: eb.pain || "NOT_APPLICABLE",
+                        tone: post.toneOfVoice || eb.tone || tones[0] || "",
+                        cta: post.callToAction || eb.cta || ctas[0] || "",
+                        ...briefPatch,
+                      };
+                      void updatePost(post.id, { editorialBrief: merged });
+                    };
+
+                    const patchSpecs = (nextPartial: Partial<FormatSpecsConfig>) => {
+                      void updatePost(post.id, { formatConfig: { ...specs, ...nextPartial } });
+                    };
+
+                    return (
+                      <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 bg-slate-50/60 rounded-xl p-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                          <label className="block">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Horário</span>
+                            <input
+                              type="time"
+                              disabled={locked}
+                              value={(post.scheduledTime || "18:00").slice(0, 5)}
+                              onChange={e => void updatePost(post.id, { scheduledTime: e.target.value ? `${e.target.value}:00` : null })}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                            />
+                          </label>
+                          <label className="block sm:col-span-2">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Ideia Central / Pauta Inicial</span>
+                            <input
+                              type="text"
+                              disabled={locked}
+                              placeholder="Descreva a pauta ou gancho inicial já definido..."
+                              value={ideaDrafts[post.id] ?? (post.centralIdea || "")}
+                              onChange={e => setIdeaDrafts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                              onBlur={() => {
+                                const val = (ideaDrafts[post.id] ?? "").trim();
+                                if (val !== (post.centralIdea || "").trim()) void updatePost(post.id, { centralIdea: val });
+                              }}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                            />
+                          </label>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                          <label className="block">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Público-Alvo</span>
+                            <select
+                              disabled={locked}
+                              value={post.targetAudienceName || eb.audience || ""}
+                              onChange={e => {
+                                void updatePost(post.id, {
+                                  targetAudienceName: e.target.value || null,
+                                  editorialBrief: { ...(post.editorialBrief || {}), audience: e.target.value },
+                                });
+                              }}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                            >
+                              <option value="">Padrão do cliente</option>
+                              {audiences.map(a => <option key={a} value={a}>{a}</option>)}
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Quem Comunica</span>
+                            <select
+                              disabled={locked}
+                              value={eb.speaker || ""}
+                              onChange={e => patchBrief({ speaker: e.target.value })}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                            >
+                              <option value="">Padrão do DNA</option>
+                              {speakers.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Porta-Voz / Estilo</span>
+                            <select
+                              disabled={locked}
+                              value={eb.voice || ""}
+                              onChange={e => patchBrief({ voice: e.target.value })}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                            >
+                              <option value="">Padrão do DNA</option>
+                              {voices.map(v => <option key={v} value={v}>{v}</option>)}
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Funil & Jornada</span>
+                            <select
+                              disabled={locked}
+                              value={eb.funnel || "TOP"}
+                              onChange={e => {
+                                const f = e.target.value;
+                                const j = f === "BOTTOM" ? "DECISION" : f === "AFTER_SALE" ? "RETENTION" : f === "MIDDLE" ? "CONSIDERATION" : "DISCOVERY";
+                                patchBrief({ funnel: f, journey: j });
+                              }}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                            >
+                              {Object.entries(FUNNEL_STAGES).map(([k, label]) => (
+                                <option key={k} value={k}>{label} ({JOURNEY_STAGES[k === "BOTTOM" ? "DECISION" : k === "AFTER_SALE" ? "RETENTION" : k === "MIDDLE" ? "CONSIDERATION" : "DISCOVERY"]})</option>
+                              ))}
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Dor Abordada</span>
+                            <select
+                              disabled={locked}
+                              value={eb.pain || ""}
+                              onChange={e => patchBrief({ pain: e.target.value })}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                            >
+                              <option value="">Definir / Automática</option>
+                              <option value="NOT_APPLICABLE">Não se aplica (pauta educativa)</option>
+                              {pains.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Tom de Voz</span>
+                            <select
+                              disabled={locked}
+                              value={post.toneOfVoice || eb.tone || ""}
+                              onChange={e => void updatePost(post.id, { toneOfVoice: e.target.value || null, editorialBrief: { ...(post.editorialBrief || {}), tone: e.target.value } })}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                            >
+                              <option value="">Padrão do cliente</option>
+                              {tones.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">CTA</span>
+                            <select
+                              disabled={locked}
+                              value={post.callToAction || eb.cta || ""}
+                              onChange={e => void updatePost(post.id, { callToAction: e.target.value || null, editorialBrief: { ...(post.editorialBrief || {}), cta: e.target.value } })}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                            >
+                              <option value="">Padrão do cliente</option>
+                              {ctas.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </label>
+
+                          <label className="block">
+                            <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Objetivo da Peça</span>
+                            <input
+                              type="text"
+                              disabled={locked}
+                              placeholder="Ex.: Educar e gerar autoridade"
+                              value={goalDrafts[post.id] ?? (eb.goal || post.themeObjective || "")}
+                              onChange={e => setGoalDrafts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                              onBlur={() => {
+                                const val = (goalDrafts[post.id] ?? "").trim();
+                                if (val && val !== (eb.goal || "")) patchBrief({ goal: val });
+                              }}
+                              className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-800"
+                            />
+                          </label>
+                        </div>
+
+                        {/* Especificações Técnicas Específicas do Formato */}
+                        <div className="rounded-lg border border-slate-200 bg-white p-2.5 space-y-2">
+                          <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                            Especificações Técnicas ({post.format || "Post estático"})
+                          </span>
+                          {writerFmt === "REELS" && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <select disabled={locked} value={specs.reelsDuration} onChange={e => patchSpecs({ reelsDuration: e.target.value })} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs">
+                                {REELS_DURATION_OPTIONS.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+                              </select>
+                              <select disabled={locked} value={specs.reelsStyle} onChange={e => patchSpecs({ reelsStyle: e.target.value })} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs">
+                                {REELS_STYLE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            </div>
+                          )}
+                          {writerFmt === "CAROUSEL" && (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <select disabled={locked} value={specs.carouselSlides} onChange={e => patchSpecs({ carouselSlides: Number(e.target.value) })} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs">
+                                {CAROUSEL_SLIDE_COUNTS.map(n => <option key={n} value={n}>{n} slides</option>)}
+                              </select>
+                              <select disabled={locked} value={specs.carouselType} onChange={e => patchSpecs({ carouselType: e.target.value })} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs">
+                                {CAROUSEL_TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                              <select disabled={locked} value={specs.carouselWordLimit} onChange={e => patchSpecs({ carouselWordLimit: e.target.value })} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs">
+                                {CAROUSEL_DENSITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              </select>
+                            </div>
+                          )}
+                          {writerFmt === "CAPTION" && (
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <select disabled={locked} value={specs.captionLength} onChange={e => patchSpecs({ captionLength: e.target.value })} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs">
+                                {CAPTION_LENGTH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                              </select>
+                              <select disabled={locked} value={specs.captionStructure} onChange={e => patchSpecs({ captionStructure: e.target.value })} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs">
+                                {CAPTION_STRUCTURE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                              <select disabled={locked} value={specs.captionEmojiLevel} onChange={e => patchSpecs({ captionEmojiLevel: e.target.value })} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs">
+                                {CAPTION_EMOJI_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            </div>
+                          )}
+                          {writerFmt === "LANDING_PAGE" && (
+                            <select disabled={locked} value={specs.lpGoal} onChange={e => patchSpecs({ lpGoal: e.target.value })} className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs">
+                              {LP_GOAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

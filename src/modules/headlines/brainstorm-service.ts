@@ -817,6 +817,9 @@ export async function convertIdeaToHeadlines(
     let projectOfferName = "";
     let projectEditorialLineId: string | null = null;
     let projectTargetAudience = "";
+    let projectTone = "";
+    let projectCta = "";
+    let projectEditorialBrief: Record<string, unknown> | null = null;
     let effectiveCalendarFormat = calendarFormat;
     if (linkOnly && !projectPost) throw new Error("Selecione um post planejado.");
 
@@ -825,7 +828,7 @@ export async function convertIdeaToHeadlines(
         throw new Error("Esta ideia já está vinculada a outro conteúdo ou pertence a outra empresa.");
       }
       const target = await db.query(
-        `SELECT c.id, c.status, c.central_idea, c.offer_name, c.editorial_line_id, c.target_audience_name, c.format FROM content_calendar_items c
+        `SELECT c.id, c.status, c.central_idea, c.offer_name, c.editorial_line_id, c.target_audience_name, c.tone_of_voice, c.call_to_action, c.editorial_brief, c.format FROM content_calendar_items c
          JOIN projects p ON p.id = c.project_id AND p.client_id = c.client_id
          WHERE c.id = $1 AND c.client_id = $2 AND c.archived_at IS NULL
            AND p.archived_at IS NULL AND c.content_type = 'SOCIAL_MEDIA'
@@ -836,6 +839,9 @@ export async function convertIdeaToHeadlines(
       projectOfferName = target.rows[0].offer_name || "";
       projectEditorialLineId = target.rows[0].editorial_line_id || null;
       projectTargetAudience = target.rows[0].target_audience_name || "";
+      projectTone = target.rows[0].tone_of_voice || "";
+      projectCta = target.rows[0].call_to_action || "";
+      projectEditorialBrief = (target.rows[0].editorial_brief as Record<string, unknown> | null) || null;
       if (target.rows[0].format) {
         effectiveCalendarFormat = target.rows[0].format;
       }
@@ -889,13 +895,16 @@ export async function convertIdeaToHeadlines(
     // 2. Se não existir peça no calendário, cria
     if (contentId && !projectPost) {
       const post = await db.query(
-        "SELECT id, status, offer_name, editorial_line_id, target_audience_name, format FROM content_calendar_items WHERE id = $1 AND client_id = $2 AND archived_at IS NULL FOR UPDATE",
+        "SELECT id, status, offer_name, editorial_line_id, target_audience_name, tone_of_voice, call_to_action, editorial_brief, format FROM content_calendar_items WHERE id = $1 AND client_id = $2 AND archived_at IS NULL FOR UPDATE",
         [contentId, idea.client_id],
       );
       if (!post.rows.length || post.rows[0].status === "PUBLISHED") throw new Error("Post indisponível para criação.");
       projectOfferName = post.rows[0].offer_name || "";
       projectEditorialLineId = post.rows[0].editorial_line_id || null;
       projectTargetAudience = post.rows[0].target_audience_name || "";
+      projectTone = post.rows[0].tone_of_voice || "";
+      projectCta = post.rows[0].call_to_action || "";
+      projectEditorialBrief = (post.rows[0].editorial_brief as Record<string, unknown> | null) || null;
       if (post.rows[0].format) {
         effectiveCalendarFormat = post.rows[0].format;
       }
@@ -924,7 +933,7 @@ export async function convertIdeaToHeadlines(
 
     const resolvedOfferName = String(idea.offer_name || projectOfferName || "").trim();
     const resolvedThemeId = idea.editorial_line_id || projectEditorialLineId || "";
-    const resolvedAudience = idea.target_audience || projectTargetAudience || "";
+    const resolvedAudience = String(projectEditorialBrief?.audience || idea.target_audience || projectTargetAudience || "").trim();
 
     let catalogItem: { pain?: string; desire?: string; benefit?: string; differential?: string } | null = null;
     if (resolvedOfferName && resolvedOfferName !== "Institucional / Marca") {
@@ -935,8 +944,20 @@ export async function convertIdeaToHeadlines(
          LIMIT 1`,
         [idea.client_id, resolvedOfferName],
       );
-      if (catRes.rows[0]) catalogItem = catRes.rows[0];
+      if (catRes?.rows?.[0]) catalogItem = catRes.rows[0];
     }
+
+    const clientCtx = await loadAiClientContext(idea.client_id).catch(() => null);
+    const dna = clientCtx?.identity || {};
+    const firstStr = (v: unknown) => Array.isArray(v) && v.length ? String(v[0] || "") : typeof v === "string" ? v : "";
+    const resolvedSpeaker = String(projectEditorialBrief?.speaker || (clientCtx?.communicationProfile?.speakerTypes.length === 1 ? clientCtx.communicationProfile.speakerTypes[0] : "") || "");
+    const resolvedVoice = String(projectEditorialBrief?.voice || (clientCtx?.communicationProfile?.contentVoices.length === 1 ? clientCtx.communicationProfile.contentVoices[0] : "") || "");
+    const resolvedFunnel = String(projectEditorialBrief?.funnel || "TOP");
+    const resolvedJourney = String(projectEditorialBrief?.journey || "DISCOVERY");
+    const resolvedTone = String(projectEditorialBrief?.tone || projectTone || firstStr(dna.tone_of_voice) || "");
+    const resolvedCta = String(projectEditorialBrief?.cta || projectCta || firstStr(dna.default_ctas) || "");
+    const resolvedValue = String(dna.value_proposition || catalogItem?.benefit || "");
+    const resolvedDifferential = String(catalogItem?.differential || (Array.isArray(dna.differentials) ? dna.differentials.join("; ") : "") || "");
 
     const resolvedHeadlineFormat =
       effectiveCalendarFormat === "Reels"
@@ -957,11 +978,18 @@ export async function convertIdeaToHeadlines(
       format: resolvedHeadlineFormat,
       placement: resolvedPlacement,
       audience: resolvedAudience,
-      pain: idea.pain_or_desire || catalogItem?.pain || "",
+      speaker: resolvedSpeaker,
+      voice: resolvedVoice,
+      funnel: resolvedFunnel,
+      journey: resolvedJourney,
+      pain: String(projectEditorialBrief?.pain || idea.pain_or_desire || catalogItem?.pain || ""),
       desire: catalogItem?.desire || "",
-      value: catalogItem?.benefit || "",
-      differential: catalogItem?.differential || "",
-      goal: idea.goal || "",
+      value: resolvedValue,
+      differential: resolvedDifferential,
+      goal: String(projectEditorialBrief?.goal || idea.goal || ""),
+      tone: resolvedTone,
+      cta: resolvedCta,
+      forbiddenWords: Array.isArray(dna.forbidden_words) ? dna.forbidden_words.join("; ") : "",
       angles: idea.angle ? [idea.angle] : ["Benefício"],
       structures: ["Curiosidade", "Pergunta"],
       triggers: ["Autoridade", "Novidade"],

@@ -389,7 +389,7 @@ function EditorialContent() {
                 notes: l.notes || "",
               }))}
               onSaved={() => void loadData(activeClientId)}
-              onUse={(idea) => router.push(`/prompt-creator/headlines?prompt=${encodeURIComponent(idea)}`)}
+              onUse={(idea) => router.push(`/prompt-creator?prompt=${encodeURIComponent(idea)}`)}
               onManual={() => {
                 if (activePillars.length > 0) {
                   setEditingTheme(null);

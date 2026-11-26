@@ -183,7 +183,6 @@ export function AppShell({ children, activeSection }: AppShellProps) {
     ] },
     { id: "content_studio", title: "Social Media", icon: Sparkles, section: "PRODUÇÃO", items: [
       { id: "editorial", label: "Linha Editorial", href: "/social/editorial", icon: Layers },
-      { id: "content_brainstorm", label: "Brainstorm de Conteúdo", href: "/prompt-creator/headlines", icon: Lightbulb },
       { id: "prompt_creator", label: "Estúdio Criativo", href: "/prompt-creator", icon: Sparkles },
       { id: "calendar", label: "Calendário de Conteúdo", href: "/prompt-creator?tab=CALENDAR", icon: Calendar },
       { id: "saved_posts", label: "Feed & Criativos", href: "/prompt-creator/saved", icon: ImageIcon },

@@ -252,9 +252,9 @@ export default function Page() {
         </div>
 
         <div className="flex gap-2">
-          <Link className={button} href="/prompt-creator/headlines">
+          <Link className={button} href="/prompt-creator?tab=headlines">
             <ArrowLeft size={16} />
-            Voltar ao Brainstorm & Headlines
+            Voltar ao Estúdio Criativo
           </Link>
         </div>
       </header>

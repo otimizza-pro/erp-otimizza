@@ -555,7 +555,7 @@ export default function ExecutiveDashboardPage() {
 
               {/* 8. Conteúdos Previstos */}
               <Link
-                href="/prompt-creator/headlines"
+                href="/prompt-creator"
                 className="p-3.5 rounded-lg bg-zinc-50/70 hover:bg-zinc-100/80 border border-zinc-200 transition space-y-1.5 group block"
               >
                 <div className="flex items-center justify-between">

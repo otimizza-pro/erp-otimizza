@@ -1,4 +1,5 @@
 import { isEditorialTemplate, isOnboardingTemplate } from "@/modules/projects/editorial-template";
+import { CommunicationProfileSchema } from "@/modules/clients/communication-profile";
 import { z } from "zod";
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { query, withTransaction } from "@/lib/db/pool";
@@ -17,10 +18,17 @@ const inputSchema = z.discriminatedUnion("action", [
     action: z.literal("UPDATE_POST"),
     postId: z.string().uuid(),
     title: z.string().trim().min(1).max(255).optional(),
+    centralIdea: z.string().trim().max(5000).nullable().optional(),
     scheduledDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    scheduledTime: z.string().trim().max(20).nullable().optional(),
     format: z.string().trim().max(100).nullable().optional(),
     editorialLineId: z.string().uuid().nullable().optional(),
     offerName: z.string().trim().max(255).nullable().optional(),
+    targetAudienceName: z.string().trim().max(500).nullable().optional(),
+    toneOfVoice: z.string().trim().max(500).nullable().optional(),
+    callToAction: z.string().trim().max(1000).nullable().optional(),
+    editorialBrief: z.record(z.string(), z.unknown()).nullable().optional(),
+    formatConfig: z.record(z.string(), z.unknown()).nullable().optional(),
   }),
   z.object({
     action: z.literal("AUTO_ORGANIZE"),
@@ -51,12 +59,16 @@ export async function GET(request: Request, { params }: RouteContext) {
     ]);
     const clientId = projectMeta.rows[0]?.clientId;
     const month = requestedMonth ? projectMonthSchema.parse(requestedMonth) : months.rows[0]?.month;
-    const [posts, editorialLines, catalogOffers] = await Promise.all([
+    const [posts, editorialLines, catalogOffers, audiencesRes, identityRes] = await Promise.all([
       month ? query(
-        `SELECT c.id, c.title, c.scheduled_date::text AS "scheduledDate", c.status, c.archived_at AS "archivedAt",
+        `SELECT c.id, c.title, c.central_idea AS "centralIdea", c.scheduled_date::text AS "scheduledDate",
+                c.scheduled_time::text AS "scheduledTime", c.status, c.archived_at AS "archivedAt",
                 c.format, c.editorial_line_id AS "editorialLineId", el.pillar_id AS "pillarId",
-                el.pillar_name AS "pillarName", el.theme AS "themeName",
-                c.offer_name AS "offerName", c.project_post_number AS "projectPostNumber"
+                el.pillar_name AS "pillarName", el.theme AS "themeName", el.objective AS "themeObjective",
+                c.offer_name AS "offerName", c.project_post_number AS "projectPostNumber",
+                c.target_audience_name AS "targetAudienceName", c.tone_of_voice AS "toneOfVoice",
+                c.call_to_action AS "callToAction", c.editorial_brief AS "editorialBrief",
+                c.format_config AS "formatConfig"
          FROM content_calendar_items c
          LEFT JOIN client_editorial_lines el ON el.id = c.editorial_line_id
          WHERE c.project_id = $1 AND c.project_month = $2
@@ -64,7 +76,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         [id, month + "-01"],
       ) : Promise.resolve(null),
       clientId ? query(
-        `SELECT id, pillar_id AS "pillarId", pillar_name AS "pillarName", theme,
+        `SELECT id, pillar_id AS "pillarId", pillar_name AS "pillarName", theme, objective,
                 preferred_formats AS "preferredFormats"
          FROM client_editorial_lines
          WHERE client_id = $1 AND is_active = true AND archived_at IS NULL
@@ -72,19 +84,42 @@ export async function GET(request: Request, { params }: RouteContext) {
         [clientId],
       ) : Promise.resolve({ rows: [] }),
       clientId ? query(
-        `SELECT id, name, type
+        `SELECT id, name, type, target_pain_points AS "targetPainPoints"
          FROM client_catalog_items
          WHERE client_id = $1 AND is_active = true
          ORDER BY order_index, created_at`,
         [clientId],
       ) : Promise.resolve({ rows: [] }),
+      clientId ? query(
+        `SELECT id, name, pain_points AS "painPoints", is_default AS "isDefault"
+         FROM client_audiences
+         WHERE client_id = $1 AND archived_at IS NULL
+         ORDER BY is_default DESC, name`,
+        [clientId],
+      ) : Promise.resolve({ rows: [] }),
+      clientId ? query(
+        `SELECT communication_profile, tone_of_voice, default_ctas, pain_points
+         FROM client_identities
+         WHERE client_id = $1 LIMIT 1`,
+        [clientId],
+      ) : Promise.resolve({ rows: [] }),
     ]);
+    const idRow = identityRes.rows[0] as Record<string, unknown> | undefined;
+    const commProfile = CommunicationProfileSchema.parse(idRow?.communication_profile || {});
     return Response.json({
       schedule: schedule.rows[0] ?? null,
       months: months.rows.map(row => row.month),
       posts: posts?.rows ?? [],
       editorialLines: editorialLines.rows,
       catalogOffers: catalogOffers.rows,
+      clientStrategy: {
+        audiences: audiencesRes.rows,
+        speakers: commProfile.speakerTypes,
+        voices: commProfile.contentVoices,
+        tones: Array.isArray(idRow?.tone_of_voice) ? idRow.tone_of_voice : [],
+        ctas: Array.isArray(idRow?.default_ctas) ? idRow.default_ctas : [],
+        pains: Array.isArray(idRow?.pain_points) ? idRow.pain_points : [],
+      },
     });
   } catch {
     return Response.json({ error: "Não foi possível carregar o planejamento do projeto." }, { status: 500 });
@@ -124,9 +159,17 @@ export async function POST(request: Request, { params }: RouteContext) {
           paramsList.push(data.title);
           updates.push(`title = $${paramsList.length}`);
         }
+        if (data.centralIdea !== undefined) {
+          paramsList.push(data.centralIdea || "");
+          updates.push(`central_idea = $${paramsList.length}`);
+        }
         if (data.scheduledDate !== undefined) {
           paramsList.push(data.scheduledDate);
           updates.push(`scheduled_date = $${paramsList.length}`);
+        }
+        if (data.scheduledTime !== undefined) {
+          paramsList.push(data.scheduledTime || null);
+          updates.push(`scheduled_time = $${paramsList.length}`);
         }
         if (data.format !== undefined) {
           const nextFormat = data.format || "Post estático";
@@ -143,6 +186,26 @@ export async function POST(request: Request, { params }: RouteContext) {
         if (data.offerName !== undefined) {
           paramsList.push(data.offerName || null);
           updates.push(`offer_name = $${paramsList.length}`);
+        }
+        if (data.targetAudienceName !== undefined) {
+          paramsList.push(data.targetAudienceName || null);
+          updates.push(`target_audience_name = $${paramsList.length}`);
+        }
+        if (data.toneOfVoice !== undefined) {
+          paramsList.push(data.toneOfVoice || null);
+          updates.push(`tone_of_voice = $${paramsList.length}`);
+        }
+        if (data.callToAction !== undefined) {
+          paramsList.push(data.callToAction || null);
+          updates.push(`call_to_action = $${paramsList.length}`);
+        }
+        if (data.editorialBrief !== undefined) {
+          paramsList.push(data.editorialBrief ? JSON.stringify(data.editorialBrief) : null);
+          updates.push(`editorial_brief = COALESCE(editorial_brief, '{}'::jsonb) || COALESCE($${paramsList.length}::jsonb, '{}'::jsonb)`);
+        }
+        if (data.formatConfig !== undefined) {
+          paramsList.push(data.formatConfig ? JSON.stringify(data.formatConfig) : "{}");
+          updates.push(`format_config = $${paramsList.length}::jsonb`);
         }
         if (!updates.length) return;
         updates.push("updated_at = NOW()");

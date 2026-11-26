@@ -17,9 +17,15 @@ export async function GET(request: Request) {
   try {
     const { rows } = await query(
       `SELECT c.id, c.client_id AS "clientId", COALESCE(NULLIF(cl.trade_name, ''), cl.name) AS "companyName",
-              c.title, c.scheduled_date::text AS "scheduledDate", p.id AS "projectId", p.name AS "projectName",
+              c.title, c.central_idea AS "centralIdea", c.scheduled_date::text AS "scheduledDate",
+              c.scheduled_time::text AS "scheduledTime", p.id AS "projectId", p.name AS "projectName",
               c.format, c.status, c.editorial_line_id AS "editorialLineId", el.pillar_id AS "pillarId",
-              c.offer_name AS "offerName",
+              el.pillar_name AS "pillarName", el.theme AS "themeName", el.objective AS "themeObjective",
+              c.offer_name AS "offerName", c.target_audience_name AS "targetAudienceName",
+              c.tone_of_voice AS "toneOfVoice", c.call_to_action AS "callToAction",
+              c.editorial_brief AS "editorialBrief", c.headline_brief AS "headlineBrief",
+              c.format_config AS "formatConfig", c.selected_headline AS "selectedHeadline",
+              c.selected_subheadline AS "selectedSubheadline",
               (NULLIF(btrim(c.central_idea), '') IS NOT NULL) AS "hasIdea",
               (c.status = 'PLANNED'
                 AND NULLIF(btrim(c.central_idea), '') IS NULL

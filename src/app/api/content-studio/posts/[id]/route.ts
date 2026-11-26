@@ -1,5 +1,6 @@
-import {requireAdminUser} from "@/lib/auth/require-auth";
-import {contentBriefSchema} from "@/modules/clients/content-brief";
+import { requireAdminUser } from "@/lib/auth/require-auth";
+import { contentBriefSchema } from "@/modules/clients/content-brief";
+import { buildProjectPostTitle } from "@/modules/projects/social-media-schedule";
 import { NextResponse } from "next/server";
 import { query, withTransaction } from "@/lib/db/pool";
 
@@ -46,7 +47,7 @@ export async function PUT(
 
     const sql = `
       UPDATE content_calendar_items SET
-        title = CASE WHEN project_id IS NULL THEN COALESCE($1, title) ELSE title END,
+        title = COALESCE($1, title),
         central_idea = COALESCE($2, central_idea),
         selected_headline = COALESCE($3, selected_headline),
         headline_candidate_id = CASE WHEN $3::text IS NOT NULL AND selected_headline IS DISTINCT FROM $3 THEN NULL ELSE headline_candidate_id END,
@@ -84,15 +85,39 @@ export async function PUT(
     `;
 
     const res = await withTransaction(async db=>{
-      const locked = await db.query<{ status: string }>(
-        "SELECT status FROM content_calendar_items WHERE id=$1 AND ($2::uuid IS NULL OR client_id=$2) FOR UPDATE",
+      const locked = await db.query<{
+        status: string;
+        project_id?: string | null;
+        project_post_number?: number | null;
+        format?: string | null;
+        selected_headline?: string | null;
+        central_idea?: string | null;
+        client_name?: string | null;
+      }>(
+        `SELECT c.status, c.project_id, c.project_post_number, c.format, c.selected_headline, c.central_idea,
+                COALESCE(NULLIF(cl.trade_name, ''), cl.name) AS client_name
+         FROM content_calendar_items c
+         LEFT JOIN clients cl ON cl.id = c.client_id
+         WHERE c.id=$1 AND ($2::uuid IS NULL OR c.client_id=$2) FOR UPDATE OF c`,
         [id, body.clientId || null],
       );
-      if (locked.rows[0]?.status === "PUBLISHED" && (body.scheduledDate || body.scheduledTime || (body.status && body.status !== "PUBLISHED"))) {
+      const lockedRow = locked.rows[0];
+      if (lockedRow?.status === "PUBLISHED" && (body.scheduledDate || body.scheduledTime || (body.status && body.status !== "PUBLISHED"))) {
         return null;
       }
+      const effectiveTitle = lockedRow?.project_id
+        ? (normalizedFormat !== undefined || body.selectedHeadline !== undefined || body.centralIdea !== undefined
+            ? buildProjectPostTitle({
+                postNumber: lockedRow.project_post_number,
+                clientName: lockedRow.client_name || "",
+                format: normalizedFormat ?? lockedRow.format,
+                headline: body.selectedHeadline !== undefined ? body.selectedHeadline : lockedRow.selected_headline,
+                centralIdea: body.centralIdea !== undefined ? body.centralIdea : lockedRow.central_idea,
+              })
+            : null)
+        : body.title;
       const result=await db.query(sql, [
-      body.title,
+      effectiveTitle,
       body.centralIdea,
       body.selectedHeadline,
       body.selectedCaption,

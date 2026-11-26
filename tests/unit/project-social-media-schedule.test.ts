@@ -1,15 +1,43 @@
 import { describe, expect, it } from "vitest";
-import { nextProjectMonth, projectPostSlots, socialMediaScheduleSchema } from "@/modules/projects/social-media-schedule";
+import { buildProjectPostTitle, nextProjectMonth, projectPostSlots, socialMediaScheduleSchema } from "@/modules/projects/social-media-schedule";
 import { buildAutoOrganizedPostAssignments } from "@/modules/projects/social-media-planning";
 
 describe("Planejamento mensal de social media", () => {
-  it("gera a quantidade configurada nos dias da semana escolhidos, com datas e títulos estáveis", () => {
+  it("gera a quantidade configurada nos dias da semana escolhidos, com datas e títulos padronizados", () => {
     expect(projectPostSlots("2027-01", { postsPerMonth: 4, weekdays: [1, 5] }, "Mix Alimentos")).toEqual([
-      { date: "2027-01-01", title: "Post Mix Alimentos Jan #01", number: 1 },
-      { date: "2027-01-11", title: "Post Mix Alimentos Jan #02", number: 2 },
-      { date: "2027-01-18", title: "Post Mix Alimentos Jan #03", number: 3 },
-      { date: "2027-01-29", title: "Post Mix Alimentos Jan #04", number: 4 },
+      { date: "2027-01-01", title: "#01 Mix Alimentos | Post estático", number: 1 },
+      { date: "2027-01-11", title: "#02 Mix Alimentos | Post estático", number: 2 },
+      { date: "2027-01-18", title: "#03 Mix Alimentos | Post estático", number: 3 },
+      { date: "2027-01-29", title: "#04 Mix Alimentos | Post estático", number: 4 },
     ]);
+  });
+
+  it("monta e atualiza título curto dinâmico #numero Cliente | Formato - Headline", () => {
+    expect(
+      buildProjectPostTitle({
+        postNumber: 1,
+        clientName: "Ramiele Souza",
+        format: "Reels",
+        headline: "03 exames fundamentais para seus rins",
+      }),
+    ).toBe("#01 Ramiele Souza | Reels - 03 exames fundamentais para seus rins");
+
+    expect(
+      buildProjectPostTitle({
+        postNumber: 1,
+        clientName: "Ramiele Souza",
+        format: "Carrossel",
+        headline: "03 exames fundamentais para seus rins",
+      }),
+    ).toBe("#01 Ramiele Souza | Carrossel - 03 exames fundamentais para seus rins");
+
+    expect(
+      buildProjectPostTitle({
+        postNumber: 2,
+        clientName: "Ramiele Souza",
+        format: "Estático",
+      }),
+    ).toBe("#02 Ramiele Souza | Post estático");
   });
 
   it("avança o mês ao trocar de ano e inclui 29 de fevereiro em ano bissexto", () => {
@@ -31,9 +59,9 @@ describe("Planejamento mensal de social media", () => {
     };
     expect(socialMediaScheduleSchema.safeParse(customSchedule).success).toBe(true);
     expect(projectPostSlots("2027-01", customSchedule, "Cliente X")).toEqual([
-      { date: "2027-01-05", title: "Post Cliente X Jan #01", number: 1 },
-      { date: "2027-01-12", title: "Post Cliente X Jan #02", number: 2 },
-      { date: "2027-01-20", title: "Post Cliente X Jan #03", number: 3 },
+      { date: "2027-01-05", title: "#01 Cliente X | Post estático", number: 1 },
+      { date: "2027-01-12", title: "#02 Cliente X | Post estático", number: 2 },
+      { date: "2027-01-20", title: "#03 Cliente X | Post estático", number: 3 },
     ]);
   });
 

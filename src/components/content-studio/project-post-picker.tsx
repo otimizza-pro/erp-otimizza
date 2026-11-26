@@ -74,7 +74,7 @@ export function ProjectPostPicker({ clientId, selected, onPostsLoaded }: {
           {selected && !posts.some(post => post.id === selected.id) &&
             <option value={selected.id}>{selected.title}</option>}
           {posts.map(post => <option key={post.id} value={post.id}>
-            {post.projectName} · {post.title} · {post.scheduledDate?.split("-").reverse().join("/") || "Sem data"}
+            {post.title}{post.scheduledDate ? ` · ${post.scheduledDate.split("-").reverse().join("/")}` : ""}
           </option>)}
         </select>
       </label>

@@ -8,7 +8,7 @@ import {
   createSocialMediaMonth,
   saveSocialMediaSchedule,
 } from "@/modules/projects/social-media-planning";
-import { nextProjectMonth, projectMonthSchema, socialMediaScheduleSchema, type SocialMediaSchedule } from "@/modules/projects/social-media-schedule";
+import { nextProjectMonth, projectMonthSchema, socialMediaScheduleSchema, buildProjectPostTitle, type SocialMediaSchedule } from "@/modules/projects/social-media-schedule";
 
 type RouteContext = { params: Promise<{ id: string }> };
 const inputSchema = z.discriminatedUnion("action", [
@@ -153,10 +153,35 @@ export async function POST(request: Request, { params }: RouteContext) {
       }
 
       if (data.action === "UPDATE_POST") {
+        const currentPost = (await db.query<{
+          projectPostNumber: number | null;
+          format: string | null;
+          selectedHeadline: string | null;
+          centralIdea: string | null;
+        }>(
+          `SELECT project_post_number AS "projectPostNumber", format, selected_headline AS "selectedHeadline", central_idea AS "centralIdea"
+           FROM content_calendar_items WHERE id = $1 AND project_id = $2 FOR UPDATE`,
+          [data.postId, id],
+        )).rows[0];
+        if (!currentPost) throw new Error("Post planejado não encontrado neste projeto.");
+
         const updates: string[] = [];
         const paramsList: unknown[] = [data.postId, id];
+        const nextFormat = data.format !== undefined ? (data.format || "Post estático") : currentPost.format;
+        const nextCentralIdea = data.centralIdea !== undefined ? (data.centralIdea || "") : currentPost.centralIdea;
+
         if (data.title !== undefined) {
           paramsList.push(data.title);
+          updates.push(`title = $${paramsList.length}`);
+        } else if (data.format !== undefined || data.centralIdea !== undefined) {
+          const dynamicTitle = buildProjectPostTitle({
+            postNumber: currentPost.projectPostNumber,
+            clientName: project.company,
+            format: nextFormat,
+            headline: currentPost.selectedHeadline,
+            centralIdea: nextCentralIdea,
+          });
+          paramsList.push(dynamicTitle);
           updates.push(`title = $${paramsList.length}`);
         }
         if (data.centralIdea !== undefined) {
@@ -172,7 +197,6 @@ export async function POST(request: Request, { params }: RouteContext) {
           updates.push(`scheduled_time = $${paramsList.length}`);
         }
         if (data.format !== undefined) {
-          const nextFormat = data.format || "Post estático";
           paramsList.push(nextFormat);
           updates.push(`format = $${paramsList.length}`);
           updates.push(
@@ -209,18 +233,18 @@ export async function POST(request: Request, { params }: RouteContext) {
         }
         if (!updates.length) return;
         updates.push("updated_at = NOW()");
-        const res = await db.query(
+        await db.query(
           `UPDATE content_calendar_items SET ${updates.join(", ")} WHERE id = $1 AND project_id = $2 RETURNING id`,
           paramsList,
         );
-        if (!res.rows.length) throw new Error("Post planejado não encontrado neste projeto.");
         return;
       }
 
       if (data.action === "AUTO_ORGANIZE") {
         const [postsRes, linesRes, offersRes] = await Promise.all([
-          db.query<{ id: string }>(
-            `SELECT id FROM content_calendar_items
+          db.query<{ id: string; projectPostNumber: number | null; selectedHeadline: string | null; centralIdea: string | null }>(
+            `SELECT id, project_post_number AS "projectPostNumber", selected_headline AS "selectedHeadline", central_idea AS "centralIdea"
+             FROM content_calendar_items
              WHERE project_id = $1 AND project_month = $2 AND archived_at IS NULL
              ORDER BY project_post_number, scheduled_date`,
             [id, data.month + "-01"],
@@ -240,21 +264,31 @@ export async function POST(request: Request, { params }: RouteContext) {
             [project.clientId],
           ),
         ]);
+        const postMap = new Map(postsRes.rows.map((r) => [r.id, r]));
         const assignments = buildAutoOrganizedPostAssignments({
           postIds: postsRes.rows.map((r) => r.id),
           editorialLines: linesRes.rows,
           offers: offersRes.rows,
         });
         for (const item of assignments) {
+          const meta = postMap.get(item.postId);
+          const dynamicTitle = buildProjectPostTitle({
+            postNumber: meta?.projectPostNumber,
+            clientName: project.company,
+            format: item.format,
+            headline: meta?.selectedHeadline,
+            centralIdea: meta?.centralIdea,
+          });
           await db.query(
             `UPDATE content_calendar_items
              SET editorial_line_id = COALESCE($3, editorial_line_id),
                  offer_name = $4,
                  format = $5,
+                 title = $6,
                  post_tag = CASE WHEN NULLIF(btrim(COALESCE(post_tag, '')), '') IS NULL OR post_tag = format THEN $5 ELSE post_tag END,
                  updated_at = NOW()
              WHERE id = $1 AND project_id = $2`,
-            [item.postId, id, item.editorialLineId, item.offerName, item.format],
+            [item.postId, id, item.editorialLineId, item.offerName, item.format, dynamicTitle],
           );
         }
         return;
@@ -270,8 +304,11 @@ export async function POST(request: Request, { params }: RouteContext) {
         );
         const nextNum = Number(maxRes.rows[0]?.nextNum || 1);
         const [yr, mo] = data.month.split("-").map(Number);
-        const monthShort = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][mo - 1] || data.month;
-        const defaultTitle = `Post ${project.company} ${monthShort} #${String(nextNum).padStart(2, "0")}`;
+        const defaultTitle = buildProjectPostTitle({
+          postNumber: nextNum,
+          clientName: project.company,
+          format: "Carrossel",
+        });
         const defaultDate = `${yr}-${String(mo).padStart(2, "0")}-01`;
         await db.query(
           `INSERT INTO content_calendar_items

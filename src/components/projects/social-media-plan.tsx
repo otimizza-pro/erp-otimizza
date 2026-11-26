@@ -755,9 +755,11 @@ export function ProjectSocialMediaPlan({ projectId, startDate, archived }: {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
                     <div className="flex flex-1 min-w-[220px] items-center gap-2">
-                      <span className="inline-flex h-6 min-w-7 items-center justify-center rounded-md bg-zinc-900 px-1.5 text-[11px] font-mono font-bold text-white">
-                        #{numberLabel}
-                      </span>
+                      {!draftTitle.trim().startsWith("#") && (
+                        <span className="inline-flex h-6 min-w-7 items-center justify-center rounded-md bg-zinc-900 px-1.5 text-[11px] font-mono font-bold text-white">
+                          #{numberLabel}
+                        </span>
+                      )}
                       <input
                         type="text"
                         disabled={locked}

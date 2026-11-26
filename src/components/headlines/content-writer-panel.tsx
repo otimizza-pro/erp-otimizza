@@ -136,6 +136,7 @@ export function ContentWriterPanel({
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editVersion, setEditVersion] = useState("");
+  const [hasStoredHeadline, setHasStoredHeadline] = useState(false);
   const [staleMaterials, setStaleMaterials] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -151,6 +152,7 @@ export function ContentWriterPanel({
         if (!controller.signal.aborted && d.data) {
           const item = d.data;
           setEditVersion(item.edit_version || "");
+          setHasStoredHeadline(Boolean(item.selected_headline && String(item.selected_headline).trim()));
           setStaleMaterials(item.stale_materials || []);
           if (item.format_config && Object.keys(item.format_config).length > 0) {
             setSpecs(parseFormatSpecs(item.format_config));
@@ -252,6 +254,17 @@ export function ContentWriterPanel({
         [activeFormat]: generatedText,
       }));
 
+      if (contentId && generatedText.trim()) {
+        const savedOk = await persistContent({ [activeFormat]: generatedText }, true);
+        if (savedOk) {
+          setFeedback({
+            type: "success",
+            text: `Conteúdo gerado via ${d.modelUsed || "IA"} e salvo automaticamente na peça!`,
+          });
+          return;
+        }
+      }
+
       setFeedback({ type: "success", text: `Conteúdo gerado via ${d.modelUsed || "IA"} com todas as especificações técnicas!` });
     } catch (e: unknown) {
       const err = e as Error;
@@ -261,50 +274,100 @@ export function ContentWriterPanel({
     }
   };
 
-  const handleSave = async () => {
+  const persistContent = async (
+    overrideTexts?: Partial<Record<FormatType, string>>,
+    silent = false,
+  ): Promise<boolean> => {
     if (!contentId) {
-      setFeedback({ type: "error", text: "Nenhuma peça associada encontrada." });
-      return;
+      if (!silent) setFeedback({ type: "error", text: "Nenhuma peça associada encontrada." });
+      return false;
     }
-    setSaving(true);
-    setFeedback(null);
-    try {
-      const payload: Record<string, unknown> = {
-        clientId,
-        editVersion: editVersion || undefined,
-        confirmContentRevision: true,
-        formatConfig: specs,
-        toneOfVoice: tone || undefined,
-        callToAction: cta || undefined,
-        promptUsed: effectivePrompt,
-      };
+    const mergedTexts = { ...contentTexts, ...(overrideTexts || {}) };
+    const payload: Record<string, unknown> = {
+      clientId,
+      editVersion: editVersion || undefined,
+      confirmContentRevision: true,
+      formatConfig: specs,
+      toneOfVoice: tone || undefined,
+      callToAction: cta || undefined,
+      promptUsed: effectivePrompt,
+      ...(!hasStoredHeadline && headline?.trim() ? { selectedHeadline: headline.trim() } : {}),
+    };
 
-      if (activeFormat === "REELS") payload.selectedReels = contentTexts.REELS;
-      else if (activeFormat === "CAROUSEL") payload.selectedCarousel = contentTexts.CAROUSEL;
-      else if (activeFormat === "CAPTION") payload.selectedCaption = contentTexts.CAPTION;
-      else if (activeFormat === "LANDING_PAGE") payload.copySiteLp = contentTexts.LANDING_PAGE;
-      else if (activeFormat === "META_ADS") payload.copyMetaAds = contentTexts.META_ADS;
-      else if (activeFormat === "GOOGLE_ADS") payload.copyGoogleAds = contentTexts.GOOGLE_ADS;
+    if (mergedTexts.REELS.trim()) payload.selectedReels = mergedTexts.REELS;
+    if (mergedTexts.CAROUSEL.trim()) payload.selectedCarousel = mergedTexts.CAROUSEL;
+    if (mergedTexts.CAPTION.trim()) payload.selectedCaption = mergedTexts.CAPTION;
+    if (mergedTexts.LANDING_PAGE.trim()) payload.copySiteLp = mergedTexts.LANDING_PAGE;
+    if (mergedTexts.META_ADS.trim()) payload.copyMetaAds = mergedTexts.META_ADS;
+    if (mergedTexts.GOOGLE_ADS.trim()) payload.copyGoogleAds = mergedTexts.GOOGLE_ADS;
 
+    // Se o formato ativo estiver vazio (usuário apagou intencionalmente), envia string vazia para o campo ativo
+    if (activeFormat === "REELS" && payload.selectedReels === undefined) payload.selectedReels = mergedTexts.REELS;
+    else if (activeFormat === "CAROUSEL" && payload.selectedCarousel === undefined) payload.selectedCarousel = mergedTexts.CAROUSEL;
+    else if (activeFormat === "CAPTION" && payload.selectedCaption === undefined) payload.selectedCaption = mergedTexts.CAPTION;
+    else if (activeFormat === "LANDING_PAGE" && payload.copySiteLp === undefined) payload.copySiteLp = mergedTexts.LANDING_PAGE;
+    else if (activeFormat === "META_ADS" && payload.copyMetaAds === undefined) payload.copyMetaAds = mergedTexts.META_ADS;
+    else if (activeFormat === "GOOGLE_ADS" && payload.copyGoogleAds === undefined) payload.copyGoogleAds = mergedTexts.GOOGLE_ADS;
+
+    const doPut = async (ver?: string) => {
       const res = await fetch(`/api/content-studio/posts/${contentId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, editVersion: ver || undefined }),
       });
+      return res;
+    };
 
+    try {
+      let res = await doPut(editVersion);
+      if (res.status === 409) {
+        const latestRes = await fetch(`/api/content-studio/posts/${contentId}`);
+        const latestJson = await latestRes.json().catch(() => null);
+        const latestVer = latestJson?.data?.edit_version;
+        if (latestVer) {
+          res = await doPut(latestVer);
+        }
+      }
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Erro ao salvar texto no sistema.");
       setEditVersion(result.data.edit_version);
       setStaleMaterials(result.data.stale_materials || []);
-
-      setFeedback({ type: "success", text: "Texto e especificações salvos na peça!" });
-      setTimeout(() => setFeedback(null), 3500);
+      return true;
     } catch (e: unknown) {
-      const err = e as Error;
-      setFeedback({ type: "error", text: err.message || "Falha ao salvar texto." });
+      if (!silent) {
+        const err = e as Error;
+        setFeedback({ type: "error", text: err.message || "Falha ao salvar texto." });
+      }
+      return false;
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setFeedback(null);
+    try {
+      const ok = await persistContent();
+      if (ok) {
+        setFeedback({ type: "success", text: "Texto e especificações salvos na peça!" });
+        setTimeout(() => setFeedback(null), 3500);
+      }
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleAdvance = async () => {
+    const text = contentTexts[activeFormat];
+    if (contentId && text.trim()) {
+      setSaving(true);
+      await persistContent(undefined, true);
+      setSaving(false);
+    }
+    onAdvanceToImagePrompt({
+      format: activeFormat,
+      text,
+      contentId: contentId || "",
+    });
   };
 
   const currentText = contentTexts[activeFormat];
@@ -362,14 +425,9 @@ export function ContentWriterPanel({
 
             <button
               type="button"
-              onClick={() =>
-                onAdvanceToImagePrompt({
-                  format: activeFormat,
-                  text: currentText,
-                  contentId: contentId || "",
-                })
-              }
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer"
+              disabled={saving}
+              onClick={() => void handleAdvance()}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition cursor-pointer disabled:opacity-50"
             >
               Avançar para Prompt de Arte
               <ArrowRight size={14} />
@@ -973,14 +1031,9 @@ export function ContentWriterPanel({
           <span>{currentText ? `${currentText.split(/\s+/).filter(Boolean).length} palavras` : "0 palavras"}</span>
           <button
             type="button"
-            onClick={() =>
-              onAdvanceToImagePrompt({
-                format: activeFormat,
-                text: currentText,
-                contentId: contentId || "",
-              })
-            }
-            className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-xs font-bold text-white hover:bg-zinc-800 transition cursor-pointer"
+            disabled={saving}
+            onClick={() => void handleAdvance()}
+            className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-xs font-bold text-white hover:bg-zinc-800 transition cursor-pointer disabled:opacity-50"
           >
             Avançar para Etapa 4: Prompt de Imagem & Arte
             <ArrowRight size={14} />

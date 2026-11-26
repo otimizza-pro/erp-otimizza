@@ -58,6 +58,9 @@ interface PostItem {
   selectedCaption?: string;
   selectedReels?: string;
   selectedCarousel?: string;
+  copySiteLp?: string;
+  copyMetaAds?: string;
+  copyGoogleAds?: string;
   promptUsed?: string;
   toneOfVoice?: string;
   callToAction?: string;
@@ -117,6 +120,11 @@ function SavedPostsPageContent() {
     adStatus: "ACTIVE" | "PAUSED" | "FINISHED";
     selectedHeadline: string;
     selectedCaption: string;
+    selectedReels: string;
+    selectedCarousel: string;
+    copySiteLp: string;
+    copyMetaAds: string;
+    copyGoogleAds: string;
     scheduledDate: string;
     publishedUrl: string;
   }>({
@@ -126,6 +134,11 @@ function SavedPostsPageContent() {
     adStatus: "ACTIVE",
     selectedHeadline: "",
     selectedCaption: "",
+    selectedReels: "",
+    selectedCarousel: "",
+    copySiteLp: "",
+    copyMetaAds: "",
+    copyGoogleAds: "",
     scheduledDate: "",
     publishedUrl: "",
   });
@@ -261,6 +274,11 @@ function SavedPostsPageContent() {
       adStatus: p.adStatus,
       selectedHeadline: p.selectedHeadline || "",
       selectedCaption: p.selectedCaption || "",
+      selectedReels: p.selectedReels || "",
+      selectedCarousel: p.selectedCarousel || "",
+      copySiteLp: p.copySiteLp || "",
+      copyMetaAds: p.copyMetaAds || "",
+      copyGoogleAds: p.copyGoogleAds || "",
       scheduledDate: p.scheduledDate ? String(p.scheduledDate).slice(0, 10) : "",
       publishedUrl: p.publishedUrl || "",
     });
@@ -323,6 +341,7 @@ function SavedPostsPageContent() {
         body: JSON.stringify({
           ...editForm,
           scheduledDate: editForm.scheduledDate || null,
+          confirmContentRevision: true,
         }),
       });
 
@@ -868,12 +887,46 @@ function SavedPostsPageContent() {
                         {post.selectedHeadline || post.title}
                       </h3>
 
-                      {/* Legenda / Copy Preview */}
-                      {post.selectedCaption && (
-                        <p className="text-[11px] text-zinc-600 line-clamp-6 leading-relaxed whitespace-pre-line bg-zinc-50 p-2.5 rounded-xl border border-zinc-100">
-                          {post.selectedCaption}
-                        </p>
-                      )}
+                      {/* Conteúdo do Formato (Reels / Carrossel / LP / Ads) e Legenda */}
+                      {(() => {
+                        const fmt = (post.format || "").toLowerCase();
+                        const pieceContent =
+                          fmt.includes("reel")
+                            ? post.selectedReels || post.selectedCarousel
+                            : fmt.includes("carross")
+                              ? post.selectedCarousel || post.selectedReels
+                              : fmt.includes("landing")
+                                ? post.copySiteLp
+                                : post.contentType === "ADS"
+                                  ? post.copyMetaAds || post.copyGoogleAds || post.selectedCarousel || post.selectedReels
+                                  : post.selectedCarousel || post.selectedReels || post.copySiteLp;
+                        const contentBadgeLabel = fmt.includes("reel")
+                          ? "Roteiro de Reels"
+                          : fmt.includes("carross")
+                            ? "Cards do Carrossel"
+                            : fmt.includes("landing")
+                              ? "Copy da Página"
+                              : post.contentType === "ADS"
+                                ? "Copy do Anúncio"
+                                : "Conteúdo da Peça";
+                        return (
+                          <div className="space-y-2">
+                            {pieceContent && (
+                              <div className="text-[11px] text-zinc-700 leading-relaxed whitespace-pre-line bg-emerald-50/40 p-2.5 rounded-xl border border-emerald-200/70">
+                                <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-800 mb-1">
+                                  {contentBadgeLabel}
+                                </span>
+                                <span className="line-clamp-5">{pieceContent}</span>
+                              </div>
+                            )}
+                            {post.selectedCaption && (
+                              <p className="text-[11px] text-zinc-600 line-clamp-6 leading-relaxed whitespace-pre-line bg-zinc-50 p-2.5 rounded-xl border border-zinc-100">
+                                {post.selectedCaption}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {/* CTA */}
                       {post.callToAction && (
@@ -953,13 +1006,21 @@ function SavedPostsPageContent() {
                       <div className="flex items-center justify-between gap-1 text-xs">
                         <button
                           type="button"
-                          onClick={() =>
-                            handleCopyText(
-                              `${post.selectedHeadline ? `${post.selectedHeadline}\n\n` : ""}${post.selectedCaption || ""
-                              }${post.callToAction ? `\n\n${post.callToAction}` : ""}`,
-                              post.id
-                            )
-                          }
+                          onClick={() => {
+                            const fmt = (post.format || "").toLowerCase();
+                            const pieceContent = fmt.includes("reel")
+                              ? post.selectedReels || post.selectedCarousel || ""
+                              : fmt.includes("carross")
+                                ? post.selectedCarousel || post.selectedReels || ""
+                                : post.selectedCarousel || post.selectedReels || post.copySiteLp || post.copyMetaAds || "";
+                            const parts = [
+                              post.selectedHeadline || "",
+                              pieceContent,
+                              post.selectedCaption || "",
+                              post.callToAction || "",
+                            ].filter(Boolean);
+                            handleCopyText(parts.join("\n\n"), post.id);
+                          }}
                           className="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-800 text-[11px] font-semibold flex items-center gap-1 transition"
                         >
                           {copiedId === post.id ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
@@ -967,6 +1028,14 @@ function SavedPostsPageContent() {
                         </button>
 
                         <div className="flex items-center gap-1">
+                          <Link
+                            href={`/prompt-creator?contentId=${post.id}&tab=content`}
+                            className="px-2 py-1 rounded-lg text-[11px] font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition inline-flex items-center gap-1"
+                            title="Abrir peça completa no Estúdio Criativo (Brainstorm, Headlines, Roteiro e Arte)"
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            Estúdio
+                          </Link>
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(post)}
@@ -999,7 +1068,7 @@ function SavedPostsPageContent() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4 overflow-y-auto">
             <form
               onSubmit={handleSaveEdit}
-              className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl space-y-4 my-8"
+              className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-4 my-8 max-h-[92vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <h3 className="text-base font-bold text-zinc-950">Editar Publicação</h3>
@@ -1058,13 +1127,22 @@ function SavedPostsPageContent() {
                     <label className="text-xs font-semibold text-zinc-700 block mb-1">Tipo / Formato</label>
                     <select
                       value={editForm.format}
-                      onChange={(e) => setEditForm((prev) => ({ ...prev, format: e.target.value }))}
+                      onChange={(e) => {
+                        const nextFmt = e.target.value;
+                        setEditForm((prev) => ({
+                          ...prev,
+                          format: nextFmt,
+                          postTag: !prev.postTag || prev.postTag === prev.format ? nextFmt : prev.postTag,
+                        }));
+                      }}
                       className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl font-semibold"
                     >
                       <option value="Post estático">Post estático</option>
                       <option value="Carrossel">Carrossel</option>
                       <option value="Reels">Reels</option>
                       <option value="Stories">Stories</option>
+                      <option value="Post em texto">Post em texto</option>
+                      <option value="Landing page">Landing page</option>
                       <option value="Feed">Feed</option>
                     </select>
                   </div>
@@ -1081,11 +1159,62 @@ function SavedPostsPageContent() {
                 />
               </div>
 
+              {(() => {
+                const fmtLower = (editForm.format || "").toLowerCase();
+                const isReels = fmtLower.includes("reel");
+                const isCarousel = fmtLower.includes("carross");
+                const isLanding = fmtLower.includes("landing");
+                const isAd = editingPost.contentType === "ADS";
+
+                const fieldKey: "selectedReels" | "selectedCarousel" | "copySiteLp" | "copyMetaAds" = isReels
+                  ? "selectedReels"
+                  : isLanding
+                    ? "copySiteLp"
+                    : isAd
+                      ? "copyMetaAds"
+                      : "selectedCarousel";
+
+                const fieldLabel = isReels
+                  ? "Conteúdo (Roteiro do Reels / Vídeo)"
+                  : isCarousel
+                    ? "Conteúdo (Textos dos Cards / Slides do Carrossel)"
+                    : isLanding
+                      ? "Conteúdo (Copy da Landing Page)"
+                      : isAd
+                        ? "Conteúdo (Copy do Anúncio / Roteiro Ads)"
+                        : "Conteúdo (Texto da Arte / Cards / Roteiro)";
+
+                const fieldPlaceholder = isReels
+                  ? "Escreva ou cole aqui as falas, ganchos, marcações de cena e textos na tela do Reels..."
+                  : isCarousel
+                    ? "Slide 1 (Capa): ...\n\nSlide 2: ...\n\nSlide Final (CTA): ..."
+                    : "Escreva ou cole aqui o conteúdo interno da peça (texto nos cards, roteiro ou copy estruturada)...";
+
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-semibold text-zinc-700">{fieldLabel}</label>
+                      <span className="text-[10px] font-medium text-emerald-700">
+                        {isReels ? "Salvo no roteiro de Reels" : isCarousel ? "Salvo nos cards do Carrossel" : isLanding ? "Salvo na copy de LP" : isAd ? "Salvo na copy de Ads" : "Salvo no conteúdo da peça"}
+                      </span>
+                    </div>
+                    <textarea
+                      rows={6}
+                      value={editForm[fieldKey]}
+                      placeholder={fieldPlaceholder}
+                      onChange={(e) => setEditForm((prev) => ({ ...prev, [fieldKey]: e.target.value }))}
+                      className="w-full px-3 py-2 text-xs font-mono bg-zinc-50 border border-zinc-200 rounded-xl leading-relaxed focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                    />
+                  </div>
+                );
+              })()}
+
               <div>
-                <label className="text-xs font-semibold text-zinc-700 block mb-1">Legenda / Copy Completa</label>
+                <label className="text-xs font-semibold text-zinc-700 block mb-1">Legenda do Post (Instagram / Descrição)</label>
                 <textarea
                   rows={5}
                   value={editForm.selectedCaption}
+                  placeholder="Legenda completa que acompanha a publicação no feed..."
                   onChange={(e) => setEditForm((prev) => ({ ...prev, selectedCaption: e.target.value }))}
                   className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl leading-relaxed"
                 />
@@ -1113,21 +1242,30 @@ function SavedPostsPageContent() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
-                <button
-                  type="button"
-                  onClick={() => setEditingPost(null)}
-                  className="px-3.5 py-2 text-xs text-zinc-600 hover:text-zinc-950 font-semibold"
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-zinc-100">
+                <Link
+                  href={`/prompt-creator?contentId=${editingPost.id}&tab=content`}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition"
                 >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingEdit}
-                  className="px-4 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl disabled:opacity-50"
-                >
-                  {savingEdit ? "Salvando..." : "Salvar Alterações"}
-                </button>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Abrir no Estúdio Criativo
+                </Link>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingPost(null)}
+                    className="px-3.5 py-2 text-xs text-zinc-600 hover:text-zinc-950 font-semibold"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingEdit}
+                    className="px-4 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl disabled:opacity-50"
+                  >
+                    {savingEdit ? "Salvando..." : "Salvar Alterações"}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

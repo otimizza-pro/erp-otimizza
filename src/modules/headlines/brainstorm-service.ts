@@ -863,6 +863,10 @@ export async function convertIdeaToHeadlines(
       await db.query(
         `UPDATE content_calendar_items
          SET central_idea = $2,
+             title = LEFT('#' || LPAD(COALESCE(project_post_number, 1)::text, 2, '0') || ' ' ||
+               COALESCE((SELECT NULLIF(btrim(COALESCE(NULLIF(cl.trade_name, ''), cl.name)), '') FROM clients cl WHERE cl.id = content_calendar_items.client_id), 'Cliente') ||
+               CASE WHEN NULLIF(btrim($4::text), '') IS NOT NULL THEN ' | ' || btrim($4::text) ELSE '' END ||
+               CASE WHEN NULLIF(btrim(COALESCE(NULLIF(selected_headline, ''), $2::text)), '') IS NOT NULL THEN ' - ' || btrim(COALESCE(NULLIF(selected_headline, ''), $2::text)) ELSE '' END, 255),
              editorial_line_id = COALESCE($3, editorial_line_id),
              format = $4,
              target_audience_name = COALESCE(NULLIF($5, ''), target_audience_name),
@@ -913,8 +917,8 @@ export async function convertIdeaToHeadlines(
       const contentRes = await db.query(
         `INSERT INTO content_calendar_items (
           client_id, editorial_line_id, title, central_idea,
-          format, target_audience_name, offer_name, audience_angle, required_material, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'IN_CREATION')
+          format, post_tag, target_audience_name, offer_name, audience_angle, required_material, status
+        ) VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $8, $9, 'IN_CREATION')
         RETURNING id`,
         [
           idea.client_id,

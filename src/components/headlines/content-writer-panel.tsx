@@ -74,6 +74,10 @@ export function ContentWriterPanel({
   };
 
   const [activeFormat, setActiveFormat] = useState<FormatType>(getInitialFormatType());
+  useEffect(() => {
+    if (!initialFormat) return;
+    setActiveFormat(getInitialFormatType());
+  }, [initialFormat]);
   const [contentTexts, setContentTexts] = useState<Record<FormatType, string>>({
     REELS: "",
     CAPTION: "",
@@ -133,7 +137,7 @@ export function ContentWriterPanel({
           ? "Crie uma copy completa de anúncio para Meta Ads (Feed e Stories) com gancho de quebra de padrão, corpo de persuasão e CTA clara."
           : activeFormat === "GOOGLE_ADS"
           ? "Crie 5 títulos magnéticos (máx 30 caracteres cada) e 3 descrições persuasivas (máx 90 caracteres cada) para campanha de Google Ads Search."
-          : `Escreva o conteúdo completo no formato ${activeFormat}.`;
+          : "";
 
       const res = await fetch("/api/ai/content/generate", {
         method: "POST",

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { FolderKanban, Plus, CopyCheck } from "lucide-react";
 
 export default function ProjectsPage() {
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, hydrated } = useCompany();
   return (
     <>
       <div className="space-y-6 pb-16">
@@ -46,7 +46,11 @@ export default function ProjectsPage() {
         </div>
 
         {/* Módulo de Visualizações e Kanban Funcional */}
-        <ProjectViews clientId={selectedCompany.isOtimizza ? undefined : selectedCompany.id} />
+        {hydrated ? (
+          <ProjectViews clientId={selectedCompany.isOtimizza ? undefined : selectedCompany.id} />
+        ) : (
+          <div className="py-12 text-center text-xs text-zinc-400">Carregando projetos...</div>
+        )}
       </div>
     </>
   );

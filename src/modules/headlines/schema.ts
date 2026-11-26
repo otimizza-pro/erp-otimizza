@@ -1,8 +1,31 @@
 import { z } from "zod";
 const text = z.string().trim().max(8000).default("");
-export const structures = ["Pergunta","Lista","Como fazer","Afirmação direta","Provocação","Curiosidade","Erro comum","Problema e solução","Benefício direto","Comparação","Mito e verdade","Alerta","Segredo/revelação","Estatística","Depoimento/caso real","Antes e depois","Comando","Desafio","Objeção","Oferta"];
-export const angles = ["Dor","Desejo","Benefício","Oportunidade","Objeção","Transformação","Diferenciação","Conveniência","Prevenção","Custo de não agir","Identificação","Comparação"];
-export const triggers = ["Curiosidade","Identificação","Autoridade","Prova social","Especificidade","Reciprocidade","Exclusividade","Novidade","Segurança","Redução de risco","Contraste","Compromisso","Pertencimento","Aversão à perda","Urgência real","Escassez real"];
+export const structures = [
+  "Pergunta", "Lista", "Como fazer", "Afirmação direta", "Provocação", "Curiosidade",
+  "Erro comum", "Problema e solução", "Benefício direto", "Comparação", "Mito e verdade",
+  "Alerta", "Segredo/revelação", "Estatística", "Depoimento/caso real", "Antes e depois",
+  "Comando", "Desafio", "Objeção", "Oferta",
+  "AIDA (Atenção, Interesse, Desejo, Ação)", "PAS (Problema, Agitação, Solução)",
+  "BAB (Antes, Depois, Ponte)", "4Us (Útil, Urgente, Único, Ultraespecífico)",
+  "História / Storytelling", "Bastidores", "Mecanismo único", "Quebra de padrão",
+  "Promessa + Prazo", "Se... Então...", "Por que X acontece", "Checklist prático",
+  "Estudo de caso", "Inimigo comum",
+];
+export const angles = [
+  "Dor", "Desejo", "Benefício", "Oportunidade", "Objeção", "Transformação",
+  "Diferenciação", "Conveniência", "Prevenção", "Custo de não agir", "Identificação", "Comparação",
+  "Economia de tempo", "Economia financeira", "Autoridade técnica", "Simplicidade",
+  "Previsibilidade", "Liberdade / Autonomia", "Alívio imediato", "Bastidores / Transparência",
+  "Novo método / Tendência", "Erro invisível", "Resultado comprovado", "Personalização",
+];
+export const triggers = [
+  "Curiosidade", "Identificação", "Autoridade", "Prova social", "Especificidade",
+  "Reciprocidade", "Exclusividade", "Novidade", "Segurança", "Redução de risco",
+  "Contraste", "Compromisso", "Pertencimento", "Aversão à perda", "Urgência real", "Escassez real",
+  "Antecipação", "Inimigo comum", "Razão / Porquê", "Simplicidade", "Garantia / Proteção",
+  "Empatia", "Incongruência / Quebra de expectativa", "Prova lógica / Evidência",
+  "Visão de futuro", "Orgulho / Status", "Alívio", "Justiça / Transparência",
+];
 export const awareness = ["Não reconhece o problema","Reconhece o problema","Conhece as soluções","Conhece o produto/serviço","Conhece a oferta e precisa decidir","Pedir recomendação"];
 export const formats = ["Estático","Reels","Carrossel","Stories","Pesquisa","Landing page"];
 export const briefSchema = z.object({
@@ -10,7 +33,7 @@ export const briefSchema = z.object({
   awareness:z.string().max(200).default("Pedir recomendação"),funnel:z.enum(["TOP","MIDDLE","BOTTOM","AFTER_SALE"]).default("TOP"),journey:z.enum(["DISCOVERY","PROBLEM","CONSIDERATION","DECISION","RETENTION"]).default("DISCOVERY"),
   speaker:text,voice:text,themeId:z.string().uuid().or(z.literal("")).default(""),
   channel:z.string().max(100).default("Instagram"),placement:z.string().max(100).default("Feed"),format:z.enum(["Estático","Reels","Carrossel","Stories","Pesquisa","Landing page"]).default("Estático"),
-  structures:z.array(z.string().max(100)).max(20).default([]),angles:z.array(z.string().max(100)).max(12).default([]),triggers:z.array(z.string().max(100)).max(16).default([]),
+  structures:z.array(z.string().max(100)).max(50).default([]),angles:z.array(z.string().max(100)).max(40).default([]),triggers:z.array(z.string().max(100)).max(40).default([]),
   tone:text,length:z.enum(["Curta","Média","Contextualizada"]).default("Curta"),maxCharacters:z.number().int().min(10).max(2000).default(120),
   creativity:z.enum(["Conservadora","Equilibrada","Exploratória"]).default("Equilibrada"),intensity:z.enum(["Sutil","Moderada","Forte"]).default("Moderada"),
   cta:text,requiredWords:text,forbiddenWords:text,temperature:text,sophistication:text,skepticism:text,mechanism:text,emotion:text,motivation:text,

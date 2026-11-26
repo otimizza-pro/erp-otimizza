@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import {ArchiveRecordAction} from "@/components/ui/archive-record-action";
 import {
@@ -127,10 +127,15 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
   const [notification, setNotification] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const currentTime = useMemo(() => Date.now(), []);
+  const requestSeqRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Leitura inicial de parâmetros da URL
+  // Leitura inicial de parâmetros da URL e reset ao trocar de cliente no cabeçalho
   useEffect(() => {
-    if (clientId) return;
+    if (clientId) {
+      setClient("");
+      return;
+    }
     const params = new URLSearchParams(window.location.search);
     if (params.get("status")) setStatus(params.get("status") || "");
     if (params.get("clientId")) setClient(params.get("clientId") || "");
@@ -141,32 +146,47 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
     if (params.get("view") === "Calendário") setView("Calendário");
   }, [clientId]);
 
-  // Carregamento de Projetos
-  const loadProjects = async () => {
+  // Carregamento de Projetos com proteção contra race condition entre trocas de cliente
+  const loadProjects = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const seq = ++requestSeqRef.current;
+
     setLoading(true);
     setError("");
     setProjects([]);
     try {
-      const res = await fetch("/api/projects?"+new URLSearchParams({archived:String(showArchived),...(clientId?{clientId}:{})}));
+      const res = await fetch(
+        "/api/projects?" + new URLSearchParams({ archived: String(showArchived), ...(clientId ? { clientId } : {}) }),
+        { signal: controller.signal },
+      );
       const data = await res.json();
+      if (seq !== requestSeqRef.current) return;
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Erro ao carregar projetos.");
       }
       setProjects(data.data || []);
     } catch (e: unknown) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      if (seq !== requestSeqRef.current) return;
       setError(e instanceof Error ? e.message : "Erro desconhecido ao carregar projetos.");
     } finally {
-      setLoading(false);
+      if (seq === requestSeqRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [clientId, showArchived]);
 
   useEffect(() => {
-    loadProjects();
-  }, [clientId, showArchived]);
+    void loadProjects();
+    return () => abortRef.current?.abort();
+  }, [loadProjects]);
 
   // Filtro de Projetos
   const filtered = useMemo(() => {
     return projects.filter((p) => {
+      if (clientId && p.clientId !== clientId) return false;
       const clientLabel = p.clientName || (p.projectType === "INTERNAL" ? "Otimizza Growth" : "");
       const matchesSearch =
         !search ||

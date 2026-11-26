@@ -9,7 +9,7 @@ export function teamModels() {
  return Object.fromEntries((["A","B"] as const).map(team=>[team,defaults[team].map((fallback,index)=>({slot:index+1,model:process.env[`OPENROUTER_HEADLINE_TEAM_${team}_${index+1}_MODEL`]?.trim()||fallback}))]));
 }
 export async function ownedWorkspace(id:string,user:string) {
- const r=await query("SELECT w.*,c.selected_headline,c.selected_subheadline,c.headline_candidate_id,c.headline_content_stale FROM headline_workspaces w JOIN content_calendar_items c ON c.id=w.content_id WHERE w.id=$1 AND w.user_id=$2",[id,user]);
+ const r=await query("SELECT w.*,c.selected_headline,c.selected_subheadline,c.headline_candidate_id,c.headline_content_stale,c.offer_name,c.editorial_line_id,c.format AS content_format FROM headline_workspaces w JOIN content_calendar_items c ON c.id=w.content_id WHERE w.id=$1 AND w.user_id=$2",[id,user]);
  if(!r.rows[0])throw new Error("Peça não encontrada neste usuário.");return r.rows[0];
 }
 export async function workspaceState(id:string,user:string) {
@@ -27,7 +27,9 @@ export async function createWorkspace(clientId:string,user:string,contentId?:str
   let id=contentId;let initial:Record<string,unknown>={};
   if(id) {
    const c=await db.query("SELECT * FROM content_calendar_items WHERE id=$1 AND client_id=$2 FOR UPDATE",[id,clientId]);if(!c.rowCount)throw new Error("A pauta não pertence a este cliente.");
-   const item=c.rows[0];initial=item.headline_brief||{...(item.editorial_brief||{}),bigIdea:item.central_idea||'',format:item.format==='Post estático'?'Estático':(['Reels','Carrossel','Stories','Pesquisa','Landing page'].includes(item.format)?item.format:'Estático'),audience:item.editorial_brief?.audience||item.target_audience_name||'',tone:item.tone_of_voice||'',cta:item.call_to_action||''};
+   const item=c.rows[0];const normalizedFmt=item.format==='Post estático'?'Estático':(['Reels','Carrossel','Stories','Pesquisa','Landing page'].includes(item.format)?item.format:'Estático');
+   const normalizedPlacement=normalizedFmt==='Reels'?'Reels':normalizedFmt==='Stories'?'Stories':'Feed';
+   initial=item.headline_brief||{...(item.editorial_brief||{}),offer:item.offer_name||'',themeId:item.editorial_line_id||'',bigIdea:item.central_idea||'',format:normalizedFmt,placement:normalizedPlacement,audience:item.editorial_brief?.audience||item.target_audience_name||'',tone:item.tone_of_voice||'',cta:item.call_to_action||''};
    const existing=await db.query("SELECT id,user_id FROM headline_workspaces WHERE content_id=$1",[id]);
    if(existing.rows[0]) {if(existing.rows[0].user_id!==user)throw new Error("Peça de outro usuário.");return existing.rows[0].id as string;}
   } else id=(await db.query("INSERT INTO content_calendar_items(client_id,title,central_idea,format,status) VALUES($1,'Nova pauta de headlines','','Post estático','PLANNED') RETURNING id",[clientId])).rows[0].id;
@@ -47,8 +49,9 @@ export async function saveBrief(id:string,user:string,raw:unknown,revision:numbe
   const editorial=b.themeId&&b.speaker&&b.voice&&b.audience&&b.goal&&b.tone&&b.cta?{themeId:b.themeId,speaker:b.speaker,voice:b.voice,audience:b.audience,funnel:b.funnel,journey:b.journey,goal:b.goal,pain:b.pain||"NOT_APPLICABLE",tone:b.tone,cta:b.cta}:null;
   await db.query(`UPDATE content_calendar_items SET central_idea=$2,title=CASE WHEN project_id IS NULL AND selected_headline IS NULL THEN COALESCE(NULLIF($2,''),title) ELSE title END,
    format=$3,tone_of_voice=$4,call_to_action=$5,target_audience_name=$6,headline_brief=$7::jsonb,editorial_brief=$8::jsonb,
+   offer_name=COALESCE(NULLIF($9,''),offer_name),editorial_line_id=COALESCE(NULLIF($10,'')::uuid,editorial_line_id),
    headline_content_stale=CASE WHEN headline_brief IS DISTINCT FROM $7::jsonb AND (selected_caption IS NOT NULL OR selected_reels IS NOT NULL OR selected_carousel IS NOT NULL) THEN true ELSE headline_content_stale END,updated_at=NOW() WHERE id=$1`,
-   [w.content_id,b.bigIdea,b.format==="Estático"?"Post estático":b.format,b.tone,b.cta,b.audience,JSON.stringify(b),editorial?JSON.stringify(editorial):null]);
+   [w.content_id,b.bigIdea,b.format==="Estático"?"Post estático":b.format,b.tone,b.cta,b.audience,JSON.stringify(b),editorial?JSON.stringify(editorial):null,b.offer||"",b.themeId||""]);
  });
  return workspaceState(id,user);
 }

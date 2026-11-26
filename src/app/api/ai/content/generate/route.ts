@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 const payloadSchema = z.object({
   contentId:z.string().uuid().optional(),
   clientId:z.union([z.string().uuid(),z.literal("otimizza")]),
-  editorialBrief:z.unknown(),
+  editorialBrief:z.unknown().optional(),
   format:z.enum(["HEADLINES","CAPTION","REELS","CAROUSEL","LANDING_PAGE","SIMILAR_HEADLINES"]),
   prompt:z.string().max(20000).default(""),
   centralIdea:z.string().max(5000).default(""),
@@ -92,32 +92,52 @@ export async function POST(request: NextRequest) {
     const storedBrief=storedHeadlineContext?.headline_brief as Record<string,unknown>|undefined;
     let rawEditorialBrief = body.editorialBrief ?? storedHeadlineContext?.editorial_brief;
     if (!rawEditorialBrief && storedBrief) {
+      const allowedSpeakers = clientContext.communicationProfile?.speakerTypes || [];
+      const allowedVoices = clientContext.communicationProfile?.contentVoices || [];
+      const allowedAudiences = [
+        ...clientContext.audiences.map((a) => String(a.name)),
+        ...(Array.isArray(clientContext.identity.target_audiences) ? clientContext.identity.target_audiences.map(String) : []),
+        ...(clientContext.communicationProfile?.audienceTypes || []),
+      ];
+      const rawAud = typeof storedBrief.audience === "string" ? storedBrief.audience.trim() : "";
       const fallbackAudience =
-        (typeof storedBrief.audience === "string" && storedBrief.audience.trim()) ||
-        (clientContext.audiences[0]?.name ? String(clientContext.audiences[0].name) : "") ||
-        (Array.isArray(clientContext.identity.target_audiences) && clientContext.identity.target_audiences[0] ? String(clientContext.identity.target_audiences[0]) : "") ||
-        clientContext.communicationProfile?.audienceTypes?.[0] ||
+        (rawAud && allowedAudiences.includes(rawAud) ? rawAud : "") ||
+        allowedAudiences[0] ||
+        "";
+      const rawSpeaker = typeof storedBrief.speaker === "string" ? storedBrief.speaker.trim() : "";
+      const fallbackSpeaker =
+        (rawSpeaker && allowedSpeakers.includes(rawSpeaker) ? rawSpeaker : "") ||
+        allowedSpeakers[0] ||
+        "";
+      const rawVoice = typeof storedBrief.voice === "string" ? storedBrief.voice.trim() : "";
+      const fallbackVoice =
+        (rawVoice && allowedVoices.includes(rawVoice) ? rawVoice : "") ||
+        allowedVoices[0] ||
         "";
       const fallbackFunnel = ["TOP", "MIDDLE", "BOTTOM", "AFTER_SALE"].includes(String(storedBrief.funnel))
         ? String(storedBrief.funnel)
         : "TOP";
-      const fallbackJourneyMap: Record<string, string> = {
-        TOP: "DISCOVERY",
-        MIDDLE: "CONSIDERATION",
-        BOTTOM: "DECISION",
-        AFTER_SALE: "RETENTION",
+      const validJourneysByFunnel: Record<string, string[]> = {
+        TOP: ["DISCOVERY", "PROBLEM"],
+        MIDDLE: ["PROBLEM", "CONSIDERATION"],
+        BOTTOM: ["DECISION"],
+        AFTER_SALE: ["RETENTION"],
       };
+      const allowedJourneys = validJourneysByFunnel[fallbackFunnel] || ["DISCOVERY"];
+      const rawJourney = String(storedBrief.journey || "");
+      const fallbackJourney = allowedJourneys.includes(rawJourney) ? rawJourney : allowedJourneys[0];
+      const rawThemeId = typeof storedBrief.themeId === "string" ? storedBrief.themeId.trim() : "";
       const fallbackThemeId =
-        (typeof storedBrief.themeId === "string" && storedBrief.themeId.trim()) ||
+        (rawThemeId && clientContext.editorialLines.some((l) => l.id === rawThemeId) ? rawThemeId : "") ||
         (clientContext.editorialLines[0]?.id ? String(clientContext.editorialLines[0].id) : "");
-      if (fallbackThemeId && clientContext.communicationProfile?.speakerTypes?.[0] && clientContext.communicationProfile?.contentVoices?.[0] && fallbackAudience) {
+      if (fallbackThemeId && fallbackSpeaker && fallbackVoice && fallbackAudience) {
         rawEditorialBrief = {
           themeId: fallbackThemeId,
-          speaker: (typeof storedBrief.speaker === "string" && storedBrief.speaker.trim()) || clientContext.communicationProfile.speakerTypes[0],
-          voice: (typeof storedBrief.voice === "string" && storedBrief.voice.trim()) || clientContext.communicationProfile.contentVoices[0],
+          speaker: fallbackSpeaker,
+          voice: fallbackVoice,
           audience: fallbackAudience,
           funnel: fallbackFunnel,
-          journey: fallbackJourneyMap[fallbackFunnel] || "DISCOVERY",
+          journey: fallbackJourney,
           goal: (typeof storedBrief.goal === "string" && storedBrief.goal.trim().length >= 3 ? storedBrief.goal.trim() : "") || (centralIdea && centralIdea.trim().length >= 3 ? centralIdea.trim() : "") || (selectedHeadline && selectedHeadline.trim().length >= 3 ? selectedHeadline.trim() : "Gerar engajamento e autoridade"),
           pain: (typeof storedBrief.pain === "string" && storedBrief.pain.trim()) || "NOT_APPLICABLE",
           tone: (typeof storedBrief.tone === "string" && storedBrief.tone.trim()) || (Array.isArray(clientContext.identity.tone_of_voice) && clientContext.identity.tone_of_voice[0] ? String(clientContext.identity.tone_of_voice[0]) : "Direto e didático"),

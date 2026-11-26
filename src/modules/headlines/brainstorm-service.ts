@@ -814,6 +814,10 @@ export async function convertIdeaToHeadlines(
         : "Estático";
 
     let contentId = idea.content_id;
+    let projectOfferName = "";
+    let projectEditorialLineId: string | null = null;
+    let projectTargetAudience = "";
+    let effectiveCalendarFormat = calendarFormat;
     if (linkOnly && !projectPost) throw new Error("Selecione um post planejado.");
 
     if (projectPost) {
@@ -821,7 +825,7 @@ export async function convertIdeaToHeadlines(
         throw new Error("Esta ideia já está vinculada a outro conteúdo ou pertence a outra empresa.");
       }
       const target = await db.query(
-        `SELECT c.id, c.status, c.central_idea FROM content_calendar_items c
+        `SELECT c.id, c.status, c.central_idea, c.offer_name, c.editorial_line_id, c.target_audience_name, c.format FROM content_calendar_items c
          JOIN projects p ON p.id = c.project_id AND p.client_id = c.client_id
          WHERE c.id = $1 AND c.client_id = $2 AND c.archived_at IS NULL
            AND p.archived_at IS NULL AND c.content_type = 'SOCIAL_MEDIA'
@@ -829,6 +833,12 @@ export async function convertIdeaToHeadlines(
         [projectPost.id, projectPost.clientId],
       );
       if (!target.rows.length) throw new Error("Post de projeto indisponível.");
+      projectOfferName = target.rows[0].offer_name || "";
+      projectEditorialLineId = target.rows[0].editorial_line_id || null;
+      projectTargetAudience = target.rows[0].target_audience_name || "";
+      if (target.rows[0].format) {
+        effectiveCalendarFormat = target.rows[0].format;
+      }
       const current = await db.query("SELECT id, user_id FROM headline_workspaces WHERE content_id = $1 ORDER BY updated_at DESC LIMIT 1", [projectPost.id]);
       if (current.rows.length) {
         if (current.rows[0].user_id !== userId) throw new Error("Esta criação pertence a outro usuário.");
@@ -846,7 +856,10 @@ export async function convertIdeaToHeadlines(
       contentId = projectPost.id;
       await db.query(
         `UPDATE content_calendar_items
-         SET central_idea = $2, editorial_line_id = $3, format = $4, target_audience_name = $5,
+         SET central_idea = $2,
+             editorial_line_id = COALESCE($3, editorial_line_id),
+             format = $4,
+             target_audience_name = COALESCE(NULLIF($5, ''), target_audience_name),
              offer_name = COALESCE(NULLIF($7, ''), offer_name),
              audience_angle = COALESCE(NULLIF($8, ''), audience_angle),
              required_material = COALESCE(NULLIF($9, ''), required_material),
@@ -856,7 +869,7 @@ export async function convertIdeaToHeadlines(
           contentId,
           idea.title,
           idea.editorial_line_id || null,
-          calendarFormat,
+          effectiveCalendarFormat,
           idea.target_audience || null,
           linkOnly,
           idea.offer_name || null,
@@ -876,10 +889,16 @@ export async function convertIdeaToHeadlines(
     // 2. Se não existir peça no calendário, cria
     if (contentId && !projectPost) {
       const post = await db.query(
-        "SELECT id, status FROM content_calendar_items WHERE id = $1 AND client_id = $2 AND archived_at IS NULL FOR UPDATE",
+        "SELECT id, status, offer_name, editorial_line_id, target_audience_name, format FROM content_calendar_items WHERE id = $1 AND client_id = $2 AND archived_at IS NULL FOR UPDATE",
         [contentId, idea.client_id],
       );
       if (!post.rows.length || post.rows[0].status === "PUBLISHED") throw new Error("Post indisponível para criação.");
+      projectOfferName = post.rows[0].offer_name || "";
+      projectEditorialLineId = post.rows[0].editorial_line_id || null;
+      projectTargetAudience = post.rows[0].target_audience_name || "";
+      if (post.rows[0].format) {
+        effectiveCalendarFormat = post.rows[0].format;
+      }
     }
     if (!contentId) {
       const contentRes = await db.query(
@@ -903,13 +922,45 @@ export async function convertIdeaToHeadlines(
       contentId = contentRes.rows[0].id;
     }
 
+    const resolvedOfferName = String(idea.offer_name || projectOfferName || "").trim();
+    const resolvedThemeId = idea.editorial_line_id || projectEditorialLineId || "";
+    const resolvedAudience = idea.target_audience || projectTargetAudience || "";
+
+    let catalogItem: { pain?: string; desire?: string; benefit?: string; differential?: string } | null = null;
+    if (resolvedOfferName && resolvedOfferName !== "Institucional / Marca") {
+      const catRes = await db.query(
+        `SELECT pain_solved AS pain, transformation AS desire, main_benefit AS benefit, differential
+         FROM client_catalog_items
+         WHERE client_id = $1 AND is_active = true AND LOWER(btrim(name)) = LOWER(btrim($2))
+         LIMIT 1`,
+        [idea.client_id, resolvedOfferName],
+      );
+      if (catRes.rows[0]) catalogItem = catRes.rows[0];
+    }
+
+    const resolvedHeadlineFormat =
+      effectiveCalendarFormat === "Reels"
+        ? "Reels"
+        : effectiveCalendarFormat === "Carrossel"
+          ? "Carrossel"
+          : effectiveCalendarFormat === "Stories"
+            ? "Stories"
+            : headlineBriefFormat;
+    const resolvedPlacement =
+      resolvedHeadlineFormat === "Reels" ? "Reels" : resolvedHeadlineFormat === "Stories" ? "Stories" : "Feed";
+
     // 3. Monta o briefing inicial para o laboratório de headlines
     const initialBrief = {
       bigIdea: idea.title,
-      themeId: idea.editorial_line_id || "",
-      format: headlineBriefFormat,
-      audience: idea.target_audience || "",
-      pain: idea.pain_or_desire || "",
+      offer: resolvedOfferName,
+      themeId: resolvedThemeId,
+      format: resolvedHeadlineFormat,
+      placement: resolvedPlacement,
+      audience: resolvedAudience,
+      pain: idea.pain_or_desire || catalogItem?.pain || "",
+      desire: catalogItem?.desire || "",
+      value: catalogItem?.benefit || "",
+      differential: catalogItem?.differential || "",
       goal: idea.goal || "",
       angles: idea.angle ? [idea.angle] : ["Benefício"],
       structures: ["Curiosidade", "Pergunta"],
@@ -919,7 +970,6 @@ export async function convertIdeaToHeadlines(
       intensity: "Moderada",
       awareness: "Reconhece o problema",
       channel: "Instagram",
-      placement: "Feed",
       context: idea.source_title
         ? [idea.source_title, idea.source_date ? String(idea.source_date).slice(0, 10) : "", idea.source_url, idea.rationale].filter(Boolean).join("\n")
         : idea.rationale || "",

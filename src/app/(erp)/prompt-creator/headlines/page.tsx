@@ -494,6 +494,12 @@ function Workspace({ clientId, companyName, projectPost }: {
       }
     }
   }, [projectPost, catalogOffers]);
+  const selectedOfferLabel =
+    selectedOffer === "custom"
+      ? customOfferName.trim()
+      : selectedOffer
+        ? catalogOffers.find((o) => o.id === selectedOffer)?.name || ""
+        : "";
   const [aiGeneratedIdeas, setAiGeneratedIdeas] = useState<BrainstormAiIdea[]>([]);
   const [generatingIdeas, setGeneratingIdeas] = useState(false);
   const [showManualModal, setShowManualModal] = useState(false);
@@ -522,6 +528,7 @@ function Workspace({ clientId, companyName, projectPost }: {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [activeTeamRunning, setActiveTeamRunning] = useState<"A" | "B" | null>(null);
   const [activeRound, setActiveRound] = useState("");
   const [services, setServices] = useState<{ id: string; name: string; description?: string }[]>([]);
   const [blind, setBlind] = useState(false);
@@ -670,7 +677,25 @@ function Workspace({ clientId, companyName, projectPost }: {
         if (projectPostId && v.workspace.content_id !== projectPostId) throw new Error("Esta criação pertence a outro post.");
         setData(v);
         revision.current = v.workspace.revision;
-        setBrief(briefSchema.parse(v.workspace.brief));
+        const parsedBrief = briefSchema.parse(v.workspace.brief);
+        const rawFmt = v.workspace.content_format || projectPost?.format || "";
+        const mappedFmt =
+          rawFmt === "Reels"
+            ? "Reels"
+            : rawFmt === "Carrossel"
+              ? "Carrossel"
+              : rawFmt === "Stories"
+                ? "Stories"
+                : parsedBrief.format;
+        const mappedPlacement =
+          mappedFmt === "Reels" ? "Reels" : mappedFmt === "Stories" ? "Stories" : parsedBrief.placement;
+        setBrief({
+          ...parsedBrief,
+          offer: parsedBrief.offer || v.workspace.offer_name || projectPost?.offerName || "",
+          themeId: parsedBrief.themeId || v.workspace.editorial_line_id || projectPost?.editorialLineId || "",
+          format: parsedBrief.format === "Estático" && mappedFmt ? mappedFmt : parsedBrief.format,
+          placement: parsedBrief.placement === "Feed" && mappedPlacement ? mappedPlacement : parsedBrief.placement,
+        });
         setActiveRound(v.rounds.at(-1)?.id || "");
       })
       .catch((e) => {
@@ -740,7 +765,11 @@ function Workspace({ clientId, companyName, projectPost }: {
     try {
       await fn();
     } catch (e) {
-      if (mounted.current) setError(e instanceof Error ? e.message : "Falha na operação");
+      const msg = e instanceof Error ? e.message : "Falha na operação";
+      if (mounted.current) {
+        setError(msg);
+        toast.error(msg);
+      }
     } finally {
       if (mounted.current) setBusy(false);
     }
@@ -813,15 +842,23 @@ function Workspace({ clientId, companyName, projectPost }: {
   }
 
   async function batch(team: "A" | "B", regenerate: boolean) {
-    await perform(async () => {
-      const original = data?.rounds.find((r) => r.id === activeRound);
-      if (original && !sameBrief(original.brief, brief)) {
-        throw new Error("O briefing mudou. Inicie uma nova rodada para comparar os mesmos dados.");
-      }
-      await api("", { action: "BATCH", roundId: activeRound, team, regenerate });
-      const fresh = await refresh();
-      if (fresh) await executePending(fresh, activeRound);
-    });
+    setActiveTeamRunning(team);
+    try {
+      await perform(async () => {
+        const original = data?.rounds.find((r) => r.id === activeRound);
+        if (regenerate && original && !sameBrief(original.brief, brief)) {
+          throw new Error("O briefing mudou. Inicie uma nova rodada para testar o novo briefing.");
+        }
+        if (!regenerate && original && !sameBrief(original.brief, brief)) {
+          toast.info("Gerando Time B com o mesmo briefing desta rodada para manter a comparação justa.");
+        }
+        await api("", { action: "BATCH", roundId: activeRound, team, regenerate });
+        const fresh = await refresh();
+        if (fresh) await executePending(fresh, activeRound);
+      });
+    } finally {
+      if (mounted.current) setActiveTeamRunning(null);
+    }
   }
 
   async function rate(c: Candidate, rating: number, reason: string) {
@@ -936,6 +973,15 @@ function Workspace({ clientId, companyName, projectPost }: {
   // 2. Ação A: Usar essa ideia (Avança imediatamente para Headlines)
   async function handleUseIdeaNow(idea: BrainstormAiIdea | SavedIdea, linkOnly = false, suggestedPostId?: string) {
     if (convertingIdea.current) return;
+
+    if (!linkOnly && !suggestedPostId && "workspace_id" in idea && idea.workspace_id && idea.content_id) {
+      const destination = new URLSearchParams({ workspaceId: idea.workspace_id, tab: "headlines" });
+      if ("project_id" in idea && idea.project_id) destination.set("projectPostId", idea.content_id);
+      router.push(`/prompt-creator/headlines?${destination.toString()}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
     convertingIdea.current = true;
     setConvertingIdeaId(idea.id || null);
     setError("");
@@ -954,8 +1000,13 @@ function Workspace({ clientId, companyName, projectPost }: {
           editorialLineId: idea.editorial_line_id || null,
           pillarName: idea.pillar_name || "",
           themeName: idea.theme_name || "",
+          offerName:
+            idea.offer_name ||
+            projectPost?.offerName ||
+            (selectedOfferLabel && selectedOfferLabel !== "Institucional / Marca" ? selectedOfferLabel : "") ||
+            "",
           angle: idea.angle || "",
-          format: idea.format || "Carrossel",
+          format: (projectPost?.format && projectPost.format !== "Todos" ? projectPost.format : idea.format) || "Carrossel",
           targetAudience: idea.target_audience || "",
           painOrDesire: idea.pain_or_desire || "",
           goal: idea.goal || "",
@@ -973,17 +1024,21 @@ function Workspace({ clientId, companyName, projectPost }: {
         setBrainstormView("bank");
         await loadBrainstormData();
         setMessage("Ideia vinculada ao post planejado.");
+        toast.success("Ideia vinculada ao post planejado.");
         return;
       }
       setActiveIdeaForHeadline({ ...idea, content_id: d.contentId } as SavedIdea);
-      const destination = new URLSearchParams({ workspaceId: d.workspaceId });
+      const destination = new URLSearchParams({ workspaceId: d.workspaceId, tab: "headlines" });
       if (projectPost || ("project_id" in idea && idea.project_id)) destination.set("projectPostId", d.contentId);
-      router.push(`/prompt-creator/headlines?${destination}`);
-      setMessage(`Ideia selecionada! Configure e gere as headlines no Passo 3.`);
-      await loadBrainstormData();
+      setMessage(`Ideia selecionada! Configure e gere as headlines no Passo 2.`);
+      toast.success("Ideia enviada para a fase de Headlines!");
+      router.push(`/prompt-creator/headlines?${destination.toString()}`);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (e: unknown) {
       const err = e as Error;
-      setError(err.message || "Erro ao avançar para headlines.");
+      const msg = err.message || "Erro ao avançar para headlines.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       convertingIdea.current = false;
       setConvertingIdeaId(null);
@@ -1005,8 +1060,13 @@ function Workspace({ clientId, companyName, projectPost }: {
           editorialLineId: idea.editorial_line_id || null,
           pillarName: idea.pillar_name || "",
           themeName: idea.theme_name || "",
+          offerName:
+            idea.offer_name ||
+            projectPost?.offerName ||
+            (selectedOfferLabel && selectedOfferLabel !== "Institucional / Marca" ? selectedOfferLabel : "") ||
+            "",
           angle: idea.angle || "",
-          format: idea.format || "Carrossel",
+          format: (projectPost?.format && projectPost.format !== "Todos" ? projectPost.format : idea.format) || "Carrossel",
           targetAudience: idea.target_audience || "",
           painOrDesire: idea.pain_or_desire || "",
           goal: idea.goal || "",
@@ -1040,8 +1100,13 @@ function Workspace({ clientId, companyName, projectPost }: {
           editorialLineId: idea.editorial_line_id || null,
           pillarName: idea.pillar_name || "",
           themeName: idea.theme_name || "",
+          offerName:
+            idea.offer_name ||
+            projectPost?.offerName ||
+            (selectedOfferLabel && selectedOfferLabel !== "Institucional / Marca" ? selectedOfferLabel : "") ||
+            "",
           angle: idea.angle || "",
-          format: idea.format || "Carrossel",
+          format: (projectPost?.format && projectPost.format !== "Todos" ? projectPost.format : idea.format) || "Carrossel",
           targetAudience: idea.target_audience || "",
           painOrDesire: idea.pain_or_desire || "",
           goal: idea.goal || "",
@@ -2270,7 +2335,11 @@ function Workspace({ clientId, companyName, projectPost }: {
                           title="Usar esta ideia e avançar para o Passo 3: Headlines"
                         >
                           <Sparkles size={16} className={isConverting ? "animate-spin" : ""} />
-                          {isConverting ? "Preparando headlines..." : "Usar essa ideia (Criar Headlines)"}
+                          {isConverting
+                            ? "Preparando headlines..."
+                            : idea.workspace_id
+                              ? "Abrir em Headlines (Continuar)"
+                              : "Usar essa ideia (Criar Headlines)"}
                         </button>
                         {renderSuggestedPosts(idea)}
                         {projectPost && !idea.content_id && <button type="button" className={button + " w-full"} disabled={isConverting}
@@ -2767,13 +2836,107 @@ function Workspace({ clientId, companyName, projectPost }: {
                         }
 
                         const matchedOffer = catalogOffers.find((o) => o.name === brief.offer);
-                        const offerPains =
-                          key === "pain" && matchedOffer?.target_pain_points
-                            ? matchedOffer.target_pain_points
-                                .split(/\r?\n/)
-                                .map((s) => s.trim())
-                                .filter(Boolean)
-                            : [];
+                        const selectedAud = context?.audiences.find((a) => String(a.name) === brief.audience);
+                        const toLines = (raw: unknown): string[] =>
+                          Array.isArray(raw)
+                            ? raw.map((x) => String(x || "").trim()).filter(Boolean)
+                            : typeof raw === "string"
+                              ? raw.split(/\r?\n|;/).map((s) => s.trim()).filter(Boolean)
+                              : [];
+                        const uniq = (items: string[]) => Array.from(new Set(items.filter(Boolean)));
+
+                        let fieldOptions: { value: string; label: string }[] | null = null;
+                        if (key === "goal") {
+                          const listOpts = uniq([
+                            ...(context?.editorialLines.map((l) => String(l.objective || "").trim()) || []),
+                            "Educar",
+                            "Gerar autoridade",
+                            "Engajar / Viralizar",
+                            "Quebrar objeção",
+                            "Gerar desejo",
+                            "Captar leads",
+                            "Converter / Vender",
+                            "Fidelizar / Reter",
+                            "Prova social",
+                          ]);
+                          fieldOptions = listOpts.map((v) => ({ value: v, label: v }));
+                        } else if (key === "pain") {
+                          const listOpts = uniq([
+                            ...toLines(matchedOffer?.target_pain_points),
+                            ...toLines(selectedAud?.pain_points),
+                            ...toLines(context?.identity.pain_points),
+                            ...(context?.audiences.flatMap((a) => toLines(a.pain_points)) || []),
+                          ]);
+                          fieldOptions = [
+                            ...listOpts.map((v) => ({ value: v, label: v })),
+                            { value: "NOT_APPLICABLE", label: "Não se aplica (pauta educativa/descoberta)" },
+                          ];
+                        } else if (key === "desire") {
+                          const listOpts = uniq([
+                            ...toLines(selectedAud?.desires),
+                            ...(context?.audiences.flatMap((a) => toLines(a.desires)) || []),
+                          ]);
+                          if (listOpts.length > 0) fieldOptions = listOpts.map((v) => ({ value: v, label: v }));
+                        } else if (key === "objection") {
+                          const listOpts = uniq([
+                            ...toLines(selectedAud?.objections),
+                            ...(context?.audiences.flatMap((a) => toLines(a.objections)) || []),
+                            ...toLines(context?.identity.sales_objections),
+                          ]);
+                          if (listOpts.length > 0) fieldOptions = listOpts.map((v) => ({ value: v, label: v }));
+                        } else if (key === "tone") {
+                          const listOpts = uniq([
+                            ...toLines(context?.identity.tone_of_voice),
+                            "Consultivo e acolhedor",
+                            "Direto e técnico",
+                            "Autoridade didática",
+                            "Empático e humano",
+                            "Provocativo e direto",
+                            "Sofisticado e objetivo",
+                          ]);
+                          fieldOptions = listOpts.map((v) => ({ value: v, label: v }));
+                        } else if (key === "cta") {
+                          const listOpts = uniq([
+                            ...toLines(context?.identity.default_ctas),
+                            ...toLines(context?.identity.whatsapp_cta),
+                            "Chamar no WhatsApp",
+                            "Comentar palavra-chave",
+                            "Enviar mensagem no Direct",
+                            "Agendar avaliação",
+                            "Acessar link da bio",
+                            "Saiba mais",
+                          ]);
+                          fieldOptions = listOpts.map((v) => ({ value: v, label: v }));
+                        }
+
+                        const currentVal = String(brief[key] || "");
+                        const hasCustomValue = Boolean(
+                          fieldOptions && currentVal && !fieldOptions.some((o) => o.value === currentVal),
+                        );
+
+                        if (fieldOptions && fieldOptions.length > 0) {
+                          return (
+                            <div key={key} className="space-y-1.5">
+                              <label className="text-xs font-semibold text-zinc-700 block">
+                                {label}
+                                <select
+                                  aria-label={label}
+                                  className={control}
+                                  value={currentVal}
+                                  onChange={(e) => update(key, e.target.value)}
+                                >
+                                  <option value="">Selecione...</option>
+                                  {hasCustomValue && <option value={currentVal}>{currentVal}</option>}
+                                  {fieldOptions.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+                          );
+                        }
 
                         return (
                           <div key={key} className="space-y-1.5">
@@ -2783,24 +2946,10 @@ function Workspace({ clientId, companyName, projectPost }: {
                                 aria-label={label}
                                 rows={3}
                                 className={control}
-                                value={String(brief[key])}
+                                value={currentVal}
                                 onChange={(e) => update(key, e.target.value)}
                               />
                             </label>
-                            {offerPains.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {offerPains.slice(0, 4).map((p) => (
-                                  <button
-                                    key={p}
-                                    type="button"
-                                    onClick={() => update("pain", p)}
-                                    className="rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800 transition cursor-pointer text-left"
-                                  >
-                                    + {p.slice(0, 50)}{p.length > 50 ? "..." : ""}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
                           </div>
                         );
                       })}
@@ -2861,22 +3010,39 @@ function Workspace({ clientId, companyName, projectPost }: {
                     </select>
                   </div>
 
-                  {(["A", "B"] as const).map((team) => (
+                  {(["A", "B"] as const).map((team) => {
+                    const thisTeamRuns = roundRuns.filter((r) => r.team === team);
+                    const doneCount = thisTeamRuns.filter((r) => r.status === "SUCCESS" || r.status === "ERROR").length;
+                    const activeCount = thisTeamRuns.filter((r) => r.status === "PENDING" || r.status === "RUNNING").length;
+                    const isRunningTeam = activeTeamRunning === team || (generating && activeCount > 0);
+
+                    return (
                     <section key={team} className="space-y-4">
-                      <div className="flex flex-wrap justify-between gap-3">
-                        <h3 className="text-lg font-bold text-zinc-950">Time {team}</h3>
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <h3 className="text-lg font-bold text-zinc-950">Time {team}</h3>
+                          {isRunningTeam && (
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              {thisTeamRuns.length > 0
+                                ? `Gerando (${doneCount}/${thisTeamRuns.length} concluídas)...`
+                                : `Iniciando execuções do Time ${team}...`}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex flex-wrap gap-2">
-                          {team === "B" && !roundRuns.some((r) => r.team === "B") ? (
+                          {team === "B" && !thisTeamRuns.length ? (
                             <button className={button} disabled={busy || generating} onClick={() => void batch("B", false)}>
-                              Gerar com Time B
+                              {isRunningTeam ? <RefreshCw size={15} className="animate-spin" /> : <Sparkles size={15} />}
+                              {isRunningTeam ? "Gerando com Time B..." : "Gerar com Time B"}
                             </button>
                           ) : (
                             <button className={button} disabled={busy || generating} onClick={() => void batch(team, true)}>
-                              <RefreshCw size={15} />
-                              Gerar outras 4 por modalidade em cada IA
+                              <RefreshCw size={15} className={isRunningTeam ? "animate-spin" : ""} />
+                              {isRunningTeam ? `Gerando Time ${team}...` : "Gerar outras 4 por modalidade em cada IA"}
                             </button>
                           )}
-                          {roundRuns.some((r) => r.team === team && r.status === "PENDING") && (
+                          {thisTeamRuns.some((r) => r.status === "PENDING") && !generating && (
                             <button className={button} disabled={busy || generating} onClick={() => void executePending(data, activeRound)}>
                               Continuar gerações pendentes
                             </button>
@@ -2931,7 +3097,8 @@ function Workspace({ clientId, companyName, projectPost }: {
                         ))}
                       </div>
                     </section>
-                  ))}
+                    );
+                  })}
 
                   {/* CRIAÇÃO PRÓPRIA */}
                   <div className="pt-2">

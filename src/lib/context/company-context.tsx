@@ -23,6 +23,7 @@ interface CompanyContextType {
   availableCompanies: SelectedCompany[];
   reloadCompanies: () => Promise<void>;
   loading: boolean;
+  hydrated: boolean;
 }
 
 const CompanyContext = createContext<CompanyContextType>({
@@ -32,12 +33,14 @@ const CompanyContext = createContext<CompanyContextType>({
   availableCompanies: [OTIMIZZA_DEFAULT_COMPANY],
   reloadCompanies: async () => {},
   loading: false,
+  hydrated: false,
 });
 
 export function CompanyProvider({ children }: { children: React.ReactNode }) {
   const [selectedCompany, setSelectedCompanyState] = useState<SelectedCompany>(OTIMIZZA_DEFAULT_COMPANY);
   const [availableCompanies, setAvailableCompanies] = useState<SelectedCompany[]>([OTIMIZZA_DEFAULT_COMPANY]);
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   // 1. Carregar persistência do localStorage
   useEffect(() => {
@@ -51,6 +54,8 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (e) {
       console.warn("Erro ao ler empresa selecionada do localStorage:", e);
+    } finally {
+      setHydrated(true);
     }
   }, []);
 
@@ -102,6 +107,7 @@ export function CompanyProvider({ children }: { children: React.ReactNode }) {
         availableCompanies,
         reloadCompanies,
         loading,
+        hydrated,
       }}
     >
       {children}

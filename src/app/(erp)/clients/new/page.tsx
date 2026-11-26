@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ArrowLeft, Save, Plus, Trash2, AlertCircle, Phone } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { ClientContact } from "@/modules/clients/types";
+import { toast } from "@/components/ui/toast-provider";
 
 export default function NewClientPage() {
   const router = useRouter();
@@ -95,11 +96,13 @@ export default function NewClientPage() {
         throw new Error(data.error || "Falha ao cadastrar cliente.");
       }
 
+      toast.success("Cliente cadastrado com sucesso!");
       router.push(`/clients/${data.id}`);
       router.refresh();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erro desconhecido.";
       setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

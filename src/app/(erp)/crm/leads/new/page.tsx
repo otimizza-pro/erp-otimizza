@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { formatDocument } from "@/shared/cpf-cnpj";
+import { toast } from "@/components/ui/toast-provider";
 
 interface PipelineStage {
   id: string;
@@ -102,9 +103,12 @@ export default function NewLeadPage() {
         throw new Error(data.error || "Erro ao salvar lead.");
       }
 
+      toast.success("Lead cadastrado com sucesso!");
       router.push(`/crm/leads/${data.id}`);
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Erro inesperado.");
+      const msg = err instanceof Error ? err.message : "Erro inesperado.";
+      setErrorMsg(msg);
+      toast.error(msg);
       setLoading(false);
     }
   };

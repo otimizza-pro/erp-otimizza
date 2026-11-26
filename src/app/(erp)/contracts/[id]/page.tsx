@@ -494,7 +494,7 @@ export default function ContractDetailsPage() {
 
   return (
     <>
-      <div className="p-8 max-w-6xl mx-auto space-y-6">
+      <div className="space-y-6">
         {visibilityError && <p role="alert" className="p-3 rounded-xl bg-rose-50 text-rose-700">{visibilityError}</p>}
         {contract.archivedAt && <p className="p-3 rounded-xl bg-amber-50 text-amber-800">Contrato arquivado. O histórico foi preservado.</p>}
         {/* Breadcrumb */}

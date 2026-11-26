@@ -846,7 +846,7 @@ function ClientDetailsContent() {
                           {p.proposal_code || p.proposalCode} • {p.title}
                         </Link>
                         <span className="text-zinc-500 text-[11px]">
-                          Válido até: {p.valid_until || p.validUntil ? new Date(p.valid_until || p.validUntil || "").toLocaleDateString("pt-BR") : "-"}
+                          Válido até: {p.valid_until || p.validUntil ? new Date(p.valid_until || p.validUntil || "").toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "-"}
                         </span>
                       </div>
                       <div className="flex items-center gap-4">
@@ -991,7 +991,7 @@ function ClientDetailsContent() {
                           {r.receivable_number || r.receivableNumber} • {r.description}
                         </Link>
                         <span className="text-zinc-500 text-[11px]">
-                          Vencimento: {r.due_date || r.dueDate ? new Date(r.due_date || r.dueDate || "").toLocaleDateString("pt-BR") : "-"} • Competência: {r.competency || "-"}
+                          Vencimento: {r.due_date || r.dueDate ? new Date(r.due_date || r.dueDate || "").toLocaleDateString("pt-BR", { timeZone: "UTC" }) : "-"} • Competência: {r.competency || "-"}
                         </span>
                       </div>
                       <div className="text-right">

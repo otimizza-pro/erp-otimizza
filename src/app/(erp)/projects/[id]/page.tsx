@@ -2,6 +2,10 @@
 
 import { isEditorialTemplate, isOnboardingTemplate } from "@/modules/projects/editorial-template";
 import { ProjectSocialMediaPlan } from "@/components/projects/social-media-plan";
+import {
+  QuickProductionTaskModal,
+  type QuickChecklistContext,
+} from "@/components/projects/quick-production-task-modal";
 
 import React, { useState, useEffect, useCallback, use } from "react";
 
@@ -28,6 +32,7 @@ import {
   Edit2,
   RefreshCw,
   TrendingUp,
+  CalendarClock,
   X,
   Sparkles,
   Pause,
@@ -274,6 +279,9 @@ export default function ProjectWorkspacePage({
       toast.error(err instanceof Error ? err.message : "Erro ao pausar cronômetro.");
     }
   };
+
+  const [quickProductionContext, setQuickProductionContext] =
+    useState<QuickChecklistContext | null>(null);
 
   const handleResumeTimer = async (timerId: string) => {
     try {
@@ -922,6 +930,37 @@ export default function ProjectWorkspacePage({
                                           className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                                           onClick={(e) => e.stopPropagation()}
                                         >
+                                          {c.activeProductionTaskId ? (
+                                            <Link
+                                              href={`/projects/tasks?highlight=${c.activeProductionTaskId}`}
+                                              className="p-0.5 rounded text-emerald-600 hover:text-emerald-700"
+                                              title="Ver tarefa de produção vinculada"
+                                            >
+                                              <CalendarClock className="w-3 h-3" />
+                                            </Link>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              disabled={isBusyItem}
+                                              onClick={() =>
+                                                setQuickProductionContext({
+                                                  checklistId: c.id,
+                                                  checklistTitle: c.title,
+                                                  projectId: project.id,
+                                                  projectName: project.name,
+                                                  clientId: project.clientId,
+                                                  clientName: project.clientName,
+                                                  projectTaskId: t.id,
+                                                  projectTaskTitle: t.title,
+                                                  projectTaskDueDate: t.dueDate ?? null,
+                                                })
+                                              }
+                                              className="p-0.5 rounded text-slate-400 hover:text-emerald-600"
+                                              title="Agendar tarefa de produção"
+                                            >
+                                              <CalendarClock className="w-3 h-3" />
+                                            </button>
+                                          )}
                                           <button
                                             type="button"
                                             disabled={isBusyItem}
@@ -1438,6 +1477,34 @@ export default function ProjectWorkspacePage({
           </div>
         )}
       </div>
+      <QuickProductionTaskModal
+        context={quickProductionContext}
+        onClose={() => setQuickProductionContext(null)}
+        onCreated={(created) => {
+          setQuickProductionContext(null);
+          setProject((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  tasks: prev.tasks?.map((taskItem) => ({
+                    ...taskItem,
+                    checklists: taskItem.checklists?.map((chk) =>
+                      chk.id === created.checklistItemId
+                        ? {
+                            ...chk,
+                            activeProductionTaskId: created.id,
+                            activeProductionTaskDueDate: created.dueDate,
+                            activeProductionTaskStatus:
+                              created.status === "RESCHEDULED" ? "RESCHEDULED" : "PENDING",
+                          }
+                        : chk
+                    ),
+                  })),
+                }
+              : prev
+          );
+        }}
+      />
     </>
   );
 }

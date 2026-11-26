@@ -268,9 +268,16 @@ export async function getProjectById(id: string,includeArchived=false): Promise<
       c.is_completed as "isCompleted",
       c.order_index as "orderIndex",
       c.completed_at as "completedAt",
-      c.created_at as "createdAt"
+      c.created_at as "createdAt",
+      pt.id as "activeProductionTaskId",
+      pt.due_date::text as "activeProductionTaskDueDate",
+      pt.status as "activeProductionTaskStatus"
     FROM project_checklists c
     JOIN project_tasks t ON t.id = c.task_id
+    LEFT JOIN public.production_tasks pt
+      ON pt.checklist_item_id = c.id
+      AND pt.archived_at IS NULL
+      AND pt.status IN ('PENDING', 'RESCHEDULED')
     WHERE t.project_id = $1
     ORDER BY c.order_index ASC
   `;

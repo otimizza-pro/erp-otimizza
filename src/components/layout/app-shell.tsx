@@ -43,6 +43,7 @@ import {
   BookOpen,
   Rocket,
   Image as ImageIcon,
+  ListTodo,
   Target,
   Bell,
   AlertCircle,
@@ -180,6 +181,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
     { id: "projects", title: "Projetos", icon: Briefcase, section: "PRODUÇÃO", items: [
       { id: "projects_new", label: "Novo projeto", href: "/projects/new", icon: Briefcase },
       { id: "projects_list", label: "Projetos em andamento", href: "/projects", icon: Briefcase },
+      { id: "production_tasks", label: "Tarefas de Produção", href: "/projects/tasks", icon: ListTodo },
     ] },
     { id: "content_studio", title: "Social Media", icon: Sparkles, section: "PRODUÇÃO", items: [
       { id: "editorial", label: "Linha Editorial", href: "/social/editorial", icon: Layers },

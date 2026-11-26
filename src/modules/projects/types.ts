@@ -61,6 +61,9 @@ export interface ProjectChecklistRecord {
   orderIndex: number;
   completedAt: string | null;
   createdAt: string;
+  activeProductionTaskId?: string | null;
+  activeProductionTaskDueDate?: string | null;
+  activeProductionTaskStatus?: "PENDING" | "RESCHEDULED" | null;
 }
 
 export interface ProjectTaskRecord {

@@ -31,8 +31,13 @@ import {
   Package,
   Tag,
   Briefcase,
+  CalendarClock,
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
+import {
+  QuickProductionTaskModal,
+  type QuickChecklistContext,
+} from "@/components/projects/quick-production-task-modal";
 import { ProjectRecord, ProjectTaskRecord, TaskStatus, ProjectPriority } from "@/modules/projects/types";
 import { toast } from "@/components/ui/toast-provider";
 import { confirmAction } from "@/components/ui/confirm-dialog";
@@ -93,6 +98,8 @@ export function TaskExecutionModal({
   const [resettingChat, setResettingChat] = useState<boolean>(false);
 
   // CNPJ e CNAE Inteligente
+  const [quickProductionContext, setQuickProductionContext] =
+    useState<QuickChecklistContext | null>(null);
   const [cnpj, setCnpj] = useState<string>("");
   const [cnaeCode, setCnaeCode] = useState<string>("");
   const [cnaeDescription, setCnaeDescription] = useState<string>("");
@@ -1757,6 +1764,37 @@ export function TaskExecutionModal({
                             className="flex items-center gap-1 opacity-75 group-hover:opacity-100"
                             onClick={(e) => e.stopPropagation()}
                           >
+                            {item.activeProductionTaskId ? (
+                              <Link
+                                href={`/projects/tasks?highlight=${item.activeProductionTaskId}`}
+                                title="Ver tarefa de produção vinculada"
+                                className="p-1 rounded-lg text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 transition"
+                              >
+                                <CalendarClock className="w-3.5 h-3.5" />
+                              </Link>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() =>
+                                  setQuickProductionContext({
+                                    checklistId: item.id,
+                                    checklistTitle: item.title,
+                                    projectId: task.projectId,
+                                    projectName: project.name,
+                                    clientId: project.clientId,
+                                    clientName: project.clientName,
+                                    projectTaskId: task.id,
+                                    projectTaskTitle: task.title,
+                                    projectTaskDueDate: task.dueDate ?? null,
+                                  })
+                                }
+                                title="Agendar tarefa de produção"
+                                className="p-1 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-white transition"
+                              >
+                                <CalendarClock className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               disabled={isBusy}
@@ -1832,6 +1870,14 @@ export function TaskExecutionModal({
           </button>
         </div>
       </div>
+      <QuickProductionTaskModal
+        context={quickProductionContext}
+        onClose={() => setQuickProductionContext(null)}
+        onCreated={() => {
+          setQuickProductionContext(null);
+          onTaskUpdated();
+        }}
+      />
     </div>
   );
 }

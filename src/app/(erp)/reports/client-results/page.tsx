@@ -21,7 +21,7 @@ function Channels() {
 }
 export default function Page(){
   const {selectedCompany}=useCompany();
-  return <main className="space-y-5 p-4 md:p-7"><div><p className="text-sm text-zinc-500">Relatórios e BI</p><h1 className="text-2xl font-semibold">Resultado dos Clientes</h1><p>{selectedCompany.name}</p></div><Channels/>{selectedCompany.isOtimizza?<p className={box}>Selecione um cliente no topo do ERP para abrir os resultados.</p>:<Dashboard key={selectedCompany.id} id={selectedCompany.id} name={selectedCompany.name}/>}</main>;
+  return <div className="space-y-6"><div><p className="text-sm text-zinc-500">Relatórios e BI</p><h1 className="text-2xl font-semibold">Resultado dos Clientes</h1><p>{selectedCompany.name}</p></div><Channels/>{selectedCompany.isOtimizza?<p className={box}>Selecione um cliente no topo do ERP para abrir os resultados.</p>:<Dashboard key={selectedCompany.id} id={selectedCompany.id} name={selectedCompany.name}/>}</div>;
 }
 function Dashboard({id,name}:{id:string;name:string}) {
   const [report,setReport]=useState<Report|null>(null),[busy,setBusy]=useState(false),[msg,setMsg]=useState("");

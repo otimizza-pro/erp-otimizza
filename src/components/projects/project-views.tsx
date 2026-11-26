@@ -877,7 +877,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
           <div className="flex items-center justify-between text-xs text-zinc-500 border-b border-zinc-100 pb-2">
             <span className="font-bold uppercase tracking-wider text-zinc-700">Linha do Tempo dos Projetos</span>
             <span className="font-mono">
-              {new Date(first).toLocaleDateString("pt-BR")} — {new Date(last).toLocaleDateString("pt-BR")}
+              {new Date(first).toLocaleDateString("pt-BR", { timeZone: "UTC" })} — {new Date(last).toLocaleDateString("pt-BR", { timeZone: "UTC" })}
             </span>
           </div>
 

@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   try { await requireAdminUser(); } catch { return NextResponse.json({success:false,error:"Acesso não autorizado"},{status:401}); }
   try {
     const { searchParams } = new URL(request.url);
+    const postId = searchParams.get("id");
     const clientId = searchParams.get("clientId");
     const contentType = searchParams.get("contentType"); // 'SOCIAL_MEDIA' | 'ADS' | 'ALL'
     const adStatus = searchParams.get("adStatus"); // 'ACTIVE' | 'PAUSED' | 'FINISHED' | 'ALL'
@@ -25,7 +26,7 @@ export async function GET(request: Request) {
         cci.ad_status as "adStatus",
         cci.image_url as "imageUrl",
         cci.post_tag as "postTag",
-        cci.scheduled_date as "scheduledDate",
+        to_char(cci.scheduled_date, 'YYYY-MM-DD') as "scheduledDate",
         cci.scheduled_time as "scheduledTime",
         cci.selected_headline as "selectedHeadline",
         cci.selected_caption as "selectedCaption",
@@ -34,14 +35,21 @@ export async function GET(request: Request) {
         cci.prompt_used as "promptUsed",
         cci.tone_of_voice as "toneOfVoice",
         cci.call_to_action as "callToAction",
+        COALESCE(NULLIF(btrim(cci.published_url), ''), cp.url) as "publishedUrl",
         cci.created_at as "createdAt",
         cci.updated_at as "updatedAt"
       FROM content_calendar_items cci
       JOIN clients c ON c.id = cci.client_id
+      LEFT JOIN content_publications cp ON cp.content_id = cci.id
       WHERE cci.archived_at IS ${searchParams.get("archived")==="true"?"NOT ":""}NULL
     `;
 
     const params: unknown[] = [];
+
+    if (postId) {
+      params.push(postId);
+      sql += ` AND cci.id = $${params.length}`;
+    }
 
     if (clientId && clientId !== "ALL") {
       params.push(clientId);
@@ -58,7 +66,7 @@ export async function GET(request: Request) {
       sql += ` AND cci.ad_status = $${params.length}`;
     }
 
-    sql += ` ORDER BY cci.created_at DESC LIMIT 200`;
+    sql += ` ORDER BY cci.scheduled_date DESC NULLS LAST, COALESCE(cci.project_post_number, 0) ASC, cci.created_at DESC LIMIT 200`;
 
     const res = await query(sql, params);
     return NextResponse.json({ success: true, data: res.rows });

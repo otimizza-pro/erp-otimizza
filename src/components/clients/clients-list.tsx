@@ -25,6 +25,7 @@ import {
   Trash2,
   AlertCircle,
   Check,
+  FileText,
   X
 } from "lucide-react";
 import { formatDocument } from "@/shared/cpf-cnpj";
@@ -320,6 +321,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
                   <th className="py-2.5 px-3">Documento</th>
                   <th className="py-2.5 px-3">Contato</th>
                   <th className="py-2.5 px-3">Localização</th>
+                  <th className="py-2.5 px-3">Contrato</th>
                   <th className="py-2.5 px-3">Status</th>
                   <th className="py-2.5 px-3 text-right">Ação</th>
                 </tr>
@@ -327,13 +329,13 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
               <tbody className="divide-y divide-zinc-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-400">
+                    <td colSpan={9} className="py-12 text-center text-zinc-400">
                       Carregando clientes...
                     </td>
                   </tr>
                 ) : clients.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-12 text-center text-zinc-400 space-y-2">
+                    <td colSpan={9} className="py-12 text-center text-zinc-400 space-y-2">
                       <Users className="w-8 h-8 text-zinc-300 mx-auto" />
                       <p>Nenhum cliente encontrado com os filtros selecionados.</p>
                       <Link
@@ -407,6 +409,24 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
                         </td>
                         <td className="py-3 px-3">
                           {c.city ? `${c.city}${c.state ? ` - ${c.state}` : ""}` : "-"}
+                        </td>
+                        <td className="py-3 px-3">
+                          {(c.activeContractsCount ?? 0) > 0 ? (
+                            <Link
+                              href={`/clients/${c.id}`}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium border bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 transition"
+                              title="Ver contratos ativos deste cliente"
+                            >
+                              <FileText className="w-3 h-3 shrink-0" />
+                              {c.activeContractsCount === 1
+                                ? "Contrato ativo"
+                                : `${c.activeContractsCount} contratos ativos`}
+                            </Link>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium border bg-zinc-50 text-zinc-500 border-zinc-200">
+                              Sem contrato ativo
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-3">
                           <span

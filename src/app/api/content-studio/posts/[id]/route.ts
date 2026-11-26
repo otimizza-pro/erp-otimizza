@@ -67,6 +67,7 @@ export async function PUT(
         copy_site_lp = COALESCE($20, copy_site_lp),
         copy_meta_ads = COALESCE($21, copy_meta_ads),
         copy_google_ads = COALESCE($22, copy_google_ads),
+        published_url = CASE WHEN $26::boolean THEN NULLIF(btrim($27::text), '') ELSE published_url END,
         editorial_brief = COALESCE($15::jsonb, editorial_brief),
         headline_brief = CASE WHEN headline_brief IS NOT NULL THEN headline_brief || $16::jsonb ELSE headline_brief END,
         headline_content_stale = CASE
@@ -115,6 +116,8 @@ export async function PUT(
       body.clientId || null,
       body.editVersion || null,
       body.confirmContentRevision === true,
+      body.publishedUrl !== undefined,
+      typeof body.publishedUrl === "string" ? body.publishedUrl : null,
     ]);
       if(result.rowCount&&Object.keys(sharedPatch).length)await db.query('UPDATE headline_workspaces SET brief=brief || $2::jsonb,revision=revision+1,updated_at=NOW() WHERE content_id=$1',[id,JSON.stringify(sharedPatch)]);
       return result;

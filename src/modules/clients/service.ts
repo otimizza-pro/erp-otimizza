@@ -24,6 +24,7 @@ interface DbClientRow {
   state: string | null;
   status: "ACTIVE" | "ARCHIVED";
   notes: string | null;
+  active_contracts_count?: number;
   created_at: Date;
   updated_at: Date;
   archived_at: Date | null;
@@ -61,6 +62,9 @@ function mapClientRow(row: DbClientRow): Client {
     state: row.state,
     status: row.status,
     notes: row.notes,
+    ...(row.active_contracts_count !== undefined
+      ? { activeContractsCount: Number(row.active_contracts_count) || 0 }
+      : {}),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
     archivedAt: row.archived_at ? row.archived_at.toISOString() : null,
@@ -128,7 +132,16 @@ export async function listClients(options?: {
   const offset = Math.max(0, options?.offset || 0);
 
   const selectSql = `
-    SELECT * FROM clients 
+    SELECT
+      clients.*,
+      COALESCE((
+        SELECT COUNT(*)::int
+        FROM contracts c
+        WHERE c.client_id = clients.id
+          AND c.status = 'ACTIVE'
+          AND c.archived_at IS NULL
+      ), 0) AS active_contracts_count
+    FROM clients
     ${whereClause} 
     ORDER BY ${sortCol} ${sortDir} 
     LIMIT $${paramIdx++} OFFSET $${paramIdx++}

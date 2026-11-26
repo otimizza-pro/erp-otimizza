@@ -764,23 +764,50 @@ export async function addChecklistItem(
   return res.rows[0];
 }
 
-export async function toggleChecklistItem(
+export async function updateChecklistItem(
   id: string,
-  isCompleted: boolean
+  input: { title?: string; isCompleted?: boolean }
 ): Promise<ProjectChecklistRecord> {
+  const updates: string[] = [];
+  const params: unknown[] = [id];
+
+  if (input.title !== undefined) {
+    const trimmed = input.title.trim();
+    if (!trimmed) {
+      throw new Error("Título do item do checklist é obrigatório.");
+    }
+    params.push(trimmed);
+    updates.push(`title = $${params.length}`);
+  }
+
+  if (input.isCompleted !== undefined) {
+    params.push(Boolean(input.isCompleted));
+    updates.push(`is_completed = $${params.length}`);
+    updates.push(`completed_at = CASE WHEN $${params.length} = true THEN CURRENT_TIMESTAMP ELSE NULL END`);
+  }
+
+  if (updates.length === 0) {
+    throw new Error("Nenhuma alteração informada para o item do checklist.");
+  }
+
   const sql = `
     UPDATE project_checklists
-    SET 
-      is_completed = $2,
-      completed_at = CASE WHEN $2 = true THEN CURRENT_TIMESTAMP ELSE NULL END
+    SET ${updates.join(", ")}
     WHERE id = $1
     RETURNING 
       id, task_id as "taskId", title, is_completed as "isCompleted",
       order_index as "orderIndex", completed_at as "completedAt", created_at as "createdAt"
   `;
-  const res = await query<ProjectChecklistRecord>(sql, [id, isCompleted]);
+  const res = await query<ProjectChecklistRecord>(sql, params);
   if (res.rows.length === 0) throw new Error("Item de checklist não encontrado.");
   return res.rows[0];
+}
+
+export async function toggleChecklistItem(
+  id: string,
+  isCompleted: boolean
+): Promise<ProjectChecklistRecord> {
+  return updateChecklistItem(id, { isCompleted });
 }
 
 export async function deleteChecklistItem(id: string): Promise<void> {

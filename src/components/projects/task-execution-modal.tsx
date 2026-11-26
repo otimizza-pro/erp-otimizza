@@ -76,6 +76,9 @@ export function TaskExecutionModal({
   const [loadingBriefing, setLoadingBriefing] = useState<boolean>(false);
   const [briefingFeedback, setBriefingFeedback] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
+  const [editingChecklistId, setEditingChecklistId] = useState<string | null>(null);
+  const [editingChecklistTitle, setEditingChecklistTitle] = useState<string>("");
+  const [savingChecklistId, setSavingChecklistId] = useState<string | null>(null);
 
   // Form fields for team pre-fill
   const [companyName, setCompanyName] = useState<string>("");
@@ -531,6 +534,68 @@ export function TaskExecutionModal({
     } catch (err) {
       console.error(err);
       setBriefingFeedback("Erro de conexão ao atualizar checklist.");
+    }
+  };
+
+  const handleSaveChecklistTitle = async (checklistId: string) => {
+    const trimmed = editingChecklistTitle.trim();
+    if (!trimmed) {
+      toast.error("Informe um título para o item do checklist.");
+      return;
+    }
+    setSavingChecklistId(checklistId);
+    try {
+      const res = await fetch(`/api/projects/checklists/${checklistId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: trimmed }),
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error || "Não foi possível editar o item.");
+        return;
+      }
+      setEditingChecklistId(null);
+      setEditingChecklistTitle("");
+      toast.success("Item atualizado.");
+      onTaskUpdated();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro de conexão ao editar item.");
+    } finally {
+      setSavingChecklistId(null);
+    }
+  };
+
+  const handleDeleteChecklist = async (checklistId: string, title: string) => {
+    const confirmed = await confirmAction({
+      title: "Excluir item do checklist",
+      message: `Remover "${title}" deste checklist?`,
+      confirmLabel: "Excluir",
+      tone: "danger",
+    });
+    if (!confirmed) return;
+    setSavingChecklistId(checklistId);
+    try {
+      const res = await fetch(`/api/projects/checklists/${checklistId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error || "Não foi possível excluir o item.");
+        return;
+      }
+      if (editingChecklistId === checklistId) {
+        setEditingChecklistId(null);
+        setEditingChecklistTitle("");
+      }
+      toast.success("Item excluído.");
+      onTaskUpdated();
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro de conexão ao excluir item.");
+    } finally {
+      setSavingChecklistId(null);
     }
   };
 
@@ -1568,27 +1633,111 @@ export function TaskExecutionModal({
           {activeTab === "CHECKLIST" && (
             <div className="space-y-4">
               <div className="space-y-2">
-                {task.checklists?.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => handleToggleChecklist(item.id, item.isCompleted)}
-                    className="flex items-center gap-2.5 p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl cursor-pointer border border-slate-200 transition text-xs"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={item.isCompleted}
-                      onChange={() => {}}
-                      className="rounded text-zinc-800 focus:ring-zinc-300"
-                    />
-                    <span
-                      className={`flex-1 text-slate-800 ${
-                        item.isCompleted ? "line-through text-slate-400" : ""
+                {task.checklists?.map((item) => {
+                  const isEditing = editingChecklistId === item.id;
+                  const isBusy = savingChecklistId === item.id;
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        if (!isEditing) handleToggleChecklist(item.id, item.isCompleted);
+                      }}
+                      className={`group flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl border border-slate-200 transition text-xs ${
+                        isEditing ? "bg-white border-zinc-300" : "hover:bg-slate-100 cursor-pointer"
                       }`}
                     >
-                      {item.title}
-                    </span>
-                  </div>
-                ))}
+                      <input
+                        type="checkbox"
+                        checked={item.isCompleted}
+                        onChange={() => {}}
+                        className="rounded text-zinc-800 focus:ring-zinc-300 shrink-0"
+                      />
+
+                      {isEditing ? (
+                        <div
+                          className="flex flex-1 items-center gap-1.5"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="text"
+                            autoFocus
+                            disabled={isBusy}
+                            value={editingChecklistTitle}
+                            onChange={(e) => setEditingChecklistTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                void handleSaveChecklistTitle(item.id);
+                              } else if (e.key === "Escape") {
+                                setEditingChecklistId(null);
+                                setEditingChecklistTitle("");
+                              }
+                            }}
+                            className="flex-1 px-2.5 py-1 bg-white border border-zinc-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-zinc-500"
+                          />
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => void handleSaveChecklistTitle(item.id)}
+                            title="Salvar alteração"
+                            className="p-1 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => {
+                              setEditingChecklistId(null);
+                              setEditingChecklistTitle("");
+                            }}
+                            title="Cancelar"
+                            className="p-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span
+                            className={`flex-1 text-slate-800 ${
+                              item.isCompleted ? "line-through text-slate-400" : ""
+                            }`}
+                          >
+                            {item.title}
+                          </span>
+                          <div
+                            className="flex items-center gap-1 opacity-75 group-hover:opacity-100"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => {
+                                setEditingChecklistId(item.id);
+                                setEditingChecklistTitle(item.title);
+                              }}
+                              title="Editar item"
+                              className="p-1 rounded-lg text-slate-400 hover:text-zinc-900 hover:bg-white transition"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => void handleDeleteChecklist(item.id, item.title)}
+                              title="Excluir item"
+                              className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
 
                 {(!task.checklists || task.checklists.length === 0) && (
                   <p className="text-xs text-slate-400 text-center py-6">

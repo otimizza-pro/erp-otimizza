@@ -1,6 +1,6 @@
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { NextRequest, NextResponse } from "next/server";
-import { toggleChecklistItem, deleteChecklistItem } from "@/modules/projects/service";
+import { toggleChecklistItem, updateChecklistItem, deleteChecklistItem } from "@/modules/projects/service";
 
 export async function PUT(
   req: NextRequest,
@@ -11,7 +11,13 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-    const updated = await toggleChecklistItem(id, Boolean(body.isCompleted));
+    const updated =
+      typeof body.title === "string"
+        ? await updateChecklistItem(id, {
+            title: body.title,
+            ...(typeof body.isCompleted === "boolean" ? { isCompleted: body.isCompleted } : {}),
+          })
+        : await toggleChecklistItem(id, Boolean(body.isCompleted));
     return NextResponse.json({ success: true, data: updated });
   } catch (error: unknown) {
     console.error("Erro ao alterar checklist:", error);
@@ -21,6 +27,8 @@ export async function PUT(
     );
   }
 }
+
+export const PATCH = PUT;
 
 export async function DELETE(
   _req: NextRequest,

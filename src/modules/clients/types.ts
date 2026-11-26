@@ -32,6 +32,7 @@ export interface Client {
   state?: string | null;
   status: ClientStatus;
   notes?: string | null;
+  activeContractsCount?: number;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string | null;

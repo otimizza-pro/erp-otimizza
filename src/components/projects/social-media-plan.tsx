@@ -728,6 +728,13 @@ export function ProjectSocialMediaPlan({ projectId, startDate, archived }: {
                       {!locked && (
                         <>
                           <Link
+                            className="inline-flex items-center gap-1 rounded-lg bg-zinc-100 border border-zinc-200 px-2.5 py-1 text-xs font-semibold text-zinc-800 hover:bg-zinc-200 transition"
+                            href={`/prompt-creator/saved?postId=${post.id}`}
+                          >
+                            Feed & Criativos
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                          </Link>
+                          <Link
                             className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition"
                             href={`/prompt-creator/brainstorm?projectPostId=${post.id}`}
                           >

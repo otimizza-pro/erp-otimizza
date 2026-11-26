@@ -129,8 +129,12 @@ export async function POST(request: Request, { params }: RouteContext) {
           updates.push(`scheduled_date = $${paramsList.length}`);
         }
         if (data.format !== undefined) {
-          paramsList.push(data.format || "Post estático");
+          const nextFormat = data.format || "Post estático";
+          paramsList.push(nextFormat);
           updates.push(`format = $${paramsList.length}`);
+          updates.push(
+            `post_tag = CASE WHEN NULLIF(btrim(COALESCE(post_tag, '')), '') IS NULL OR post_tag = format THEN $${paramsList.length} ELSE post_tag END`,
+          );
         }
         if (data.editorialLineId !== undefined) {
           paramsList.push(data.editorialLineId);
@@ -184,6 +188,7 @@ export async function POST(request: Request, { params }: RouteContext) {
              SET editorial_line_id = COALESCE($3, editorial_line_id),
                  offer_name = $4,
                  format = $5,
+                 post_tag = CASE WHEN NULLIF(btrim(COALESCE(post_tag, '')), '') IS NULL OR post_tag = format THEN $5 ELSE post_tag END,
                  updated_at = NOW()
              WHERE id = $1 AND project_id = $2`,
             [item.postId, id, item.editorialLineId, item.offerName, item.format],
@@ -207,8 +212,8 @@ export async function POST(request: Request, { params }: RouteContext) {
         const defaultDate = `${yr}-${String(mo).padStart(2, "0")}-01`;
         await db.query(
           `INSERT INTO content_calendar_items
-             (project_id, project_month, project_post_number, client_id, scheduled_date, title, central_idea, format, status, content_type)
-           VALUES ($1, $2, $3, $4, $5, $6, '', 'Carrossel', 'PLANNED', 'SOCIAL_MEDIA')`,
+             (project_id, project_month, project_post_number, client_id, scheduled_date, title, central_idea, format, post_tag, status, content_type)
+           VALUES ($1, $2, $3, $4, $5, $6, '', 'Carrossel', 'Carrossel', 'PLANNED', 'SOCIAL_MEDIA')`,
           [id, monthDate, nextNum, project.clientId, defaultDate, defaultTitle],
         );
         return;

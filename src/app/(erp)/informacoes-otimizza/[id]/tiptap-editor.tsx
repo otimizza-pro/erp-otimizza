@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState } from "react";
+import { toast } from "@/components/ui/toast-provider";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -62,13 +63,13 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         codeBlock: { HTMLAttributes: { class: "rounded-lg bg-slate-900 text-slate-100 p-4 font-mono text-xs my-3" } },
-        blockquote: { HTMLAttributes: { class: "border-l-4 border-indigo-500 pl-4 italic text-slate-700 my-3" } },
+        blockquote: { HTMLAttributes: { class: "border-l-4 border-zinc-400 pl-4 italic text-slate-700 my-3" } },
         horizontalRule: { HTMLAttributes: { class: "my-6 border-t border-slate-200" } }
       }),
       Underline,
       LinkExtension.configure({
         openOnClick: false,
-        HTMLAttributes: { class: "text-indigo-600 underline font-medium hover:text-indigo-800" },
+        HTMLAttributes: { class: "text-zinc-800 underline font-medium hover:text-zinc-950" },
         validate: (href) => /^https?:\/\//.test(href) || href.startsWith("/") || href.startsWith("#")
       }),
       ImageExtension.configure({
@@ -170,7 +171,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
       setImageAlt("");
       setImageCaption("");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro no upload.");
+      toast.error(err instanceof Error ? err.message : "Erro no upload.");
     } finally {
       setUploadingImage(false);
     }
@@ -179,13 +180,13 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
       {/* Barra de Ferramentas Notion-Style */}
-      <div className="bg-slate-50/80 border-b border-slate-200 p-2 flex flex-wrap items-center gap-1 text-slate-700 sticky top-16 z-30 backdrop-blur">
+      <div className="bg-slate-50/80 border-b border-slate-200 p-2 flex flex-wrap items-center gap-1 text-slate-700 sticky top-16 z-30">
         {/* Formatação de Texto */}
         <div className="flex items-center gap-0.5 border-r border-slate-200 pr-1 mr-1">
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleBold().run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("bold") ? "bg-slate-200 font-bold text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("bold") ? "bg-slate-200 font-bold text-zinc-800" : ""}`}
             title="Negrito (Ctrl+B)"
           >
             <Bold className="w-4 h-4" />
@@ -193,7 +194,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("italic") ? "bg-slate-200 italic text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("italic") ? "bg-slate-200 italic text-zinc-800" : ""}`}
             title="Itálico (Ctrl+I)"
           >
             <Italic className="w-4 h-4" />
@@ -201,7 +202,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleUnderline().run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("underline") ? "bg-slate-200 text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("underline") ? "bg-slate-200 text-zinc-800" : ""}`}
             title="Sublinhado (Ctrl+U)"
           >
             <UnderlineIcon className="w-4 h-4" />
@@ -209,7 +210,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("strike") ? "bg-slate-200 text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("strike") ? "bg-slate-200 text-zinc-800" : ""}`}
             title="Tachado"
           >
             <Strikethrough className="w-4 h-4" />
@@ -221,7 +222,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("heading", { level: 1 }) ? "bg-slate-200 text-indigo-700 font-bold" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("heading", { level: 1 }) ? "bg-slate-200 text-zinc-800 font-bold" : ""}`}
             title="Título 1 (H1)"
           >
             <Heading1 className="w-4 h-4" />
@@ -229,7 +230,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("heading", { level: 2 }) ? "bg-slate-200 text-indigo-700 font-bold" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("heading", { level: 2 }) ? "bg-slate-200 text-zinc-800 font-bold" : ""}`}
             title="Título 2 (H2)"
           >
             <Heading2 className="w-4 h-4" />
@@ -237,7 +238,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("heading", { level: 3 }) ? "bg-slate-200 text-indigo-700 font-bold" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("heading", { level: 3 }) ? "bg-slate-200 text-zinc-800 font-bold" : ""}`}
             title="Título 3 (H3)"
           >
             <Heading3 className="w-4 h-4" />
@@ -249,7 +250,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("bulletList") ? "bg-slate-200 text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("bulletList") ? "bg-slate-200 text-zinc-800" : ""}`}
             title="Lista com marcadores"
           >
             <List className="w-4 h-4" />
@@ -257,7 +258,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("orderedList") ? "bg-slate-200 text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("orderedList") ? "bg-slate-200 text-zinc-800" : ""}`}
             title="Lista numerada"
           >
             <ListOrdered className="w-4 h-4" />
@@ -265,7 +266,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleTaskList().run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("taskList") ? "bg-slate-200 text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("taskList") ? "bg-slate-200 text-zinc-800" : ""}`}
             title="Checklist / Lista de tarefas"
           >
             <CheckSquare className="w-4 h-4" />
@@ -277,7 +278,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("blockquote") ? "bg-slate-200 text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("blockquote") ? "bg-slate-200 text-zinc-800" : ""}`}
             title="Citação / Destaque"
           >
             <Quote className="w-4 h-4" />
@@ -285,7 +286,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("codeBlock") ? "bg-slate-200 text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("codeBlock") ? "bg-slate-200 text-zinc-800" : ""}`}
             title="Bloco de código"
           >
             <Code className="w-4 h-4" />
@@ -305,25 +306,25 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
           <button
             type="button"
             onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("table") ? "bg-slate-200 text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("table") ? "bg-slate-200 text-zinc-800" : ""}`}
             title="Inserir Tabela (3x3 com cabeçalho)"
           >
             <TableIcon className="w-4 h-4" />
           </button>
 
           {editor.isActive("table") && (
-            <div className="flex items-center gap-1 bg-indigo-50/70 p-1 rounded-md text-[11px] text-indigo-700">
+            <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-md text-[11px] text-zinc-800">
               <button
                 type="button"
                 onClick={() => editor.chain().focus().addRowAfter().run()}
-                className="px-1.5 py-0.5 rounded bg-white hover:bg-indigo-100 border border-indigo-200"
+                className="px-1.5 py-0.5 rounded bg-white hover:bg-zinc-100 border border-zinc-200"
               >
                 +Linha
               </button>
               <button
                 type="button"
                 onClick={() => editor.chain().focus().addColumnAfter().run()}
-                className="px-1.5 py-0.5 rounded bg-white hover:bg-indigo-100 border border-indigo-200"
+                className="px-1.5 py-0.5 rounded bg-white hover:bg-zinc-100 border border-zinc-200"
               >
                 +Coluna
               </button>
@@ -345,7 +346,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
               setLinkUrl(previousUrl || "");
               setLinkModalOpen(true);
             }}
-            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("link") ? "bg-slate-200 text-indigo-700" : ""}`}
+            className={`p-1.5 rounded hover:bg-slate-200 transition-colors ${editor.isActive("link") ? "bg-slate-200 text-zinc-800" : ""}`}
             title="Inserir / Editar Link"
           >
             <LinkIcon className="w-4 h-4" />
@@ -391,7 +392,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
 
       {/* Modal de Link */}
       {linkModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-2xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
           <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-lg max-w-sm w-full space-y-4">
             <h3 className="text-sm font-bold text-slate-900">Inserir Link</h3>
             <input
@@ -400,7 +401,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
               placeholder="https://exemplo.com ou /pagina ou #secao"
-              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
+              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-zinc-500"
             />
             <div className="flex justify-end gap-2 text-xs font-semibold">
               <button
@@ -424,11 +425,11 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
 
       {/* Modal de Upload de Imagem com Alt e Legenda */}
       {imageModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-2xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-xl max-w-md w-full space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-indigo-600" />
+                <ImageIcon className="w-4 h-4 text-zinc-800" />
                 Upload de Imagem
               </h3>
               <button
@@ -450,7 +451,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
                   required
                   accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                  className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                  className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-800 hover:file:bg-zinc-100"
                 />
               </div>
 
@@ -463,7 +464,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
                   value={imageAlt}
                   onChange={(e) => setImageAlt(e.target.value)}
                   placeholder="Ex: Gráfico de posicionamento da Otimizza"
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-zinc-500"
                 />
               </div>
 
@@ -476,7 +477,7 @@ export function TiptapEditor({ initialContent, pageId, onChange }: TiptapEditorP
                   value={imageCaption}
                   onChange={(e) => setImageCaption(e.target.value)}
                   placeholder="Ex: Fonte: Pesquisa interna de mercado 2026"
-                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-none focus:border-zinc-500"
                 />
               </div>
 

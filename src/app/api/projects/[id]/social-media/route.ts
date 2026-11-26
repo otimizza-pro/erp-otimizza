@@ -72,7 +72,7 @@ export async function GET(request: Request, { params }: RouteContext) {
         [clientId],
       ) : Promise.resolve({ rows: [] }),
       clientId ? query(
-        `SELECT id, name, type, category
+        `SELECT id, name, type
          FROM client_catalog_items
          WHERE client_id = $1 AND is_active = true
          ORDER BY order_index, created_at`,

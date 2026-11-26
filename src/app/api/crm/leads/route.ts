@@ -70,6 +70,7 @@ export async function DELETE(request: Request) {
 
     let purgedDocsTotal = 0;
     let deletedCount = 0;
+    const failed: { id: string; error: string }[] = [];
 
     for (const leadId of ids) {
       try {
@@ -77,15 +78,29 @@ export async function DELETE(request: Request) {
         purgedDocsTotal += res.purgedDocumentsCount || 0;
         deletedCount++;
       } catch (err) {
+        const reason = err instanceof Error ? err.message : "Erro ao excluir lead.";
+        failed.push({ id: leadId, error: reason });
         console.error(`Erro ao expurgar lead ${leadId}:`, err);
       }
     }
 
+    if (deletedCount === 0 && failed.length > 0) {
+      return NextResponse.json(
+        { success: false, deletedCount: 0, failed, error: failed[0].error },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json({
-      success: true,
+      success: failed.length === 0,
       deletedCount,
+      failedCount: failed.length,
+      failed,
       purgedDocumentsCount: purgedDocsTotal,
-      message: `${deletedCount} lead(s) excluído(s) com sucesso. ${purgedDocsTotal} arquivo(s) expurgados do armazenamento.`,
+      message:
+        failed.length > 0
+          ? `${deletedCount} lead(s) excluído(s), ${failed.length} não pôde/puderam ser excluído(s).`
+          : `${deletedCount} lead(s) excluído(s) com sucesso. ${purgedDocsTotal} arquivo(s) expurgados do armazenamento.`,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao excluir leads em lote.";

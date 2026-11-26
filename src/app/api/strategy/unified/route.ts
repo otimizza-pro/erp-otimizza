@@ -241,17 +241,28 @@ export async function GET(req: NextRequest) {
     const client = clientRes.rows[0];
     const clientDisplayName = client.trade_name || client.name;
 
-    // Buscar Identidade do Cliente
-    const idRes = await query(`SELECT * FROM public.client_identities WHERE client_id = $1`, [companyId]);
+    // Buscar Identidade do Cliente e Públicos ativos
+    const [idRes, audiencesRes, briefingRes] = await Promise.all([
+      query(`SELECT * FROM public.client_identities WHERE client_id = $1`, [companyId]),
+      query<{ name: string }>(
+        `SELECT name FROM public.client_audiences WHERE client_id = $1 AND archived_at IS NULL ORDER BY is_default DESC, name ASC`,
+        [companyId]
+      ),
+      query(
+        `SELECT extracted_identity, initial_notes, competitor_notes FROM public.client_briefing_sessions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 1`,
+        [companyId]
+      ),
+    ]);
     const ci = idRes.rows[0] || {};
-
-    // Buscar briefing se houver
-    const briefingRes = await query(
-      `SELECT extracted_identity, initial_notes, competitor_notes FROM public.client_briefing_sessions WHERE client_id = $1 ORDER BY created_at DESC LIMIT 1`,
-      [companyId]
-    );
+    const activeAudiences = audiencesRes.rows.map((r) => r.name);
     const briefing = briefingRes.rows[0];
     const ext = briefing?.extracted_identity || {};
+    const cleanIg = ci.instagram_handle
+      ? String(ci.instagram_handle)
+          .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+          .replace(/\/+$/, "")
+          .replace(/^@+/, "")
+      : "";
 
     // Construir os 8 Headlines Personalizados para esta Empresa
     const companyHeadlines: UnifiedStrategyHeadline[] = [
@@ -309,8 +320,8 @@ export async function GET(req: NextRequest) {
                 id: `blk_${companyId}_uvp`,
                 blockType: "TEXT",
                 title: "Proposta Única de Valor (UVP)",
-                classification: ci.value_proposition ? "DECIDIDO" : "HIPOTESE",
-                content: { text: ci.value_proposition || ext.differentials || "Qual transformação ou resultado único a empresa entrega aos seus clientes?" },
+                classification: ci.value_proposition || ci.core_promise ? "DECIDIDO" : "HIPOTESE",
+                content: { text: ci.value_proposition || ci.core_promise || ext.valueProposition || ext.differentials || "Qual transformação ou resultado único a empresa entrega aos seus clientes?" },
               },
               {
                 id: `blk_${companyId}_diffs`,
@@ -337,7 +348,9 @@ export async function GET(req: NextRequest) {
                 title: "Perfis de Cliente Ideal",
                 classification: "DECIDIDO",
                 content: {
-                  list: ci.target_audiences && ci.target_audiences.length > 0
+                  list: activeAudiences.length > 0
+                    ? activeAudiences
+                    : ci.target_audiences && ci.target_audiences.length > 0
                     ? ci.target_audiences
                     : ext.targetAudience
                     ? [String(ext.targetAudience)]
@@ -432,7 +445,7 @@ export async function GET(req: NextRequest) {
                 title: "Site & Instagram",
                 classification: "DECIDIDO",
                 content: {
-                  text: `Site: ${ci.website_url || "Não informado"} | Instagram: @${ci.instagram_handle || "Não informado"}`,
+                  text: `Site: ${ci.website_url || "Não informado"} | Instagram: ${cleanIg ? `@${cleanIg}` : "Não informado"}`,
                 },
               },
             ],

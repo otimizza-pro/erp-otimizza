@@ -1,7 +1,9 @@
+import { z } from "zod";
 import { saveCommercialDnaInTransaction } from "./commercial-dna";
 import { buildActivityWhere, type ActivityFilters } from "./activity-filters";
 import { getDbPool, withTransaction } from "@/lib/db/pool";
 import { DocumentService } from "@/modules/documents/service";
+import { NotificationService } from "@/modules/notifications/service";
 import { normalizeDocument } from "@/shared/cpf-cnpj";
 import {
   PersonType,
@@ -1076,6 +1078,18 @@ export class CrmService {
       );
 
       await client.query("COMMIT");
+
+      await NotificationService.createSafeNotification({
+        title: "Lead convertido em cliente",
+        message: `${rawLead.lead_code} foi convertido para ${finalClientName}.`,
+        type: "SUCCESS",
+        category: "CRM",
+        severity: "success",
+        dedupKey: `crm:lead-converted:${input.leadId}`,
+        entityType: "client",
+        entityId: finalClientId,
+        linkUrl: `/clients/${finalClientId}`,
+      });
 
       return {
         leadId: input.leadId,
@@ -2396,17 +2410,23 @@ export class CrmService {
 
   static async getCrmKpis(pipelineId?: string): Promise<CrmKpiSummary> {
     const pool = getDbPool();
-    const pipeCondition = pipelineId ? `AND o.pipeline_id = '${pipelineId}'` : "";
+    const cleanPipelineId = pipelineId ? z.string().uuid().parse(pipelineId) : undefined;
+    const pipeParams = cleanPipelineId ? [cleanPipelineId] : [];
+    const pipeOppCondition = cleanPipelineId ? `AND o.pipeline_id = $1` : "";
+    const pipeStageCondition = cleanPipelineId ? `AND st.pipeline_id = $1` : "";
 
     // 1. Leads Ativos
     const leadsRes = await pool.query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM crm_leads WHERE status NOT IN ('ARCHIVED', 'CONVERTED')`
+      `SELECT COUNT(*) as count FROM crm_leads
+       WHERE archived_at IS NULL AND converted_client_id IS NULL AND status NOT IN ('ARCHIVED', 'CONVERTED')`
     );
     const activeLeadsCount = parseInt(leadsRes.rows[0]?.count || "0", 10);
 
     // 2. Leads por Origem
     const sourceRes = await pool.query<{ source: string; count: string }>(
-      `SELECT source, COUNT(*) as count FROM crm_leads WHERE status <> 'ARCHIVED' GROUP BY source ORDER BY count DESC`
+      `SELECT source, COUNT(*) as count FROM crm_leads
+       WHERE archived_at IS NULL AND status <> 'ARCHIVED'
+       GROUP BY source ORDER BY count DESC`
     );
     const leadsBySource = sourceRes.rows.map((r) => ({
       source: r.source || "Outros",
@@ -2426,7 +2446,8 @@ export class CrmService {
         COALESCE(SUM(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN (o.amount * o.probability / 100.0) ELSE 0 END), 0) as weighted_amount,
         COALESCE(SUM(CASE WHEN o.status = 'OPEN' AND o.archived_at IS NULL THEN o.normalized_monthly_value ELSE 0 END), 0) as potential_mrr
       FROM crm_opportunities o
-      WHERE 1=1 ${pipeCondition}`
+      WHERE 1=1 ${pipeOppCondition}`,
+      pipeParams
     );
 
     const s = oppSummaryRes.rows[0];
@@ -2435,7 +2456,7 @@ export class CrmService {
     const weightedPipelineAmount = Number(Number(s?.weighted_amount || 0).toFixed(2));
     const potentialMrr = Number(s?.potential_mrr || 0);
 
-    // 4. Taxa de Conversão: WON / (WON + LOST) excluindo CANCELED
+    // 4. Taxa de Conversão: WON / (WON + LOST) excluindo CANCELED e arquivadas
     const winRateRes = await pool.query<{
       won_count: string;
       lost_count: string;
@@ -2448,7 +2469,8 @@ export class CrmService {
         COUNT(CASE WHEN o.status = 'CANCELED' THEN 1 END) as canceled_count,
         COALESCE(AVG(CASE WHEN o.status = 'WON' AND o.closed_at IS NOT NULL THEN (EXTRACT(EPOCH FROM (o.closed_at - o.created_at)) / 86400.0) END), 0) as avg_days
       FROM crm_opportunities o
-      WHERE 1=1 ${pipeCondition}`
+      WHERE o.archived_at IS NULL ${pipeOppCondition}`,
+      pipeParams
     );
 
     const w = winRateRes.rows[0];
@@ -2460,12 +2482,13 @@ export class CrmService {
     const totalClosed = wonCountPeriod + lostCountPeriod;
     const conversionRate = totalClosed > 0 ? Number(((wonCountPeriod / totalClosed) * 100).toFixed(1)) : 0;
 
-    // 5. Atividades Pendentes e Atrasadas
+    // 5. Atividades Pendentes e Atrasadas (inclui RESCHEDULED e exclui arquivadas)
     const actRes = await pool.query<{ pending_count: string; overdue_count: string }>(
       `SELECT 
-        COUNT(CASE WHEN status = 'PENDING' THEN 1 END) as pending_count,
-        COUNT(CASE WHEN status = 'PENDING' AND due_date < NOW() THEN 1 END) as overdue_count
-      FROM crm_activities`
+        COUNT(CASE WHEN status IN ('PENDING', 'RESCHEDULED') THEN 1 END) as pending_count,
+        COUNT(CASE WHEN status IN ('PENDING', 'RESCHEDULED') AND due_date < NOW() THEN 1 END) as overdue_count
+      FROM crm_activities
+      WHERE archived_at IS NULL`
     );
     const pendingActivitiesCount = parseInt(actRes.rows[0]?.pending_count || "0", 10);
     const overdueActivitiesCount = parseInt(actRes.rows[0]?.overdue_count || "0", 10);
@@ -2493,9 +2516,10 @@ export class CrmService {
       FROM crm_pipeline_stages st
       JOIN crm_pipelines p ON p.id = st.pipeline_id AND p.status = 'ACTIVE'
       LEFT JOIN crm_opportunities o ON o.stage_id = st.id AND o.status = 'OPEN' AND o.archived_at IS NULL
-      WHERE st.status = 'ACTIVE' ${pipelineId ? `AND st.pipeline_id = '${pipelineId}'` : ""}
+      WHERE st.status = 'ACTIVE' ${pipeStageCondition}
       GROUP BY st.id, st.name, st.color, st.display_order, p.id, p.name, p.is_default
-      ORDER BY p.is_default DESC, p.name ASC, st.display_order ASC`
+      ORDER BY p.is_default DESC, p.name ASC, st.display_order ASC`,
+      pipeParams
     );
 
     const opportunitiesByStage = stagesDistRes.rows.map((r) => ({

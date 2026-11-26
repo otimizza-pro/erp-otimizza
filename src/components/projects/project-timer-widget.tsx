@@ -72,7 +72,7 @@ export function TaskCardTimer({
         <div className="flex items-center gap-1.5 font-mono font-bold text-[11px] tabular-nums">
           <span className="relative flex h-2 w-2">
             {taskTimer.isRunning && (
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className=" absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
             )}
             <span
               className={`relative inline-flex rounded-full h-2 w-2 ${
@@ -171,7 +171,7 @@ export function ProjectActiveTimerHeaderPill({
     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-900 shadow-2xs">
       <span className="relative flex h-2.5 w-2.5">
         {primaryTimer.isRunning && (
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span className=" absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
         )}
         <span
           className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
@@ -242,7 +242,7 @@ export function ProjectTimesTabWidget({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-emerald-600 animate-pulse" />
+              <Clock className="w-4 h-4 text-emerald-600" />
               Cronômetro(s) em Andamento
             </span>
             <span className="text-[11px] text-slate-500">
@@ -271,7 +271,7 @@ export function ProjectTimesTabWidget({
                     >
                       <span
                         className={`w-1.5 h-1.5 rounded-full ${
-                          timer.isRunning ? "bg-emerald-600 animate-ping" : "bg-amber-600"
+                          timer.isRunning ? "bg-emerald-600" : "bg-amber-600"
                         }`}
                       />
                       {timer.isRunning ? "Em Execução" : "Pausado"}
@@ -285,7 +285,7 @@ export function ProjectTimesTabWidget({
                   </div>
 
                   <div className="text-right">
-                    <span className="text-2xl font-mono font-extrabold text-slate-900 block tabular-nums">
+                    <span className="text-2xl font-mono font-semibold text-slate-900 block tabular-nums">
                       {formatTimerSeconds(timer.currentSeconds)}
                     </span>
                     <span className="text-[10px] text-slate-400">
@@ -400,7 +400,7 @@ export function StartTimerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -529,7 +529,7 @@ export function StopTimerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <div className="p-4 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -554,7 +554,7 @@ export function StopTimerModal({
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               Tempo Percorrido
             </span>
-            <div className="text-3xl font-mono font-extrabold text-slate-900 tabular-nums">
+            <div className="text-3xl font-mono font-semibold text-slate-900 tabular-nums">
               {formatTimerSeconds(timer.currentSeconds)}
             </div>
             <p className="text-xs font-semibold text-emerald-700">

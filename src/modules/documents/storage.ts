@@ -124,6 +124,25 @@ export class DocumentStorage {
   }
 
   /**
+   * Baixa arquivo do Supabase Storage quando o payload binário não está no PostgreSQL
+   */
+  static async downloadFile(storagePath: string): Promise<Buffer | null> {
+    if (!storagePath) return null;
+    const env = getEnv();
+    if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
+      return null;
+    }
+    try {
+      const supabase = createSupabaseClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+      const { data, error } = await supabase.storage.from("documents").download(storagePath);
+      if (error || !data) return null;
+      return Buffer.from(await data.arrayBuffer());
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Remove arquivo do Supabase Storage
    */
   static async deleteFile(storagePath: string): Promise<void> {

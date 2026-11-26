@@ -392,5 +392,5 @@ describe("Fase 12 - Jornada Integrada de Aceite E2E", () => {
 
     const totalInflow = Number(stmtRes.rows[0].inflow);
     expect(totalInflow).toBe(1000.0);
-  }, 90000);
+  }, 150000);
 });

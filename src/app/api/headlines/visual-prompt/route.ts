@@ -11,7 +11,7 @@ const inputSchema = z.object({
   clientId: z.string().uuid(),
   contentId: z.string().uuid().optional(),
   headline: z.string().min(1).max(2000),
-  subheadline: z.string().max(2000).optional(),
+  subheadline: z.string().max(4000).optional(),
   format: z.string().min(1).max(100),
   textContent: z.string().max(20000).optional(),
   draftOnly: z.boolean().optional(),
@@ -147,19 +147,23 @@ Gere o prompt visual ultra detalhado agora em JSON.`;
       };
     }
 
+    let editVersion: string | undefined;
     if (data.contentId && !data.draftOnly) {
-      const saved = await query(
+      const saved = await query<{ edit_version: string }>(
         `UPDATE content_calendar_items 
          SET visual_prompt = $1, visual_format = $2, updated_at = NOW() 
-         WHERE id = $3 AND client_id = $4 AND archived_at IS NULL`,
+         WHERE id = $3 AND client_id = $4 AND archived_at IS NULL
+         RETURNING xmin::text AS edit_version`,
         [parsed.promptEnglish, visualType, data.contentId, context.companyId]
       );
       if (!saved.rowCount) return NextResponse.json({ error: "A peça mudou antes de salvar o visual." }, { status: 409 });
+      editVersion = saved.rows[0]?.edit_version;
     }
 
     return NextResponse.json({
       success: true,
       visualType,
+      editVersion,
       ...parsed,
     });
   } catch (error: unknown) {

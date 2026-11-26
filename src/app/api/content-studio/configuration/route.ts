@@ -55,9 +55,19 @@ export async function POST(request:Request){
     if(duplicate.rows.length)throw new Error("Já existe um público com esse nome. Edite ou restaure o cadastro existente.");
     if(body.id){const exists=await client.query("SELECT id FROM client_audiences WHERE id=$1 AND client_id=$2",[body.id,body.clientId]);if(!exists.rows.length)throw new Error("Público não encontrado nesta empresa.");}
     if(body.isDefault)await client.query("UPDATE client_audiences SET is_default=false WHERE client_id=$1",[body.clientId]);
-    const values=[body.clientId,body.name,body.description,body.demographics,body.painPoints,body.desires,body.objections,body.isDefault];
-    const saved=body.id?await client.query("UPDATE client_audiences SET name=$2,description=$3,demographics=$4,pain_points=$5,desires=$6,objections=$7,is_default=$8,updated_at=NOW() WHERE client_id=$1 AND id=$9 RETURNING id",[...values,body.id]):await client.query("INSERT INTO client_audiences(client_id,name,description,demographics,pain_points,desires,objections,is_default) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id",values);
+    const values=[body.clientId,body.name,body.description,body.demographics,body.digitalBehavior || null,body.painPoints,body.desires,body.objections,body.isDefault];
+    const saved=body.id?await client.query("UPDATE client_audiences SET name=$2,description=$3,demographics=$4,digital_behavior=$5,pain_points=$6,desires=$7,objections=$8,is_default=$9,updated_at=NOW() WHERE client_id=$1 AND id=$10 RETURNING id",[...values,body.id]):await client.query("INSERT INTO client_audiences(client_id,name,description,demographics,digital_behavior,pain_points,desires,objections,is_default) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id",values);
     if(!saved.rows.length)throw new Error("Público não encontrado nesta empresa.");savedId=String(saved.rows[0].id);
+    if (body.catalogItemIds) {
+      await client.query("DELETE FROM client_audience_catalog_items WHERE audience_id=$1", [savedId]);
+      if (body.catalogItemIds.length > 0) {
+        await client.query(
+          `INSERT INTO client_audience_catalog_items(audience_id, catalog_item_id)
+           SELECT $1, cid FROM unnest($2::uuid[]) AS cid ON CONFLICT DO NOTHING`,
+          [savedId, body.catalogItemIds]
+        );
+      }
+    }
    }else if(body.action==="PILLAR_VISIBILITY"||body.action==="THEME_VISIBILITY"||body.action==="AUDIENCE_VISIBILITY"){
     const tables={PILLAR_VISIBILITY:"client_editorial_pillars",THEME_VISIBILITY:"client_editorial_lines",AUDIENCE_VISIBILITY:"client_audiences"} as const;
     const extra=body.action==="THEME_VISIBILITY"?",is_active=NOT $3,updated_at=NOW()":body.action==="AUDIENCE_VISIBILITY"?",updated_at=NOW()":"";

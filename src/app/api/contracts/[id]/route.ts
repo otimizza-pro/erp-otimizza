@@ -15,6 +15,8 @@ export async function GET(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 }); }
+
   try {
     const { id } = await props.params;
     const contract = await getContractById(id);
@@ -36,15 +38,21 @@ export async function GET(
     }
 
     // Buscar logs de auditoria da contratação
-    const logsRes = await query(
-      `SELECT id, user_id, action, old_data, new_data, created_at
-       FROM audit_logs
-       WHERE entity_name = 'contracts' AND entity_id = $1
-       ORDER BY created_at DESC`,
-      [id]
-    ).catch(() => ({ rows: [] }));
+    let auditLogs: unknown[] = [];
+    try {
+      const logsRes = await query(
+        `SELECT id, user_id, action, old_data, new_data, created_at
+         FROM audit_logs
+         WHERE entity_name = 'contracts' AND entity_id = $1
+         ORDER BY created_at DESC`,
+        [id]
+      );
+      auditLogs = logsRes.rows;
+    } catch (logErr) {
+      console.warn("Aviso ao consultar audit_logs do contrato:", logErr);
+    }
 
-    return NextResponse.json({ contract, projections, auditLogs: logsRes.rows });
+    return NextResponse.json({ contract, projections, auditLogs });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro interno ao buscar contratação.";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -55,14 +63,15 @@ export async function POST(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  try { await requireAdminUser(); } catch { return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 }); }
+
   try {
     const { id } = await props.params;
     const body = await request.json();
 
     if (["archive", "restore", "reject"].includes(body.action)) {
-      await requireAdminUser();
-      const contract=await setContractVisibility(id,body.action,typeof body.reason === "string" ? body.reason : "");
-      return NextResponse.json({success:true,contract});
+      const contract = await setContractVisibility(id, body.action, typeof body.reason === "string" ? body.reason : "");
+      return NextResponse.json({ success: true, contract });
     }
     // Se a requisição for para cancelamento
     if (body.action === "cancel") {

@@ -427,8 +427,12 @@ export async function listReceivables(params: {
     queryParams.push(params.competency);
   }
   if (params.status) {
-    conditions.push(`r.status = $${paramIdx++}`);
-    queryParams.push(params.status);
+    if (params.status === "OVERDUE") {
+      conditions.push(`(r.status = 'OVERDUE' OR (r.status IN ('PENDING', 'PARTIALLY_PAID') AND r.due_date < CURRENT_DATE))`);
+    } else {
+      conditions.push(`r.status = $${paramIdx++}`);
+      queryParams.push(params.status);
+    }
   }
   if (params.startDate) {
     const col = params.dateType === "createdAt" ? "r.created_at::date" : "r.due_date";
@@ -663,10 +667,14 @@ export async function listPayables(params: {
   let paramIdx = 1;
 
   if (params.filter === "critical") {
-    conditions.push("p.status = 'PENDING' AND p.due_date <= (CURRENT_DATE + INTERVAL '7 days')");
+    conditions.push("p.status IN ('PENDING', 'OVERDUE', 'PARTIALLY_PAID') AND p.due_date <= (CURRENT_DATE + INTERVAL '7 days')");
   } else if (params.status) {
-    conditions.push(`p.status = $${paramIdx++}`);
-    queryParams.push(params.status);
+    if (params.status === "OVERDUE") {
+      conditions.push(`(p.status = 'OVERDUE' OR (p.status IN ('PENDING', 'PARTIALLY_PAID') AND p.due_date < CURRENT_DATE))`);
+    } else {
+      conditions.push(`p.status = $${paramIdx++}`);
+      queryParams.push(params.status);
+    }
   }
 
   if (params.supplierName) {
@@ -883,7 +891,7 @@ export async function reverseSettlement(settlementId: string, reason: string): P
     await client.query("UPDATE financial_settlements SET is_reversed = true WHERE id = $1", [settlementId]);
 
     // Criar registro de REVERSAL
-    const revDate = new Date().toISOString().slice(0, 10);
+    const revDate = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
     const revSetRes = await client.query(
       `INSERT INTO financial_settlements (
         receivable_id, payable_id, financial_account_id, settlement_type,
@@ -965,7 +973,7 @@ export async function reverseSettlement(settlementId: string, reason: string): P
 export async function processContractRecurrence(
   competency: string,
   contractId?: string
-): Promise<{ createdCount: number; skippedCount: number }> {
+): Promise<{ createdCount: number; skippedCount: number; errors: string[] }> {
   if (!/^\d{4}-\d{2}$/.test(competency)) {
     throw new Error("Competência deve estar no formato YYYY-MM.");
   }
@@ -975,17 +983,24 @@ export async function processContractRecurrence(
 
   // Buscar contratos ativos (ou o específico se fornecido)
   const contractsSql = contractId
-    ? `SELECT c.id, c.client_id, c.contract_number, c.status, c.canceled_at, c.billing_configured_at FROM contracts c WHERE c.status = 'ACTIVE' AND c.id = $1`
-    : `SELECT c.id, c.client_id, c.contract_number, c.status, c.canceled_at, c.billing_configured_at FROM contracts c WHERE c.status = 'ACTIVE'`;
+    ? `SELECT c.id, c.client_id, c.contract_number, c.status, c.canceled_at, c.billing_configured_at FROM contracts c WHERE c.status = 'ACTIVE' AND c.archived_at IS NULL AND c.id = $1`
+    : `SELECT c.id, c.client_id, c.contract_number, c.status, c.canceled_at, c.billing_configured_at FROM contracts c WHERE c.status = 'ACTIVE' AND c.archived_at IS NULL`;
   const contractsParams = contractId ? [contractId] : [];
   const contractsRes = await query(contractsSql, contractsParams);
 
   let createdCount = 0;
   let skippedCount = 0;
+  const errors: string[] = [];
 
   for (const c of contractsRes.rows) {
     if (c.billing_configured_at) {
-      createdCount += await generateServiceRecurrence(c.id, competency);
+      try {
+        createdCount += await generateServiceRecurrence(c.id, competency);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Erro ao gerar recorrência do serviço";
+        errors.push(`Contrato ${c.contract_number}: ${msg}`);
+        skippedCount++;
+      }
       continue;
     }
     // Buscar a versão vigente para a competência
@@ -1019,18 +1034,18 @@ export async function processContractRecurrence(
       }
     }
 
-    // Verificar se vigência expirou
+    // Chave única de idempotência
+    const idempotencyKey = `REC_${c.id}_${competency}`;
+    const effectiveDueDate = calculateEffectiveDueDate(ver.due_day, year, month);
+
+    // Verificar se vigência expirou antes da competência ou da data efetiva
     if (!ver.is_indefinite && ver.end_date) {
       const endDateStr = formatDate(ver.end_date);
-      if (endDateStr && compDate > endDateStr) {
+      if (endDateStr && (competency > endDateStr.slice(0, 7) || effectiveDueDate > endDateStr)) {
         skippedCount++;
         continue;
       }
     }
-
-    // Chave única de idempotência
-    const idempotencyKey = `REC_${c.id}_${competency}`;
-    const effectiveDueDate = calculateEffectiveDueDate(ver.due_day, year, month);
 
     const existsRes = await query("SELECT id FROM receivables WHERE idempotency_key = $1 AND status <> 'CANCELED'", [idempotencyKey]);
     if (existsRes.rowCount && existsRes.rowCount > 0) {
@@ -1050,18 +1065,21 @@ export async function processContractRecurrence(
         idempotencyKey,
       });
       createdCount++;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao criar recebível recorrente";
+      console.error(`[processContractRecurrence] Contrato ${c.contract_number}:`, err);
+      errors.push(`Contrato ${c.contract_number}: ${msg}`);
       skippedCount++;
     }
   }
 
-  return { createdCount, skippedCount };
+  return { createdCount, skippedCount, errors };
 }
 
 export async function processPayableRecurrence(
   competency: string,
   templateId?: string
-): Promise<{ createdCount: number; skippedCount: number }> {
+): Promise<{ createdCount: number; skippedCount: number; errors: string[] }> {
   if (!/^\d{4}-\d{2}$/.test(competency)) {
     throw new Error("Competência deve estar no formato YYYY-MM.");
   }
@@ -1076,11 +1094,11 @@ export async function processPayableRecurrence(
   const templatesRes = await query(templatesSql, templatesParams);
   let createdCount = 0;
   let skippedCount = 0;
+  const errors: string[] = [];
 
   for (const t of templatesRes.rows) {
-    const compDate = `${competency}-01`;
     const startDateStr = formatDate(t.start_date) || "";
-    if (compDate < startDateStr.slice(0, 7)) {
+    if (startDateStr && competency < startDateStr.slice(0, 7)) {
       skippedCount++;
       continue;
     }
@@ -1093,16 +1111,16 @@ export async function processPayableRecurrence(
       }
     }
 
+    const idempotencyKey = `PAG_${t.id}_${competency}`;
+    const effectiveDueDate = calculateEffectiveDueDate(t.due_day, year, month);
+
     if (!t.is_indefinite && t.end_date) {
       const endDateStr = formatDate(t.end_date);
-      if (endDateStr && compDate > endDateStr) {
+      if (endDateStr && (competency > endDateStr.slice(0, 7) || effectiveDueDate > endDateStr)) {
         skippedCount++;
         continue;
       }
     }
-
-    const idempotencyKey = `PAG_${t.id}_${competency}`;
-    const effectiveDueDate = calculateEffectiveDueDate(t.due_day, year, month);
 
     const existsRes = await query("SELECT id FROM payables WHERE idempotency_key = $1 AND status <> 'CANCELED'", [idempotencyKey]);
     if (existsRes.rowCount && existsRes.rowCount > 0) {
@@ -1122,12 +1140,15 @@ export async function processPayableRecurrence(
         idempotencyKey,
       });
       createdCount++;
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erro ao criar conta a pagar recorrente";
+      console.error(`[processPayableRecurrence] Modelo ${t.id}:`, err);
+      errors.push(`${t.description}: ${msg}`);
       skippedCount++;
     }
   }
 
-  return { createdCount, skippedCount };
+  return { createdCount, skippedCount, errors };
 }
 
 // ==========================================
@@ -1372,6 +1393,8 @@ export async function deleteReceivable(id: string): Promise<{ success: boolean; 
       throw new Error("Não é possível excluir título que possui recebimentos registrados. Estorne as baixas primeiro.");
     }
 
+    await client.query("DELETE FROM receivable_items WHERE receivable_id = $1", [id]);
+    await client.query("DELETE FROM revenue_accruals WHERE receivable_id = $1", [id]);
     await client.query("DELETE FROM receivables WHERE id = $1", [id]);
 
     await client.query(
@@ -1380,7 +1403,7 @@ export async function deleteReceivable(id: string): Promise<{ success: boolean; 
       [id, JSON.stringify({ receivableNumber: rec.receivable_number, description: rec.description, amount: rec.original_amount })]
     );
 
-    return { success: true, message: `Título ${rec.receivable_number} excluído com sucesso!` };
+    return { success: true, message: `Título ${rec.receivable_number} excluído com sucesso.` };
   });
 }
 

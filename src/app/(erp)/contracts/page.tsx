@@ -448,7 +448,7 @@ function ContractsListPageContent() {
 
       {/* Modal de Exclusão de Contrato */}
       {deleteModalOpen && contractToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/45">
           <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-5 border-b border-zinc-100 flex items-center justify-between bg-rose-50/50">
               <div className="flex items-center gap-2 text-rose-700">

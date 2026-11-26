@@ -6,6 +6,8 @@ import {EditRecordAction} from "@/components/ui/edit-record-action";
 
 import {ArchiveRecordAction} from "@/components/ui/archive-record-action";
 import {DeleteRecordAction} from "@/components/ui/delete-record-action";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import {
   TrendingUp,
@@ -177,7 +179,7 @@ export default function OpportunitiesListPage() {
   // Avanço com 1 Clique para o Funil Comercial Padrão (Ex: saindo da Prospecção Ativa)
   async function handleQuickAdvanceToCommercial(opp: OpportunityRecord) {
     if (!defaultPipeline || !defaultPipeline.stages || defaultPipeline.stages.length === 0) {
-      alert("Funil Comercial Padrão não possui etapas configuradas.");
+      toast.warning("Funil Comercial Padrão não possui etapas configuradas.");
       return;
     }
     const targetStage = defaultPipeline.stages[0]; // Primeira etapa: "Oportunidade qualificada"
@@ -201,7 +203,7 @@ export default function OpportunitiesListPage() {
       loadData();
       setTimeout(() => setTransferFeedback(null), 6000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao transferir oportunidade.");
+      toast.error(err instanceof Error ? err.message : "Erro ao transferir oportunidade.");
     }
   }
 
@@ -252,7 +254,7 @@ export default function OpportunitiesListPage() {
       loadData();
       setTimeout(() => setTransferFeedback(null), 6000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao transferir oportunidade.");
+      toast.error(err instanceof Error ? err.message : "Erro ao transferir oportunidade.");
     } finally {
       setSubmittingTransfer(false);
     }
@@ -263,7 +265,7 @@ export default function OpportunitiesListPage() {
     e.preventDefault();
     if (!closeModalOpp) return;
     if (closeTargetStatus === "LOST" && !lostReason.trim()) {
-      alert("Informe o motivo da perda.");
+      toast.warning("Informe o motivo da perda.");
       return;
     }
 
@@ -289,7 +291,7 @@ export default function OpportunitiesListPage() {
       setCloseNotes("");
       loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao encerrar oportunidade.");
+      toast.error(err instanceof Error ? err.message : "Erro ao encerrar oportunidade.");
     } finally {
       setSubmittingClose(false);
     }
@@ -297,7 +299,7 @@ export default function OpportunitiesListPage() {
 
   // Reabrir oportunidade
   async function handleReopen(opp: OpportunityRecord) {
-    if (!confirm(`Deseja reabrir a oportunidade "${opp.title}"?`)) return;
+    if (!(await confirmAction({ title: "Reabrir oportunidade", message: `Deseja reabrir a oportunidade "${opp.title}"?`, confirmLabel: "Reabrir" }))) return;
     try {
       const res = await fetch(`/api/crm/opportunities/${opp.id}/reopen`, {
         method: "POST",
@@ -308,7 +310,7 @@ export default function OpportunitiesListPage() {
       }
       loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao reabrir.");
+      toast.error(err instanceof Error ? err.message : "Erro ao reabrir.");
     }
   }
 
@@ -335,7 +337,7 @@ export default function OpportunitiesListPage() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-xs">
           <div>
             <div className="flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-purple-600 text-white">
+              <span className="p-2 rounded-xl bg-zinc-900 text-white">
                 <TrendingUp className="w-5 h-5" />
               </span>
               <div>
@@ -382,7 +384,7 @@ export default function OpportunitiesListPage() {
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 transition shadow-2xs"
               title="Configurar funis e ordenar etapas comerciais"
             >
-              <Layers className="h-4 w-4 text-purple-600" />
+              <Layers className="h-4 w-4 text-zinc-800" />
               Configurar Funis & Etapas
             </Link>
 
@@ -445,9 +447,9 @@ export default function OpportunitiesListPage() {
           <div className="bg-white p-5 rounded-2xl border border-zinc-200/80 shadow-xs">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Valor Ponderado</span>
-              <TrendingUp className="h-4 w-4 text-purple-600" />
+              <TrendingUp className="h-4 w-4 text-zinc-800" />
             </div>
-            <div className="mt-2 text-2xl font-bold text-purple-700 font-mono">{formatBRL(totalWeightedAmount)}</div>
+            <div className="mt-2 text-2xl font-bold text-zinc-800 font-mono">{formatBRL(totalWeightedAmount)}</div>
             <div className="mt-0.5 text-xs text-zinc-400">Multiplicado pelas probabilidades</div>
           </div>
 
@@ -529,7 +531,7 @@ export default function OpportunitiesListPage() {
               <div className="flex items-center justify-between text-xs text-zinc-500 px-1">
                 <span className="font-semibold text-zinc-800">
                   Visualizando Funil:{" "}
-                  <strong className="text-purple-700">{activeKanbanPipeline.name}</strong>
+                  <strong className="text-zinc-800">{activeKanbanPipeline.name}</strong>
                   {activeKanbanPipeline.isDefault && (
                     <span className="ml-2 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[10px] font-bold">
                       Funil Comercial Padrão (Final)
@@ -583,7 +585,7 @@ export default function OpportunitiesListPage() {
                             <div className="flex items-center gap-2">
                               <span
                                 className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: stage.color || "#6366f1" }}
+                                style={{ backgroundColor: stage.color || "#18181b" }}
                               />
                               <h3 className="text-xs font-bold text-zinc-900">{stage.name}</h3>
                             </div>
@@ -615,14 +617,14 @@ export default function OpportunitiesListPage() {
                                   onDragStart={() => setDraggedOppId(opp.id)}
                                   onDragEnd={() => setDraggedOppId(null)}
                                   className={`bg-white p-3.5 rounded-xl border border-zinc-200 shadow-2xs hover:shadow-xs transition cursor-grab active:cursor-grabbing space-y-2.5 ${
-                                    draggedOppId === opp.id ? "opacity-50 ring-2 ring-purple-500" : ""
+                                    draggedOppId === opp.id ? "opacity-50 ring-2 ring-zinc-300" : ""
                                   }`}
                                 >
                                   {/* Título, Código e Tag de Funil */}
                                   <div>
                                     {selectedPipelineId === "ALL" && (
                                       <div className="mb-1">
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-zinc-100 text-zinc-800 border border-zinc-200">
                                           <Layers className="w-2.5 h-2.5" />
                                           {pipelines.find((p) => p.id === opp.pipelineId)?.name || "Funil Comercial"}
                                         </span>
@@ -630,7 +632,7 @@ export default function OpportunitiesListPage() {
                                     )}
                                     <Link
                                       href={`/crm/opportunities/${opp.id}`}
-                                      className="font-bold text-xs text-zinc-900 hover:text-purple-700 line-clamp-2"
+                                      className="font-bold text-xs text-zinc-900 hover:text-zinc-950 line-clamp-2"
                                     >
                                       {opp.title}
                                     </Link>
@@ -707,7 +709,7 @@ export default function OpportunitiesListPage() {
                                       <button
                                         type="button"
                                         onClick={() => handleOpenTransferModal(opp)}
-                                        className="p-1 rounded-lg text-zinc-500 hover:text-purple-700 hover:bg-purple-50 transition"
+                                        className="p-1 rounded-lg text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100 transition"
                                         title="Transferir para outro Funil"
                                       >
                                         <MoveRight className="w-3.5 h-3.5" />
@@ -786,7 +788,7 @@ export default function OpportunitiesListPage() {
                             <div className="flex flex-col">
                               {selectedPipelineId === "ALL" && (
                                 <div className="mb-0.5">
-                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[9px] font-bold bg-zinc-100 text-zinc-800 border border-zinc-200">
                                     <Layers className="w-2.5 h-2.5" />
                                     {pipelines.find((p) => p.id === opp.pipelineId)?.name || "Funil Comercial"}
                                   </span>
@@ -794,7 +796,7 @@ export default function OpportunitiesListPage() {
                               )}
                               <Link
                                 href={`/crm/opportunities/${opp.id}`}
-                                className="font-bold text-zinc-900 hover:text-purple-700 hover:underline"
+                                className="font-bold text-zinc-900 hover:text-zinc-950 hover:underline"
                               >
                                 {opp.title}
                               </Link>
@@ -903,7 +905,7 @@ export default function OpportunitiesListPage() {
                               <button
                                 type="button"
                                 onClick={() => handleOpenTransferModal(opp)}
-                                className="px-2 py-1 text-[10px] font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition"
+                                className="px-2 py-1 text-[10px] font-bold text-zinc-800 bg-zinc-100 hover:bg-zinc-100 rounded-lg border border-zinc-200 transition"
                                 title="Mover de Funil"
                               >
                                 Mover Funil
@@ -961,11 +963,11 @@ export default function OpportunitiesListPage() {
             MODAL DE TRANSFERÊNCIA DE FUNIL & ETAPA
            ========================================================================= */}
         {transferModalOpp && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="p-2 bg-purple-50 text-purple-700 rounded-xl">
+                  <span className="p-2 bg-zinc-100 text-zinc-800 rounded-xl">
                     <MoveRight className="w-4 h-4" />
                   </span>
                   <div>
@@ -1009,7 +1011,7 @@ export default function OpportunitiesListPage() {
                         setTransferStageId("");
                       }
                     }}
-                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   >
                     {pipelines.map((p) => (
                       <option key={p.id} value={p.id}>
@@ -1027,7 +1029,7 @@ export default function OpportunitiesListPage() {
                     required
                     value={transferStageId}
                     onChange={(e) => setTransferStageId(e.target.value)}
-                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   >
                     {transferStagesAvailable.map((stg) => (
                       <option key={stg.id} value={stg.id}>
@@ -1049,7 +1051,7 @@ export default function OpportunitiesListPage() {
                   <button
                     type="submit"
                     disabled={submittingTransfer}
-                    className="px-5 py-2 text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 rounded-xl shadow-xs transition disabled:opacity-50"
+                    className="px-5 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl shadow-xs transition disabled:opacity-50"
                   >
                     {submittingTransfer ? "Transferindo..." : "Transferir Oportunidade"}
                   </button>
@@ -1061,7 +1063,7 @@ export default function OpportunitiesListPage() {
 
         {/* Modal de Fechamento (Ganho / Perdido) */}
         {closeModalOpp && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 space-y-4">
               <h2 className="text-base font-bold text-zinc-950">
                 {closeTargetStatus === "WON" ? "Marcar Oportunidade como Ganha" : "Marcar como Perdida"}

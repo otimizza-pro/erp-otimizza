@@ -3,6 +3,8 @@
 import React, { useEffect, useState, useTransition, Suspense } from "react";
 import Link from "next/link";
 import {ArchiveRecordAction} from "@/components/ui/archive-record-action";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useSearchParams } from "next/navigation";
 
 import {
@@ -41,20 +43,21 @@ function ProposalsListPageContent() {
   const [, startTransition] = useTransition();
 
   const handleDeleteProposal = async (id: string, code: string) => {
-    if (!confirm(`Deseja realmente excluir permanentemente a proposta ${code}? Esta ação não pode ser desfeita.`)) {
+    if (!(await confirmAction({ title: "Excluir proposta", message: `Deseja realmente excluir permanentemente a proposta ${code}? Esta ação não pode ser desfeita.`, confirmLabel: "Excluir", tone: "danger" }))) {
       return;
     }
     setDeletingId(id);
     try {
       const res = await fetch(`/api/proposals/${id}`, { method: "DELETE" });
       if (res.ok) {
+        toast.success(`Proposta ${code} excluída.`);
         await loadProposals();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao excluir proposta.");
+        toast.error(err.error || "Erro ao excluir proposta.");
       }
     } catch {
-      alert("Falha de comunicação com o servidor.");
+      toast.error("Falha de comunicação com o servidor.");
     } finally {
       setDeletingId(null);
     }
@@ -187,7 +190,7 @@ function ProposalsListPageContent() {
           <div className="flex items-center gap-3">
             <Link
               href="/proposals/new"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-zinc-950 rounded-lg hover:bg-zinc-800 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-zinc-950 rounded-lg hover:bg-zinc-800 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-300"
             >
               <Plus className="w-4 h-4" />
               Nova Proposta
@@ -204,7 +207,7 @@ function ProposalsListPageContent() {
                   <p className="text-xs font-medium uppercase tracking-wider text-slate-500">Total Propostas</p>
                   <p className="text-2xl font-bold text-slate-900 mt-1">{metrics.totalProposals}</p>
                 </div>
-                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
+                <div className="p-3 bg-zinc-100 text-zinc-800 rounded-lg">
                   <FileText className="w-5 h-5" />
                 </div>
               </div>
@@ -271,7 +274,7 @@ function ProposalsListPageContent() {
               placeholder="Buscar por código, título ou destinatário..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all text-slate-900"
+              className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300 focus:bg-white transition-colors text-slate-900"
             />
           </form>
 
@@ -347,7 +350,7 @@ function ProposalsListPageContent() {
                       <tr key={prop.id} className="hover:bg-slate-50/70 transition-colors group">
                         <td className="py-3.5 px-4">
                           <Link href={`/proposals/${prop.id}`} className="block">
-                            <span className="font-semibold text-indigo-600 group-hover:text-indigo-800 flex items-center gap-1.5">
+                            <span className="font-semibold text-zinc-800 group-hover:text-zinc-950 flex items-center gap-1.5">
                               {prop.proposalCode}
                             </span>
                             <span className="font-medium text-slate-900 block truncate max-w-xs mt-0.5">
@@ -394,9 +397,9 @@ function ProposalsListPageContent() {
                               </div>
                             )}
                             {cv && cv.totalYearlyEffective > 0 && (
-                              <div className="flex items-center gap-1 text-xs text-purple-700">
+                              <div className="flex items-center gap-1 text-xs text-zinc-800">
                                 <span className="font-medium">{formatBRL(cv.totalYearlyEffective)}</span>
-                                <span className="text-purple-400">/ano</span>
+                                <span className="text-zinc-500">/ano</span>
                               </div>
                             )}
                             {(!cv || (cv.totalMonthlyEffective === 0 && cv.totalOneTimeEffective === 0 && cv.totalYearlyEffective === 0)) && (

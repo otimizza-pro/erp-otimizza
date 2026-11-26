@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import {
   TrendingUp,
@@ -127,11 +129,11 @@ export default function OpportunityDetailPage() {
         loadData();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao mover oportunidade");
+        toast.error(err.error || "Erro ao mover oportunidade");
       }
     } catch (e) {
       console.error(e);
-      alert("Falha ao mover etapa.");
+      toast.error("Falha ao mover etapa.");
     }
   }
 
@@ -141,7 +143,7 @@ export default function OpportunityDetailPage() {
     if (!opp) return;
 
     if (closeTargetStatus === "LOST" && !lostReason.trim()) {
-      alert("Por favor informe o motivo da perda.");
+      toast.warning("Por favor informe o motivo da perda.");
       return;
     }
 
@@ -164,11 +166,11 @@ export default function OpportunityDetailPage() {
         loadData();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao encerrar oportunidade");
+        toast.error(err.error || "Erro ao encerrar oportunidade");
       }
     } catch (err) {
       console.error(err);
-      alert("Falha ao comunicar com o servidor.");
+      toast.error("Falha ao comunicar com o servidor.");
     } finally {
       setSubmittingClose(false);
     }
@@ -177,7 +179,7 @@ export default function OpportunityDetailPage() {
   // Reabrir oportunidade
   async function handleReopen() {
     if (!opp) return;
-    if (!confirm("Deseja reabrir esta oportunidade para a primeira etapa do funil?")) return;
+    if (!(await confirmAction({ title: "Reabrir oportunidade", message: "Deseja reabrir esta oportunidade para a primeira etapa do funil?", confirmLabel: "Reabrir" }))) return;
 
     try {
       const res = await fetch(`/api/crm/opportunities/${opp.id}/reopen`, {
@@ -190,11 +192,11 @@ export default function OpportunityDetailPage() {
         loadData();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao reabrir oportunidade");
+        toast.error(err.error || "Erro ao reabrir oportunidade");
       }
     } catch (e) {
       console.error(e);
-      alert("Erro ao reabrir");
+      toast.error("Erro ao reabrir");
     }
   }
 
@@ -227,11 +229,11 @@ export default function OpportunityDetailPage() {
         loadData();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao criar atividade");
+        toast.error(err.error || "Erro ao criar atividade");
       }
     } catch (e) {
       console.error(e);
-      alert("Erro ao criar atividade");
+      toast.error("Erro ao criar atividade");
     } finally {
       setSubmittingAct(false);
     }
@@ -253,7 +255,7 @@ export default function OpportunityDetailPage() {
 
   const [deleting, setDeleting] = useState(false);
   const handleDeleteOpportunity = async () => {
-    if (!confirm(`Deseja realmente excluir permanentemente a oportunidade "${opp?.title}"? Esta ação não pode ser desfeita.`)) {
+    if (!(await confirmAction({ title: "Excluir oportunidade", message: `Deseja realmente excluir permanentemente a oportunidade "${opp?.title}"? Esta ação não pode ser desfeita.`, confirmLabel: "Excluir", tone: "danger" }))) {
       return;
     }
     setDeleting(true);
@@ -263,10 +265,10 @@ export default function OpportunityDetailPage() {
         router.push("/crm/opportunities");
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao excluir oportunidade.");
+        toast.error(err.error || "Erro ao excluir oportunidade.");
       }
     } catch {
-      alert("Falha de comunicação.");
+      toast.error("Falha de comunicação.");
     } finally {
       setDeleting(false);
     }
@@ -495,7 +497,7 @@ export default function OpportunityDetailPage() {
                     key={stage.id}
                     disabled={!isAvailable || isCurrent}
                     onClick={() => handleMoveStage(stage.id)}
-                    className={`relative p-2.5 rounded-lg border text-left transition-all ${isCurrent
+                    className={`relative p-2.5 rounded-lg border text-left transition-colors ${isCurrent
                         ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/50"
                         : isAvailable
                           ? "border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
@@ -544,12 +546,12 @@ export default function OpportunityDetailPage() {
                   <span className="text-[11px] text-emerald-600/80">Recorrência mensal</span>
                 </div>
 
-                <div className="p-3 bg-indigo-50/60 rounded-lg border border-indigo-100">
-                  <span className="text-xs text-indigo-700 block">Valor Ponderado</span>
-                  <span className="text-xl font-bold text-indigo-800 mt-0.5 block">
+                <div className="p-3 bg-zinc-100 rounded-lg border border-zinc-200">
+                  <span className="text-xs text-zinc-800 block">Valor Ponderado</span>
+                  <span className="text-xl font-bold text-zinc-800 mt-0.5 block">
                     {formatBRL((opp.amount * opp.probability) / 100)}
                   </span>
-                  <span className="text-[11px] text-indigo-600/80">
+                  <span className="text-[11px] text-zinc-800/80">
                     Probabilidade: {opp.probability}%
                   </span>
                 </div>
@@ -738,7 +740,7 @@ export default function OpportunityDetailPage() {
 
         {/* Modal de Encerramento (Ganha / Perdida / Cancelada) */}
         {showCloseModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 {closeTargetStatus === "WON" && <CheckCircle2 className="h-5 w-5 text-emerald-600" />}
@@ -810,7 +812,7 @@ export default function OpportunityDetailPage() {
 
         {/* Modal de Nova Atividade */}
         {showActivityModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
               <h2 className="text-lg font-bold text-slate-900">Agendar Atividade / Follow-up</h2>
 

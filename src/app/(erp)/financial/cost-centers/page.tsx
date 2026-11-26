@@ -14,6 +14,8 @@ import {
   Lock,
 } from "lucide-react";
 import { CostCenterRecord } from "@/modules/financial/dre/types";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export default function CostCentersPage() {
   const [costCenters, setCostCenters] = useState<CostCenterRecord[]>([]);
@@ -102,11 +104,11 @@ export default function CostCentersPage() {
 
   const handleArchive = async (cc: CostCenterRecord) => {
     if (cc.isSystemDefault) {
-      alert("Centros de custo padrão do sistema não podem ser arquivados.");
+      toast.warning("Centros de custo padrão do sistema não podem ser arquivados.");
       return;
     }
 
-    if (!confirm(`Deseja arquivar o centro de custo ${cc.code} - ${cc.name}?`)) {
+    if (!(await confirmAction({ title: "Arquivar centro de custo", message: `Deseja arquivar o centro de custo ${cc.code} - ${cc.name}?`, confirmLabel: "Arquivar" }))) {
       return;
     }
 
@@ -133,7 +135,7 @@ export default function CostCentersPage() {
               <span className="text-slate-900 font-semibold">Centros de Custo</span>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 mt-1 flex items-center gap-2">
-              <Layers className="w-7 h-7 text-indigo-600" />
+              <Layers className="w-7 h-7 text-zinc-800" />
               Centros de Custo e Unidades de Negócio
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
@@ -189,7 +191,7 @@ export default function CostCentersPage() {
               {loading && costCenters.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-slate-500">
-                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-zinc-800" />
                     Carregando centros de custo...
                   </td>
                 </tr>
@@ -202,7 +204,7 @@ export default function CostCentersPage() {
               ) : (
                 costCenters.map((cc) => (
                   <tr key={cc.id} className="hover:bg-slate-50/60 transition-colors">
-                    <td className="py-3 px-4 font-mono font-bold text-indigo-700">
+                    <td className="py-3 px-4 font-mono font-bold text-zinc-800">
                       {cc.code}
                     </td>
                     <td className="py-3 px-4 font-semibold text-slate-900 flex items-center gap-2">
@@ -232,7 +234,7 @@ export default function CostCentersPage() {
                         <button
                           onClick={() => openEditModal(cc)}
                           title="Editar"
-                          className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-md transition-colors"
+                          className="p-1.5 text-slate-500 hover:text-zinc-950 hover:bg-slate-100 rounded-md transition-colors"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
@@ -256,7 +258,7 @@ export default function CostCentersPage() {
 
         {/* Modal de Cadastro / Edição */}
         {isModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-zinc-950/45 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-slate-200 overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <h3 className="font-bold text-slate-900 text-base">
@@ -282,7 +284,7 @@ export default function CostCentersPage() {
                     value={formCode}
                     onChange={(e) => setFormCode(e.target.value.toUpperCase())}
                     placeholder="MKT"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm uppercase font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm uppercase font-mono text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300 disabled:bg-slate-100"
                   />
                 </div>
 
@@ -296,7 +298,7 @@ export default function CostCentersPage() {
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder="Marketing Digital"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   />
                 </div>
 
@@ -309,7 +311,7 @@ export default function CostCentersPage() {
                     value={formDesc}
                     onChange={(e) => setFormDesc(e.target.value)}
                     placeholder="Despesas com campanhas, branding e agências"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   />
                 </div>
 

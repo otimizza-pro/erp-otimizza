@@ -316,7 +316,7 @@ function NewProjectFormContent() {
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <Briefcase className="w-6 h-6 text-indigo-600" />
+                <Briefcase className="w-6 h-6 text-zinc-800" />
                 Novo Projeto
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -354,7 +354,7 @@ function NewProjectFormContent() {
                     setContractId("");
                   }
                 }}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
               >
                 <option value="STANDALONE">Projeto Avulso (Entrega Específica)</option>
                 <option value="RECURRING">Projeto Recorrente (Operação Contratual)</option>
@@ -364,13 +364,13 @@ function NewProjectFormContent() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
-                <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                <Layers className="w-3.5 h-3.5 text-zinc-800" />
                 Clonar Modelo / Template (Opcional)
               </label>
               <select
                 value={templateId}
                 onChange={(e) => handleTemplateChange(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
               >
                 <option value="">{searchParams.get("onboarding") === "1" ? "Onboarding dos serviços deste contrato" : "Nenhum (Começar com etapas padrão)"}</option>
                 {templates.filter(t => searchParams.get("onboarding") === "1" ? isOnboardingTemplate(t.code) : projectType !== "RECURRING" || !isOnboardingTemplate(t.code)).map((t) => (
@@ -384,7 +384,7 @@ function NewProjectFormContent() {
 
           {/* Prévia Dinâmica das Fases com Datas Sugeridas */}
           {templateDetail && templateDetail.stages && templateDetail.stages.length > 0 && (
-            <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-3.5">
+            <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-3.5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
                 <div className="flex items-center gap-2">
                   <Rocket className="w-4 h-4 text-zinc-500" strokeWidth={1.5} />
@@ -485,7 +485,7 @@ function NewProjectFormContent() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Ex: Gestão de Tráfego Pago - Outubro/2026"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
             />
           </div>
 
@@ -498,7 +498,7 @@ function NewProjectFormContent() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descreva o escopo da entrega, objetivos e alinhamentos..."
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
             />
           </div>
 
@@ -551,7 +551,7 @@ function NewProjectFormContent() {
                   value={contractId}
                   disabled={!clientId || clientId === INTERNAL_COMPANY_ID}
                   onChange={(e) => setContractId(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-100 disabled:text-slate-400"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-zinc-300 disabled:bg-slate-100 disabled:text-slate-400"
                 >
                   {!clientId ? (
                     <option value="">Selecione um cliente primeiro...</option>
@@ -585,7 +585,7 @@ function NewProjectFormContent() {
                 required
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
               />
             </div>
 
@@ -598,7 +598,7 @@ function NewProjectFormContent() {
                 required
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
               />
             </div>
 
@@ -609,7 +609,7 @@ function NewProjectFormContent() {
               <select
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as ProjectPriority)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
               >
                 <option value="LOW">Baixa</option>
                 <option value="MEDIUM">Média</option>
@@ -628,7 +628,7 @@ function NewProjectFormContent() {
                 min="0"
                 value={estimatedHours}
                 onChange={(e) => setEstimatedHours(parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
               />
             </div>
           </div>

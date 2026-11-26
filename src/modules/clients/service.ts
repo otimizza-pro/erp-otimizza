@@ -2,6 +2,7 @@ import {INTERNAL_COMPANY_ID} from "./internal-company";
 import { query, withTransaction } from "@/lib/db/pool";
 import { DocumentService } from "@/modules/documents/service";
 import { deleteContract } from "@/modules/contracts/service";
+import { NotificationService } from "@/modules/notifications/service";
 import { normalizeDocument, validateCPF, validateCNPJ } from "@/shared/cpf-cnpj";
 import { Client, CreateClientDTO, UpdateClientDTO } from "./types";
 
@@ -200,7 +201,7 @@ export async function createClient(data: CreateClientDTO): Promise<Client> {
     }
   }
 
-  return await withTransaction(async (client) => {
+  const createdClient = await withTransaction(async (client) => {
     const insertSql = `
       INSERT INTO clients (
         type, name, trade_name, document, email, phone, whatsapp,
@@ -262,6 +263,20 @@ export async function createClient(data: CreateClientDTO): Promise<Client> {
 
     return newClient;
   });
+
+  await NotificationService.createSafeNotification({
+    title: "Novo cliente cadastrado",
+    message: `${createdClient.tradeName || createdClient.name} foi adicionado à base de clientes ativos.`,
+    type: "SUCCESS",
+    category: "CRM",
+    severity: "success",
+    dedupKey: `client:created:${createdClient.id}`,
+    entityType: "client",
+    entityId: createdClient.id,
+    linkUrl: `/clients/${createdClient.id}`,
+  });
+
+  return createdClient;
 }
 
 export async function updateClient(id: string, data: UpdateClientDTO): Promise<Client> {
@@ -397,7 +412,19 @@ export async function archiveClient(id: string): Promise<Client> {
      VALUES ($1, $2, $3, $4)`,
     ["clients", id, "UPDATE", JSON.stringify({ action: "ARCHIVE" })]
   );
-  return mapClientRow(res.rows[0]);
+  const archived = mapClientRow(res.rows[0]);
+  await NotificationService.createSafeNotification({
+    title: "Cliente arquivado",
+    message: `${archived.tradeName || archived.name} foi movido para o arquivo de ex-clientes.`,
+    type: "WARNING",
+    category: "CRM",
+    severity: "warning",
+    dedupKey: `client:archived:${archived.id}`,
+    entityType: "client",
+    entityId: archived.id,
+    linkUrl: `/clients/${archived.id}`,
+  });
+  return archived;
 }
 
 export async function reactivateClient(id: string): Promise<Client> {
@@ -601,6 +628,18 @@ export async function purgeClient(clientId: string): Promise<{
        VALUES ($1, $2, $3, $4)`,
       ["clients", clientId, "DELETE", JSON.stringify({ event: "PURGE_COMPLETE", name: clientRecord.name, purgedDocs: purgedDocumentsCount })]
     );
+
+    await NotificationService.createSafeNotification({
+      title: "Cliente excluído permanentemente",
+      message: `${clientRecord.trade_name || clientRecord.name} e seus vínculos foram removidos em definitivo.`,
+      type: "WARNING",
+      category: "CRM",
+      severity: "warning",
+      dedupKey: `client:purged:${clientId}`,
+      entityType: "client",
+      entityId: clientId,
+      linkUrl: "/clients",
+    });
 
     return {
       success: true,

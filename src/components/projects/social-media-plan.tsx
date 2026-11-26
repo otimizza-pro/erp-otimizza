@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useMemo } from "react";
 import { nextProjectMonth, type SocialMediaSchedule } from "@/modules/projects/social-media-schedule";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -195,7 +196,7 @@ export function SocialMediaScheduleFields({
               key={count}
               type="button"
               onClick={() => onChange({ ...value, postsPerMonth: count, customDates: undefined })}
-              className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all ${value.postsPerMonth === count
+              className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${value.postsPerMonth === count
                 ? "bg-zinc-900 text-white border-zinc-900"
                 : "bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
                 }`}
@@ -231,7 +232,7 @@ export function SocialMediaScheduleFields({
                     customDates: undefined, // recalcula baseado nos novos dias
                   });
                 }}
-                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all flex items-center gap-1.5 ${isSelected
+                className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors flex items-center gap-1.5 ${isSelected
                   ? "bg-zinc-900 text-white border-zinc-900"
                   : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                   }`}
@@ -338,7 +339,7 @@ export function SocialMediaScheduleFields({
                 key={cell.dateStr}
                 type="button"
                 onClick={() => toggleDate(cell.dateStr)}
-                className={`relative h-10 rounded-lg border text-xs flex flex-col items-center justify-center transition-all ${isSelected
+                className={`relative h-10 rounded-lg border text-xs flex flex-col items-center justify-center transition-colors ${isSelected
                   ? "bg-zinc-900 text-white font-medium border-zinc-900"
                   : "bg-white text-zinc-700 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50"
                   }`}
@@ -560,7 +561,7 @@ export function ProjectSocialMediaPlan({ projectId, startDate, archived }: {
   }
 
   async function deletePost(post: ProjectPost) {
-    if (!confirm(`Excluir o post "${post.title}"? Esta ação remove o post do planejamento e do calendário.`)) return;
+    if (!(await confirmAction({ title: "Excluir post planejado", message: `Excluir o post "${post.title}"? Esta ação remove o post do planejamento e do calendário.`, confirmLabel: "Excluir post", tone: "danger" }))) return;
     setSavingPostId(post.id);
     setError("");
     setFeedback("");
@@ -578,7 +579,7 @@ export function ProjectSocialMediaPlan({ projectId, startDate, archived }: {
 
   async function deleteMonth() {
     if (!activeMonth) return;
-    if (!confirm(`Excluir TODOS os posts planejados do mês ${activeMonth.split("-").reverse().join("/")}?`)) return;
+    if (!(await confirmAction({ title: "Excluir posts do mês", message: `Excluir todos os posts planejados do mês ${activeMonth.split("-").reverse().join("/")}?`, confirmLabel: "Excluir mês", tone: "danger" }))) return;
     setBusy(true);
     setError("");
     setFeedback("");

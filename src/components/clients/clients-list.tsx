@@ -4,6 +4,8 @@ import {useCompany} from "@/lib/context/company-context";
 import {INTERNAL_COMPANY_ID} from "@/modules/clients/internal-company";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import { Client } from "@/modules/clients/types";
 import {
@@ -95,14 +97,14 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
 
   // Exclusão individual
   const handleDeleteClient = async (clientItem: Client) => {
-    const confirmed = window.confirm(
-      `ATENÇÃO: Deseja realmente excluir o cliente "${clientItem.name}"?\n\n` +
-      `Esta ação é definitiva e irá:\n` +
-      `• Apagar permanentemente o cadastro do cliente e seus contatos\n` +
-      `• Excluir todos os documentos e arquivos anexados no armazenamento (liberando espaço em disco)\n` +
-      `• Limpar vínculos operacionais\n\n` +
-      `Tem certeza que deseja continuar?`
-    );
+    const confirmed = await confirmAction({
+      title: `Excluir cliente ${clientItem.name}`,
+      message:
+        `Deseja realmente excluir o cliente "${clientItem.name}"?\n\n` +
+        "Esta ação apaga permanentemente o cadastro do cliente, contatos, documentos anexados no armazenamento e vínculos operacionais.",
+      confirmLabel: "Excluir cliente",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     setDeletingId(clientItem.id);
@@ -118,7 +120,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
       await loadClients();
       setTimeout(() => setFeedbackMessage(null), 6000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir cliente.");
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir cliente.");
     } finally {
       setDeletingId(null);
     }
@@ -127,12 +129,13 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
   // Exclusão em Massa de Clientes
   const handleBulkDelete = async () => {
     if (selectedClientIds.length === 0) return;
-    const confirmed = window.confirm(
-      `ATENÇÃO: Deseja realmente EXCLUIR DEFINITIVAMENTE os ${selectedClientIds.length} cliente(s) selecionados?\n\n` +
-      `• Todos os documentos, arquivos anexados no disco e dados desses clientes serão expurgados permanentemente.\n` +
-      `• Registros com liquidações financeiras pagas consolidadas serão arquivados com arquivos expurgados para manter a integridade fiscal de caixa.\n\n` +
-      `Esta ação não pode ser desfeita. Continuar?`
-    );
+    const confirmed = await confirmAction({
+      title: `Excluir ${selectedClientIds.length} cliente(s) selecionados`,
+      message:
+        `Deseja realmente excluir definitivamente os ${selectedClientIds.length} cliente(s) selecionados? Todos os documentos e dados serão removidos; clientes com baixas financeiras consolidadas serão arquivados.`,
+      confirmLabel: "Excluir selecionados",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     setBulkDeleting(true);
@@ -149,7 +152,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
       loadClients();
       setTimeout(() => setFeedbackMessage(null), 6000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir clientes.");
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir clientes.");
     } finally {
       setBulkDeleting(false);
     }
@@ -160,7 +163,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
     e.preventDefault();
     if (selectedClientIds.length === 0) return;
     if (!bulkStatus && !bulkType) {
-      alert("Por favor, selecione ao menos um campo para alterar.");
+      toast.warning("Por favor, selecione ao menos um campo para alterar.");
       return;
     }
 
@@ -185,7 +188,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
       loadClients();
       setTimeout(() => setFeedbackMessage(null), 6000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao atualizar clientes.");
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar clientes.");
     } finally {
       setBulkSaving(false);
     }
@@ -459,7 +462,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
             BARRA DE AÇÕES EM MASSA FLUTUANTE (CLIENTS BULK ACTION BAR)
            ========================================================================= */}
         {selectedClientIds.length > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-zinc-950/95 backdrop-blur-md text-white px-6 py-3.5 rounded-2xl shadow-2xl border border-zinc-700 flex flex-wrap items-center gap-4 animate-in fade-in slide-in-from-bottom-5">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-zinc-950/95 text-white px-6 py-3.5 rounded-2xl shadow-2xl border border-zinc-700 flex flex-wrap items-center gap-4 animate-in fade-in slide-in-from-bottom-5">
             <div className="flex items-center gap-2 text-xs font-semibold">
               <span className="bg-zinc-100 text-zinc-950 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono">
                 {selectedClientIds.length}
@@ -504,7 +507,7 @@ export default function ClientsPage({ former = false }: { former?: boolean }) {
             MODAL DE EDIÇÃO EM MASSA DE CLIENTES
            ========================================================================= */}
         {showBulkEditModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95 space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">

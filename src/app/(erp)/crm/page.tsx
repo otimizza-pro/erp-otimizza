@@ -110,7 +110,7 @@ export default function CrmDashboardPage() {
               <span className="text-[11px] font-bold uppercase tracking-wider">Leads Ativos</span>
               <Users className="w-4 h-4 text-blue-600" />
             </div>
-            <div className="text-2xl font-extrabold text-zinc-950 mt-1 font-mono">
+            <div className="text-2xl font-semibold text-zinc-950 mt-1 font-mono">
               {kpis?.activeLeadsCount || 0}
             </div>
             <div className="text-[11px] text-zinc-500 mt-0.5">Em processo de prospecção</div>
@@ -119,9 +119,9 @@ export default function CrmDashboardPage() {
           <div className="p-5 bg-white border border-zinc-200/80 rounded-2xl shadow-xs">
             <div className="flex items-center justify-between text-zinc-400">
               <span className="text-[11px] font-bold uppercase tracking-wider">Pipeline Ponderado</span>
-              <Target className="w-4 h-4 text-purple-600" />
+              <Target className="w-4 h-4 text-zinc-800" />
             </div>
-            <div className="text-2xl font-extrabold text-purple-700 mt-1 font-mono">
+            <div className="text-2xl font-semibold text-zinc-800 mt-1 font-mono">
               {formatBRL(kpis?.weightedPipelineAmount || 0)}
             </div>
             <div className="text-[11px] text-zinc-500 mt-0.5">
@@ -134,7 +134,7 @@ export default function CrmDashboardPage() {
               <span className="text-[11px] font-bold uppercase tracking-wider">MRR Potencial</span>
               <DollarSign className="w-4 h-4 text-emerald-600" />
             </div>
-            <div className="text-2xl font-extrabold text-emerald-700 mt-1 font-mono">
+            <div className="text-2xl font-semibold text-emerald-700 mt-1 font-mono">
               {formatBRL(kpis?.potentialMrr || 0)}
             </div>
             <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">
@@ -147,7 +147,7 @@ export default function CrmDashboardPage() {
               <span className="text-[11px] font-bold uppercase tracking-wider">Taxa de Conversão</span>
               <TrendingUp className="w-4 h-4 text-emerald-600" />
             </div>
-            <div className="text-2xl font-extrabold text-zinc-950 mt-1 font-mono">
+            <div className="text-2xl font-semibold text-zinc-950 mt-1 font-mono">
               {kpis?.conversionRate || 0}%
             </div>
             <div className="text-[11px] text-zinc-500 mt-0.5">
@@ -167,7 +167,7 @@ export default function CrmDashboardPage() {
                 ? kpis.leadsBySource.map((s, idx) => ({
                     label: s.source,
                     value: s.count,
-                    color: ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#64748b"][idx % 6],
+                    color: ["#3b82f6", "#10b981", "#18181b", "#f59e0b", "#ec4899", "#64748b"][idx % 6],
                   }))
                 : [{ label: "Sem registros", value: 0, color: "#e2e8f0" }]
             }
@@ -252,7 +252,7 @@ export default function CrmDashboardPage() {
                             </div>
                             <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden">
                               <div
-                                className="h-full rounded-full transition-all duration-500"
+                                className="h-full rounded-full transition-colors duration-500"
                                 style={{
                                   width: `${widthPct}%`,
                                   backgroundColor: st.stageColor,
@@ -369,7 +369,7 @@ export default function CrmDashboardPage() {
                         <td className="py-2.5 px-3">
                           <span
                             className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white shadow-2xs"
-                            style={{ backgroundColor: opp.stageColor || "#6366f1" }}
+                            style={{ backgroundColor: opp.stageColor || "#18181b" }}
                           >
                             {opp.stageName}
                           </span>

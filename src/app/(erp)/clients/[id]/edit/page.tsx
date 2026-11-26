@@ -169,9 +169,10 @@ export default function EditClientPage() {
       }
 
       setSuccess(true);
+      router.refresh();
       setTimeout(() => {
         router.push(`/clients/${id}`);
-      }, 1000);
+      }, 800);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
@@ -472,8 +473,17 @@ export default function EditClientPage() {
                     <div>
                       <input
                         type="text"
-                        placeholder="WhatsApp / Telefone"
-                        value={c.whatsapp || c.phone || ""}
+                        placeholder="Telefone fixo / recado"
+                        value={c.phone || ""}
+                        onChange={(e) => updateContact(idx, "phone", e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs font-mono"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="WhatsApp"
+                        value={c.whatsapp || ""}
                         onChange={(e) => updateContact(idx, "whatsapp", e.target.value)}
                         className="w-full px-2.5 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs font-mono"
                       />

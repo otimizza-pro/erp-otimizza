@@ -10,6 +10,8 @@ import { ArrowLeft, Save, AlertCircle, Trash2, Plus, X } from "lucide-react";
 import { ServiceCategory, BillingUnit } from "@/modules/catalog/types";
 import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export default function EditServicePage() {
   const params = useParams();
@@ -106,7 +108,7 @@ export default function EditServicePage() {
       setNewCatDesc("");
       loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao criar categoria.");
+      toast.error(err instanceof Error ? err.message : "Erro ao criar categoria.");
     } finally {
       setSavingCat(false);
     }
@@ -114,9 +116,12 @@ export default function EditServicePage() {
 
   const handleDelete = async () => {
     if (
-      !window.confirm(
-        `Tem certeza que deseja excluir o serviço "${name}"? Se houver contratos ou despesas vinculadas, ele será arquivado para preservar o histórico contábil.`
-      )
+      !(await confirmAction({
+        title: `Excluir serviço ${name}`,
+        message: `Tem certeza que deseja excluir o serviço "${name}"? Se houver contratos ou despesas vinculadas, ele será arquivado para preservar o histórico contábil.`,
+        confirmLabel: "Excluir",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -128,7 +133,7 @@ export default function EditServicePage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao excluir serviço.");
-      alert(data.message || "Operação realizada com sucesso!");
+      toast.success(data.message || "Operação realizada com sucesso.");
       router.push("/services");
       router.refresh();
     } catch (err: unknown) {
@@ -203,7 +208,13 @@ export default function EditServicePage() {
 
   const handleToggleArchive = async () => {
     const isArchived = status === "ARCHIVED";
-    if (!confirm(isArchived ? "Deseja reativar este serviço?" : "Deseja arquivar este serviço?")) {
+    if (
+      !(await confirmAction({
+        title: isArchived ? "Reativar serviço" : "Arquivar serviço",
+        message: isArchived ? "Deseja reativar este serviço?" : "Deseja arquivar este serviço?",
+        confirmLabel: isArchived ? "Reativar" : "Arquivar",
+      }))
+    ) {
       return;
     }
 
@@ -215,8 +226,8 @@ export default function EditServicePage() {
       });
       if (!res.ok) throw new Error("Erro ao alterar status");
       setStatus(isArchived ? "ACTIVE" : "ARCHIVED");
-    } catch (e) {
-      alert("Falha ao alterar status");
+    } catch {
+      toast.error("Falha ao alterar status");
     }
   };
 
@@ -504,7 +515,7 @@ export default function EditServicePage() {
 
       {/* Modal Rápido de Nova Categoria */}
       {newCatModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-zinc-200 space-y-4">
             <h3 className="font-bold text-zinc-950 text-base">Nova Categoria de Serviços</h3>
             <div className="space-y-3 text-xs">

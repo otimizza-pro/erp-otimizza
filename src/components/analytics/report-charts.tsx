@@ -91,7 +91,7 @@ export function DonutChart({ title, subtitle, data, centerLabel = "Total" }: Don
                     strokeWidth={isHovered ? strokeWidth + 4 : strokeWidth}
                     strokeDasharray={item.strokeDasharray}
                     strokeDashoffset={item.strokeDashoffset}
-                    className="transition-all duration-200 cursor-pointer"
+                    className="transition-colors duration-200 cursor-pointer"
                     onMouseEnter={() => setHoveredIdx(idx)}
                     onMouseLeave={() => setHoveredIdx(null)}
                   />
@@ -106,7 +106,7 @@ export function DonutChart({ title, subtitle, data, centerLabel = "Total" }: Don
                   <span className="text-[10px] font-semibold text-zinc-400 uppercase line-clamp-1 max-w-[90px]">
                     {validData[hoveredIdx].label}
                   </span>
-                  <span className="text-sm font-extrabold text-zinc-950 font-mono">
+                  <span className="text-sm font-semibold text-zinc-950 font-mono">
                     {formatBRL(validData[hoveredIdx].value)}
                   </span>
                   <span className="text-[10px] font-bold text-zinc-600">
@@ -118,7 +118,7 @@ export function DonutChart({ title, subtitle, data, centerLabel = "Total" }: Don
                   <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
                     {centerLabel}
                   </span>
-                  <span className="text-sm font-extrabold text-zinc-950 font-mono">
+                  <span className="text-sm font-semibold text-zinc-950 font-mono">
                     {formatBRL(total)}
                   </span>
                   <span className="text-[10px] text-zinc-400">100%</span>
@@ -246,7 +246,7 @@ export function BarChartDual({
                   <div className="w-full flex items-end justify-center gap-1.5 h-44 relative">
                     {/* Barra A */}
                     <div
-                      className="w-1/2 max-w-[18px] rounded-t-md transition-all duration-300 relative group-hover:brightness-110 shadow-2xs"
+                      className="w-1/2 max-w-[18px] rounded-t-md transition-colors duration-300 relative group-hover:brightness-110 shadow-2xs"
                       style={{
                         height: `${heightA}%`,
                         backgroundColor: colorA,
@@ -255,7 +255,7 @@ export function BarChartDual({
                     />
                     {/* Barra B */}
                     <div
-                      className="w-1/2 max-w-[18px] rounded-t-md transition-all duration-300 relative group-hover:brightness-110 shadow-2xs"
+                      className="w-1/2 max-w-[18px] rounded-t-md transition-colors duration-300 relative group-hover:brightness-110 shadow-2xs"
                       style={{
                         height: `${heightB}%`,
                         backgroundColor: colorB,
@@ -323,7 +323,7 @@ export function AreaTrendChart({
   subtitle,
   data,
   metricName = "Valor",
-  lineColor = "#6366f1", // Indigo
+  lineColor = "#18181b", // Indigo
 }: AreaTrendChartProps) {
   const [hoveredPoint, setHoveredPoint] = useState<AreaTrendPoint | null>(null);
 
@@ -367,9 +367,9 @@ export function AreaTrendChart({
         {hoveredPoint && (
           <div className="flex items-center gap-3 bg-zinc-50 border border-zinc-200 px-3 py-1.5 rounded-xl text-xs font-semibold animate-in fade-in">
             <span className="text-zinc-500">{hoveredPoint.label}:</span>
-            <span className="font-extrabold text-zinc-900 font-mono">{formatBRL(hoveredPoint.value)}</span>
+            <span className="font-semibold text-zinc-900 font-mono">{formatBRL(hoveredPoint.value)}</span>
             {hoveredPoint.badge && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-md">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 bg-zinc-100 text-zinc-800 rounded-md">
                 {hoveredPoint.badge}
               </span>
             )}
@@ -439,7 +439,7 @@ export function AreaTrendChart({
                 fill="#ffffff"
                 stroke={lineColor}
                 strokeWidth="3"
-                className="transition-all duration-150 group-hover:scale-125"
+                className="transition-colors duration-150"
               />
               <text
                 x={p.x}
@@ -529,7 +529,7 @@ export function HorizontalRankingBars({
                 {/* Barra de Progresso Visual */}
                 <div className="h-2 w-full bg-zinc-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-zinc-800 to-zinc-950 rounded-full transition-all duration-500 ease-out group-hover:from-blue-600 group-hover:to-indigo-600"
+                    className="h-full bg-zinc-50 rounded-full transition-colors duration-500 ease-out "
                     style={{ width: `${widthPct}%` }}
                   />
                 </div>
@@ -583,7 +583,7 @@ export function AgingBucketsChart({ title, subtitle, brackets }: AgingBucketsCha
                   {b.count} títulos
                 </span>
               </div>
-              <div className="text-base font-extrabold text-zinc-950 font-mono">
+              <div className="text-base font-semibold text-zinc-950 font-mono">
                 {formatBRL(b.amount)}
               </div>
               <div className="flex items-center justify-between text-[10px] text-zinc-500">
@@ -592,7 +592,7 @@ export function AgingBucketsChart({ title, subtitle, brackets }: AgingBucketsCha
               </div>
               <div className="h-1.5 w-full bg-zinc-200/70 rounded-full overflow-hidden">
                 <div
-                  className="h-full rounded-full transition-all duration-500"
+                  className="h-full rounded-full transition-colors duration-500"
                   style={{ width: `${pct}%`, backgroundColor: b.color }}
                 />
               </div>

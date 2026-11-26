@@ -4,6 +4,8 @@ import {useCompany} from "@/lib/context/company-context";
 import React, { useEffect, useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import {
   Users,
@@ -214,7 +216,7 @@ OPORTUNIDADE: {label:"Convertido em oportunidade", color:"bg-zinc-50 text-zinc-7
 DESQUALIFICADO: {label:"Desqualificado", color:"bg-zinc-50 text-zinc-700 border-zinc-200"},
 STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"},
     NEW: { label: "Novo Lead", color: "bg-blue-50 text-blue-700 border-blue-200" },
-    CONTACTED: { label: "Contatado", color: "bg-purple-50 text-purple-700 border-purple-200" },
+    CONTACTED: { label: "Contatado", color: "bg-zinc-100 text-zinc-800 border-zinc-200" },
     QUALIFIED: { label: "Qualificado", color: "bg-amber-50 text-amber-700 border-amber-200" },
     CONVERTED: { label: "Convertido", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
     UNQUALIFIED: { label: "Desqualificado", color: "bg-zinc-100 text-zinc-600 border-zinc-200" },
@@ -245,11 +247,12 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
   // Exclusão em Massa com expurgo de documentos
   const handleBulkDelete = async () => {
     if (selectedLeadIds.length === 0) return;
-    const confirmed = window.confirm(
-      `ATENÇÃO: Deseja realmente EXCLUIR DEFINITIVAMENTE os ${selectedLeadIds.length} lead(s) selecionados?\n\n` +
-      `• Todos os documentos, arquivos físicos anexados, oportunidades e dados desses leads serão apagados permanentemente para liberar espaço.\n\n` +
-      `Esta ação não pode ser desfeita. Continuar?`
-    );
+    const confirmed = await confirmAction({
+      title: `Excluir ${selectedLeadIds.length} lead(s) selecionados`,
+      message: `Deseja realmente excluir definitivamente os ${selectedLeadIds.length} lead(s) selecionados? Documentos, arquivos anexados e oportunidades vinculadas serão removidos permanentemente.`,
+      confirmLabel: "Excluir selecionados",
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     setBulkDeleting(true);
@@ -266,7 +269,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
       loadLeads();
       setTimeout(() => setFeedbackMessage(null), 6000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir leads.");
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir leads.");
     } finally {
       setBulkDeleting(false);
     }
@@ -277,7 +280,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
     e.preventDefault();
     if (selectedLeadIds.length === 0) return;
     if (!bulkStatus && !bulkSource && !bulkPipelineId) {
-      alert("Por favor, selecione ao menos um campo para alterar.");
+      toast.warning("Por favor, selecione ao menos um campo para alterar.");
       return;
     }
 
@@ -308,7 +311,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
       loadLeads();
       setTimeout(() => setFeedbackMessage(null), 6000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao atualizar leads.");
+      toast.error(err instanceof Error ? err.message : "Erro ao atualizar leads.");
     } finally {
       setBulkSaving(false);
     }
@@ -317,7 +320,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
   // Avançar Oportunidade do Lead com 1 Clique (Ex: da Prospecção Ativa para o Funil Comercial Padrão)
   const handleAdvanceOpportunityToCommercial = async (oppId: string, leadName: string) => {
     if (!defaultPipeline || !defaultPipeline.stages || defaultPipeline.stages.length === 0) {
-      alert("Funil Comercial Padrão não possui etapas configuradas.");
+      toast.warning("Funil Comercial Padrão não possui etapas configuradas.");
       return;
     }
     const targetStage = defaultPipeline.stages[0]; // Primeira etapa do Funil Comercial Padrão ("Oportunidade Qualificada")
@@ -339,7 +342,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
       loadLeads();
       setTimeout(() => setFeedbackMessage(null), 6000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao transferir negociação.");
+      toast.error(err instanceof Error ? err.message : "Erro ao transferir negociação.");
     }
   };
 
@@ -404,11 +407,12 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
   // Exclusão individual de lead
   const handleDeleteLead = async (leadId: string, leadName: string) => {
     if (
-      !window.confirm(
-        `Atenção: Deseja realmente EXCLUIR DEFINITIVAMENTE o lead "${leadName}"?\n\n` +
-        `• Todos os documentos, arquivos anexados, oportunidades e dados deste lead serão apagados permanentemente para liberar espaço em disco.\n\n` +
-        `Esta ação não pode ser desfeita. Continuar?`
-      )
+      !(await confirmAction({
+        title: `Excluir lead ${leadName}`,
+        message: `Deseja realmente excluir definitivamente o lead "${leadName}"? Todos os documentos, arquivos anexados e oportunidades vinculadas serão apagados permanentemente.`,
+        confirmLabel: "Excluir lead",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -422,7 +426,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
       loadLeads();
       setTimeout(() => setFeedbackMessage(null), 6000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir lead.");
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir lead.");
     }
   };
 
@@ -472,7 +476,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
               href="/crm/opportunities"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-zinc-700 bg-white border border-zinc-200 rounded-xl hover:bg-zinc-50 transition shadow-2xs"
             >
-              <Layers className="h-4 w-4 text-purple-600" />
+              <Layers className="h-4 w-4 text-zinc-800" />
               Ver Funis Comerciais (Kanban)
             </Link>
 
@@ -636,7 +640,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                         checked={isAllSelected}
                         onChange={handleToggleSelectAll}
                         title={isAllSelected ? "Desmarcar todos" : "Selecionar todos os leads visíveis"}
-                        className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500 cursor-pointer h-4 w-4"
+                        className="rounded border-zinc-300 text-zinc-800 focus:ring-zinc-300 cursor-pointer h-4 w-4"
                       />
                     </th>
                     <th className="py-3 px-4">Lead / Contato</th>
@@ -663,7 +667,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                     return (
                       <tr
                         key={lead.id}
-                        className={`transition ${isSelected ? "bg-purple-50/60" : "hover:bg-zinc-50/60"}`}
+                        className={`transition ${isSelected ? "bg-zinc-100" : "hover:bg-zinc-50/60"}`}
                       >
                         {/* Checkbox Individual */}
                         <td className="py-3 px-3 text-center">
@@ -671,7 +675,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => handleToggleSelectLead(lead.id)}
-                            className="rounded border-zinc-300 text-purple-600 focus:ring-purple-500 cursor-pointer h-4 w-4"
+                            className="rounded border-zinc-300 text-zinc-800 focus:ring-zinc-300 cursor-pointer h-4 w-4"
                           />
                         </td>
 
@@ -740,12 +744,12 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                                   <div key={opp.id} className="space-y-1">
                                     <Link
                                       href={`/crm/opportunities/${opp.id}`}
-                                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200/80 text-[11px] font-semibold transition"
+                                      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-zinc-100 hover:bg-zinc-100 text-zinc-800 border border-zinc-200 text-[11px] font-semibold transition"
                                     >
                                       <span>{opp.pipelineName || "Funil"}</span>
-                                      <ArrowRight className="w-2.5 h-2.5 text-purple-400" />
-                                      <span className="text-purple-700">{opp.stageName || "Etapa"}</span>
-                                      <span className="font-mono text-[10px] text-purple-600 font-bold ml-1">
+                                      <ArrowRight className="w-2.5 h-2.5 text-zinc-500" />
+                                      <span className="text-zinc-800">{opp.stageName || "Etapa"}</span>
+                                      <span className="font-mono text-[10px] text-zinc-800 font-bold ml-1">
                                         {formatBRL(opp.amount)}
                                       </span>
                                     </Link>
@@ -807,10 +811,10 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                             )}
                             <button
                               onClick={() => handleOpenAddToFunnel(lead)}
-                              className="px-2.5 py-1 text-[11px] font-bold text-purple-700 hover:text-purple-900 hover:bg-purple-50 rounded-lg border border-purple-200 transition flex items-center gap-1"
+                              className="px-2.5 py-1 text-[11px] font-bold text-zinc-800 hover:text-zinc-950 hover:bg-zinc-100 rounded-lg border border-zinc-200 transition flex items-center gap-1"
                               title="Adicionar este lead a um funil de vendas"
                             >
-                              <Layers className="w-3 h-3 text-purple-600" />
+                              <Layers className="w-3 h-3 text-zinc-800" />
                               Adicionar ao funil
                             </button>
 
@@ -845,9 +849,9 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
             BARRA DE AÇÕES EM MASSA FLUTUANTE (BULK ACTION BAR)
            ========================================================================= */}
         {selectedLeadIds.length > 0 && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-zinc-950/95 backdrop-blur-md text-white px-6 py-3.5 rounded-2xl shadow-2xl border border-zinc-700 flex flex-wrap items-center gap-4 animate-in fade-in slide-in-from-bottom-5">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-zinc-950/95 text-white px-6 py-3.5 rounded-2xl shadow-2xl border border-zinc-700 flex flex-wrap items-center gap-4 animate-in fade-in slide-in-from-bottom-5">
             <div className="flex items-center gap-2 text-xs font-semibold">
-              <span className="bg-purple-600 text-white px-2.5 py-0.5 rounded-full text-xs font-bold font-mono">
+              <span className="bg-zinc-900 text-white px-2.5 py-0.5 rounded-full text-xs font-bold font-mono">
                 {selectedLeadIds.length}
               </span>
               <span>lead(s) selecionado(s)</span>
@@ -890,11 +894,11 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
             MODAL DE EDIÇÃO EM MASSA DE LEADS
            ========================================================================= */}
         {showBulkEditModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 max-w-lg w-full p-6 animate-in fade-in zoom-in-95 space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="p-2 bg-purple-50 text-purple-700 rounded-xl">
+                  <span className="p-2 bg-zinc-100 text-zinc-800 rounded-xl">
                     <Edit2 className="w-4 h-4" />
                   </span>
                   <div>
@@ -923,7 +927,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                   <select
                     value={bulkStatus}
                     onChange={(e) => setBulkStatus(e.target.value as LeadStatus | "")}
-                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   >
                     <option value="">-- Não alterar status --</option>
                     <option value="NEW">Novo Lead</option>
@@ -943,7 +947,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                   <select
                     value={bulkSource}
                     onChange={(e) => setBulkSource(e.target.value)}
-                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                    className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2.5 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   >
                     <option value="">-- Não alterar origem --</option>
                     <option value="Prospecção Ativa">Prospecção Ativa (Outbound)</option>
@@ -956,9 +960,9 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                 </div>
 
                 {/* Vincular/Mover ao Funil Comercial & Etapa */}
-                <div className="p-3 bg-purple-50/50 border border-purple-200/80 rounded-xl space-y-3">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-purple-950">
-                    <Layers className="w-3.5 h-3.5 text-purple-700" />
+                <div className="p-3 bg-zinc-100 border border-zinc-200 rounded-xl space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-zinc-800">
+                    <Layers className="w-3.5 h-3.5 text-zinc-800" />
                     <span>Vincular ou Mover todos para um Funil & Etapa</span>
                   </div>
 
@@ -979,7 +983,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                             setBulkStageId("");
                           }
                         }}
-                        className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-600"
+                        className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                       >
                         <option value="">-- Não alterar funil --</option>
                         {pipelines.map((p) => (
@@ -998,7 +1002,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                         disabled={!bulkPipelineId}
                         value={bulkStageId}
                         onChange={(e) => setBulkStageId(e.target.value)}
-                        className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-purple-600 disabled:opacity-50"
+                        className="w-full text-xs font-medium border border-zinc-300 rounded-xl p-2 bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-300 disabled:opacity-50"
                       >
                         {bulkModalStages.map((stg) => (
                           <option key={stg.id} value={stg.id}>
@@ -1022,7 +1026,7 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
                   <button
                     type="submit"
                     disabled={bulkSaving}
-                    className="px-5 py-2 text-xs font-bold text-white bg-purple-700 hover:bg-purple-800 rounded-xl shadow-xs transition disabled:opacity-50"
+                    className="px-5 py-2 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 rounded-xl shadow-xs transition disabled:opacity-50"
                   >
                     {bulkSaving ? "Atualizando..." : "Aplicar Alterações em Massa"}
                   </button>
@@ -1034,11 +1038,11 @@ STAND_BY: {label:"Stand-by", color:"bg-slate-50 text-slate-700 border-slate-200"
 
         {/* Modal Individual: Adicionar ao Funil */}
         {selectedLeadForFunnel && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-2xl shadow-xl border border-zinc-200 max-w-lg w-full p-6 animate-in fade-in zoom-in-95 space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="p-2 bg-purple-50 text-purple-700 rounded-xl">
+                  <span className="p-2 bg-zinc-100 text-zinc-800 rounded-xl">
                     <Layers className="w-4 h-4" />
                   </span>
                   <div>

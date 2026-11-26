@@ -8,6 +8,7 @@ import { generateWithOpenRouter, strategyModel, parseAiJson } from "@/lib/ai/ope
 import { formatContactFirstName } from "@/modules/clients/contact-name";
 import { getClientDnaContext } from "@/modules/clients/dna-briefing-sync";
 import { getCatalogItemsByClientId, syncCatalogItems } from "@/modules/clients/catalog-service";
+import { NotificationService } from "@/modules/notifications/service";
 
 const messageSchema = z.object({
   action: z.enum([
@@ -815,6 +816,18 @@ export async function POST(
         }
       });
 
+      await NotificationService.createSafeNotification({
+        type: "BRIEFING_FINALIZED",
+        severity: "success",
+        category: "BRIEFING",
+        dedupKey: `briefing-completed:${session.id}`,
+        entityType: "briefing_session",
+        entityId: session.id,
+        title: `Briefing finalizado pelo cliente: ${company}`,
+        message: "O briefing interativo foi enviado e a tarefa foi marcada como concluída",
+        linkUrl: session.project_id ? `/projects/${session.project_id}` : "/projects",
+      });
+
       return NextResponse.json({
         success: true,
         data: {
@@ -881,6 +894,16 @@ export async function POST(
             );
           });
           session.credentials_saved = true;
+          await NotificationService.createSafeNotification({
+            type: "BRIEFING_CREDENTIALS",
+            severity: "info",
+            category: "BRIEFING",
+            entityType: "briefing_session",
+            entityId: session.id,
+            title: `Credenciais enviadas no briefing: ${company}`,
+            message: "Os acessos do Instagram foram salvos no cofre de senhas",
+            linkUrl: "/passwords",
+          });
         } catch (vaultErr) {
           console.error("Erro ao salvar no cofre de senhas:", vaultErr);
           return NextResponse.json({ error: "Não foi possível salvar os acessos no cofre. Tente novamente ou escolha enviar os acessos depois." }, { status: 503 });
@@ -1137,6 +1160,20 @@ export async function POST(
       }
       return result;
     });
+
+    if (isCompleted) {
+      await NotificationService.createSafeNotification({
+        type: "BRIEFING_COMPLETED",
+        severity: "success",
+        category: "BRIEFING",
+        dedupKey: `briefing-completed:${session.id}`,
+        entityType: "briefing_session",
+        entityId: session.id,
+        title: `Briefing concluído: ${company}`,
+        message: "O cliente concluiu todas as etapas do briefing interativo",
+        linkUrl: session.project_id ? `/projects/${session.project_id}` : "/projects",
+      });
+    }
 
     return NextResponse.json({
       success: true,

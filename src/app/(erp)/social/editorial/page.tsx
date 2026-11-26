@@ -9,6 +9,7 @@ import { normalizeFrequencyLevel, type FrequencyLevel } from "@/modules/clients/
 import { EditorialPlanner } from "@/components/content-studio/editorial-planner";
 import { SocialWorkflowStepper } from "@/components/content-studio/social-workflow-stepper";
 import { IdentityAiButton } from "@/components/clients/identity-ai-button";
+import { toast } from "@/components/ui/toast-provider";
 import {
   Sparkles,
   Layers,
@@ -163,7 +164,7 @@ function EditorialContent() {
       setTimeout(() => setFeedback(null), 3000);
       await loadData(activeClientId);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao salvar pilar.");
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar pilar.");
     } finally {
       setBusy(false);
     }
@@ -186,7 +187,7 @@ function EditorialContent() {
       if (!res.ok) throw new Error("Erro ao alterar visibilidade do pilar.");
       await loadData(activeClientId);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : "Erro.");
     } finally {
       setBusy(false);
     }
@@ -221,7 +222,7 @@ function EditorialContent() {
       setTimeout(() => setFeedback(null), 3000);
       await loadData(activeClientId);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro ao salvar tema.");
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar tema.");
     } finally {
       setBusy(false);
     }
@@ -245,7 +246,7 @@ function EditorialContent() {
       if (!res.ok) throw new Error("Erro ao alterar visibilidade do tema.");
       await loadData(activeClientId);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : "Erro.");
     } finally {
       setBusy(false);
     }
@@ -264,7 +265,7 @@ function EditorialContent() {
       setFeedback("Observações editoriais salvas.");
       setTimeout(() => setFeedback(null), 3000);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : "Erro.");
     } finally {
       setSavingNotes(false);
     }
@@ -297,7 +298,7 @@ function EditorialContent() {
   return (
     <div className="min-h-screen bg-zinc-50/60 pb-20">
       {/* Header Sticky */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-zinc-200 shadow-2xs">
+      <header className="sticky top-0 z-30 bg-white/95 border-b border-zinc-200 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-zinc-950 text-white flex items-center justify-center shadow-2xs">
@@ -400,7 +401,7 @@ function EditorialContent() {
                   setThemeFrequency("Média");
                   setThemeModalOpen(true);
                 } else {
-                  alert("Cadastre ao menos um pilar antes de adicionar temas.");
+                  toast.warning("Cadastre ao menos um pilar antes de adicionar temas.");
                 }
               }}
             />
@@ -414,7 +415,7 @@ function EditorialContent() {
               type="checkbox"
               checked={showArchived}
               onChange={(e) => setShowArchived(e.target.checked)}
-              className="rounded text-indigo-600 focus:ring-indigo-500"
+              className="rounded text-zinc-900 focus:ring-zinc-400"
             />
             Mostrar pilares e temas arquivados
           </label>
@@ -463,7 +464,7 @@ function EditorialContent() {
                 >
                   <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-zinc-100 pb-3">
                     <div className="flex items-center gap-2.5">
-                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-600 shrink-0" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-zinc-900 shrink-0" />
                       <h2 className="text-base font-bold text-zinc-950">
                         {pillar.name}
                         {pillar.archived_at && (
@@ -490,7 +491,7 @@ function EditorialContent() {
                           setThemeFrequency("Média");
                           setThemeModalOpen(true);
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-xs font-semibold transition"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 text-zinc-800 hover:bg-zinc-100 border border-zinc-200 rounded-xl text-xs font-semibold transition"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Adicionar Tema
@@ -538,7 +539,7 @@ function EditorialContent() {
                           setThemeFrequency("Média");
                           setThemeModalOpen(true);
                         }}
-                        className="mt-2 text-xs font-semibold text-indigo-600 hover:underline"
+                        className="mt-2 text-xs font-semibold text-zinc-800 hover:underline"
                       >
                         + Adicionar primeiro tema
                       </button>
@@ -555,7 +556,7 @@ function EditorialContent() {
                             className={`p-4 rounded-xl border transition shadow-2xs space-y-2.5 flex flex-col justify-between ${
                               isArchived
                                 ? "bg-zinc-100/60 border-zinc-200 opacity-60"
-                                : "bg-zinc-50/70 border-zinc-200 hover:border-indigo-300"
+                                : "bg-zinc-50/70 border-zinc-200 hover:border-zinc-400"
                             }`}
                           >
                             <div className="space-y-1.5">
@@ -752,7 +753,7 @@ function EditorialContent() {
 
       {/* Modal Pilar */}
       {pillarModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/45">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <h3 className="font-bold text-base text-zinc-950">
@@ -778,7 +779,7 @@ function EditorialContent() {
                   placeholder="Ex: Planejamento de Ambientes, Soluções Rápidas..."
                   value={pillarNameInput}
                   onChange={(e) => setPillarNameInput(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900"
                 />
               </div>
 
@@ -793,7 +794,7 @@ function EditorialContent() {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
+                  className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition disabled:opacity-50"
                 >
                   Salvar Pilar
                 </button>
@@ -805,7 +806,7 @@ function EditorialContent() {
 
       {/* Modal Tema */}
       {themeModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/45">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <h3 className="font-bold text-base text-zinc-950">
@@ -829,7 +830,7 @@ function EditorialContent() {
                   required
                   value={themePillarId}
                   onChange={(e) => setThemePillarId(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900"
                 >
                   <option value="">Selecione o pilar...</option>
                   {activePillars.map((p) => (
@@ -850,7 +851,7 @@ function EditorialContent() {
                   placeholder="Ex: Como aproveitar uma cozinha pequena..."
                   value={themeNameInput}
                   onChange={(e) => setThemeNameInput(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                  className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900"
                 />
               </div>
 
@@ -863,7 +864,7 @@ function EditorialContent() {
                   placeholder="Ex: Demonstrar soluções de marcenaria para otimização de espaços e gerar orçamentos..."
                   value={themeObjectiveInput}
                   onChange={(e) => setThemeObjectiveInput(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900 resize-y min-h-[120px]"
+                  className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900 resize-y min-h-[120px]"
                 />
               </div>
 
@@ -885,7 +886,7 @@ function EditorialContent() {
                         }}
                         className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
                           isSel
-                            ? "bg-indigo-600 text-white border-indigo-600"
+                            ? "bg-zinc-900 text-white border-zinc-400"
                             : "bg-zinc-50 text-zinc-600 border-zinc-200"
                         }`}
                       >
@@ -904,7 +905,7 @@ function EditorialContent() {
                   <select
                     value={themeFrequency}
                     onChange={(e) => setThemeFrequency(e.target.value as FrequencyLevel)}
-                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900"
                   >
                     <option value="Alta">Alta (semanal / recorrente)</option>
                     <option value="Média">Média (quinzenal)</option>
@@ -921,7 +922,7 @@ function EditorialContent() {
                     placeholder="Ex: Focar em vídeos verticais..."
                     value={themeNotesInput}
                     onChange={(e) => setThemeNotesInput(e.target.value)}
-                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                    className="w-full px-3 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900"
                   />
                 </div>
               </div>
@@ -937,7 +938,7 @@ function EditorialContent() {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
+                  className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-xs font-semibold hover:bg-zinc-800 transition disabled:opacity-50"
                 >
                   Salvar Tema
                 </button>

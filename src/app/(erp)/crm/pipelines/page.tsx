@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { toast } from "@/components/ui/toast-provider";
 
 import {
   Layers,
@@ -42,7 +43,7 @@ const PROSPECTION_STAGES_DRAFT: StageDraft[] = [
   { name: "1. Empresa identificada", color: "#3b82f6", winProbability: 10, stageType: "NORMAL" },
   { name: "2. Contato iniciado", color: "#f59e0b", winProbability: 20, stageType: "NORMAL" },
   { name: "3. Contato estabelecido", color: "#eab308", winProbability: 30, stageType: "NORMAL" },
-  { name: "4. Interesse identificado", color: "#8b5cf6", winProbability: 50, stageType: "NORMAL" },
+  { name: "4. Interesse identificado", color: "#18181b", winProbability: 50, stageType: "NORMAL" },
   { name: "5. Reunião ou diagnóstico agendado", color: "#10b981", winProbability: 70, stageType: "NORMAL" },
 ];
 
@@ -50,12 +51,12 @@ const COMMERCIAL_STAGES_DRAFT: StageDraft[] = [
   { name: "1. Oportunidade qualificada", color: "#3b82f6", winProbability: 20, stageType: "NORMAL" },
   { name: "2. Diagnóstico & Briefing", color: "#f59e0b", winProbability: 40, stageType: "NORMAL" },
   { name: "3. Proposta apresentada", color: "#ea580c", winProbability: 60, stageType: "NORMAL" },
-  { name: "4. Negociação final", color: "#8b5cf6", winProbability: 80, stageType: "NORMAL" },
+  { name: "4. Negociação final", color: "#18181b", winProbability: 80, stageType: "NORMAL" },
   { name: "5. Ganho (Contrato Fechado)", color: "#10b981", winProbability: 100, stageType: "WON" },
   { name: "6. Perdido", color: "#ef4444", winProbability: 0, stageType: "LOST" },
 ];
 
-const STAGE_COLORS = ["#3b82f6", "#f59e0b", "#06b6d4", "#10b981", "#ef4444", "#8b5cf6", "#ec4899", "#6366f1", "#14b8a6", "#64748b"];
+const STAGE_COLORS = ["#3b82f6", "#f59e0b", "#06b6d4", "#10b981", "#ef4444", "#18181b", "#ec4899", "#18181b", "#14b8a6", "#64748b"];
 
 export default function PipelinesManagementPage() {
   const [pipelines, setPipelines] = useState<PipelineRecord[]>([]);
@@ -121,7 +122,7 @@ export default function PipelinesManagementPage() {
     e.preventDefault();
     if (!newPipeline.name.trim()) return;
     if (newPipeline.stages.length === 0) {
-      alert("Adicione pelo menos 1 etapa ao funil.");
+      toast.warning("Adicione pelo menos 1 etapa ao funil.");
       return;
     }
 
@@ -150,11 +151,11 @@ export default function PipelinesManagementPage() {
         loadPipelines();
       } else {
         const d = await res.json();
-        alert(d.error || "Falha ao criar funil.");
+        toast.error(d.error || "Falha ao criar funil.");
       }
     } catch (err) {
       console.error(err);
-      alert("Erro ao criar funil de vendas.");
+      toast.error("Erro ao criar funil de vendas.");
     } finally {
       setCreating(false);
     }
@@ -319,7 +320,7 @@ export default function PipelinesManagementPage() {
                     </div>
                     <div>
                       <span className="text-[10px] text-zinc-400 font-semibold uppercase">Valor do Pipeline</span>
-                      <div className="text-sm font-extrabold text-purple-700 font-mono mt-0.5">
+                      <div className="text-sm font-semibold text-zinc-800 font-mono mt-0.5">
                         {formatBRL(pipe.totalPipelineAmount || 0)}
                       </div>
                     </div>
@@ -369,14 +370,14 @@ export default function PipelinesManagementPage() {
 
         {/* Modal de Criar Funil com Etapas Personalizadas */}
         {showCreateModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4 overflow-y-auto">
             <form
               onSubmit={handleCreatePipeline}
               className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-5 my-8"
             >
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                  <span className="p-1.5 rounded-lg bg-zinc-100 text-zinc-800">
                     <Sparkles className="w-4 h-4" />
                   </span>
                   <h3 className="text-base font-bold text-zinc-950">Novo Funil de Vendas & Etapas</h3>
@@ -452,7 +453,7 @@ export default function PipelinesManagementPage() {
                         stages: COMMERCIAL_STAGES_DRAFT.map((s) => ({ ...s })),
                       }))
                     }
-                    className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 text-[10px] font-bold transition"
+                    className="px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-100 border border-zinc-200 text-[10px] font-bold transition"
                   >
                     Usar Modelo: Funil Comercial Padrão (6 etapas)
                   </button>
@@ -481,7 +482,7 @@ export default function PipelinesManagementPage() {
                         ],
                       }))
                     }
-                    className="px-2.5 py-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-1 transition"
+                    className="px-2.5 py-1 text-xs font-semibold text-zinc-800 bg-zinc-100 hover:bg-zinc-100 rounded-lg flex items-center gap-1 transition"
                   >
                     <Plus className="w-3.5 h-3.5" /> Adicionar Etapa
                   </button>
@@ -611,7 +612,7 @@ export default function PipelinesManagementPage() {
 
         {/* Modal de Edição de Funil & Etapas */}
         {editingPipeline && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4 overflow-y-auto">
             <form
               onSubmit={handleSaveEdit}
               className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-5 my-8"
@@ -698,7 +699,7 @@ export default function PipelinesManagementPage() {
                         stages: COMMERCIAL_STAGES_DRAFT.map((s) => ({ ...s })),
                       }))
                     }
-                    className="px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 text-[10px] font-bold transition"
+                    className="px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-100 border border-zinc-200 text-[10px] font-bold transition"
                   >
                     Carregar: Funil Comercial Padrão (6 etapas)
                   </button>
@@ -727,7 +728,7 @@ export default function PipelinesManagementPage() {
                         ],
                       }))
                     }
-                    className="px-2.5 py-1 text-xs font-semibold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg flex items-center gap-1 transition"
+                    className="px-2.5 py-1 text-xs font-semibold text-zinc-800 bg-zinc-100 hover:bg-zinc-100 rounded-lg flex items-center gap-1 transition"
                   >
                     <Plus className="w-3.5 h-3.5" /> Adicionar Etapa
                   </button>

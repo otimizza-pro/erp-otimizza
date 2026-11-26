@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import {
   KeyRound,
@@ -350,7 +351,7 @@ export default function PasswordsPage() {
                 <button
                   type="button"
                   onClick={handlePastePassword}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition active:scale-95 shadow-sm"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition shadow-sm"
                   title="Colar texto salvo na sua área de transferência (Ctrl + C)"
                 >
                   <ClipboardPaste className="h-3.5 w-3.5 text-emerald-700" />
@@ -360,7 +361,7 @@ export default function PasswordsPage() {
                 <button
                   type="button"
                   onClick={generateStrongPassword}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition active:scale-95 shadow-sm"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition shadow-sm"
                   title="Gerar automaticamente uma senha forte de 24 caracteres"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-amber-500" />
@@ -516,8 +517,18 @@ export default function PasswordsPage() {
                         disabled={busy}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition"
                         onClick={() => {
-                          if (window.confirm(`Tem certeza que deseja excluir o acesso “${entry.title}”?`)) {
-                            void act(async () => {
+                          void (async () => {
+                            if (
+                              !(await confirmAction({
+                                title: "Excluir acesso salvo",
+                                message: `Tem certeza que deseja excluir o acesso “${entry.title}”?`,
+                                confirmLabel: "Excluir",
+                                tone: "danger",
+                              }))
+                            ) {
+                              return;
+                            }
+                            await act(async () => {
                               await api("DELETE", { id: entry.id });
                               setRevealed({});
                               setEntries(entries.filter((item) => item.id !== entry.id));
@@ -526,7 +537,7 @@ export default function PasswordsPage() {
                                 type: "info",
                               });
                             });
-                          }
+                          })();
                         }}
                       >
                         <Trash2 className="h-3.5 w-3.5 text-rose-500" />

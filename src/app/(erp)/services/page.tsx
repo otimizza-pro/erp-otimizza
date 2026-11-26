@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { formatBRL } from "@/shared/money";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export default function ServicesPage() {
   const [services, setServices] = useState<ServiceItem[]>([]);
@@ -39,8 +40,7 @@ export default function ServicesPage() {
     try {
       const [servicesRes, categoriesRes] = await Promise.all([
         fetch(
-          `/api/services?status=${statusFilter}${search ? `&search=${search}` : ""}${
-            selectedCategory ? `&categoryId=${selectedCategory}` : ""
+          `/api/services?status=${statusFilter}${search ? `&search=${search}` : ""}${selectedCategory ? `&categoryId=${selectedCategory}` : ""
           }`
         ),
         fetch(`/api/services?type=categories`),
@@ -78,9 +78,12 @@ export default function ServicesPage() {
   const handleDeleteSelected = async () => {
     if (selectedServiceIds.length === 0) return;
     if (
-      !window.confirm(
-        `Tem certeza que deseja excluir os ${selectedServiceIds.length} serviços selecionados? Serviços sem histórico contábil serão excluídos permanentemente; aqueles com histórico de contratos ou combos serão arquivados com segurança.`
-      )
+      !(await confirmAction({
+        title: `Excluir ${selectedServiceIds.length} serviço(s)`,
+        message: `Tem certeza que deseja excluir os ${selectedServiceIds.length} serviços selecionados? Serviços sem histórico contábil serão excluídos permanentemente; aqueles com histórico de contratos ou combos serão arquivados com segurança.`,
+        confirmLabel: "Excluir selecionados",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -98,9 +101,9 @@ export default function ServicesPage() {
 
       setFeedback({
         type: data.failedCount > 0 ? "error" : "success",
-        msg: [data.message || `${data.deletedCount} serviço(s) excluído(s) e ${data.archivedCount} arquivado(s).`, ...(data.results || []).filter((result: {action:string})=>result.action === "failed").map((result: {message:string})=>result.message)].join(" "),
+        msg: [data.message || `${data.deletedCount} serviço(s) excluído(s) e ${data.archivedCount} arquivado(s).`, ...(data.results || []).filter((result: { action: string }) => result.action === "failed").map((result: { message: string }) => result.message)].join(" "),
       });
-      setSelectedServiceIds((data.results || []).filter((result: {action:string})=>result.action === "failed").map((result:{id:string})=>result.id));
+      setSelectedServiceIds((data.results || []).filter((result: { action: string }) => result.action === "failed").map((result: { id: string }) => result.id));
       loadData();
     } catch (err: unknown) {
       setFeedback({
@@ -114,9 +117,12 @@ export default function ServicesPage() {
 
   const handleDeleteService = async (service: ServiceItem) => {
     if (
-      !window.confirm(
-        `Tem certeza que deseja excluir o serviço "${service.name}"? Se ele possuir vínculos históricos, será arquivado para preservar os registros contábeis.`
-      )
+      !(await confirmAction({
+        title: `Excluir serviço ${service.name}`,
+        message: `Tem certeza que deseja excluir o serviço "${service.name}"? Se ele possuir vínculos históricos, será arquivado para preservar os registros contábeis.`,
+        confirmLabel: "Excluir",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -164,8 +170,8 @@ export default function ServicesPage() {
           <div className="flex items-center gap-2">
             <Link
               href="/combos" className="px-4 py-2 border rounded-full text-xs">Combos</Link><Link href="/services/categories"
-              className="px-4 py-2 rounded-full bg-white border border-zinc-200 text-zinc-700 text-xs font-semibold hover:bg-zinc-50 transition shadow-2xs flex items-center gap-1.5"
-            >
+                className="px-4 py-2 rounded-full bg-white border border-zinc-200 text-zinc-700 text-xs font-semibold hover:bg-zinc-50 transition shadow-2xs flex items-center gap-1.5"
+              >
               <FolderTree className="w-3.5 h-3.5 text-zinc-500" />
               Categorias
             </Link>
@@ -182,11 +188,10 @@ export default function ServicesPage() {
         {/* Notificações de Feedback */}
         {feedback && (
           <div
-            className={`p-4 rounded-xl border text-xs flex items-center justify-between ${
-              feedback.type === "success"
+            className={`p-4 rounded-xl border text-xs flex items-center justify-between ${feedback.type === "success"
                 ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                 : "bg-rose-50 border-rose-200 text-rose-700"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2">
               {feedback.type === "success" ? (
@@ -220,22 +225,20 @@ export default function ServicesPage() {
               <button
                 type="button"
                 onClick={() => setStatusFilter("ACTIVE")}
-                className={`px-3 py-1 rounded-full font-medium transition ${
-                  statusFilter === "ACTIVE"
+                className={`px-3 py-1 rounded-full font-medium transition ${statusFilter === "ACTIVE"
                     ? "bg-white text-zinc-950 shadow-2xs font-semibold"
                     : "text-zinc-600 hover:text-zinc-950"
-                }`}
+                  }`}
               >
                 Ativos
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter("ARCHIVED")}
-                className={`px-3 py-1 rounded-full font-medium transition ${
-                  statusFilter === "ARCHIVED"
+                className={`px-3 py-1 rounded-full font-medium transition ${statusFilter === "ARCHIVED"
                     ? "bg-white text-zinc-950 shadow-2xs font-semibold"
                     : "text-zinc-600 hover:text-zinc-950"
-                }`}
+                  }`}
               >
                 Arquivados
               </button>
@@ -345,9 +348,8 @@ export default function ServicesPage() {
                   services.map((s) => (
                     <tr
                       key={s.id}
-                      className={`hover:bg-zinc-50/70 transition ${
-                        selectedServiceIds.includes(s.id) ? "bg-emerald-50/30" : ""
-                      }`}
+                      className={`hover:bg-zinc-50/70 transition ${selectedServiceIds.includes(s.id) ? "bg-emerald-50/30" : ""
+                        }`}
                     >
                       <td className="py-3.5 px-3">
                         <input
@@ -385,11 +387,10 @@ export default function ServicesPage() {
                       </td>
                       <td className="py-3.5 px-3">
                         <span
-                          className={`px-3 py-1 rounded-full text-[10px] font-semibold border ${
-                            s.status === "ACTIVE"
+                          className={`px-3 py-1 rounded-full text-[10px] font-semibold border ${s.status === "ACTIVE"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                               : "bg-zinc-100 text-zinc-500 border-zinc-200"
-                          }`}
+                            }`}
                         >
                           {s.status === "ACTIVE" ? "ATIVO" : "ARQUIVADO"}
                         </span>

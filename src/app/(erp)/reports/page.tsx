@@ -703,7 +703,7 @@ export default function ReportsHubPage() {
                     <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                       Faturamento Total Emitido
                     </div>
-                    <div className="text-xl font-extrabold text-zinc-950 mt-1 font-mono">
+                    <div className="text-xl font-semibold text-zinc-950 mt-1 font-mono">
                       {formatBRL(receivablesTotals.orig)}
                     </div>
                     <div className="text-[11px] text-zinc-500 mt-0.5">
@@ -715,7 +715,7 @@ export default function ReportsHubPage() {
                     <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">
                       Recebimentos Efetivados
                     </div>
-                    <div className="text-xl font-extrabold text-emerald-700 mt-1 font-mono">
+                    <div className="text-xl font-semibold text-emerald-700 mt-1 font-mono">
                       {formatBRL(receivablesTotals.paid)}
                     </div>
                     <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">
@@ -729,7 +729,7 @@ export default function ReportsHubPage() {
                     <div className="text-[11px] font-bold text-rose-600 uppercase tracking-wider">
                       Inadimplência / Saldo Aberto
                     </div>
-                    <div className="text-xl font-extrabold text-rose-700 mt-1 font-mono">
+                    <div className="text-xl font-semibold text-rose-700 mt-1 font-mono">
                       {formatBRL(receivablesTotals.bal)}
                     </div>
                     <div className="text-[11px] text-rose-600 font-semibold mt-0.5">
@@ -814,7 +814,7 @@ export default function ReportsHubPage() {
                     <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                       Total de Obrigações Lançadas
                     </div>
-                    <div className="text-xl font-extrabold text-zinc-950 mt-1 font-mono">
+                    <div className="text-xl font-semibold text-zinc-950 mt-1 font-mono">
                       {formatBRL(payablesTotals.orig)}
                     </div>
                     <div className="text-[11px] text-zinc-500 mt-0.5">
@@ -826,7 +826,7 @@ export default function ReportsHubPage() {
                     <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">
                       Despesas Pagas
                     </div>
-                    <div className="text-xl font-extrabold text-emerald-700 mt-1 font-mono">
+                    <div className="text-xl font-semibold text-emerald-700 mt-1 font-mono">
                       {formatBRL(payablesTotals.paid)}
                     </div>
                     <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">
@@ -840,7 +840,7 @@ export default function ReportsHubPage() {
                     <div className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">
                       Saldo a Pagar
                     </div>
-                    <div className="text-xl font-extrabold text-amber-700 mt-1 font-mono">
+                    <div className="text-xl font-semibold text-amber-700 mt-1 font-mono">
                       {formatBRL(payablesTotals.bal)}
                     </div>
                     <div className="text-[11px] text-amber-600 font-semibold mt-0.5">
@@ -924,7 +924,7 @@ export default function ReportsHubPage() {
                     data={suppliersData.slice(0, 6).map((s, idx) => ({
                       label: s.supplierName,
                       value: s.totalOriginalPayables,
-                      color: ["#3b82f6", "#10b981", "#8b5cf6", "#f59e0b", "#ec4899", "#64748b"][idx % 6],
+                      color: ["#3b82f6", "#10b981", "#18181b", "#f59e0b", "#ec4899", "#64748b"][idx % 6],
                       sublabel: s.category,
                     }))}
                   />
@@ -953,7 +953,7 @@ export default function ReportsHubPage() {
                     <div className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider">
                       Receita Reconhecida no Período
                     </div>
-                    <div className="text-xl font-extrabold text-zinc-950 mt-1 font-mono">
+                    <div className="text-xl font-semibold text-zinc-950 mt-1 font-mono">
                       {formatBRL(profitabilityData.totals?.recognizedRevenue || 0)}
                     </div>
                     <div className="text-[11px] text-zinc-500 mt-0.5">Competência: {profitabilityMonth}</div>
@@ -963,7 +963,7 @@ export default function ReportsHubPage() {
                     <div className="text-[11px] font-bold text-rose-600 uppercase tracking-wider">
                       Custos de Parceiros & Fornecedores
                     </div>
-                    <div className="text-xl font-extrabold text-rose-700 mt-1 font-mono">
+                    <div className="text-xl font-semibold text-rose-700 mt-1 font-mono">
                       {formatBRL(profitabilityData.totals?.accruedRealCost || 0)}
                     </div>
                     <div className="text-[11px] text-rose-600 font-semibold mt-0.5">Apropriados a contratos</div>
@@ -973,7 +973,7 @@ export default function ReportsHubPage() {
                     <div className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">
                       Margem Bruta Realizada
                     </div>
-                    <div className="text-xl font-extrabold text-emerald-700 mt-1 font-mono">
+                    <div className="text-xl font-semibold text-emerald-700 mt-1 font-mono">
                       {formatBRL(profitabilityData.totals?.realizedGrossMargin || 0)}
                     </div>
                     <div className="text-[11px] text-emerald-600 font-semibold mt-0.5">
@@ -1032,7 +1032,7 @@ export default function ReportsHubPage() {
                     ).map(([name, val], idx) => ({
                       label: name,
                       value: val,
-                      color: ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#06b6d4"][idx % 5],
+                      color: ["#10b981", "#3b82f6", "#18181b", "#f59e0b", "#06b6d4"][idx % 5],
                     }))}
                   />
 
@@ -1063,7 +1063,7 @@ export default function ReportsHubPage() {
                     data={combosData.map((cb, idx) => ({
                       label: cb.comboName,
                       value: cb.contractedRevenue,
-                      color: ["#6366f1", "#10b981", "#f59e0b", "#ec4899", "#14b8a6"][idx % 5],
+                      color: ["#18181b", "#10b981", "#f59e0b", "#ec4899", "#14b8a6"][idx % 5],
                       sublabel: `${cb.activeContractsCount} contratações`,
                     }))}
                   />
@@ -1080,7 +1080,7 @@ export default function ReportsHubPage() {
                     }))}
                     labelA="Receita"
                     labelB="Custo Estimado"
-                    colorA="#6366f1"
+                    colorA="#18181b"
                     colorB="#f97316"
                   />
                 </div>
@@ -1099,7 +1099,7 @@ export default function ReportsHubPage() {
                       ...clientsData.slice(0, 5).map((c, idx) => ({
                         label: c.clientName,
                         value: c.totalReceivedAmount,
-                        color: ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#06b6d4"][idx % 5],
+                        color: ["#10b981", "#3b82f6", "#18181b", "#f59e0b", "#06b6d4"][idx % 5],
                       })),
                       {
                         label: "Demais Clientes da Carteira",
@@ -1406,7 +1406,7 @@ export default function ReportsHubPage() {
                             <td className="py-3 px-4 text-right font-medium text-rose-600">
                               {formatBRL(s.realizedExpenseAllocated)}
                             </td>
-                            <td className="py-3 px-4 text-right font-extrabold text-blue-700">
+                            <td className="py-3 px-4 text-right font-semibold text-blue-700">
                               {formatBRL(s.estimatedGrossMargin)} ({s.estimatedGrossMarginPercent}%)
                             </td>
                             <td className="py-3 px-4 text-right text-zinc-700">{s.activeContractsCount}</td>
@@ -1480,7 +1480,7 @@ export default function ReportsHubPage() {
                               {formatBRL(cb.contractedRevenue)}
                             </td>
                             <td className="py-3 px-4 text-right text-zinc-600">{formatBRL(cb.estimatedCost)}</td>
-                            <td className="py-3 px-4 text-right font-extrabold text-blue-700">
+                            <td className="py-3 px-4 text-right font-semibold text-blue-700">
                               {formatBRL(cb.estimatedGrossMargin)} ({cb.estimatedGrossMarginPercent}%)
                             </td>
                             <td className="py-3 px-4 text-right text-zinc-700">{cb.activeContractsCount}</td>
@@ -1519,7 +1519,7 @@ export default function ReportsHubPage() {
                           <td className="py-3 px-4 text-right text-zinc-700">{formatBRL(cf.projectedNet)}</td>
                           <td className="py-3 px-4 text-right font-bold text-blue-700">{formatBRL(cf.realizedNet)}</td>
                           <td
-                            className={`py-3 px-4 text-right font-extrabold ${
+                            className={`py-3 px-4 text-right font-semibold ${
                               cf.netVariance >= 0 ? "text-emerald-600" : "text-rose-600"
                             }`}
                           >
@@ -1546,7 +1546,7 @@ export default function ReportsHubPage() {
                       {mrrData.map((m) => (
                         <tr key={m.period} className="hover:bg-zinc-50/60 transition">
                           <td className="py-3 px-4 font-bold text-zinc-900">{m.period}</td>
-                          <td className="py-3 px-4 text-right font-extrabold text-emerald-600">{formatBRL(m.mrr)}</td>
+                          <td className="py-3 px-4 text-right font-semibold text-emerald-600">{formatBRL(m.mrr)}</td>
                           <td className="py-3 px-4 text-right font-semibold text-zinc-800">{m.activeContractsCount}</td>
                           <td className="py-3 px-4 text-right text-emerald-600 font-bold">+{m.newContractsCount}</td>
                           <td className="py-3 px-4 text-right text-rose-600 font-bold">-{m.churnedContractsCount}</td>
@@ -1643,7 +1643,7 @@ export default function ReportsHubPage() {
                               "-"
                             )}
                           </td>
-                          <td className="py-3 px-4 text-right font-mono font-extrabold text-emerald-700">
+                          <td className="py-3 px-4 text-right font-mono font-semibold text-emerald-700">
                             {formatBRL(item.realizedGrossMargin)} ({item.realizedMarginPct}%)
                           </td>
                         </tr>

@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "@/components/ui/toast-provider";
 
 import {
   Layers,
@@ -83,7 +84,7 @@ export default function PipelineKanbanPage() {
   const handleCloseOpportunity = async () => {
     if (!closingOpp) return;
     if (closingAction === "LOST" && !lostReason.trim()) {
-      alert("Por favor, informe o motivo da perda.");
+      toast.warning("Por favor, informe o motivo da perda.");
       return;
     }
 
@@ -218,10 +219,10 @@ export default function PipelineKanbanPage() {
                         </div>
 
                         <div className="flex items-center justify-between text-xs pt-1 border-t border-zinc-100">
-                          <span className="font-extrabold text-zinc-950 font-mono">
+                          <span className="font-semibold text-zinc-950 font-mono">
                             {formatBRL(opp.amount)}
                           </span>
-                          <span className="text-[10px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-semibold text-zinc-800 bg-zinc-100 px-1.5 py-0.5 rounded">
                             {opp.probability}% prob.
                           </span>
                         </div>
@@ -288,7 +289,7 @@ export default function PipelineKanbanPage() {
 
         {/* Modal de Fechamento (WON ou LOST) */}
         {closingOpp && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
               <div className="flex items-center gap-2 border-b border-zinc-100 pb-2">
                 {closingAction === "WON" ? (

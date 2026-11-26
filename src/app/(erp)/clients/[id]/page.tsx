@@ -43,6 +43,8 @@ import {
 import { ProjectViews } from "@/components/projects/project-views";
 import { ClientFiles, ClientHistory } from "@/components/clients/client-workspace";
 import { WhatsAppIcon, WhatsAppLink } from "@/components/ui/whatsapp";
+import { confirmAction } from "@/components/ui/confirm-dialog";
+import { toast } from "@/components/ui/toast-provider";
 
 type ClientTab =
   | "overview"
@@ -64,10 +66,18 @@ interface ClientContractItem {
   recurrence_period?: string;
   recurrencePeriod?: string;
   billing_period?: string;
+  billingPeriod?: string;
   amount_cents?: number;
   total_amount?: number;
   totalAmount?: number;
   due_day?: number;
+  dueDay?: number;
+  currentVersion?: {
+    title?: string;
+    billingPeriod?: string;
+    dueDay?: number;
+    totalAmount?: number;
+  };
 }
 
 interface ClientProposalItem {
@@ -109,6 +119,7 @@ interface ClientReceivableItem {
   original_amount?: number;
   originalAmount?: number;
   paid_amount?: number;
+  paidAmount?: number;
   amount?: number;
   competency?: string;
   status: string;
@@ -255,7 +266,7 @@ function ClientDetailsContent() {
       ? "Deseja reativar este cliente?"
       : "Deseja arquivar este cliente? Nenhum histórico de vendas ou títulos será apagado.";
 
-    if (!confirm(confirmMsg)) return;
+    if (!await confirmAction({ title: isArchived ? "Reativar cliente" : "Arquivar cliente", message: confirmMsg, confirmLabel: isArchived ? "Reativar" : "Arquivar" })) return;
 
     setActionLoading(true);
     try {
@@ -266,9 +277,10 @@ function ClientDetailsContent() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      toast.success(isArchived ? "Cliente reativado" : "Cliente arquivado");
       loadClient();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao alterar status.");
+      toast.error("Erro ao alterar status", err instanceof Error ? err.message : "Erro desconhecido");
     } finally {
       setActionLoading(false);
     }
@@ -277,12 +289,12 @@ function ClientDetailsContent() {
   const handlePurgeClient = async () => {
     if (!client) return;
     const confirmMsg =
-      `Atenção: Deseja realmente EXCLUIR DEFINITIVAMENTE o cliente "${client.tradeName || client.name}"?\n\n` +
-      `• Todos os documentos, arquivos físicos no storage, anexos, projetos e dados operacionais serão apagados permanentemente para liberar espaço.\n` +
-      `• Caso existam recebimentos contábeis consolidados no caixa, o registro cadastral será arquivado para preservar a integridade fiscal da empresa.\n\n` +
-      `Esta ação não poderá ser desfeita. Deseja prosseguir com a exclusão e limpeza de arquivos?`;
+      `Deseja realmente EXCLUIR DEFINITIVAMENTE o cliente "${client.tradeName || client.name}"?\n\n` +
+      `• Todos os documentos, arquivos físicos no storage, anexos, projetos e dados operacionais serão apagados permanentemente.\n` +
+      `• Caso existam recebimentos contábeis consolidados no caixa, o registro cadastral será arquivado para preservar a integridade fiscal.\n\n` +
+      `Esta ação não poderá ser desfeita.`;
 
-    if (!confirm(confirmMsg)) return;
+    if (!await confirmAction({ title: "Excluir cliente permanentemente", message: confirmMsg, confirmLabel: "Excluir definitivamente", tone: "danger" })) return;
 
     setActionLoading(true);
     try {
@@ -292,10 +304,10 @@ function ClientDetailsContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      alert(data.message || "Cliente e arquivos excluídos com sucesso.");
+      toast.success("Cliente removido", data.message || "Cliente e arquivos excluídos com sucesso.");
       router.push("/clients");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir cliente.");
+      toast.error("Erro ao excluir cliente", err instanceof Error ? err.message : "Erro desconhecido");
       setActionLoading(false);
     }
   };
@@ -325,7 +337,7 @@ function ClientDetailsContent() {
   const activeContractsCount = contracts.filter((c) => c.status === "ACTIVE").length;
   const totalBilled = receivables
     .filter((r) => r.status === "PAID")
-    .reduce((acc, r) => acc + Number(r.original_amount || r.paid_amount || 0), 0);
+    .reduce((acc, r) => acc + Number(r.originalAmount ?? r.original_amount ?? r.paidAmount ?? r.paid_amount ?? 0), 0);
   const pendingReceivablesCount = receivables.filter((r) => r.status === "PENDING").length;
 
   const tabs: Array<{ id: ClientTab; label: string; icon: React.ElementType; count?: number }> = [
@@ -504,7 +516,7 @@ function ClientDetailsContent() {
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
                     Projetos Operacionais
                   </span>
-                  <div className="text-xl font-bold text-indigo-600">{projects.length}</div>
+                  <div className="text-xl font-bold text-zinc-800">{projects.length}</div>
                 </div>
               </div>
 
@@ -519,7 +531,7 @@ function ClientDetailsContent() {
                     </h3>
                     <button
                       onClick={() => setActiveTab("contracts")}
-                      className="text-xs text-indigo-600 hover:underline font-semibold"
+                      className="text-xs text-zinc-800 hover:underline font-semibold"
                     >
                       Ver todos ({contracts.length})
                     </button>
@@ -528,30 +540,34 @@ function ClientDetailsContent() {
                     <p className="text-xs text-zinc-400 py-3">Nenhum contrato ativo cadastrado.</p>
                   ) : (
                     <div className="space-y-2">
-                      {contracts.slice(0, 3).map((c) => (
-                        <div
-                          key={c.id}
-                          className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/60 flex items-center justify-between text-xs"
-                        >
-                          <div>
-                            <span className="font-semibold text-zinc-900 block">
-                              Contrato {c.contract_number}
-                            </span>
-                            <span className="text-zinc-500 text-[11px]">
-                              {c.billing_period === "MONTHLY" ? "Mensalidade" : "Avulso"}
+                      {contracts.slice(0, 3).map((c) => {
+                        const contractNo = c.contractNumber || c.contract_number || "";
+                        const period = c.currentVersion?.billingPeriod || c.billingPeriod || c.billing_period;
+                        return (
+                          <div
+                            key={c.id}
+                            className="p-3 rounded-xl bg-zinc-50 border border-zinc-200/60 flex items-center justify-between text-xs"
+                          >
+                            <div>
+                              <span className="font-semibold text-zinc-900 block">
+                                Contrato {contractNo}
+                              </span>
+                              <span className="text-zinc-500 text-[11px]">
+                                {period === "MONTHLY" ? "Mensalidade" : period === "YEARLY" ? "Anual" : "Avulso"}
+                              </span>
+                            </div>
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${
+                                c.status === "ACTIVE"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-zinc-200 text-zinc-700"
+                              }`}
+                            >
+                              {formatContractStatus(c.status)}
                             </span>
                           </div>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                              c.status === "ACTIVE"
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-zinc-200 text-zinc-700"
-                            }`}
-                          >
-                            {formatContractStatus(c.status)}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -565,7 +581,7 @@ function ClientDetailsContent() {
                     </h3>
                     <button
                       onClick={() => setActiveTab("proposals")}
-                      className="text-xs text-indigo-600 hover:underline font-semibold"
+                      className="text-xs text-zinc-800 hover:underline font-semibold"
                     >
                       Ver todas ({proposals.length})
                     </button>
@@ -589,7 +605,7 @@ function ClientDetailsContent() {
                           </div>
                           <Link
                             href={`/proposals/${p.id}`}
-                            className="text-indigo-600 hover:underline font-semibold"
+                            className="text-zinc-800 hover:underline font-semibold"
                           >
                             Ver
                           </Link>
@@ -630,7 +646,7 @@ function ClientDetailsContent() {
                       {client.phone ? (
                         <a
                           href={`tel:${client.phone.replace(/\D/g, "")}`}
-                          className="font-medium text-zinc-900 hover:text-indigo-600 transition"
+                          className="font-medium text-zinc-900 hover:text-zinc-950 transition"
                         >
                           {client.phone}
                         </a>
@@ -774,12 +790,12 @@ function ClientDetailsContent() {
                       <div>
                         <Link
                           href={`/crm/opportunities/${opp.id}`}
-                          className="font-semibold text-zinc-900 hover:text-indigo-600 block"
+                          className="font-semibold text-zinc-900 hover:text-emerald-700 block"
                         >
                           {opp.title}
                         </Link>
                         <span className="text-zinc-500 text-[11px]">
-                          Estágio: {opp.stage_name || "Funil"} • Probabilidade: {opp.probability}%
+                          Estágio: {opp.stageName || opp.stage_name || "Funil"} • Probabilidade: {opp.probability}%
                         </span>
                       </div>
                       <div className="text-right">
@@ -825,7 +841,7 @@ function ClientDetailsContent() {
                       <div>
                         <Link
                           href={`/proposals/${p.id}`}
-                          className="font-semibold text-zinc-900 hover:text-indigo-600 block"
+                          className="font-semibold text-zinc-900 hover:text-zinc-950 block"
                         >
                           {p.proposal_code || p.proposalCode} • {p.title}
                         </Link>
@@ -892,26 +908,32 @@ function ClientDetailsContent() {
                 </div>
               ) : (
                 <div className="divide-y divide-zinc-100">
-                  {contracts.map((c) => (
+                  {contracts.map((c) => {
+                    const contractNo = c.contractNumber || c.contract_number || "";
+                    const dueDay = c.currentVersion?.dueDay ?? c.dueDay ?? c.due_day ?? 10;
+                    const period = c.currentVersion?.billingPeriod || c.billingPeriod || c.billing_period;
+                    const periodLabel = period === "MONTHLY" ? "Mensal" : period === "YEARLY" ? "Anual" : period === "ONE_TIME" ? "Avulso" : (period || "Mensal");
+                    const totalAmt = Number(c.currentVersion?.totalAmount ?? c.totalAmount ?? c.total_amount ?? 0);
+                    return (
                     <div key={c.id} className="py-3 flex items-center justify-between text-xs">
                       <div>
                         <Link
                           href={`/contracts/${c.id}`}
-                          className="font-semibold text-zinc-900 hover:text-indigo-600 block"
+                          className="font-semibold text-zinc-900 hover:text-emerald-700 block"
                         >
-                          Contrato {c.contract_number}
+                          Contrato {contractNo}
                         </Link>
                         <span className="text-zinc-500 text-[11px]">
-                          Vencimento: Dia {c.due_day || 10} • Periodicidade: {c.billing_period || "Mensal"}
+                          Vencimento: Dia {dueDay} • Periodicidade: {periodLabel}
                         </span>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <span className="font-mono font-semibold text-zinc-900 block">
-                            {formatMoney(Number(c.total_amount || 0))}
+                          <span className="font-mono font-semibold text-zinc-900 block tabular-nums">
+                            {formatMoney(totalAmt)}
                           </span>
                           <span
-                            className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${
+                            className={`text-[10px] px-2 py-0.5 rounded-md font-semibold ${
                               c.status === "ACTIVE"
                                 ? "bg-emerald-100 text-emerald-800"
                                 : "bg-zinc-100 text-zinc-600"
@@ -929,7 +951,8 @@ function ClientDetailsContent() {
                         </Link>
                       </div>
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               )}
             </div>

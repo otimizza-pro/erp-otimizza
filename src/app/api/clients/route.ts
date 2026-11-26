@@ -59,29 +59,46 @@ export async function DELETE(request: Request) {
 
     let purgedDocsTotal = 0;
     let deletedCount = 0;
-    let archivedCount = 0;
+    const failed: { id: string; error: string }[] = [];
 
     for (const clientId of ids) {
       try {
         const res = await purgeClient(clientId);
         purgedDocsTotal += res.purgedDocumentsCount || 0;
-        if (res.clientDeleted) {
-          deletedCount++;
-        } else {
-          archivedCount++;
-        }
+        deletedCount++;
       } catch (err) {
+        const reason = err instanceof Error ? err.message : "Erro ao excluir cliente.";
+        failed.push({ id: clientId, error: reason });
         console.error(`Erro ao expurgar cliente ${clientId}:`, err);
       }
     }
 
+    if (deletedCount === 0 && failed.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          totalRequested: ids.length,
+          deletedCount: 0,
+          archivedCount: 0,
+          failed,
+          error: failed[0].error,
+        },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json({
-      success: true,
+      success: failed.length === 0,
       totalRequested: ids.length,
       deletedCount,
-      archivedCount,
+      archivedCount: 0,
+      failedCount: failed.length,
+      failed,
       purgedDocumentsCount: purgedDocsTotal,
-      message: `${deletedCount} cliente(s) excluído(s) definitivamente e ${archivedCount} arquivado(s) (para preservar histórico de caixa). ${purgedDocsTotal} arquivo(s) expurgados do armazenamento.`,
+      message:
+        failed.length > 0
+          ? `${deletedCount} cliente(s) excluído(s); ${failed.length} não pôde/puderam ser excluído(s) (${failed[0].error}).`
+          : `${deletedCount} cliente(s) excluído(s) definitivamente. ${purgedDocsTotal} arquivo(s) expurgados do armazenamento.`,
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erro ao excluir clientes em lote.";
@@ -109,11 +126,30 @@ export async function PATCH(request: Request) {
     const values: unknown[] = [];
     let paramIdx = 1;
 
-    if (updates.status) {
+    if (updates.status === "ARCHIVED" || updates.status === "INACTIVE") {
+      if (ids.includes("00000000-0000-4000-8000-000000000001")) {
+        return NextResponse.json({ error: "A empresa interna da Otimizza não pode ser arquivada." }, { status: 400 });
+      }
       setClauses.push(`status = $${paramIdx++}`);
       values.push(updates.status);
+      if (updates.status === "ARCHIVED") {
+        setClauses.push(`archived_at = CURRENT_TIMESTAMP`);
+      }
+    } else if (updates.status === "ACTIVE") {
+      const dupCheck = await pool.query<{ id: string }>(
+        `SELECT c1.id FROM clients c1
+         JOIN clients c2 ON c1.document = c2.document AND c1.id <> c2.id
+         WHERE c1.id = ANY($1::uuid[]) AND c1.document IS NOT NULL AND c1.document <> '' AND c2.archived_at IS NULL`,
+        [ids]
+      );
+      if (dupCheck.rows.length > 0) {
+        return NextResponse.json({ error: "Não é possível reativar cliente com CPF/CNPJ já ativo em outro cadastro." }, { status: 409 });
+      }
+      setClauses.push(`status = $${paramIdx++}`);
+      values.push("ACTIVE");
+      setClauses.push(`archived_at = NULL`);
     }
-    if (updates.type) {
+    if (updates.type === "PF" || updates.type === "PJ") {
       setClauses.push(`type = $${paramIdx++}`);
       values.push(updates.type);
     }

@@ -10,6 +10,8 @@ import {ProjectPostPicker} from "@/components/content-studio/project-post-picker
 import { ProductionChecklist } from "@/components/content-studio/production-checklist";
 import { ContentDeliveryPanel } from "@/components/content-studio/content-delivery-panel";
 import { SocialWorkflowStepper } from "@/components/content-studio/social-workflow-stepper";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import { useSearchParams, useRouter } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
@@ -695,7 +697,7 @@ function ContentStudioPageContent() {
   // Gerar +10 semelhantes com base nas favoritas
   const handleGenerateSimilar = () => {
     if (favoriteHeadlines.length === 0) {
-      alert("Selecione ao menos 1 headline favorita usando a caixa de seleção.");
+      toast.warning("Selecione ao menos 1 headline favorita usando a caixa de seleção.");
       return;
     }
     handleGenerateAi("SIMILAR_HEADLINES", { favoriteHeadlines });
@@ -731,7 +733,7 @@ function ContentStudioPageContent() {
 
   const handleSaveToCalendar = async () => {
     if (!selectedClientId) {
-      alert("Selecione um cliente primeiro.");
+      toast.warning("Selecione um cliente primeiro.");
       return;
     }
 
@@ -784,8 +786,8 @@ function ContentStudioPageContent() {
       } else {
         setNotification({ message: result.error || "Erro ao salvar no calendário.", type: "error" });
       }
-    } catch (e) {
-      alert("Erro ao salvar no calendário.");
+    } catch {
+      toast.error("Erro ao salvar no calendário.");
     } finally {
       pieceSaveLock.current = false;
       setSavingPiece(false);
@@ -795,7 +797,7 @@ function ContentStudioPageContent() {
   // Salvar no Feed (Social Media 4:5) ou em Campanhas de Ads
   const handleSaveToFeedOrAds = async () => {
     if (!selectedClientId) {
-      alert("Selecione um cliente primeiro.");
+      toast.warning("Selecione um cliente primeiro.");
       return;
     }
 
@@ -844,7 +846,7 @@ function ContentStudioPageContent() {
         setNotification({ message: result.error || "Erro ao salvar publicação.", type: "error" });
       }
     } catch {
-      alert("Falha ao salvar publicação.");
+      toast.error("Falha ao salvar publicação.");
     } finally {
       pieceSaveLock.current = false;
       setSavingPiece(false);
@@ -869,14 +871,14 @@ function ContentStudioPageContent() {
         setNotification({ message: "DNA e predefinições salvas com sucesso para o cliente!", type: "success" });
       }
     } catch {
-      alert("Erro ao salvar predefinição.");
+      toast.error("Erro ao salvar predefinição.");
     }
   };
 
   // Salvar Público-Alvo
   const handleSaveAudience = async () => {
     if (!selectedClientId || !newAudienceName.trim()) {
-      alert("Nome do público é obrigatório.");
+      toast.warning("Nome do público é obrigatório.");
       return;
     }
 
@@ -908,18 +910,18 @@ function ContentStudioPageContent() {
         loadClientData(selectedClientId);
       }
     } catch {
-      alert("Erro ao salvar público.");
+      toast.error("Erro ao salvar público.");
     }
   };
 
   // Excluir Público
   const handleDeleteAudience = async (id: string) => {
-    if (!confirm("Deseja realmente remover este público-alvo?")) return;
+    if (!(await confirmAction({ title: "Remover público-alvo", message: "Deseja realmente remover este público-alvo?", confirmLabel: "Remover", tone: "danger" }))) return;
     try {
       await fetch(`/api/content-studio/audiences?id=${id}`, { method: "DELETE" });
       loadClientData(selectedClientId);
     } catch {
-      alert("Erro ao remover público.");
+      toast.error("Erro ao remover público.");
     }
   };
 
@@ -1089,7 +1091,7 @@ function ContentStudioPageContent() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <MessageSquare className="w-4 h-4 text-emerald-600" />
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-900">Tom de Voz</h3>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">Tom de Voz</h3>
                   </div>
                   <span className="text-[10px] font-bold text-zinc-400">Sugestões rápidas</span>
                 </div>
@@ -1127,8 +1129,8 @@ function ContentStudioPageContent() {
               <div className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Send className="w-4 h-4 text-purple-600" />
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-900">CTA (Chamada para Ação)</h3>
+                    <Send className="w-4 h-4 text-zinc-800" />
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">CTA (Chamada para Ação)</h3>
                   </div>
                   <span className="text-[10px] font-bold text-zinc-400">Conversão</span>
                 </div>
@@ -1143,7 +1145,7 @@ function ContentStudioPageContent() {
                       }}
                       className={`px-2.5 py-1.5 rounded-lg text-xs truncate cursor-pointer transition border ${
                         selectedCta === c && !customCta
-                          ? "bg-purple-600 text-white border-purple-600 font-bold"
+                          ? "bg-zinc-900 text-white border-zinc-400 font-bold"
                           : "bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100"
                       }`}
                     >
@@ -1237,11 +1239,11 @@ function ContentStudioPageContent() {
               </div>
 
               {/* PAINEL DINÂMICO DE CONFIGURAÇÕES ESPECÍFICAS DO FORMATO */}
-              <div className="p-4 bg-zinc-50 border border-zinc-200/90 rounded-2xl space-y-3.5 transition-all">
+              <div className="p-4 bg-zinc-50 border border-zinc-200/90 rounded-2xl space-y-3.5 transition-colors">
                 <div className="flex items-center justify-between border-b border-zinc-200/80 pb-2.5">
                   <div className="flex items-center gap-2">
                     <Sliders className="w-4 h-4 text-emerald-600" />
-                    <span className="text-xs font-extrabold uppercase tracking-wider text-zinc-900">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-zinc-900">
                       Configurações do Formato: {FORMAT_OPTIONS.find((f) => f.id === format)?.label || format}
                     </span>
                   </div>
@@ -1731,9 +1733,9 @@ function ContentStudioPageContent() {
 
                   {/* Chips de Ideias sugeridas com IA */}
                   {aiSuggestedIdeas.length > 0 && (
-                    <div className="space-y-1 pt-1 border-t border-purple-100">
-                      <span className="text-[10px] uppercase font-bold text-purple-700 block flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-purple-600" />
+                    <div className="space-y-1 pt-1 border-t border-zinc-200">
+                      <span className="text-[10px] uppercase font-bold text-zinc-800 block flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-zinc-800" />
                         Sugestões Criativas da IA para {selectedClient ? (selectedClient.trade_name || selectedClient.name) : "este Cliente"}:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
@@ -1742,7 +1744,7 @@ function ContentStudioPageContent() {
                             key={idx}
                             type="button"
                             onClick={() => setIdea(aiIdea)}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-purple-50 text-purple-900 border border-purple-200 hover:bg-purple-100 hover:border-purple-300 transition text-left"
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-zinc-100 text-zinc-800 border border-zinc-200 hover:bg-zinc-100 hover:border-zinc-400 transition text-left"
                             title="Clique para aplicar esta ideia"
                           >
                             💡 {aiIdea}
@@ -1847,7 +1849,7 @@ function ContentStudioPageContent() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-zinc-500" />
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-900">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">
                       Prompt Estruturado
                     </h3>
                   </div>
@@ -1882,7 +1884,7 @@ function ContentStudioPageContent() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-emerald-600" />
-                    <h3 className="text-xs font-extrabold uppercase tracking-wider text-zinc-900">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-900">
                       Resultado Gerado com IA
                     </h3>
                   </div>
@@ -1892,7 +1894,7 @@ function ContentStudioPageContent() {
                       type="button"
                       disabled={aiLoading || !briefReady || loadingData}
                       onClick={() => handleGenerateAi()}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-xs transition disabled:opacity-50 cursor-pointer"
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition disabled:opacity-50 cursor-pointer"
                     >
                       {aiLoading ? (
                         <>
@@ -1934,7 +1936,7 @@ function ContentStudioPageContent() {
                           type="button"
                           onClick={handleGenerateSimilar}
                           disabled={aiLoading}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-extrabold hover:bg-emerald-200 transition"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-semibold hover:bg-emerald-200 transition"
                         >
                           <Sparkles className="w-3 h-3" />
                           Gerar +10 semelhantes ({favoriteHeadlines.length})
@@ -2045,14 +2047,14 @@ function ContentStudioPageContent() {
         {/* MODAL 1: PERGUNTAR PRÓXIMO PASSO (SEQUÊNCIA LÓGICA DE HEADLINE) */}
         {/* ==================================================================== */}
         {nextStepModalOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in">
+          <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center z-50 p-4 animate-in fade-in">
             <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-zinc-200 space-y-5 animate-in zoom-in-95">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
                   ✓
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-zinc-900">Headline Aprovada!</h3>
+                  <h3 className="text-base font-semibold text-zinc-900">Headline Aprovada!</h3>
                   <p className="text-xs text-zinc-500">O que você quer criar agora a partir desta headline?</p>
                 </div>
               </div>
@@ -2068,7 +2070,7 @@ function ContentStudioPageContent() {
                   className="w-full flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 hover:border-zinc-950 hover:bg-zinc-50 transition text-left group"
                 >
                   <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-indigo-600" />
+                    <FileText className="w-5 h-5 text-zinc-800" />
                     <div>
                       <div className="text-xs font-bold text-zinc-900">1. Criar Legenda para Post</div>
                       <div className="text-[11px] text-zinc-500">Texto completo com abertura, desenvolvimento e CTA</div>
@@ -2083,7 +2085,7 @@ function ContentStudioPageContent() {
                   className="w-full flex items-center justify-between p-3.5 rounded-xl border border-zinc-200 hover:border-zinc-950 hover:bg-zinc-50 transition text-left group"
                 >
                   <div className="flex items-center gap-3">
-                    <Video className="w-5 h-5 text-purple-600" />
+                    <Video className="w-5 h-5 text-zinc-800" />
                     <div>
                       <div className="text-xs font-bold text-zinc-900">2. Criar Roteiro de Reels (2 Opções)</div>
                       <div className="text-[11px] text-zinc-500">Dois roteiros cronometrados com falas e textos de tela</div>
@@ -2125,9 +2127,9 @@ function ContentStudioPageContent() {
         {/* MODAL 2: CADASTRO / EDIÇÃO DE PÚBLICO-ALVO */}
         {/* ==================================================================== */}
         {audienceModalOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in">
+          <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center z-50 p-4 animate-in fade-in">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-zinc-200 space-y-4 animate-in zoom-in-95">
-              <h3 className="text-base font-extrabold text-zinc-900">
+              <h3 className="text-base font-semibold text-zinc-900">
                 {editingAudience ? "Editar Público-Alvo" : "Adicionar Novo Público-Alvo"}
               </h3>
 
@@ -2190,9 +2192,9 @@ function ContentStudioPageContent() {
         {/* MODAL 3: CADASTRO DE LINHA EDITORIAL */}
         {/* ==================================================================== */}
         {editorialModalOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in">
+          <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center z-50 p-4 animate-in fade-in">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-zinc-200 space-y-4 animate-in zoom-in-95">
-              <h3 className="text-base font-extrabold text-zinc-900">Nova Linha Editorial</h3>
+              <h3 className="text-base font-semibold text-zinc-900">Nova Linha Editorial</h3>
 
               <div className="space-y-3 text-xs">
                 <div>
@@ -2241,7 +2243,7 @@ function ContentStudioPageContent() {
                   type="button"
                   onClick={async () => {
                     if (!newPillarName.trim() || !newTheme.trim()) {
-                      alert("Pilar e Tema são obrigatórios.");
+                      toast.warning("Pilar e Tema são obrigatórios.");
                       return;
                     }
                     await fetch("/api/content-studio/editorial-lines", {

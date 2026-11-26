@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {syncBriefingIdentity} from "@/modules/clients/briefing-identity";
 import { query,withTransaction } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
+import { NotificationService } from "@/modules/notifications/service";
 
 export const dynamic = "force-dynamic";
 
@@ -91,9 +92,20 @@ export async function POST(
       await client.query("UPDATE project_tasks SET status='DONE',completed_at=NOW() WHERE id=$1",[taskId]);
     });
 
+    await NotificationService.createSafeNotification({
+      type: "BRIEFING_SYNCED",
+      severity: "success",
+      category: "BRIEFING",
+      entityType: "client",
+      entityId: client_id,
+      title: `Identidade sincronizada: ${res.rows[0].company_name}`,
+      message: "Os dados do briefing foram transferidos para a Estratégia oficial do cliente",
+      linkUrl: `/strategy?clientId=${client_id}`,
+    });
+
     return NextResponse.json({
       success: true,
-      message: "Identidade do cliente sincronizada com sucesso e tarefa concluída!",
+      message: "Identidade do cliente sincronizada com sucesso e tarefa concluída.",
     });
   } catch (err: unknown) {
     console.error("Erro ao sincronizar briefing:", err);

@@ -35,6 +35,6 @@ export const contentSettingsSchema=z.intersection(z.object({clientId:id}),z.disc
  z.object({action:z.literal("PILLAR_DELETE"),id}),
  z.object({action:z.literal("THEME_SAVE"),id:id.optional(),pillarId:id,theme:text.min(1).max(255),objective:text.max(4000),notes:text.max(5000),preferredFormats:list,frequencyPerMonth:z.union([z.enum(["Alta","Média","Baixa"]),z.string(),z.number()]).transform(normalizeFrequencyLevel).default("Média"),customFields:customEditorialFieldsSchema}),
  z.object({action:z.literal("THEME_DELETE"),id}),
- z.object({action:z.literal("AUDIENCE_SAVE"),id:id.optional(),name:text.min(1).max(200),description:text.max(6000),demographics:text.max(3000),painPoints:list,desires:list,objections:list,isDefault:z.boolean()}),
+ z.object({action:z.literal("AUDIENCE_SAVE"),id:id.optional(),name:text.min(1).max(200),description:text.max(6000),demographics:text.max(3000),digitalBehavior:text.max(4000).optional().default(""),catalogItemIds:z.array(id).max(50).optional().default([]),painPoints:list,desires:list,objections:list,isDefault:z.boolean()}),
  z.object({action:z.literal("AUDIENCE_DELETE"),id}),
 ]));

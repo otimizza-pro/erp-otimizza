@@ -381,23 +381,25 @@ export async function POST(
       ...(servicesOffered ? { valueProposition: servicesOffered } : {}),
     };
 
-    // Verificar se existe a sessão
-    const sessionRes = await query(
-      `SELECT * FROM public.client_briefing_sessions WHERE task_id = $1 LIMIT 1`,
+    const taskRes = await query<{ project_id: string; client_id: string | null }>(
+      `SELECT project_id, p.client_id FROM public.project_tasks t JOIN public.projects p ON p.id = t.project_id WHERE t.id = $1`,
       [taskId]
+    );
+    if (taskRes.rows.length === 0) {
+      return NextResponse.json({ error: "Tarefa não encontrada." }, { status: 404 });
+    }
+    const taskProjectId = taskRes.rows[0].project_id;
+    const taskClientId = taskRes.rows[0].client_id;
+
+    // Verificar se existe a sessão vinculada à tarefa ou ao projeto
+    const sessionRes = await query(
+      `SELECT * FROM public.client_briefing_sessions WHERE task_id = $1 OR project_id = $2 ORDER BY created_at DESC LIMIT 1`,
+      [taskId, taskProjectId]
     );
 
     let session = sessionRes.rows[0];
 
     if (!session) {
-      // Obter dados da tarefa para criar
-      const taskRes = await query<{ project_id: string; client_id: string | null }>(
-        `SELECT project_id, p.client_id FROM public.project_tasks t JOIN public.projects p ON p.id = t.project_id WHERE t.id = $1`,
-        [taskId]
-      );
-      if (taskRes.rows.length === 0) {
-        return NextResponse.json({ error: "Tarefa não encontrada." }, { status: 404 });
-      }
       const token = randomBytes(16).toString("hex");
       const insertRes = await query(
         `
@@ -414,9 +416,9 @@ export async function POST(
         `,
         [
           token,
-          taskRes.rows[0].project_id,
+          taskProjectId,
           taskId,
-          taskRes.rows[0].client_id,
+          taskClientId,
           companyName || "Empresa",
           formatContactFirstName(contactName, companyName),
           websiteUrl || null,
@@ -437,10 +439,9 @@ export async function POST(
       );
       session = insertRes.rows[0];
 
-      const effectiveClientId = taskRes.rows[0].client_id;
-      if (effectiveClientId) {
+      if (taskClientId) {
         await syncTaskBriefingToIdentity({
-          clientId: effectiveClientId,
+          clientId: taskClientId,
           category,
           servicesOffered,
           instagramUrl,
@@ -461,8 +462,8 @@ export async function POST(
         `
         UPDATE public.client_briefing_sessions
         SET 
-          company_name = COALESCE($1, company_name),
-          contact_name = COALESCE($2, contact_name),
+          company_name = $1,
+          contact_name = $2,
           website_url = $3,
           maps_url = $4,
           instagram_url = $5,
@@ -472,35 +473,35 @@ export async function POST(
             WHEN $8::jsonb IS NOT NULL THEN (COALESCE(extracted_identity, '{}'::jsonb) || $8::jsonb)
             ELSE extracted_identity 
           END,
-          brand_history = COALESCE($9, brand_history),
-          core_promise = COALESCE($10, core_promise),
-          non_negotiables = COALESCE($11, non_negotiables),
-          sales_objections = COALESCE($12, sales_objections),
-          cnpj = COALESCE($13, cnpj),
-          cnae_code = COALESCE($14, cnae_code),
-          cnae_description = COALESCE($15, cnae_description),
+          brand_history = $9,
+          core_promise = $10,
+          non_negotiables = $11,
+          sales_objections = $12,
+          cnpj = $13,
+          cnae_code = $14,
+          cnae_description = $15,
           catalog_items = CASE WHEN $16::jsonb IS NOT NULL THEN $16::jsonb ELSE catalog_items END,
           updated_at = NOW()
         WHERE id = $17
         RETURNING *
         `,
         [
-          companyName,
-          contactName ? formatContactFirstName(contactName, companyName) : null,
-          websiteUrl || null,
-          mapsUrl || null,
-          instagramUrl || null,
-          initialNotes || null,
-          competitorNotes || null,
+          companyName !== undefined ? (companyName || "Empresa") : session.company_name,
+          contactName !== undefined ? (contactName ? formatContactFirstName(contactName, companyName) : null) : session.contact_name,
+          websiteUrl !== undefined ? (websiteUrl || null) : session.website_url,
+          mapsUrl !== undefined ? (mapsUrl || null) : session.maps_url,
+          instagramUrl !== undefined ? (instagramUrl || null) : session.instagram_url,
+          initialNotes !== undefined ? (initialNotes || null) : session.initial_notes,
+          competitorNotes !== undefined ? (competitorNotes || null) : session.competitor_notes,
           Object.keys(mergedExt).length > 0 ? JSON.stringify(mergedExt) : null,
-          brandHistory || null,
-          corePromise || null,
-          nonNegotiables || null,
-          salesObjections || null,
-          cnpj || null,
-          cnaeCode || null,
-          cnaeDescription || null,
-          catalogItems ? JSON.stringify(catalogItems) : null,
+          brandHistory !== undefined ? (brandHistory || null) : session.brand_history,
+          corePromise !== undefined ? (corePromise || null) : session.core_promise,
+          nonNegotiables !== undefined ? (nonNegotiables || null) : session.non_negotiables,
+          salesObjections !== undefined ? (salesObjections || null) : session.sales_objections,
+          cnpj !== undefined ? (cnpj || null) : session.cnpj,
+          cnaeCode !== undefined ? (cnaeCode || null) : session.cnae_code,
+          cnaeDescription !== undefined ? (cnaeDescription || null) : session.cnae_description,
+          catalogItems !== undefined ? JSON.stringify(catalogItems || []) : null,
           session.id,
         ]
       );

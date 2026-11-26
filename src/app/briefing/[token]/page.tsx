@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
+import { toast } from "@/components/ui/toast-provider";
 import {
   Sparkles,
   ArrowRight,
@@ -410,7 +411,7 @@ export default function PublicBriefingPage({
   // Ações de Catálogo
   const handleAddCatalogItem = () => {
     if (!draftCatalogItem.name.trim()) {
-      alert("Por favor, informe o nome do serviço ou produto.");
+      toast.warning("Por favor, informe o nome do serviço ou produto.");
       return;
     }
     const newItem: CatalogItemOnboarding = {
@@ -573,7 +574,7 @@ export default function PublicBriefingPage({
       setCurrentStep(7);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao finalizar o briefing.");
+      toast.error(err instanceof Error ? err.message : "Erro ao finalizar o briefing.");
     } finally {
       setSubmitting(false);
     }
@@ -616,7 +617,7 @@ export default function PublicBriefingPage({
   return (
     <div className="min-h-screen bg-slate-50/70 text-slate-800 flex flex-col justify-between selection:bg-emerald-100 selection:text-emerald-900 pb-28">
       {/* HEADER SUPERIOR */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+      <header className="sticky top-0 z-30 bg-white/95 border-b border-slate-200/80 shadow-xs">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center font-bold text-base shadow-sm">
@@ -662,7 +663,7 @@ export default function PublicBriefingPage({
         {currentStep > 0 && currentStep < 7 && (
           <div className="w-full bg-slate-100 h-1.5">
             <div
-              className="bg-emerald-600 h-1.5 transition-all duration-500 ease-out"
+              className="bg-emerald-600 h-1.5 transition-colors duration-500 ease-out"
               style={{ width: `${(currentStep / TOTAL_ACTIVE_STEPS) * 100}%` }}
             />
           </div>
@@ -679,7 +680,7 @@ export default function PublicBriefingPage({
                 <Sparkles className="w-3.5 h-3.5" />
                 Alinhamento de Marca, Catálogo & Conteúdo
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
                 Olá, {session.contactName}! 👋
               </h1>
               <p className="text-base sm:text-lg text-slate-600 leading-relaxed">
@@ -709,7 +710,7 @@ export default function PublicBriefingPage({
               </div>
 
               <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-2">
-                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-lg">
+                <div className="w-10 h-10 rounded-xl bg-zinc-100 text-zinc-800 flex items-center justify-center font-bold text-lg">
                   ✨
                 </div>
                 <h3 className="font-semibold text-slate-800 text-sm">Zero Jargões</h3>
@@ -736,7 +737,7 @@ export default function PublicBriefingPage({
                 <Package className="w-4 h-4" />
                 Etapa 1 • O que você oferece
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
                 Quais são os serviços ou produtos da {session.companyName}?
               </h2>
               <p className="text-sm sm:text-base text-slate-600">
@@ -751,7 +752,7 @@ export default function PublicBriefingPage({
                   {catalogItems.map((item, idx) => (
                     <div
                       key={item.id || idx}
-                      className="p-4.5 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition space-y-2 text-left relative group"
+                      className="p-4 rounded-2xl border border-slate-200 bg-slate-50/70 hover:bg-slate-50 transition space-y-2 text-left relative group"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -917,7 +918,7 @@ export default function PublicBriefingPage({
                 <Target className="w-4 h-4" />
                 Etapa 2 • Públicos & Dores dos Clientes
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
                 Quem procura a {session.companyName} e qual problema você resolve?
               </h2>
               <p className="text-sm sm:text-base text-slate-600">
@@ -1042,7 +1043,7 @@ export default function PublicBriefingPage({
                   type="button"
                   onClick={() => handleAiSuggest("targetAudience")}
                   disabled={aiLoading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-800 bg-zinc-100 hover:bg-zinc-100 rounded-lg border border-zinc-200 transition disabled:opacity-50"
                 >
                   <Sparkles className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} />
                   {aiLoading ? "Consultando IA..." : "Sugerir públicos com IA"}
@@ -1057,7 +1058,7 @@ export default function PublicBriefingPage({
                       key={aud}
                       type="button"
                       onClick={() => toggleAudience(aud)}
-                      className={`text-left text-xs sm:text-sm px-4 py-2.5 rounded-xl border transition-all duration-150 flex items-center gap-2 ${
+                      className={`text-left text-xs sm:text-sm px-4 py-2.5 rounded-xl border transition-colors duration-150 flex items-center gap-2 ${
                         isSelected
                           ? "bg-emerald-50 border-emerald-500 text-emerald-900 font-semibold shadow-xs ring-1 ring-emerald-500"
                           : "bg-slate-50 border-slate-200/90 text-slate-700 hover:bg-slate-100 hover:border-slate-300"
@@ -1119,7 +1120,7 @@ export default function PublicBriefingPage({
                 <Award className="w-4 h-4" />
                 Etapa 3 • Seus Diferenciais
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
                 O que torna a {session.companyName} única?
               </h2>
               <p className="text-sm sm:text-base text-slate-600">
@@ -1135,7 +1136,7 @@ export default function PublicBriefingPage({
                 type="button"
                 onClick={() => handleAiSuggest("differentials")}
                 disabled={aiLoading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-800 bg-zinc-100 hover:bg-zinc-100 rounded-lg border border-zinc-200 transition disabled:opacity-50"
               >
                 <Sparkles className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} />
                 {aiLoading ? "Consultando IA..." : "Sugerir diferenciais com IA"}
@@ -1150,7 +1151,7 @@ export default function PublicBriefingPage({
                     key={diff}
                     type="button"
                     onClick={() => toggleDifferential(diff)}
-                    className={`text-left p-4 rounded-2xl border transition-all duration-150 flex items-start gap-3 ${
+                    className={`text-left p-4 rounded-2xl border transition-colors duration-150 flex items-start gap-3 ${
                       isSelected
                         ? "bg-emerald-50/80 border-emerald-500 text-emerald-950 font-semibold ring-1 ring-emerald-500"
                         : "bg-slate-50/70 border-slate-200/80 text-slate-700 hover:bg-slate-100 hover:border-slate-300"
@@ -1211,7 +1212,7 @@ export default function PublicBriefingPage({
                 <Compass className="w-4 h-4" />
                 Etapa 4 • Estilo, Linguagem & Chamadas
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
                 Como sua marca deve chamar a atenção nas redes sociais?
               </h2>
               <p className="text-sm sm:text-base text-slate-600">
@@ -1262,7 +1263,7 @@ export default function PublicBriefingPage({
                     <div
                       key={item.id}
                       onClick={() => toggleHeadlineAngle(item.id)}
-                      className={`cursor-pointer p-4 rounded-2xl border transition-all duration-150 flex items-start gap-3 ${
+                      className={`cursor-pointer p-4 rounded-2xl border transition-colors duration-150 flex items-start gap-3 ${
                         isSelected
                           ? "bg-emerald-50/80 border-emerald-500 text-emerald-950 font-semibold ring-1 ring-emerald-500"
                           : "bg-slate-50/70 border-slate-200/80 text-slate-700 hover:bg-slate-100"
@@ -1325,7 +1326,7 @@ export default function PublicBriefingPage({
                     <div
                       key={card.id}
                       onClick={() => toggleTone(card.id)}
-                      className={`cursor-pointer p-4.5 rounded-2xl border transition-all duration-200 space-y-2 ${
+                      className={`cursor-pointer p-4 rounded-2xl border transition-colors duration-200 space-y-2 ${
                         isSelected
                           ? "bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs"
                           : "bg-slate-50/60 border-slate-200/80 hover:bg-slate-100 hover:border-slate-300"
@@ -1388,7 +1389,7 @@ export default function PublicBriefingPage({
                 <Compass className="w-4 h-4" />
                 Etapa 5 • Inspirações e Referências
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
                 Quais perfis você admira nas redes sociais?
               </h2>
               <p className="text-sm sm:text-base text-slate-600">
@@ -1405,7 +1406,7 @@ export default function PublicBriefingPage({
                   type="button"
                   onClick={() => handleAiSuggest("competitors")}
                   disabled={aiLoading}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-800 bg-zinc-100 hover:bg-zinc-100 rounded-lg border border-zinc-200 transition disabled:opacity-50"
                 >
                   <Sparkles className={`w-3.5 h-3.5 ${aiLoading ? "animate-spin" : ""}`} />
                   {aiLoading ? "Consultando IA..." : "Sugerir referências do nicho"}
@@ -1413,8 +1414,8 @@ export default function PublicBriefingPage({
               </div>
 
               {aiSuggestions["competitors"] && aiSuggestions["competitors"].length > 0 && (
-                <div className="p-3.5 rounded-xl bg-purple-50/70 border border-purple-200 space-y-2">
-                  <span className="text-[11px] font-bold text-purple-800 uppercase tracking-wider flex items-center gap-1">
+                <div className="p-3.5 rounded-xl bg-zinc-100 border border-zinc-200 space-y-2">
+                  <span className="text-[11px] font-bold text-zinc-800 uppercase tracking-wider flex items-center gap-1">
                     <Sparkles className="w-3 h-3" /> Ideias pro seu nicho (clique para preencher):
                   </span>
                   <div className="flex flex-wrap gap-2">
@@ -1426,7 +1427,7 @@ export default function PublicBriefingPage({
                           setCompetitorsText((prev) => (prev ? `${prev}\n• ${sug}` : `• ${sug}`));
                           setNoCompetitorReferences(false);
                         }}
-                        className="text-left text-xs bg-white text-purple-900 px-3 py-1.5 rounded-lg border border-purple-200 hover:bg-purple-100/50 transition"
+                        className="text-left text-xs bg-white text-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-100/50 transition"
                       >
                         + {sug}
                       </button>
@@ -1481,7 +1482,7 @@ export default function PublicBriefingPage({
                 <Lock className="w-4 h-4" />
                 Etapa 6 • Conexão do Perfil
               </div>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
                 Conexão com seu Instagram
               </h2>
               <p className="text-sm sm:text-base text-slate-600">
@@ -1577,7 +1578,7 @@ export default function PublicBriefingPage({
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
                 Briefing Entregue com Sucesso! 🎉
               </span>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight">
                 Muito obrigado, {session.contactName}!
               </h1>
               <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
@@ -1630,7 +1631,7 @@ export default function PublicBriefingPage({
 
       {/* BARRA INFERIOR DE NAVEGAÇÃO FIXA */}
       {currentStep < 7 && (
-        <footer className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-slate-200 py-3 sm:py-4 shadow-lg">
+        <footer className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 border-t border-slate-200 py-3 sm:py-4 shadow-lg">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 flex items-center justify-between">
             {currentStep > 0 ? (
               <button

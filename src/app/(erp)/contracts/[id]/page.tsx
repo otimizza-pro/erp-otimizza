@@ -810,7 +810,7 @@ export default function ContractDetailsPage() {
               {contract.versions?.map((v) => (
                 <div
                   key={v.id}
-                  className={`p-4 rounded-xl border transition-all ${
+                  className={`p-4 rounded-xl border transition-colors ${
                     v.versionNumber === currentVer?.versionNumber
                       ? "border-emerald-300 bg-emerald-50/20"
                       : "border-zinc-200 bg-white"
@@ -1052,7 +1052,7 @@ export default function ContractDetailsPage() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-100 pb-4">
                 <div>
                   <h3 className="text-base font-bold text-zinc-900 flex items-center gap-2">
-                    <Briefcase className="w-5 h-5 text-indigo-600" />
+                    <Briefcase className="w-5 h-5 text-zinc-800" />
                     Automação de Projetos Recorrentes
                   </h3>
                   <p className="text-xs text-zinc-500 mt-0.5">
@@ -1079,7 +1079,7 @@ export default function ContractDetailsPage() {
                     id="recEnabled"
                     checked={recurrenceEnabled}
                     onChange={(e) => setRecurrenceEnabled(e.target.checked)}
-                    className="w-4 h-4 text-indigo-600 rounded border-zinc-300 focus:ring-indigo-500"
+                    className="w-4 h-4 text-zinc-800 rounded border-zinc-300 focus:ring-zinc-300"
                   />
                   <label htmlFor="recEnabled" className="text-xs font-semibold text-zinc-800 cursor-pointer">
                     Ativar Projetos Recorrentes
@@ -1093,7 +1093,7 @@ export default function ContractDetailsPage() {
                   <select
                     value={recurrenceTemplateId}
                     onChange={(e) => setRecurrenceTemplateId(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-1.5 text-xs border border-zinc-300 rounded-lg bg-white text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   >
                     <option value="">Selecione um Modelo...</option>
                     {projectTemplates.filter(t => !isOnboardingTemplate(t.code)).map((t) => (
@@ -1115,7 +1115,7 @@ export default function ContractDetailsPage() {
                       max={31}
                       value={recurrenceStartDay}
                       onChange={(e) => setRecurrenceStartDay(parseInt(e.target.value, 10) || 1)}
-                      className="w-full px-3 py-1.5 text-xs border border-zinc-300 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-1.5 text-xs border border-zinc-300 rounded-lg text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                     />
                   </div>
 
@@ -1159,11 +1159,11 @@ export default function ContractDetailsPage() {
                     ) : (
                       contractProjects.map((p) => (
                         <tr key={p.id} className="hover:bg-zinc-50/50">
-                          <td className="px-4 py-3 font-mono font-bold text-indigo-600">
+                          <td className="px-4 py-3 font-mono font-bold text-zinc-800">
                             {p.projectNumber}
                           </td>
                           <td className="px-4 py-3 font-semibold text-zinc-900">
-                            <Link href={`/projects/${p.id}`} className="hover:text-indigo-600">
+                            <Link href={`/projects/${p.id}`} className="hover:text-zinc-950">
                               {p.name}
                             </Link>
                           </td>
@@ -1184,7 +1184,7 @@ export default function ContractDetailsPage() {
                           <td className="px-4 py-3 text-right">
                             <Link
                               href={`/projects/${p.id}`}
-                              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800"
+                              className="text-xs font-semibold text-zinc-800 hover:text-zinc-950"
                             >
                               Abrir &rarr;
                             </Link>
@@ -1202,7 +1202,7 @@ export default function ContractDetailsPage() {
 
       {/* Modal: Cancelamento de Contrato */}
       {cancelModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-zinc-200 space-y-4">
             <div className="flex items-center gap-3 text-rose-600">
               <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
@@ -1260,7 +1260,7 @@ export default function ContractDetailsPage() {
 
       {/* Modal: Nova Versão de Vigência */}
       {newVersionModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-zinc-200 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-zinc-800">
@@ -1404,7 +1404,7 @@ export default function ContractDetailsPage() {
 
       {/* Modal de Edição Completa de Contrato */}
       {editModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/45">
           <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-5 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
               <div className="flex items-center gap-2">
@@ -1721,7 +1721,7 @@ export default function ContractDetailsPage() {
 
       {/* Modal de Exclusão de Contrato */}
       {deleteModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-xs">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/45">
           <div className="bg-white rounded-2xl border border-zinc-200/80 shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in-95 duration-150">
             <div className="p-5 border-b border-zinc-100 flex items-center justify-between bg-rose-50/50">
               <div className="flex items-center gap-2 text-rose-700">
@@ -1788,7 +1788,7 @@ export default function ContractDetailsPage() {
           </div>
         </div>
       )}
-      {visibilityAction && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs"><section role="dialog" aria-modal="true" aria-labelledby="contract-visibility-title" className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl"><h2 id="contract-visibility-title" className="text-base font-bold text-zinc-950">{visibilityAction === "reject" ? "Rejeitar rascunho" : visibilityAction === "archive" ? "Arquivar contrato" : "Restaurar contrato"}</h2><p className="mt-2 text-xs leading-relaxed text-zinc-500">{visibilityAction === "reject" ? "O rascunho será cancelado com o motivo registrado. Nenhuma cobrança será gerada." : "O histórico será preservado. Arquivar altera a visibilidade e não interrompe cobranças de um contrato ativo."}</p><label className="mt-5 block text-xs font-semibold text-zinc-700">Motivo<textarea autoFocus rows={3} value={visibilityReason} disabled={visibilityBusy} onChange={event=>setVisibilityReason(event.target.value)} className="mt-2 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-normal outline-none focus:border-zinc-500 focus:bg-white"/></label>{visibilityError&&<p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{visibilityError}</p>}<div className="mt-5 flex justify-end gap-2"><button type="button" disabled={visibilityBusy} onClick={()=>setVisibilityAction(null)} className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600">Voltar</button><button type="button" disabled={visibilityBusy||!visibilityReason.trim()} onClick={()=>changeVisibility(visibilityAction)} className="rounded-full bg-zinc-950 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{visibilityBusy ? "Salvando..." : "Confirmar"}</button></div></section></div>}
+      {visibilityAction && <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4"><section role="dialog" aria-modal="true" aria-labelledby="contract-visibility-title" className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-xl"><h2 id="contract-visibility-title" className="text-base font-bold text-zinc-950">{visibilityAction === "reject" ? "Rejeitar rascunho" : visibilityAction === "archive" ? "Arquivar contrato" : "Restaurar contrato"}</h2><p className="mt-2 text-xs leading-relaxed text-zinc-500">{visibilityAction === "reject" ? "O rascunho será cancelado com o motivo registrado. Nenhuma cobrança será gerada." : "O histórico será preservado. Arquivar altera a visibilidade e não interrompe cobranças de um contrato ativo."}</p><label className="mt-5 block text-xs font-semibold text-zinc-700">Motivo<textarea autoFocus rows={3} value={visibilityReason} disabled={visibilityBusy} onChange={event=>setVisibilityReason(event.target.value)} className="mt-2 w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-normal outline-none focus:border-zinc-500 focus:bg-white"/></label>{visibilityError&&<p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{visibilityError}</p>}<div className="mt-5 flex justify-end gap-2"><button type="button" disabled={visibilityBusy} onClick={()=>setVisibilityAction(null)} className="rounded-full border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-600">Voltar</button><button type="button" disabled={visibilityBusy||!visibilityReason.trim()} onClick={()=>changeVisibility(visibilityAction)} className="rounded-full bg-zinc-950 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50">{visibilityBusy ? "Salvando..." : "Confirmar"}</button></div></section></div>}
     </>
   );
 }

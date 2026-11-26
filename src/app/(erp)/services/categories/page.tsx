@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import { ServiceCategory } from "@/modules/catalog/types";
 import {
@@ -136,7 +137,14 @@ export default function ServiceCategoriesPage() {
   const handleDeleteCategories = async (ids: string[]) => {
     if (deleting || !ids.length) return;
     const names = categories.filter(c => ids.includes(c.id)).map(c => c.name);
-    if (!window.confirm("Excluir permanentemente " + ids.length + " categoria(s)?\n\n" + names.join("\n") + "\n\nEsta ação não pode ser desfeita. Categorias vinculadas a serviços bloqueiam a exclusão do lote inteiro.")) return;
+    if (
+      !(await confirmAction({
+        title: `Excluir ${ids.length} categoria(s)`,
+        message: `Excluir permanentemente ${ids.length} categoria(s)? (${names.join(", ")}) — Categorias vinculadas a serviços bloqueiam a exclusão do lote.`,
+        confirmLabel: "Excluir",
+        tone: "danger",
+      }))
+    ) return;
     setDeleting(true); setError(null); setSuccess(null);
     try {
       const res = await fetch("/api/services/categories", {method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids})});
@@ -385,7 +393,7 @@ export default function ServiceCategoriesPage() {
 
       {/* Modal Editar Categoria */}
       {editModalOpen && editingCategory && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-zinc-200 space-y-4">
             <h3 className="font-bold text-zinc-950 text-base">Editar Categoria de Serviços</h3>
             <form onSubmit={handleUpdateCategory} className="space-y-4 text-xs">

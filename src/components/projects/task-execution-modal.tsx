@@ -34,6 +34,8 @@ import {
 } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/whatsapp";
 import { ProjectRecord, ProjectTaskRecord, TaskStatus, ProjectPriority } from "@/modules/projects/types";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 interface TaskExecutionModalProps {
   task: ProjectTaskRecord | null;
@@ -146,6 +148,9 @@ export function TaskExecutionModal({
   const loadBriefingSession = useCallback(async () => {
     if (!taskId) return;
     setLoadingBriefing(true);
+    setBriefingSession(null);
+    setCatalogItems([]);
+    setClientIdentity(null);
     try {
       const res = await fetch(`/api/projects/tasks/${taskId}/briefing`);
       const json = await res.json();
@@ -180,10 +185,14 @@ export function TaskExecutionModal({
           setCatalogItems(json.catalogItems);
         } else if (Array.isArray(json.session.catalog_items) && json.session.catalog_items.length > 0) {
           setCatalogItems(json.session.catalog_items);
+        } else {
+          setCatalogItems([]);
         }
 
         if (json.clientIdentity) {
           setClientIdentity(json.clientIdentity);
+        } else {
+          setClientIdentity(null);
         }
 
         setCategory(clientExt.market_niche || json.category || ext.marketNiche || "");
@@ -326,7 +335,7 @@ export function TaskExecutionModal({
   };
 
   const handleResetBriefing = async () => {
-    if (!confirm("Deseja realmente reiniciar o chat da Edivânia para este cliente? Todo o histórico de conversa do briefing voltará ao início.")) return;
+    if (!(await confirmAction({ title: "Reiniciar chat da Edivânia", message: "Deseja realmente reiniciar o chat da Edivânia para este cliente? Todo o histórico de conversa do briefing voltará ao início.", confirmLabel: "Reiniciar chat", tone: "danger" }))) return;
     setResettingChat(true);
     setBriefingFeedback(null);
     try {
@@ -426,18 +435,29 @@ export function TaskExecutionModal({
     setAuditing(true);
     setAuditReport(null);
     try {
-      const res = await fetch(`/api/projects/tasks/${task.id}/audit-competitors`, {
+      const res = await fetch(`/api/projects/tasks/${task.id}/briefing`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ competitors: competitorNotes }),
+        body: JSON.stringify({ competitorNotes }),
       });
-      const json = await res.json();
-      if (json.success) {
-        setAuditReport(json.report);
-        onTaskUpdated();
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setBriefingFeedback(json.error || "Não foi possível salvar os concorrentes informados.");
+        return;
       }
+      const list = competitorNotes
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean);
+      setAuditReport(
+        list.length > 0
+          ? `Concorrentes registrados para monitoramento no DNA do cliente (${list.length}): ${list.join(", ")}. Utilize a aba Estratégia da Marca para cruzar diferenciais e objeções.`
+          : "Nenhum concorrente informado. Liste perfis ou nomes separados por vírgula para registrar no histórico da marca."
+      );
+      onTaskUpdated();
     } catch (err) {
       console.error(err);
+      setBriefingFeedback("Erro ao registrar concorrentes da tarefa.");
     } finally {
       setAuditing(false);
     }
@@ -451,16 +471,25 @@ export function TaskExecutionModal({
   };
 
   const handleUpdateStatus = async (newStatus: TaskStatus) => {
+    const previousStatus = status;
     setStatus(newStatus);
     try {
-      await fetch(`/api/projects/tasks/${task.id}`, {
+      const res = await fetch(`/api/projects/tasks/${task.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setStatus(previousStatus);
+        setBriefingFeedback(json.error || "Não foi possível atualizar o status da tarefa.");
+        return;
+      }
       onTaskUpdated();
     } catch (err) {
       console.error(err);
+      setStatus(previousStatus);
+      setBriefingFeedback("Erro de conexão ao atualizar status da tarefa.");
     }
   };
 
@@ -468,38 +497,50 @@ export function TaskExecutionModal({
     const text = newChecklistText.trim();
     if (!text) return;
     try {
-      await fetch(`/api/projects/tasks/${task.id}/checklists`, {
+      const res = await fetch(`/api/projects/tasks/${task.id}/checklists`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: text }),
       });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setBriefingFeedback(json.error || "Não foi possível adicionar o item do checklist.");
+        return;
+      }
       setNewChecklistText("");
       onTaskUpdated();
     } catch (err) {
       console.error(err);
+      setBriefingFeedback("Erro de conexão ao adicionar item do checklist.");
     }
   };
 
   const handleToggleChecklist = async (checklistId: string, current: boolean) => {
     try {
-      await fetch(`/api/projects/checklists/${checklistId}`, {
+      const res = await fetch(`/api/projects/checklists/${checklistId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isCompleted: !current }),
       });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setBriefingFeedback(json.error || "Não foi possível atualizar o checklist.");
+        return;
+      }
       onTaskUpdated();
     } catch (err) {
       console.error(err);
+      setBriefingFeedback("Erro de conexão ao atualizar checklist.");
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-zinc-950/45 z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-xs font-bold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-md border border-indigo-200">
+            <span className="font-mono text-xs font-bold bg-zinc-100 text-zinc-800 px-2.5 py-1 rounded-md border border-zinc-200">
               {task.taskNumber}
             </span>
             <div>
@@ -539,7 +580,7 @@ export function TaskExecutionModal({
             onClick={() => setActiveTab("EXECUTE")}
             className={`py-3 border-b-2 transition flex items-center gap-1.5 ${
               activeTab === "EXECUTE"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-zinc-400 text-zinc-800"
                 : "border-transparent hover:text-slate-900"
             }`}
           >
@@ -550,7 +591,7 @@ export function TaskExecutionModal({
             onClick={() => setActiveTab("CHECKLIST")}
             className={`py-3 border-b-2 transition flex items-center gap-1.5 ${
               activeTab === "CHECKLIST"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-zinc-400 text-zinc-800"
                 : "border-transparent hover:text-slate-900"
             }`}
           >
@@ -567,7 +608,7 @@ export function TaskExecutionModal({
               {isBriefingTask && (
                 <div className="space-y-6">
                   {/* Shareable Link Card */}
-                  <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-3 shadow-hourline">
+                  <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-3 shadow-hourline">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-zinc-950 text-sm font-semibold">
                         <Sparkles className="w-4 h-4 text-zinc-700" />
@@ -655,7 +696,7 @@ export function TaskExecutionModal({
                   </div>
 
                   {/* Informações prévias pelo Valdemar / Equipe */}
-                  <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-4 shadow-hourline">
+                  <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-4 shadow-hourline">
                     <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
                       <h4 className="font-semibold text-zinc-950 text-xs">
                         1. Informações Base do Cliente & Identificação Inteligente
@@ -753,7 +794,7 @@ export function TaskExecutionModal({
                           value={websiteUrl}
                           onChange={(e) => setWebsiteUrl(e.target.value)}
                           placeholder="https://suaempresa.com.br"
-                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-300"
                         />
                       </div>
 
@@ -764,7 +805,7 @@ export function TaskExecutionModal({
                           value={mapsUrl}
                           onChange={(e) => setMapsUrl(e.target.value)}
                           placeholder="Link da ficha no Google Meu Negócio"
-                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-300"
                         />
                       </div>
 
@@ -775,14 +816,14 @@ export function TaskExecutionModal({
                           value={instagramUrl}
                           onChange={(e) => setInstagramUrl(e.target.value)}
                           placeholder="https://instagram.com/seuperfil"
-                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                          className="w-full bg-white border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-zinc-300"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* BLOCO DE SERVIÇOS E PRODUTOS ESTRUTURADOS (CATÁLOGO) */}
-                  <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-4 shadow-hourline">
+                  <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-4 shadow-hourline">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
                       <div>
                         <h4 className="font-semibold text-zinc-950 text-xs flex items-center gap-1.5">
@@ -910,7 +951,7 @@ export function TaskExecutionModal({
                             type="button"
                             onClick={() => {
                               if (!draftItem.name.trim()) {
-                                alert("Informe o nome do serviço ou produto.");
+                                toast.warning("Informe o nome do serviço ou produto.");
                                 return;
                               }
                               setCatalogItems((prev) => [...prev, { ...draftItem }]);
@@ -1008,7 +1049,7 @@ export function TaskExecutionModal({
                   </div>
 
                   {/* CAMPOS SEPARADOS DE CONTEXTO ESTRATÉGICO PRÉVIO */}
-                  <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-4 shadow-hourline">
+                  <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-4 shadow-hourline">
                     <div className="border-b border-zinc-100 pb-2.5">
                       <h4 className="font-semibold text-zinc-950 text-xs">
                         Contexto Estratégico & DNA da Marca (Campos Separados)
@@ -1110,7 +1151,7 @@ export function TaskExecutionModal({
                   {/* Informações Coletadas pela Edivânia (IA) organizadas por Domínio */}
                   <div className="space-y-4">
                     {/* 2. DIRETRIZES PARA HEADLINES & COPYWRITING (EDITÁVEL) */}
-                    <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-3 shadow-hourline">
+                    <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-3 shadow-hourline">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
                         <div className="flex items-center gap-2">
                           <Sparkles className="w-4 h-4 text-zinc-700 shrink-0" />
@@ -1238,7 +1279,7 @@ export function TaskExecutionModal({
                     </div>
 
                     {/* 3. DIRETRIZES VISUAIS PARA PROMPTS DE IMAGEM */}
-                    <div className="bg-white border border-zinc-200 rounded-xl p-4.5 space-y-3 shadow-hourline">
+                    <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-3 shadow-hourline">
                       <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
                         <div className="flex items-center gap-2">
                           <Layers className="w-4 h-4 text-zinc-700" />
@@ -1288,7 +1329,7 @@ export function TaskExecutionModal({
                     <div className="flex items-center gap-2">
                       {project.clientId && (
                         <Link
-                          href="/strategy"
+                          href={`/strategy?clientId=${encodeURIComponent(project.clientId)}`}
                           target="_blank"
                           className="inline-flex items-center gap-1 px-3 py-1.5 border border-slate-300 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-semibold transition"
                         >
@@ -1313,7 +1354,7 @@ export function TaskExecutionModal({
               {/* 2. CASO SOLICITAR ACESSOS ÀS REDES SOCIAIS */}
               {isAccessTask && (
                 <div className="space-y-4">
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4.5 space-y-2.5">
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-2.5">
                     <div className="flex items-center gap-2 text-amber-900 text-sm font-bold">
                       <ShieldCheck className="w-4 h-4 text-emerald-600" />
                       <span>Integração com o Gerenciador de Senhas da Otimizza</span>
@@ -1367,9 +1408,9 @@ export function TaskExecutionModal({
               {/* 3. CASO AUDITAR PERFIS E ANALISAR CONCORRENTES */}
               {isAuditTask && (
                 <div className="space-y-4">
-                  <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4.5 space-y-2">
-                    <div className="flex items-center gap-2 text-indigo-900 text-sm font-bold">
-                      <Search className="w-4 h-4 text-indigo-600" />
+                  <div className="bg-zinc-100 border border-zinc-200 rounded-2xl p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-zinc-800 text-sm font-bold">
+                      <Search className="w-4 h-4 text-zinc-800" />
                       <span>Auditoria Competitiva com Inteligência Otimizza</span>
                     </div>
                     <p className="text-xs text-slate-600">
@@ -1387,7 +1428,7 @@ export function TaskExecutionModal({
                       value={competitorNotes}
                       onChange={(e) => setCompetitorNotes(e.target.value)}
                       placeholder="Ex: @concorrente_a, @concorrente_b, lojas da cidade X"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-zinc-300"
                     />
                   </div>
 
@@ -1412,7 +1453,7 @@ export function TaskExecutionModal({
               {/* 4. CASO DEFINIR ESTRATÉGIA E PILARES DE CONTEÚDO */}
               {isStrategyTask && (
                 <div className="space-y-4">
-                  <div className="bg-gradient-to-r from-indigo-500/10 to-teal-500/10 border border-indigo-200 rounded-2xl p-4 space-y-2">
+                  <div className="bg-zinc-50 border border-zinc-200 rounded-2xl p-4 space-y-2">
                     <h4 className="font-bold text-slate-900 text-xs">Os 4 Pilares Estratégicos de Conteúdo da Otimizza</h4>
                     <p className="text-xs text-slate-600">
                       Conecte estes pilares diretamente ao Estúdio de Criação de Conteúdo e aos Funis de Marketing.
@@ -1421,7 +1462,7 @@ export function TaskExecutionModal({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                     <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                      <span className="font-bold text-indigo-700 block mb-0.5">1. Autoridade & Bastidores</span>
+                      <span className="font-bold text-zinc-800 block mb-0.5">1. Autoridade & Bastidores</span>
                       <p className="text-slate-600 text-[11px]">
                         Mostrar rigor técnico, processos de entrega e por que a marca é confiável.
                       </p>
@@ -1462,7 +1503,7 @@ export function TaskExecutionModal({
                       href="/marketing/funnels"
                       className="inline-flex items-center gap-1.5 px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl transition"
                     >
-                      <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                      <Layers className="w-3.5 h-3.5 text-zinc-800" />
                       Ver nos Funis de Marketing
                     </Link>
                   </div>
@@ -1492,7 +1533,7 @@ export function TaskExecutionModal({
                       href="/prompt-creator/saved"
                       className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-xl transition shadow-2xs"
                     >
-                      <Calendar className="w-4 h-4 text-indigo-600" />
+                      <Calendar className="w-4 h-4 text-zinc-800" />
                       Ver Feed & Posts Salvos
                     </Link>
                   </div>
@@ -1537,7 +1578,7 @@ export function TaskExecutionModal({
                       type="checkbox"
                       checked={item.isCompleted}
                       onChange={() => {}}
-                      className="rounded text-indigo-600 focus:ring-indigo-500"
+                      className="rounded text-zinc-800 focus:ring-zinc-300"
                     />
                     <span
                       className={`flex-1 text-slate-800 ${
@@ -1568,7 +1609,7 @@ export function TaskExecutionModal({
                       handleAddChecklist();
                     }
                   }}
-                  className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-zinc-300"
                 />
                 <button
                   type="button"

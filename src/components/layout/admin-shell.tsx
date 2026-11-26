@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { toast } from "@/components/ui/toast-provider";
 import {
   LayoutDashboard,
   Users,
@@ -96,7 +97,7 @@ export function AdminShell() {
       {/* Sidebar Mobile Overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/30 z-40 md:hidden backdrop-blur-xs transition-opacity"
+          className="fixed inset-0 bg-black/30 z-40 md:hidden transition-opacity"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -148,7 +149,7 @@ export function AdminShell() {
                     setActiveSection(item.id);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all duration-150 ${
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-colors duration-150 ${
                     isActive
                       ? "bg-zinc-900 text-white shadow-xs font-semibold"
                       : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100/80"
@@ -195,7 +196,7 @@ export function AdminShell() {
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header - Floating Glassmorphic Pill Style */}
-        <header className="h-18 border-b border-zinc-200/70 bg-white/80 backdrop-blur-md px-6 md:px-8 flex items-center justify-between sticky top-0 z-30">
+        <header className="h-18 border-b border-zinc-200/70 bg-white/80 px-6 md:px-8 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -224,8 +225,8 @@ export function AdminShell() {
           <div className="flex items-center gap-3">
             {/* Quick Action Pill Button */}
             <button
-              onClick={() => alert("Módulo de lançamento rápido em desenvolvimento.")}
-              className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800 transition shadow-xs active:scale-[0.98]"
+              onClick={() => toast.info("Utilize o menu lateral ou a aba de Criação para novos lançamentos.")}
+              className="hidden lg:inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800 transition shadow-xs"
             >
               <span>+ Nova Operação</span>
             </button>
@@ -241,7 +242,7 @@ export function AdminShell() {
               <span className="hidden sm:inline text-zinc-500">API:</span>
               {health ? (
                 <span className="flex items-center gap-1 text-emerald-600 font-semibold">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                   {health.status === "healthy" ? "Online" : "Ativa"}
                 </span>
               ) : (
@@ -353,7 +354,7 @@ function DashboardHourlineView() {
         {kpis.map((kpi, idx) => (
           <div
             key={idx}
-            className={`p-5 rounded-2xl ${kpi.meshClass} shadow-hourline hover:shadow-hourline-hover transition-all duration-200 flex flex-col justify-between`}
+            className={`p-5 rounded-2xl ${kpi.meshClass} shadow-hourline hover:shadow-hourline-hover transition-colors duration-200 flex flex-col justify-between`}
           >
             <div>
               <span

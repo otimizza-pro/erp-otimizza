@@ -24,15 +24,15 @@ export default function PublicStrategyLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-zinc-800 selection:text-white">
       {/* Top Header */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-slate-200 shadow-xs">
+      <header className="sticky top-0 z-40 bg-white/95 border-b border-slate-200 shadow-xs">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link
             href="/estrategia-otimizza"
-            className="flex items-center gap-2.5 font-bold text-lg text-slate-900 hover:text-indigo-600 transition-colors"
+            className="flex items-center gap-2.5 font-bold text-lg text-slate-900 hover:text-zinc-950 transition-colors"
           >
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+            <div className="w-8 h-8 rounded-lg bg-zinc-900 text-white flex items-center justify-center shadow-xs">
               <Compass className="w-5 h-5" />
             </div>
             <span>Estratégia Otimizza</span>
@@ -41,7 +41,7 @@ export default function PublicStrategyLayout({
           <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/estrategia-otimizza/completo"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md bg-zinc-100 text-zinc-800 hover:bg-zinc-100 border border-zinc-200 transition-colors"
               title="Reúne todas as páginas publicadas em um único documento contínuo"
             >
               <BookOpen className="w-3.5 h-3.5" />

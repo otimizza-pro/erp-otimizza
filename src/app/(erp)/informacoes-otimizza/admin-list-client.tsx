@@ -3,6 +3,8 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { KnowledgePage, KnowledgePageTreeNode, KnowledgeInfoType } from "@/modules/knowledge/types";
 import {
   Compass,
@@ -120,19 +122,19 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
       const res = await fetch(`/api/knowledge/${id}/publish`, { method: "POST" });
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || "Erro ao publicar.");
+        toast.error(data.error || "Erro ao publicar.");
         return;
       }
       await reloadData();
-    } catch (err) {
-      alert("Erro ao comunicar com o servidor.");
+    } catch {
+      toast.error("Erro ao comunicar com o servidor.");
     } finally {
       setActionLoadingId(null);
     }
   };
 
   const handleUnpublish = async (id: string) => {
-    if (!confirm("Tem certeza que deseja retirar esta página da leitura externa? Seus descendentes também deixarão de ser públicos.")) {
+    if (!(await confirmAction({ title: "Retirar publicação", message: "Tem certeza que deseja retirar esta página da leitura externa? Seus descendentes também deixarão de ser públicos.", confirmLabel: "Retirar publicação", tone: "danger" }))) {
       return;
     }
     try {
@@ -140,19 +142,19 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
       const res = await fetch(`/api/knowledge/${id}/unpublish`, { method: "POST" });
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || "Erro ao retirar publicação.");
+        toast.error(data.error || "Erro ao retirar publicação.");
         return;
       }
       await reloadData();
-    } catch (err) {
-      alert("Erro ao comunicar com o servidor.");
+    } catch {
+      toast.error("Erro ao comunicar com o servidor.");
     } finally {
       setActionLoadingId(null);
     }
   };
 
   const handleArchive = async (id: string) => {
-    if (!confirm("Deseja arquivar esta página? Ela sairá do ar e não aparecerá nas listagens ativas.")) {
+    if (!(await confirmAction({ title: "Arquivar página", message: "Deseja arquivar esta página? Ela sairá do ar e não aparecerá nas listagens ativas.", confirmLabel: "Arquivar" }))) {
       return;
     }
     try {
@@ -160,12 +162,12 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
       const res = await fetch(`/api/knowledge/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || "Erro ao arquivar.");
+        toast.error(data.error || "Erro ao arquivar.");
         return;
       }
       await reloadData();
-    } catch (err) {
-      alert("Erro ao comunicar com o servidor.");
+    } catch {
+      toast.error("Erro ao comunicar com o servidor.");
     } finally {
       setActionLoadingId(null);
     }
@@ -177,12 +179,12 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
       const res = await fetch(`/api/knowledge/${id}/restore`, { method: "POST" });
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || "Erro ao restaurar página.");
+        toast.error(data.error || "Erro ao restaurar página.");
         return;
       }
       await reloadData();
-    } catch (err) {
-      alert("Erro ao comunicar com o servidor.");
+    } catch {
+      toast.error("Erro ao comunicar com o servidor.");
     } finally {
       setActionLoadingId(null);
     }
@@ -194,12 +196,12 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
       const res = await fetch(`/api/knowledge/${id}/duplicate`, { method: "POST" });
       if (!res.ok) {
         const data = await res.json();
-        alert(data.error || "Erro ao duplicar página.");
+        toast.error(data.error || "Erro ao duplicar página.");
         return;
       }
       await reloadData();
-    } catch (err) {
-      alert("Erro ao comunicar com o servidor.");
+    } catch {
+      toast.error("Erro ao comunicar com o servidor.");
     } finally {
       setActionLoadingId(null);
     }
@@ -247,7 +249,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-200">
+            <span className="p-1.5 rounded-lg bg-zinc-100 text-zinc-800 border border-zinc-200">
               <Compass className="w-5 h-5" />
             </span>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
@@ -275,12 +277,12 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
           <Link
             href="/estrategia-otimizza/completo"
             target="_blank"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 shadow-2xs transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-zinc-100 border border-zinc-200 hover:bg-zinc-100 text-zinc-800 shadow-2xs transition-colors"
             title="Leitura consolidada contínua para IA externa"
           >
-            <BookOpen className="w-3.5 h-3.5 text-indigo-600" />
+            <BookOpen className="w-3.5 h-3.5 text-zinc-800" />
             <span>Leitura Completa</span>
-            <ExternalLink className="w-3 h-3 text-indigo-400" />
+            <ExternalLink className="w-3 h-3 text-zinc-500" />
           </Link>
 
           <Link
@@ -325,7 +327,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por título, resumo ou slug..."
-            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900"
+            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50/50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300 focus:border-zinc-500 text-slate-900"
           />
         </div>
 
@@ -333,7 +335,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-indigo-500"
+            className="px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-zinc-500"
           >
             <option value="ALL">Todos os status</option>
             <option value="PUBLISHED">Publicados</option>
@@ -344,7 +346,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-indigo-500"
+            className="px-3 py-2 text-xs bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-zinc-500"
           >
             <option value="ALL">Todos os tipos de informação</option>
             <option value="DIRECTIVE">Diretrizes Aprovadas</option>
@@ -389,7 +391,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
                       <div className="flex flex-wrap items-center gap-2 mb-1">
                         <Link
                           href={`/informacoes-otimizza/${page.id}`}
-                          className="font-bold text-sm text-slate-900 hover:text-indigo-600 transition-colors truncate"
+                          className="font-bold text-sm text-slate-900 hover:text-zinc-950 transition-colors truncate"
                         >
                           {page.title}
                         </Link>
@@ -416,7 +418,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
                         )}
 
                         {page.has_unpublished_changes && isPublished && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-indigo-100 text-indigo-700 border border-indigo-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-md bg-zinc-100 text-zinc-800 border border-zinc-200">
                             Alterações pendentes
                           </span>
                         )}
@@ -445,7 +447,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
                   <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                     <Link
                       href={`/informacoes-otimizza/${page.id}`}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-800 hover:bg-zinc-100 transition-colors"
                       title="Editar conteúdo e metadados"
                     >
                       <Edit className="w-3.5 h-3.5" />
@@ -520,7 +522,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
                         onClick={() => handleRestore(page.id)}
                         disabled={isLoading}
                         type="button"
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg text-zinc-800 bg-zinc-100 hover:bg-zinc-100 transition-colors cursor-pointer"
                         title="Restaurar página como rascunho"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -547,11 +549,11 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
 
       {/* Modal de Criação de Página / Subpágina */}
       {createModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xl max-w-lg w-full p-6 space-y-5 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                <div className="p-2 bg-zinc-100 text-zinc-800 rounded-lg">
                   <Plus className="w-4 h-4" />
                 </div>
                 <h2 className="text-base font-bold text-slate-900">
@@ -584,7 +586,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="Ex: Diferenciais Competitivos"
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900"
+                  className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300 focus:border-zinc-500 text-slate-900"
                 />
               </div>
 
@@ -597,7 +599,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
                   value={newSlug}
                   onChange={(e) => setNewSlug(e.target.value)}
                   placeholder="Ex: diferenciais-competitivos (gerado automaticamente se vazio)"
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 font-mono"
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300 focus:border-zinc-500 text-slate-900 font-mono"
                 />
               </div>
 
@@ -609,7 +611,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
                   <select
                     value={newInfoType}
                     onChange={(e) => setNewInfoType(e.target.value as KnowledgeInfoType)}
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-zinc-500 text-slate-900"
                   >
                     <option value="DIRECTIVE">Diretriz Aprovada</option>
                     <option value="HYPOTHESIS">Hipótese em Avaliação</option>
@@ -624,7 +626,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
                   <select
                     value={newParentId || ""}
                     onChange={(e) => setNewParentId(e.target.value || null)}
-                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-900"
+                    className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:border-zinc-500 text-slate-900"
                   >
                     <option value="">Nenhuma (Página Raiz)</option>
                     {pages.filter(p => p.status !== "ARCHIVED").map(p => (
@@ -645,7 +647,7 @@ export function AdminKnowledgeListClient({ initialPages, initialTree }: Props) {
                   value={newSummary}
                   onChange={(e) => setNewSummary(e.target.value)}
                   placeholder="Breve resumo da finalidade desta página para a IA e a equipe..."
-                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900"
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300 focus:border-zinc-500 text-slate-900"
                 />
               </div>
 

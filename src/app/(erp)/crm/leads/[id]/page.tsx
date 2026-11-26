@@ -6,6 +6,8 @@ import { CommercialDnaPanel } from "@/components/crm/commercial-dna";
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import {
   Users,
@@ -256,41 +258,41 @@ export default function LeadDetailPage() {
         loadData();
       } else {
         const error = await res.json();
-        alert(error.error || "Não foi possível alterar o status do lead.");
+        toast.error(error.error || "Não foi possível alterar o status do lead.");
       }
     } catch (e) {
       console.error(e);
-      alert("Não foi possível conectar para alterar o status do lead.");
+      toast.error("Não foi possível conectar para alterar o status do lead.");
     }
   };
 
   const handleDeleteOpportunity = async (oppId: string, oppTitle: string) => {
-    if (!confirm(`Deseja realmente excluir a oportunidade "${oppTitle}"?`)) return;
+    if (!(await confirmAction({ title: "Excluir oportunidade", message: `Deseja realmente excluir a oportunidade "${oppTitle}"?`, confirmLabel: "Excluir", tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/crm/opportunities/${oppId}`, { method: "DELETE" });
       if (res.ok) {
         loadData();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao excluir oportunidade.");
+        toast.error(err.error || "Erro ao excluir oportunidade.");
       }
     } catch {
-      alert("Falha de comunicação.");
+      toast.error("Falha de comunicação.");
     }
   };
 
   const handleDeleteProposal = async (propId: string, propCode: string) => {
-    if (!confirm(`Deseja realmente excluir a proposta ${propCode}?`)) return;
+    if (!(await confirmAction({ title: `Excluir proposta ${propCode}`, message: `Deseja realmente excluir a proposta ${propCode}?`, confirmLabel: "Excluir", tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/proposals/${propId}`, { method: "DELETE" });
       if (res.ok) {
         loadData();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao excluir proposta.");
+        toast.error(err.error || "Erro ao excluir proposta.");
       }
     } catch {
-      alert("Falha de comunicação.");
+      toast.error("Falha de comunicação.");
     }
   };
 
@@ -365,7 +367,7 @@ export default function LeadDetailPage() {
   };
 
   const handleQualifyLead = async () => {
-    if (!confirm("Deseja marcar este lead como QUALIFICADO para o processo comercial?")) return;
+    if (!(await confirmAction({ title: "Qualificar lead", message: "Deseja marcar este lead como QUALIFICADO para o processo comercial?", confirmLabel: "Qualificar" }))) return;
     try {
       const res = await fetch(`/api/crm/leads/${id}`, {
         method: "PUT",
@@ -376,10 +378,10 @@ export default function LeadDetailPage() {
         await loadData();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao qualificar lead.");
+        toast.error(err.error || "Erro ao qualificar lead.");
       }
     } catch {
-      alert("Falha de comunicação.");
+      toast.error("Falha de comunicação.");
     }
   };
 
@@ -404,10 +406,10 @@ export default function LeadDetailPage() {
         await loadData();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao enviar lead para nutrição.");
+        toast.error(err.error || "Erro ao enviar lead para nutrição.");
       }
     } catch {
-      alert("Falha de comunicação.");
+      toast.error("Falha de comunicação.");
     } finally {
       setSavingNurture(false);
     }
@@ -433,10 +435,10 @@ export default function LeadDetailPage() {
         await loadData();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao desqualificar lead.");
+        toast.error(err.error || "Erro ao desqualificar lead.");
       }
     } catch {
-      alert("Falha de comunicação.");
+      toast.error("Falha de comunicação.");
     } finally {
       setSavingDisqualify(false);
     }
@@ -468,7 +470,7 @@ export default function LeadDetailPage() {
   const handleCreateOppSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPipeId) {
-      alert("Selecione um funil comercial.");
+      toast.warning("Selecione um funil comercial.");
       return;
     }
     setCreatingOpp(true);
@@ -493,10 +495,10 @@ export default function LeadDetailPage() {
         await loadData();
       } else {
         const err = await res.json();
-        alert(err.error || "Erro ao criar oportunidade.");
+        toast.error(err.error || "Erro ao criar oportunidade.");
       }
     } catch {
-      alert("Falha de comunicação.");
+      toast.error("Falha de comunicação.");
     } finally {
       setCreatingOpp(false);
     }
@@ -504,11 +506,12 @@ export default function LeadDetailPage() {
 
   const handleDeleteLead = async () => {
     if (!lead) return;
-    const confirmDelete = window.confirm(
-      `Atenção: Tem certeza que deseja EXCLUIR DEFINITIVAMENTE o lead "${lead.name}"?\n\n` +
-      `• Todos os documentos, arquivos anexados, oportunidades e dados deste lead serão apagados permanentemente para liberar espaço.\n\n` +
-      `Esta ação não pode ser desfeita. Continuar?`
-    );
+    const confirmDelete = await confirmAction({
+      title: `Excluir lead ${lead.name}`,
+      message: `Deseja realmente excluir definitivamente o lead "${lead.name}"? Todos os documentos, arquivos anexados e oportunidades vinculadas serão apagados permanentemente.`,
+      confirmLabel: "Excluir lead",
+      tone: "danger",
+    });
     if (!confirmDelete) return;
 
     setActionLoading(true);
@@ -521,11 +524,11 @@ export default function LeadDetailPage() {
         throw new Error(data.error || "Erro ao excluir lead.");
       }
       if (data.message) {
-        alert(data.message);
+        toast.success(data.message);
       }
       router.push("/crm/leads");
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir lead.");
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir lead.");
       setActionLoading(false);
     }
   };
@@ -591,7 +594,7 @@ export default function LeadDetailPage() {
       setNewActivity({ activityType: "FOLLOW_UP", title: "", description: "", dueDate: "" });
       loadData();
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Erro.");
+      toast.error(err instanceof Error ? err.message : "Erro.");
     } finally {
       setSavingActivity(false);
     }
@@ -684,7 +687,7 @@ export default function LeadDetailPage() {
 
                 <Link
                   href={`/proposals/new?leadId=${lead.id}`}
-                  className="px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-xl hover:bg-indigo-100 flex items-center gap-1.5 transition shadow-2xs"
+                  className="px-3.5 py-2 text-xs font-semibold text-zinc-800 bg-zinc-100 border border-zinc-200 rounded-xl hover:bg-zinc-100 flex items-center gap-1.5 transition shadow-2xs"
                 >
                   <FileText className="w-4 h-4" /> Criar Proposta
                 </Link>
@@ -878,7 +881,7 @@ export default function LeadDetailPage() {
         <div className="bg-white border border-zinc-200/80 rounded-2xl p-5 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-100 pb-3">
             <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-800 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200">
                 Esteira de Evolução & Aquisição
               </span>
               <h3 className="text-sm font-bold text-zinc-950 mt-1">
@@ -916,7 +919,7 @@ export default function LeadDetailPage() {
               hasWonOpp
                 ? "border-emerald-200 bg-emerald-50/40"
                 : opportunities.length > 0
-                ? "border-indigo-200 bg-indigo-50/30"
+                ? "border-zinc-200 bg-zinc-100"
                 : "border-zinc-200 bg-zinc-50/50"
             }`}>
               <div className="flex items-center justify-between">
@@ -924,7 +927,7 @@ export default function LeadDetailPage() {
                 {hasWonOpp ? (
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 ) : opportunities.length > 0 ? (
-                  <TrendingUp className="w-4 h-4 text-indigo-600" />
+                  <TrendingUp className="w-4 h-4 text-zinc-800" />
                 ) : (
                   <span className="w-2 h-2 rounded-full bg-zinc-300" />
                 )}
@@ -943,7 +946,7 @@ export default function LeadDetailPage() {
               ) : (
                 <Link
                   href={`/crm/opportunities/new?leadId=${lead.id}`}
-                  className="inline-block text-[11px] font-bold text-indigo-600 hover:underline"
+                  className="inline-block text-[11px] font-bold text-zinc-800 hover:underline"
                 >
                   + Abrir no Funil
                 </Link>
@@ -955,7 +958,7 @@ export default function LeadDetailPage() {
               hasApprovedProp
                 ? "border-emerald-200 bg-emerald-50/40"
                 : proposals.length > 0
-                ? "border-indigo-200 bg-indigo-50/30"
+                ? "border-zinc-200 bg-zinc-100"
                 : "border-zinc-200 bg-zinc-50/50"
             }`}>
               <div className="flex items-center justify-between">
@@ -963,7 +966,7 @@ export default function LeadDetailPage() {
                 {hasApprovedProp ? (
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 ) : proposals.length > 0 ? (
-                  <FileText className="w-4 h-4 text-indigo-600" />
+                  <FileText className="w-4 h-4 text-zinc-800" />
                 ) : (
                   <span className="w-2 h-2 rounded-full bg-zinc-300" />
                 )}
@@ -978,14 +981,14 @@ export default function LeadDetailPage() {
               {proposals.length > 0 ? (
                 <Link
                   href={`/proposals/${proposals[0].id}`}
-                  className="inline-block text-[11px] font-bold text-indigo-600 hover:underline truncate"
+                  className="inline-block text-[11px] font-bold text-zinc-800 hover:underline truncate"
                 >
                   Ver {proposals[0].proposalCode || "Proposta"}
                 </Link>
               ) : (
                 <Link
                   href={`/proposals/new?leadId=${lead.id}`}
-                  className="inline-block text-[11px] font-bold text-indigo-600 hover:underline"
+                  className="inline-block text-[11px] font-bold text-zinc-800 hover:underline"
                 >
                   + Criar Proposta
                 </Link>
@@ -1088,7 +1091,7 @@ export default function LeadDetailPage() {
                 {lead.phone ? (
                   <a
                     href={`tel:${lead.phone.replace(/\D/g, "")}`}
-                    className="font-mono text-zinc-800 hover:text-indigo-600 font-medium"
+                    className="font-mono text-zinc-800 hover:text-zinc-950 font-medium"
                   >
                     {lead.phone}
                   </a>
@@ -1130,7 +1133,7 @@ export default function LeadDetailPage() {
                   <span
                     className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
                       lead.acquisitionType === "OUTBOUND"
-                        ? "bg-purple-100 text-purple-800 border border-purple-200"
+                        ? "bg-zinc-100 text-zinc-800 border border-zinc-200"
                         : "bg-blue-100 text-blue-800 border border-blue-200"
                     }`}
                   >
@@ -1154,10 +1157,10 @@ export default function LeadDetailPage() {
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">
                   Diagnóstico & Qualificação Comercial
                 </span>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-indigo-50/30 p-3.5 rounded-xl border border-indigo-100 text-xs mb-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-zinc-100 p-3.5 rounded-xl border border-zinc-200 text-xs mb-3">
                   <div>
                     <span className="text-zinc-400 block text-[11px] mb-1">Serviço de Interesse</span>
-                    <span className="font-bold text-indigo-950">{lead.serviceOfInterest || "Não especificado"}</span>
+                    <span className="font-bold text-zinc-800">{lead.serviceOfInterest || "Não especificado"}</span>
                   </div>
                   <div>
                     <span className="text-zinc-400 block text-[11px] mb-1">Momento / Urgência</span>
@@ -1197,7 +1200,7 @@ export default function LeadDetailPage() {
               <div className="space-y-4 my-4">
                 <div>
                   <div className="text-[11px] text-zinc-400 font-semibold uppercase">Oportunidades em Aberto</div>
-                  <div className="text-xl font-extrabold text-purple-700 font-mono mt-0.5">
+                  <div className="text-xl font-semibold text-zinc-800 font-mono mt-0.5">
                     {formatBRL(lead.openOpportunitiesAmount || 0)}
                   </div>
                 </div>
@@ -1227,9 +1230,9 @@ export default function LeadDetailPage() {
               </Link>
               <Link
                 href={`/proposals/new?leadId=${lead.id}`}
-                className="w-full py-2 px-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-900 border border-purple-200 text-xs font-bold transition text-center flex items-center justify-center gap-1.5"
+                className="w-full py-2 px-3 rounded-xl bg-zinc-100 hover:bg-zinc-100 text-zinc-800 border border-zinc-200 text-xs font-bold transition text-center flex items-center justify-center gap-1.5"
               >
-                <FileText className="w-3.5 h-3.5 text-purple-600" /> Nova Proposta Comercial
+                <FileText className="w-3.5 h-3.5 text-zinc-800" /> Nova Proposta Comercial
               </Link>
             </div>
           </div>
@@ -1237,7 +1240,7 @@ export default function LeadDetailPage() {
 
         {/* Onboarding & Briefing de Redes Sociais */}
         {onboardingSession && (
-          <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-indigo-500/10 border border-emerald-500/30 rounded-2xl p-6 shadow-xs space-y-4">
+          <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-zinc-50 border border-emerald-500/30 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-500/20 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-700">
@@ -1270,7 +1273,7 @@ export default function LeadDetailPage() {
                   onClick={() => setShowBriefingTranscriptModal(true)}
                   className="px-3.5 py-1.5 text-xs font-semibold bg-white border border-zinc-200 hover:bg-zinc-50 text-zinc-800 rounded-xl transition shadow-2xs flex items-center gap-1.5"
                 >
-                  <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                  <FileText className="w-3.5 h-3.5 text-zinc-800" />
                   Revisar Histórico do Onboarding
                 </button>
 
@@ -1317,12 +1320,12 @@ export default function LeadDetailPage() {
         <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
             <div className="flex items-center gap-2">
-              <Target className="w-4 h-4 text-purple-600" />
+              <Target className="w-4 h-4 text-zinc-800" />
               <h3 className="text-sm font-bold text-zinc-950">Oportunidades Comerciais Vinculadas</h3>
             </div>
             <Link
               href={`/crm/opportunities/new?leadId=${lead.id}`}
-              className="text-xs font-semibold text-purple-600 hover:text-purple-800 flex items-center gap-1"
+              className="text-xs font-semibold text-zinc-800 hover:text-zinc-950 flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" /> Adicionar
             </Link>
@@ -1359,7 +1362,7 @@ export default function LeadDetailPage() {
                       <td className="py-2.5 px-3 text-right font-bold text-zinc-950 font-mono">
                         {formatBRL(opp.amount)}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-purple-700">
+                      <td className="py-2.5 px-3 text-right font-mono font-semibold text-zinc-800">
                         {opp.probability}%
                       </td>
                       <td className="py-2.5 px-3 text-center">
@@ -1406,12 +1409,12 @@ export default function LeadDetailPage() {
         <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-purple-600" />
+              <FileText className="w-4 h-4 text-zinc-800" />
               <h3 className="text-sm font-bold text-zinc-950">Propostas Comerciais Vinculadas</h3>
             </div>
             <Link
               href={`/proposals/new?leadId=${lead.id}`}
-              className="text-xs font-semibold text-purple-600 hover:text-purple-800 flex items-center gap-1"
+              className="text-xs font-semibold text-zinc-800 hover:text-zinc-950 flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" /> Nova Proposta
             </Link>
@@ -1458,7 +1461,7 @@ export default function LeadDetailPage() {
                               ? "bg-amber-50 text-amber-700 border border-amber-200"
                               : prop.status === "REJECTED" || prop.status === "CANCELED"
                               ? "bg-rose-50 text-rose-700 border border-rose-200"
-                              : "bg-purple-50 text-purple-700 border border-purple-200"
+                              : "bg-zinc-100 text-zinc-800 border border-zinc-200"
                           }`}
                         >
                           {formatProposalStatus(prop.status)}
@@ -1571,7 +1574,7 @@ export default function LeadDetailPage() {
 
         {/* Modal de Conversão em Cliente */}
         {showConvertModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
               <div className="flex items-center gap-2 border-b border-zinc-100 pb-3">
                 <ShieldCheck className="w-5 h-5 text-emerald-600" />
@@ -1801,7 +1804,7 @@ export default function LeadDetailPage() {
 
         {/* Modal de Edição de Lead */}
         {showEditModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4 overflow-y-auto">
             <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
@@ -2146,7 +2149,7 @@ export default function LeadDetailPage() {
 
         {/* Modal de Nova Atividade */}
         {showActivityModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <form onSubmit={handleCreateActivity} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
               <h3 className="text-sm font-bold text-zinc-950 border-b border-zinc-100 pb-2">
                 Agendar Atividade Comercial
@@ -2243,7 +2246,7 @@ export default function LeadDetailPage() {
 
         {/* Modal: Enviar para Nutrição */}
         {showNurtureModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <form onSubmit={handleConfirmNurture} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
@@ -2323,7 +2326,7 @@ export default function LeadDetailPage() {
 
         {/* Modal: Desqualificar Lead */}
         {showDisqualifyModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <form onSubmit={handleConfirmDisqualify} className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
@@ -2394,11 +2397,11 @@ export default function LeadDetailPage() {
 
         {/* Modal: Criar Oportunidade Comercial (com checagem de duplicidade) */}
         {showCreateOppModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <form onSubmit={handleCreateOppSubmit} className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-800 flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-xl bg-zinc-100 text-zinc-800 flex items-center justify-center font-bold">
                     <Plus className="w-4 h-4" />
                   </div>
                   <div>
@@ -2519,7 +2522,7 @@ export default function LeadDetailPage() {
 
         {/* Modal de Revisão do Histórico de Onboarding */}
         {showBriefingTranscriptModal && onboardingSession && (
-          <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-zinc-950/45 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-2xl w-full border border-zinc-200 overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
               <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/80">
                 <div className="flex items-center gap-2">

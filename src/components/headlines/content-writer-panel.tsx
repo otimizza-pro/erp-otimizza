@@ -253,7 +253,7 @@ export function ContentWriterPanel({
               Voltar ao Passo 3: Headlines
             </button>
             <span className="text-zinc-300">·</span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-3 py-0.5 text-xs font-bold text-indigo-800">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 border border-zinc-200 px-3 py-0.5 text-xs font-bold text-zinc-800">
               Passo 4: Redação Completa do Conteúdo
             </span>
           </div>
@@ -305,7 +305,7 @@ export function ContentWriterPanel({
           <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800">
             Headline Aprovada na Etapa 03:
           </span>
-          <h2 className="mt-1 text-lg font-extrabold text-zinc-950">{headline || "Sem headline definida"}</h2>
+          <h2 className="mt-1 text-lg font-semibold text-zinc-950">{headline || "Sem headline definida"}</h2>
           {subheadline && (
             <p className="mt-0.5 text-xs font-medium text-emerald-950">{subheadline}</p>
           )}

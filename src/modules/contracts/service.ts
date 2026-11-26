@@ -2,6 +2,7 @@ import { addMonths, installmentAmounts } from "./billing-plan";
 import type pg from "pg";
 import { query, withTransaction } from "@/lib/db/pool";
 import { calculateEffectiveDueDate, generateBillingPeriodKey } from "@/shared/recurrence";
+import { NotificationService } from "@/modules/notifications/service";
 import {
   ContractRecord,
   ContractVersionRecord,
@@ -615,6 +616,19 @@ export async function cancelContract(input: CancelContractInput): Promise<Contra
   if (!contract) {
     throw new Error("Erro ao recuperar contrato cancelado.");
   }
+
+  await NotificationService.createSafeNotification({
+    title: "Contrato cancelado",
+    message: `O contrato ${contract.contractNumber} (${contract.clientName || "Cliente"}) foi cancelado: ${input.cancellationReason.trim()}`,
+    type: "WARNING",
+    category: "COMMERCIAL",
+    severity: "warning",
+    dedupKey: `contract:canceled:${contract.id}`,
+    entityType: "contract",
+    entityId: contract.id,
+    linkUrl: `/contracts/${contract.id}`,
+  });
+
   return contract;
 }
 
@@ -633,8 +647,21 @@ export async function updateContract(
   }
 
   const execute = async (client: pg.PoolClient) => {
+    if (input.items !== undefined) {
+      const billCheck = await client.query<{ billing_configured_at: Date | null }>(
+        "SELECT billing_configured_at FROM contracts WHERE id = $1 FOR UPDATE",
+        [contractId]
+      );
+      if (billCheck.rows[0]?.billing_configured_at) {
+        throw new Error("Este contrato já possui um plano financeiro por serviço. Crie uma nova proposta ou ajuste financeiro em vez de substituir os itens.");
+      }
+    }
+
     // 1. Atualizar campos da tabela principal 'contracts'
     if (input.contractNumber || input.clientId || input.status) {
+      if (input.status && existing.status === "CANCELED" && input.status !== "CANCELED") {
+        throw new Error("Não é possível alterar o status de um contrato cancelado diretamente.");
+      }
       if (input.contractNumber && input.contractNumber.trim() !== existing.contractNumber) {
         const checkNum = await client.query(
           "SELECT id FROM contracts WHERE contract_number = $1 AND id <> $2",
@@ -1004,14 +1031,18 @@ export async function deleteContract(
 /**
  * Obtém os detalhes completos de um contrato pelo ID, incluindo todas as versões e itens históricos.
  */
-export async function getContractById(id: string): Promise<ContractRecord | null> {
+export async function getContractById(id: string, externalClient?: pg.PoolClient): Promise<ContractRecord | null> {
+  const runQuery = externalClient
+    ? (<T extends pg.QueryResultRow = pg.QueryResultRow>(text: string, values?: unknown[]) =>
+        externalClient.query<T>(text, values))
+    : query;
   const contractSql = `
     SELECT c.*, cl.name AS client_name, cl.trade_name AS client_trade_name, cl.document AS client_document
     FROM contracts c
     JOIN clients cl ON cl.id = c.client_id
     WHERE c.id = $1
   `;
-  const contractRes = await query<DbContractRow>(contractSql, [id]);
+  const contractRes = await runQuery<DbContractRow>(contractSql, [id]);
   if (contractRes.rowCount === 0) {
     return null;
   }
@@ -1023,7 +1054,7 @@ export async function getContractById(id: string): Promise<ContractRecord | null
     WHERE contract_id = $1
     ORDER BY version_number DESC
   `;
-  const versionsRes = await query<DbContractVersionRow>(versionsSql, [id]);
+  const versionsRes = await runQuery<DbContractVersionRow>(versionsSql, [id]);
 
   if (versionsRes.rows.length === 0) {
     return mapContractRow(contractRow);
@@ -1035,7 +1066,7 @@ export async function getContractById(id: string): Promise<ContractRecord | null
     WHERE ci.contract_version_id = ANY($1::uuid[])
     ORDER BY ci.created_at ASC
   `;
-  const itemsRes = await query<DbContractItemRow>(itemsSql, [versionIds]);
+  const itemsRes = await runQuery<DbContractItemRow>(itemsSql, [versionIds]);
 
   const itemsByVersion = new Map<string, ContractItemRecord[]>();
   for (const itemRow of itemsRes.rows) {

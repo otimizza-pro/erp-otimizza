@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useTransition, Suspense } from "react";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import {
   FileText,
@@ -229,7 +230,7 @@ function DocumentsMainContent() {
   };
 
   const handleArchive = async (doc: DocumentRecord) => {
-    if (!window.confirm(`Deseja realmente arquivar o documento ${doc.documentCode}? O histórico de versões permanecerá preservado.`)) {
+    if (!(await confirmAction({ title: "Arquivar documento", message: `Deseja realmente arquivar o documento ${doc.documentCode}? O histórico de versões permanecerá preservado.`, confirmLabel: "Arquivar" }))) {
       return;
     }
 
@@ -268,7 +269,7 @@ function DocumentsMainContent() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <FileText className="w-7 h-7 text-indigo-600" />
+              <FileText className="w-7 h-7 text-zinc-800" />
               Gestão Documental
             </h1>
             <p className="text-sm text-slate-500 mt-1">
@@ -325,7 +326,7 @@ function DocumentsMainContent() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por código, título ou descrição..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300"
             />
           </div>
 
@@ -333,7 +334,7 @@ function DocumentsMainContent() {
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300 bg-white"
             >
               <option value="ALL">Todas as Categorias</option>
               {categories.map((c) => (
@@ -346,7 +347,7 @@ function DocumentsMainContent() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300 bg-white"
             >
               <option value="ACTIVE">Ativos</option>
               <option value="ARCHIVED">Arquivados</option>
@@ -399,7 +400,7 @@ function DocumentsMainContent() {
                         </span>
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-zinc-100 text-zinc-800">
                           v{doc.currentVersionNumber}
                         </span>
                       </td>
@@ -421,7 +422,7 @@ function DocumentsMainContent() {
                         <div className="flex items-center justify-end gap-1.5">
                           <a
                             href={`/api/documents/${doc.id}/download`}
-                            className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                            className="p-1.5 text-slate-600 hover:text-zinc-950 hover:bg-zinc-100 rounded-md transition-colors"
                             title="Download do documento"
                             download
                           >
@@ -434,7 +435,7 @@ function DocumentsMainContent() {
                               setVersionFile(null);
                               setVersionReason("");
                             }}
-                            className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                            className="p-1.5 text-slate-600 hover:text-zinc-950 hover:bg-zinc-100 rounded-md transition-colors"
                             title="Adicionar nova versão"
                           >
                             <Plus className="w-4 h-4" />
@@ -442,7 +443,7 @@ function DocumentsMainContent() {
 
                           <button
                             onClick={() => openDetails(doc)}
-                            className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                            className="p-1.5 text-slate-600 hover:text-zinc-950 hover:bg-zinc-100 rounded-md transition-colors"
                             title="Ver histórico e vínculos"
                           >
                             <History className="w-4 h-4" />
@@ -469,14 +470,14 @@ function DocumentsMainContent() {
 
         {/* Modal: Novo Documento */}
         {uploadModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 border border-slate-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   {creationMode === "UPLOAD" ? (
-                    <Upload className="w-5 h-5 text-indigo-600" />
+                    <Upload className="w-5 h-5 text-zinc-800" />
                   ) : (
-                    <PenTool className="w-5 h-5 text-indigo-600" />
+                    <PenTool className="w-5 h-5 text-zinc-800" />
                   )}
                   {creationMode === "UPLOAD" ? "Upload de Novo Documento" : "Escrever Novo Documento"}
                 </h3>
@@ -495,7 +496,7 @@ function DocumentsMainContent() {
                   onClick={() => setCreationMode("UPLOAD")}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-md transition-colors ${
                     creationMode === "UPLOAD"
-                      ? "bg-white text-indigo-600 shadow-sm"
+                      ? "bg-white text-zinc-800 shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
@@ -507,7 +508,7 @@ function DocumentsMainContent() {
                   onClick={() => setCreationMode("WRITE")}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 text-xs font-semibold rounded-md transition-colors ${
                     creationMode === "WRITE"
-                      ? "bg-white text-indigo-600 shadow-sm"
+                      ? "bg-white text-zinc-800 shadow-sm"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
@@ -532,7 +533,7 @@ function DocumentsMainContent() {
                           setNewTitle(f.name.replace(/\.[^/.]+$/, ""));
                         }
                       }}
-                      className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-lg p-1.5"
+                      className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-800 hover:file:bg-zinc-100 cursor-pointer border border-slate-200 rounded-lg p-1.5"
                     />
                     <p className="text-[11px] text-slate-400 mt-1">
                       Formatos suportados: PDF, DOCX, XLSX, PNG, JPG, ZIP (máx. 25MB).
@@ -552,7 +553,7 @@ function DocumentsMainContent() {
                       value={textContent}
                       onChange={(e) => setTextContent(e.target.value)}
                       placeholder="# Título do Documento&#10;&#10;Escreva o documento aqui com cláusulas, observações, requisitos, estratégias ou notas..."
-                      className="w-full font-mono text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full font-mono text-xs px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300"
                     />
                   </div>
                 )}
@@ -565,7 +566,7 @@ function DocumentsMainContent() {
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
                     placeholder="Ex: Contrato de Prestação de Serviços"
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   />
                 </div>
 
@@ -577,7 +578,7 @@ function DocumentsMainContent() {
                     <select
                       value={newCategory}
                       onChange={(e) => setNewCategory(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300 bg-white"
                     >
                       {categories.map((c) => (
                         <option key={c.id} value={c.id}>
@@ -595,7 +596,7 @@ function DocumentsMainContent() {
                       type="date"
                       value={newIssueDate}
                       onChange={(e) => setNewIssueDate(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300"
                     />
                   </div>
                 </div>
@@ -609,7 +610,7 @@ function DocumentsMainContent() {
                     value={newTags}
                     onChange={(e) => setNewTags(e.target.value)}
                     placeholder="Ex: marketing, contrato, 2026, cliente-alfa"
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   />
                 </div>
 
@@ -622,7 +623,7 @@ function DocumentsMainContent() {
                     value={newDescription}
                     onChange={(e) => setNewDescription(e.target.value)}
                     placeholder="Breve resumo sobre o conteúdo deste documento..."
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none"
                   />
                 </div>
 
@@ -649,7 +650,7 @@ function DocumentsMainContent() {
 
         {/* Modal: Adicionar Versão */}
         {versionModalDoc && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-200">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-bold text-slate-900">
@@ -676,7 +677,7 @@ function DocumentsMainContent() {
                     type="file"
                     required
                     onChange={(e) => setVersionFile(e.target.files?.[0] || null)}
-                    className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-lg p-1.5"
+                    className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-800 hover:file:bg-zinc-100 cursor-pointer border border-slate-200 rounded-lg p-1.5"
                   />
                 </div>
 
@@ -690,7 +691,7 @@ function DocumentsMainContent() {
                     value={versionReason}
                     onChange={(e) => setVersionReason(e.target.value)}
                     placeholder="Ex: Assinatura adicionada pelo cliente; Correção de cláusula de vigência."
-                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                    className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-none"
                   />
                 </div>
 
@@ -717,11 +718,11 @@ function DocumentsMainContent() {
 
         {/* Modal: Histórico e Detalhes */}
         {detailModalDoc && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full p-6 border border-slate-200 max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <span className="font-mono text-xs font-semibold text-indigo-600">
+                  <span className="font-mono text-xs font-semibold text-zinc-800">
                     {detailModalDoc.documentCode}
                   </span>
                   <h3 className="text-base font-bold text-slate-900">{detailModalDoc.title}</h3>
@@ -737,7 +738,7 @@ function DocumentsMainContent() {
               {/* Histórico de Versões */}
               <div className="mb-6">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                  <Layers className="w-3.5 h-3.5 text-zinc-800" />
                   Versões Imutáveis Registradas
                 </h4>
 
@@ -749,7 +750,7 @@ function DocumentsMainContent() {
                     >
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 text-xs font-bold bg-indigo-100 text-indigo-700 rounded">
+                          <span className="px-2 py-0.5 text-xs font-bold bg-zinc-100 text-zinc-800 rounded">
                             v{v.versionNumber}
                           </span>
                           <span className="text-xs font-semibold text-slate-800">
@@ -772,7 +773,7 @@ function DocumentsMainContent() {
                       <a
                         href={`/api/documents/${detailModalDoc.id}/download?version=${v.versionNumber}`}
                         download
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-indigo-600 bg-white border border-indigo-200 rounded hover:bg-indigo-50 transition-colors shadow-xs"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-zinc-800 bg-white border border-zinc-200 rounded hover:bg-zinc-100 transition-colors shadow-xs"
                       >
                         <Download className="w-3 h-3" />
                         Baixar
@@ -785,7 +786,7 @@ function DocumentsMainContent() {
               {/* Vínculos */}
               <div className="mb-6">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
-                  <ExternalLink className="w-3.5 h-3.5 text-indigo-600" />
+                  <ExternalLink className="w-3.5 h-3.5 text-zinc-800" />
                   Entidades de Negócio Vinculadas
                 </h4>
 
@@ -814,7 +815,7 @@ function DocumentsMainContent() {
               {/* Timeline de Auditoria */}
               <div>
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2 flex items-center gap-1.5">
-                  <History className="w-3.5 h-3.5 text-indigo-600" />
+                  <History className="w-3.5 h-3.5 text-zinc-800" />
                   Trilha de Auditoria do Documento
                 </h4>
 

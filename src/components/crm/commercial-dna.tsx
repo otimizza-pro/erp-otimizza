@@ -177,7 +177,7 @@ export function CommercialDnaPanel({
       setAutoSavedTime(time);
       callbacks.current.onReady?.(data.missing.length === 0);
       callbacks.current.onSaved?.();
-      setMessage(silent ? `✓ Salvo automaticamente às ${time}` : "DNA salvo e disponível no cadastro e nas próximas gerações da proposta.");
+      setMessage(silent ? `Salvo automaticamente às ${time}` : "DNA salvo e disponível no cadastro e nas próximas gerações da proposta.");
     } catch (error) {
       if (!silent) setError(error instanceof Error ? error.message : "Falha ao salvar DNA.");
     } finally {
@@ -201,13 +201,13 @@ export function CommercialDnaPanel({
       </div>
       <div className="flex items-center gap-2 shrink-0">
         {saving && (
-          <span className="text-xs text-emerald-600 font-medium animate-pulse flex items-center gap-1">
+          <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
             Salvando...
           </span>
         )}
         {!saving && autoSavedTime && (
           <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-            ✓ Salvo {autoSavedTime}
+            Salvo {autoSavedTime}
           </span>
         )}
       </div>
@@ -220,7 +220,7 @@ export function CommercialDnaPanel({
     {showProposalTexts && proposalTexts && <details className="rounded-xl border border-zinc-200 p-3 text-xs"><summary className="cursor-pointer font-semibold">Textos salvos para a próxima proposta</summary><dl className="mt-3 space-y-3">{[["currentScenario","Cenário e desafios"],["partnershipFocus","Foco da parceria"],["trackingMetrics","Métricas e indicadores"]].map(([key,label]) => <div key={key}><dt className="font-semibold">{label}</dt><dd className="mt-1 whitespace-pre-wrap text-zinc-600">{proposalTexts[key] || "Não preenchido"}</dd></div>)}</dl></details>}
     <div className="flex items-center justify-between pt-2">
       <span className="text-[11px] text-zinc-400">
-        💡 Salvamento automático ativo ao sair de qualquer campo.
+        Salvamento automático ativo ao sair de qualquer campo.
       </span>
       <button type="button" onClick={() => save(false)} disabled={loading || saving || !dirty} className="rounded-xl bg-zinc-900 hover:bg-zinc-800 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50 transition cursor-pointer">
         {saving ? "Salvando DNA..." : "Salvar DNA comercial"}

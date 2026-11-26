@@ -102,7 +102,7 @@ export async function PUT(
       body.postTag,
       normalizedFormat,
       body.status,
-      body.scheduledDate,
+      body.scheduledDate ? String(body.scheduledDate).slice(0, 10) : null,
       id,
       editorialBrief?JSON.stringify(editorialBrief):null,
       JSON.stringify(sharedPatch),
@@ -131,9 +131,14 @@ export async function PUT(
     return NextResponse.json({ success: true, data: res.rows[0] });
   } catch (error: unknown) {
     console.error("Erro ao atualizar post:", error);
+    const msg = error instanceof Error ? error.message : "Erro ao atualizar post.";
+    const isTriggerRule =
+      msg.includes("Aprove as versões") ||
+      msg.includes("Salve e aprove pelo menos um material") ||
+      msg.includes("Use Registrar publicação");
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : "Erro ao atualizar post." },
-      { status: 500 }
+      { success: false, error: msg },
+      { status: isTriggerRule ? 422 : 500 }
     );
   }
 }

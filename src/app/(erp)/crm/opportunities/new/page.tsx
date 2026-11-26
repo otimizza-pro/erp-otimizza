@@ -562,7 +562,7 @@ function NewOpportunityForm() {
                 </h2>
                 <Link
                   href="/crm/pipelines"
-                  className="text-xs font-semibold text-purple-700 hover:text-purple-900 flex items-center gap-1"
+                  className="text-xs font-semibold text-zinc-800 hover:text-zinc-950 flex items-center gap-1"
                 >
                   Configurar funis <ExternalLink className="w-3 h-3" />
                 </Link>
@@ -726,7 +726,7 @@ function NewOpportunityForm() {
               <div className="p-4 bg-zinc-50 border border-zinc-200/80 rounded-xl space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
                   <div className="flex items-center gap-2 text-zinc-600">
-                    <Sparkles className="h-4 w-4 text-purple-600 shrink-0" />
+                    <Sparkles className="h-4 w-4 text-zinc-800 shrink-0" />
                     <span>
                       MRR Mensal Estimado: <strong className="font-mono text-zinc-900">{formatBRL(estimatedMonthlyMRR)}</strong>
                     </span>
@@ -745,7 +745,7 @@ function NewOpportunityForm() {
                 {/* Bloco de esclarecimento didático sobre o que é Valor Ponderado */}
                 <div className="text-[11px] text-zinc-600 border-t border-zinc-200/70 pt-2.5 space-y-1.5 bg-white/70 p-2.5 rounded-lg border border-zinc-100">
                   <div className="flex items-center gap-1.5 font-bold text-zinc-900">
-                    <HelpCircle className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <HelpCircle className="w-3.5 h-3.5 text-zinc-800 shrink-0" />
                     <span>O que é o &quot;Valor Ponderado do Deal&quot;?</span>
                   </div>
                   <p className="text-zinc-500 leading-relaxed">

@@ -139,7 +139,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
     if (params.get("view") === "Lista") setView("Lista");
     if (params.get("view") === "Gantt") setView("Gantt");
     if (params.get("view") === "Calendário") setView("Calendário");
-  }, [clientId,showArchived]);
+  }, [clientId]);
 
   // Carregamento de Projetos
   const loadProjects = async () => {
@@ -162,7 +162,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
 
   useEffect(() => {
     loadProjects();
-  }, [clientId]);
+  }, [clientId, showArchived]);
 
   // Filtro de Projetos
   const filtered = useMemo(() => {
@@ -206,7 +206,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
 
     if (diffDays < 0) {
       return (
-        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
           <AlertTriangle className="w-3 h-3 text-rose-600" /> Atrasado há {Math.abs(diffDays)}d
         </span>
       );
@@ -338,7 +338,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
               <FolderKanban className="w-4 h-4" />
             </span>
           </div>
-          <div className="text-2xl font-extrabold text-zinc-950 font-mono">
+          <div className="text-2xl font-semibold text-zinc-950 font-mono">
             {filtered.length}
           </div>
           <p className="text-[11px] text-zinc-400">
@@ -358,7 +358,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
               <PlayCircle className="w-4 h-4" />
             </span>
           </div>
-          <div className="text-2xl font-extrabold text-emerald-700 font-mono">
+          <div className="text-2xl font-semibold text-emerald-700 font-mono">
             {filtered.filter((p) => p.status === "IN_PROGRESS").length}
           </div>
           <p className="text-[11px] text-zinc-400">Demandas ativas no momento</p>
@@ -374,7 +374,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
               <CheckCircle2 className="w-4 h-4" />
             </span>
           </div>
-          <div className="text-2xl font-extrabold text-teal-800 font-mono">
+          <div className="text-2xl font-semibold text-teal-800 font-mono">
             {filtered.filter((p) => p.status === "COMPLETED").length}
           </div>
           <p className="text-[11px] text-zinc-400">Projetos finalizados com sucesso</p>
@@ -383,14 +383,14 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
         {/* Horas Registradas */}
         <div className="p-4 bg-white border border-zinc-200/90 rounded-2xl shadow-xs space-y-1">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-purple-700">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-800">
               Horas Produzidas
             </span>
-            <span className="p-1.5 rounded-lg bg-purple-50 text-purple-700">
+            <span className="p-1.5 rounded-lg bg-zinc-100 text-zinc-800">
               <Clock3 className="w-4 h-4" />
             </span>
           </div>
-          <div className="text-2xl font-extrabold text-purple-800 font-mono">
+          <div className="text-2xl font-semibold text-zinc-800 font-mono">
             {filtered.reduce((sum, p) => sum + Number(p.actualHours || 0), 0).toFixed(1)}h
           </div>
           <p className="text-[11px] text-zinc-400">
@@ -584,7 +584,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
                 onDragOver={(e) => handleDragOver(e, colStatus)}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, colStatus)}
-                className={`w-80 shrink-0 rounded-2xl border transition-all duration-200 flex flex-col p-3 space-y-3 ${
+                className={`w-80 shrink-0 rounded-2xl border transition-colors duration-200 flex flex-col p-3 space-y-3 ${
                   isTarget
                     ? "border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-500/20"
                     : `border-zinc-200/80 bg-zinc-100/60`
@@ -594,7 +594,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
                 <div className="flex items-center justify-between px-1">
                   <div className="flex items-center gap-2">
                     <span className={`w-2.5 h-2.5 rounded-full ${colCfg.dotColor}`} />
-                    <span className="font-extrabold text-xs text-zinc-900 tracking-tight">
+                    <span className="font-semibold text-xs text-zinc-900 tracking-tight">
                       {colCfg.label}
                     </span>
                   </div>
@@ -709,7 +709,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
                               </div>
                               <div className="w-full h-1.5 rounded-full bg-zinc-100 overflow-hidden">
                                 <div
-                                  className={`h-full rounded-full transition-all ${
+                                  className={`h-full rounded-full transition-colors ${
                                     percentHours > 100
                                       ? "bg-rose-500"
                                       : percentHours > 75
@@ -924,7 +924,7 @@ export function ProjectViews({ clientId }: { clientId?: string }) {
             {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
               <div
                 key={d}
-                className="py-2 text-center text-xs font-extrabold text-zinc-500 uppercase tracking-wider bg-zinc-50 rounded-xl"
+                className="py-2 text-center text-xs font-semibold text-zinc-500 uppercase tracking-wider bg-zinc-50 rounded-xl"
               >
                 {d}
               </div>

@@ -213,8 +213,30 @@ export async function PUT(
       }
 
       // 2. Não ressuscitar públicos apagados: só sincroniza targetAudiences se foi explicitamente enviado no corpo da requisição
-      if (Array.isArray(body.targetAudiences) && body.targetAudiences.length > 0) {
-        await addIdentityAudiences(db, id, body.targetAudiences);
+      if (Array.isArray(body.targetAudiences)) {
+        const normalizedTargetNames = body.targetAudiences
+          .filter((v: unknown): v is string => typeof v === "string")
+          .map((v: string) => v.trim().toLowerCase())
+          .filter(Boolean);
+
+        if (normalizedTargetNames.length > 0) {
+          await addIdentityAudiences(db, id, body.targetAudiences);
+          await db.query(
+            `UPDATE client_audiences
+             SET archived_at = NOW(), updated_at = NOW()
+             WHERE client_id = $1
+               AND archived_at IS NULL
+               AND NOT (lower(btrim(name)) = ANY($2::text[]))`,
+            [id, normalizedTargetNames]
+          );
+        } else if (payloadKeys.includes("targetAudiences")) {
+          await db.query(
+            `UPDATE client_audiences
+             SET archived_at = NOW(), updated_at = NOW()
+             WHERE client_id = $1 AND archived_at IS NULL`,
+            [id]
+          );
+        }
       }
 
       // 3. Mesclar propriedades existentes com novas para formatGuidelines e communicationProfile

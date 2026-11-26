@@ -76,12 +76,15 @@ export default function ExecutiveDashboardPage() {
   const [customizingWidgets, setCustomizingWidgets] = useState(false);
   const [actionData, setActionData] = useState<{
     actionItems: {
-      activities: unknown[];
-      proposals: unknown[];
-      overdueReceivables: unknown[];
-      upcomingPayables: unknown[];
-      expiringContracts: unknown[];
-      overdueProjects: unknown[];
+      activities: Array<{ id: string; title: string; scheduled_at: string; lead_name?: string; client_name?: string }>;
+      proposals: Array<{ id: string; proposal_code: string; title: string; client_name: string; valid_until?: string }>;
+      overdueReceivables: Array<{ id: string; receivable_number: string; description: string; client_name: string; balance_amount: number; due_date: string }>;
+      upcomingPayables: Array<{ id: string; payable_number: string; description: string; supplier_name: string; balance_amount: number; due_date: string; is_overdue: boolean }>;
+      expiringContracts: Array<{ id: string; contract_number: string; client_name: string; end_date: string; days_remaining: number }>;
+      overdueProjects: Array<{ id: string; project_code: string; name: string; due_date: string; is_overdue: boolean }>;
+      overdueTasks?: Array<{ id: string; project_id: string; title: string; project_name: string; due_date: string; is_overdue: boolean }>;
+      contentDue?: Array<{ id: string; title: string; scheduled_date: string; company_name: string; is_overdue: boolean }>;
+      completedBriefings?: Array<{ id: string; project_id: string; company_name: string; completed_at: string }>;
     };
     counts: {
       activities: number;
@@ -90,6 +93,9 @@ export default function ExecutiveDashboardPage() {
       upcomingPayables: number;
       expiringContracts: number;
       overdueProjects: number;
+      overdueTasks?: number;
+      contentDue?: number;
+      completedBriefings?: number;
     };
   } | null>(null);
 
@@ -204,10 +210,10 @@ export default function ExecutiveDashboardPage() {
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 bg-white p-6 rounded-2xl border border-zinc-200/80 shadow-sm">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold uppercase">
+              <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
                 BI & Inteligência Financeira
               </span>
-              <span className="text-xs text-zinc-400 font-medium">• Otimizza ERP</span>
+              <span className="text-xs text-zinc-400 font-medium">Otimizza ERP</span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-zinc-950">
               Dashboard Executivo e Indicadores de Gestão
@@ -308,7 +314,7 @@ export default function ExecutiveDashboardPage() {
         {customizingWidgets && (
           <div className="p-4 bg-white border border-zinc-200 rounded-2xl shadow-sm space-y-3">
             <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-700">
+              <span className="text-xs font-semibold text-zinc-800">
                 Configurar Widgets Visíveis (Salvo para seu perfil)
               </span>
               <button
@@ -342,9 +348,9 @@ export default function ExecutiveDashboardPage() {
                     </label>
                     <button
                       onClick={() => handleToggleWidgetSize(w.id)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
+                      className={`px-2 py-0.5 rounded text-[11px] font-medium border transition ${
                         isFull
-                          ? "bg-purple-50 text-purple-700 border-purple-200"
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                           : "bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-100"
                       }`}
                       title="Alternar entre largura normal e largura inteira (100%)"
@@ -521,7 +527,150 @@ export default function ExecutiveDashboardPage() {
                   <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
                 </div>
               </Link>
+
+              {/* 7. Tarefas de Projetos */}
+              <Link
+                href="/projects?filter=critical"
+                className="p-3.5 rounded-lg bg-zinc-50/70 hover:bg-zinc-100/80 border border-zinc-200 transition space-y-1.5 group block"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-600">
+                    Tarefas de projetos
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
+                      (actionData.counts.overdueTasks || 0) > 0
+                        ? "bg-amber-50 text-amber-800 border-amber-200"
+                        : "bg-zinc-100 text-zinc-600 border-zinc-200"
+                    }`}
+                  >
+                    {actionData.counts.overdueTasks || 0} pendentes
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-900 font-medium group-hover:text-zinc-950 transition flex items-center justify-between">
+                  <span>Prazos nos próximos 7 dias</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
+                </div>
+              </Link>
+
+              {/* 8. Conteúdos Previstos */}
+              <Link
+                href="/prompt-creator/headlines"
+                className="p-3.5 rounded-lg bg-zinc-50/70 hover:bg-zinc-100/80 border border-zinc-200 transition space-y-1.5 group block"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-600">
+                    Calendário editorial
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
+                      (actionData.counts.contentDue || 0) > 0
+                        ? "bg-amber-50 text-amber-800 border-amber-200"
+                        : "bg-zinc-100 text-zinc-600 border-zinc-200"
+                    }`}
+                  >
+                    {actionData.counts.contentDue || 0} previstos
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-900 font-medium group-hover:text-zinc-950 transition flex items-center justify-between">
+                  <span>Pautas para hoje ou em atraso</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
+                </div>
+              </Link>
+
+              {/* 9. Briefings Respondidos */}
+              <Link
+                href="/projects"
+                className="p-3.5 rounded-lg bg-zinc-50/70 hover:bg-zinc-100/80 border border-zinc-200 transition space-y-1.5 group block"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-600">
+                    Briefings concluídos
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium border ${
+                      (actionData.counts.completedBriefings || 0) > 0
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-zinc-100 text-zinc-600 border-zinc-200"
+                    }`}
+                  >
+                    {actionData.counts.completedBriefings || 0} recentes
+                  </span>
+                </div>
+                <div className="text-xs text-zinc-900 font-medium group-hover:text-zinc-950 transition flex items-center justify-between">
+                  <span>Prontos para revisar e sincronizar</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-700" />
+                </div>
+              </Link>
             </div>
+
+            {(() => {
+              const priorityFeed = [
+                ...(actionData.actionItems.overdueReceivables || []).slice(0, 2).map((r) => ({
+                  key: `rec-${r.id}`,
+                  href: `/financial/receivables/${r.id}`,
+                  tag: "Cobrança vencida",
+                  tone: "border-rose-200 bg-rose-50 text-rose-700",
+                  title: `${r.receivable_number} · ${r.client_name}`,
+                  meta: `${formatBRL(Number(r.balance_amount))} · Venc. ${r.due_date.slice(0, 10).split("-").reverse().join("/")}`,
+                })),
+                ...(actionData.actionItems.upcomingPayables || []).slice(0, 2).map((p) => ({
+                  key: `pay-${p.id}`,
+                  href: `/financial/payables/${p.id}`,
+                  tag: p.is_overdue ? "Despesa vencida" : "Conta a pagar",
+                  tone: p.is_overdue ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-800",
+                  title: `${p.payable_number} · ${p.supplier_name}`,
+                  meta: `${formatBRL(Number(p.balance_amount))} · Venc. ${p.due_date.slice(0, 10).split("-").reverse().join("/")}`,
+                })),
+                ...(actionData.actionItems.overdueTasks || []).slice(0, 2).map((t) => ({
+                  key: `task-${t.id}`,
+                  href: `/projects/${t.project_id}`,
+                  tag: t.is_overdue ? "Tarefa atrasada" : "Tarefa próxima",
+                  tone: t.is_overdue ? "border-rose-200 bg-rose-50 text-rose-700" : "border-amber-200 bg-amber-50 text-amber-800",
+                  title: `${t.title} · ${t.project_name}`,
+                  meta: `Prazo ${t.due_date.slice(0, 10).split("-").reverse().join("/")}`,
+                })),
+                ...(actionData.actionItems.completedBriefings || []).slice(0, 2).map((b) => ({
+                  key: `brief-${b.id}`,
+                  href: `/projects/${b.project_id}`,
+                  tag: "Briefing respondido",
+                  tone: "border-emerald-200 bg-emerald-50 text-emerald-700",
+                  title: `Briefing de ${b.company_name}`,
+                  meta: "Sincronizar na estratégia do cliente",
+                })),
+              ].slice(0, 6);
+
+              if (priorityFeed.length === 0) return null;
+
+              return (
+                <div className="pt-2 border-t border-zinc-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-700">Fila rápida de atenção</span>
+                    <span className="text-[11px] text-zinc-400">Clique para abrir diretamente o registro</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {priorityFeed.map((item) => (
+                      <Link
+                        key={item.key}
+                        href={item.href}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs hover:bg-zinc-50 transition"
+                      >
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-1.5 py-0.5 rounded border text-[10px] font-medium shrink-0 ${item.tone}`}>
+                              {item.tag}
+                            </span>
+                            <span className="font-medium text-zinc-900 truncate">{item.title}</span>
+                          </div>
+                          <span className="text-[11px] text-zinc-500 block mt-0.5 truncate">{item.meta}</span>
+                        </div>
+                        <ArrowRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -529,7 +678,7 @@ export default function ExecutiveDashboardPage() {
         {isWidgetVisible("kpis_summary") && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Receita Recebida */}
-            <div className="bg-white border border-zinc-200 p-4.5 rounded-xl">
+            <div className="bg-white border border-zinc-200 p-4 rounded-xl">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-zinc-500">
                   Receita realizada (Caixa)
@@ -560,7 +709,7 @@ export default function ExecutiveDashboardPage() {
             </div>
 
             {/* Despesas Pagas */}
-            <div className="bg-white border border-zinc-200 p-4.5 rounded-xl">
+            <div className="bg-white border border-zinc-200 p-4 rounded-xl">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-zinc-500">
                   Despesas pagas (Saídas)
@@ -581,7 +730,7 @@ export default function ExecutiveDashboardPage() {
             </div>
 
             {/* Resultado Operacional Realizado */}
-            <div className="bg-white border border-zinc-200 p-4.5 rounded-xl">
+            <div className="bg-white border border-zinc-200 p-4 rounded-xl">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-zinc-500">
                   Resultado realizado
@@ -603,7 +752,7 @@ export default function ExecutiveDashboardPage() {
             </div>
 
             {/* MRR - Receita Mensal Recorrente */}
-            <div className="bg-white border border-zinc-200 p-4.5 rounded-xl">
+            <div className="bg-white border border-zinc-200 p-4 rounded-xl">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-zinc-500">
                   MRR contratual ativo
@@ -650,7 +799,7 @@ export default function ExecutiveDashboardPage() {
                 <div className="space-y-4">
                   <div>
                     <span className="text-xs text-zinc-500 block mb-0.5">Saldo em Aberto Vencido</span>
-                    <div className="text-3xl font-extrabold text-red-600">
+                    <div className="text-3xl font-semibold text-red-600">
                       {formatBRL(kpis?.defaultRate.openOverdueBalance)}
                     </div>
                   </div>
@@ -706,7 +855,7 @@ export default function ExecutiveDashboardPage() {
                     <span className="text-zinc-600">Despesa</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-zinc-700 inline-block" />
                     <span className="text-zinc-600">MRR</span>
                   </div>
                 </div>
@@ -720,7 +869,7 @@ export default function ExecutiveDashboardPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
-                      <tr className="border-b border-zinc-100 bg-zinc-50/50 text-[11px] font-semibold text-zinc-500 uppercase">
+                      <tr className="border-b border-zinc-100 bg-zinc-50/50 text-[11px] font-medium text-zinc-500">
                         <th className="py-2.5 px-3">Mês</th>
                         <th className="py-2.5 px-3 text-right">Receita Recebida</th>
                         <th className="py-2.5 px-3 text-right">Despesas Pagas</th>
@@ -741,7 +890,7 @@ export default function ExecutiveDashboardPage() {
                           <td className={`py-2.5 px-3 text-right font-bold ${item.realizedResult >= 0 ? "text-blue-600" : "text-amber-600"}`}>
                             {formatBRL(item.realizedResult)}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-semibold text-purple-700">
+                          <td className="py-2.5 px-3 text-right font-mono font-semibold text-zinc-900">
                             {formatBRL(item.mrr)}
                           </td>
                         </tr>
@@ -838,7 +987,7 @@ export default function ExecutiveDashboardPage() {
                         </span>
                       </div>
                       <div className="text-right">
-                        <span className="text-xs font-extrabold text-emerald-600 block">
+                        <span className="text-xs font-semibold text-emerald-600 block">
                           {formatBRL(c.totalReceivedAmount)}
                         </span>
                         {c.overdueAmount > 0 && (

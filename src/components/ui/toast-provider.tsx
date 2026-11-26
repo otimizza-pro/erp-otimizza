@@ -115,27 +115,27 @@ export function ToastProvider({ children }: { children?: React.ReactNode }) {
             <div
               key={item.id}
               role="alert"
-              className="pointer-events-auto flex items-start gap-3 p-3.5 rounded-2xl bg-white border border-zinc-200/90 shadow-xl transition-all duration-200 ease-out animate-in slide-in-from-top-2 fade-in"
+              className="pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl bg-white border border-zinc-200/90 shadow-lg transition-[transform,opacity] duration-200 ease-out animate-in slide-in-from-top-2 fade-in"
             >
               <div
-                className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border ${
+                className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border ${
                   isSuccess
                     ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                     : isError
                     ? "bg-rose-50 text-rose-700 border-rose-200"
                     : isWarning
                     ? "bg-amber-50 text-amber-700 border-amber-200"
-                    : "bg-blue-50 text-blue-700 border-blue-200"
+                    : "bg-zinc-50 text-zinc-700 border-zinc-200"
                 }`}
               >
-                {isSuccess && <CheckCircle2 className="w-4 h-4" />}
-                {isError && <AlertCircle className="w-4 h-4" />}
-                {isWarning && <AlertTriangle className="w-4 h-4" />}
-                {!isSuccess && !isError && !isWarning && <Info className="w-4 h-4" />}
+                {isSuccess && <CheckCircle2 className="w-4 h-4" strokeWidth={1.5} />}
+                {isError && <AlertCircle className="w-4 h-4" strokeWidth={1.5} />}
+                {isWarning && <AlertTriangle className="w-4 h-4" strokeWidth={1.5} />}
+                {!isSuccess && !isError && !isWarning && <Info className="w-4 h-4" strokeWidth={1.5} />}
               </div>
 
               <div className="flex-1 min-w-0 pt-0.5">
-                <h5 className="text-xs font-bold text-zinc-950 leading-tight">{item.title}</h5>
+                <h5 className="text-xs font-semibold text-zinc-950 leading-tight">{item.title}</h5>
                 {item.message && (
                   <p className="text-[11px] text-zinc-500 mt-0.5 leading-relaxed break-words">
                     {item.message}

@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { ReceivableRecord, FinancialAccountRecord } from "@/modules/financial/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export default function ReceivableDetailPage({
   params,
@@ -40,9 +42,12 @@ export default function ReceivableDetailPage({
   const handleDeleteReceivable = async () => {
     if (!receivable) return;
     if (
-      !window.confirm(
-        `Tem certeza que deseja excluir o título a receber ${receivable.receivableNumber} (${receivable.description})?`
-      )
+      !(await confirmAction({
+        title: `Excluir título ${receivable.receivableNumber}`,
+        message: `Tem certeza que deseja excluir o título a receber ${receivable.receivableNumber} (${receivable.description})?`,
+        confirmLabel: "Excluir",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -53,11 +58,11 @@ export default function ReceivableDetailPage({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao excluir título.");
-      alert(data.message || "Título excluído com sucesso!");
+      toast.success(data.message || "Título excluído com sucesso.");
       router.push("/financial/receivables");
       router.refresh();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir título.");
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir título.");
       setDeletingReceivable(false);
     }
   };
@@ -117,7 +122,7 @@ export default function ReceivableDetailPage({
     if (!receivable) return;
     const amt = Number(settleAmount);
     if (!amt || amt <= 0 || amt > receivable.balanceAmount) {
-      alert("Valor de baixa inválido ou maior que o saldo devedor.");
+      toast.warning("Valor de baixa inválido ou maior que o saldo devedor.");
       return;
     }
 
@@ -143,7 +148,7 @@ export default function ReceivableDetailPage({
       setIsSettleModalOpen(false);
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao efetuar baixa.");
+      toast.error(err instanceof Error ? err.message : "Erro ao efetuar baixa.");
     } finally {
       setIsSubmittingSettle(false);
     }
@@ -172,7 +177,7 @@ export default function ReceivableDetailPage({
       setReversalReason("");
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro no estorno.");
+      toast.error(err instanceof Error ? err.message : "Erro no estorno.");
     } finally {
       setIsSubmittingReversal(false);
     }
@@ -488,7 +493,7 @@ export default function ReceivableDetailPage({
 
       {/* MODAL DE BAIXA / RECEBIMENTO */}
       {isSettleModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
@@ -589,7 +594,7 @@ export default function ReceivableDetailPage({
 
       {/* MODAL DE ESTORNO */}
       {reversalSettlementId && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>

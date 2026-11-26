@@ -21,6 +21,7 @@ const AUDITED_LEGITIMATE_CHECKSUMS: Record<string, string[]> = {
   "012_phase11_project_management": ["9d511940740029938c76afecc8f1db87f49dd3b702a2fff4517a24c325e3aa2d"],
   "014_knowledge_base_pages": ["ef85d6bfa377ff6ad0c0d2f22cb20026032a2480accdd9b118ecefac6a0b5e36"],
   "018_cleanup_test_combos": ["438312e58d00e1c27082a973f1d1bca997370f47a877d0d7c6338c7dc1978b22"],
+  "055_client_audiences_digital_behavior": ["3dda49fe528704534c5ae6a331f15caa0bb49b2d0b26f44a772bd321b5c50999"],
 };
 
 export function isMigrationChecksumValid(migrationId: string, content: string, recordedChecksum: string): boolean {

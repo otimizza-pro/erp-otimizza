@@ -106,7 +106,7 @@ export async function POST(request: Request) {
       body.promptUsed || null,
       body.toneOfVoice || null,
       body.callToAction || null,
-      body.scheduledDate || new Date().toISOString().substring(0, 10),
+      body.scheduledDate || new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
       editorialBrief?JSON.stringify(editorialBrief):null,
       editorialBrief?.themeId||null,
       body.draftId || null,

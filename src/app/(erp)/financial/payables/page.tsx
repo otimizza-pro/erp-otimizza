@@ -238,10 +238,15 @@ function PayablesListPageContent() {
               <p className="text-xs font-medium text-rose-600 uppercase tracking-wider">
                 Despesas Vencidas
               </p>
-              <p className="text-2xl font-bold text-rose-700 mt-1">
+              <p className="text-2xl font-semibold text-rose-700 mt-1 tabular-nums">
                 R${" "}
                 {payables
-                  .filter((p) => p.status === "OVERDUE")
+                  .filter(
+                    (p) =>
+                      p.status === "OVERDUE" ||
+                      ((p.status === "PENDING" || p.status === "PARTIALLY_PAID") &&
+                        p.dueDate.slice(0, 10) < new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()))
+                  )
                   .reduce((acc, p) => acc + p.balanceAmount, 0)
                   .toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </p>
@@ -295,9 +300,12 @@ function PayablesListPageContent() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setStatusFilter(tab.id)}
+                onClick={() => {
+                  setCriticalFilter(false);
+                  setStatusFilter(tab.id);
+                }}
                 className={`px-3 py-1.5 rounded-md transition-colors whitespace-nowrap ${
-                  statusFilter === tab.id
+                  !criticalFilter && statusFilter === tab.id
                     ? "bg-white text-zinc-900 shadow-xs font-semibold"
                     : "text-zinc-600 hover:text-zinc-900"
                 }`}
@@ -390,7 +398,7 @@ function PayablesListPageContent() {
 
       {/* Modal Baixa de Pagamento */}
       {settleModalOpen && selectedPayable && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-zinc-200 space-y-4">
             <div>
               <h3 className="font-bold text-zinc-950 text-base">Liquidação Manual de Pagamento</h3>

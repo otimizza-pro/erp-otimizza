@@ -317,6 +317,7 @@ export class StrategyService {
         LEFT JOIN financial_categories c ON c.id = p.category_id
         WHERE s.settlement_date >= $1 AND s.settlement_date <= $2
           AND p.is_canceled = false
+          AND COALESCE(s.is_reversed, false) = false
           AND (c.name ILIKE '%anúncio%' OR c.name ILIKE '%mídia%' OR c.name ILIKE '%marketing%' OR p.description ILIKE '%anúncio%' OR p.description ILIKE '%ads%')
         ORDER BY s.settlement_date ASC
       `;
@@ -339,6 +340,8 @@ export class StrategyService {
         FROM financial_settlements s
         JOIN receivables r ON r.id = s.receivable_id
         WHERE s.settlement_date >= $1 AND s.settlement_date <= $2
+          AND r.is_canceled = false
+          AND COALESCE(s.is_reversed, false) = false
         ORDER BY s.settlement_date ASC
       `;
       const revRes = await query(revSql, [start, end]);
@@ -353,6 +356,71 @@ export class StrategyService {
           type: "Receita Recebida (Baixa Efetiva)",
         });
       }
+    } else if (g.source_type === "CRM_OPPORTUNITIES") {
+      const filters = (g.source_filters || {}) as { status?: string };
+      const isCurrency = (g.unit || "").toUpperCase().includes("R$") || (g.unit || "").toUpperCase() === "BRL";
+      const oppRes = await query<{ id: string; title: string; amount: number; created_at: Date; status: string }>(
+        `SELECT id, title, amount::float AS amount, created_at, status
+         FROM crm_opportunities
+         WHERE archived_at IS NULL
+           AND created_at::date >= $1 AND created_at::date <= $2
+           AND ($3::text IS NULL OR status = $3)
+         ORDER BY created_at ASC`,
+        [start, end, filters.status || null]
+      );
+      for (const row of oppRes.rows) {
+        const val = isCurrency ? Number(row.amount || 0) : 1;
+        actualAmount += val;
+        contributingRecords.push({
+          id: row.id,
+          description: `${row.title} (${row.status})`,
+          amount: val,
+          date: row.created_at.toISOString().slice(0, 10),
+          type: "Oportunidade CRM",
+        });
+      }
+    } else if (g.source_type === "CRM_LEADS") {
+      const leadRes = await query<{ id: string; name: string; status: string; created_at: Date }>(
+        `SELECT id, name, status, created_at
+         FROM crm_leads
+         WHERE archived_at IS NULL
+           AND created_at::date >= $1 AND created_at::date <= $2
+         ORDER BY created_at ASC`,
+        [start, end]
+      );
+      for (const row of leadRes.rows) {
+        actualAmount += 1;
+        contributingRecords.push({
+          id: row.id,
+          description: `${row.name} (${row.status})`,
+          amount: 1,
+          date: row.created_at.toISOString().slice(0, 10),
+          type: "Lead CRM",
+        });
+      }
+    } else if (g.source_type === "PROJECTS_HOURS") {
+      const isCurrency = (g.unit || "").toUpperCase().includes("R$") || (g.unit || "").toUpperCase() === "BRL";
+      const timeRes = await query<{ id: string; description: string; hours: number; calculated_cost: number; entry_date: Date | string }>(
+        `SELECT id, description, hours::float AS hours, calculated_cost::float AS calculated_cost, entry_date
+         FROM project_time_entries
+         WHERE entry_date >= $1 AND entry_date <= $2
+         ORDER BY entry_date ASC`,
+        [start, end]
+      );
+      for (const row of timeRes.rows) {
+        const val = isCurrency ? Number(row.calculated_cost || 0) : Number(row.hours || 0);
+        actualAmount += val;
+        contributingRecords.push({
+          id: row.id,
+          description: row.description,
+          amount: val,
+          date: typeof row.entry_date === "string" ? row.entry_date.slice(0, 10) : row.entry_date.toISOString().slice(0, 10),
+          type: isCurrency ? "Custo de Horas" : "Horas Apontadas",
+        });
+      }
+    } else if (g.source_type === "MANUAL") {
+      const meta = (g.metadata || {}) as { actualValue?: number | string };
+      actualAmount = Number(meta.actualValue ?? 0) || 0;
     }
 
     // Cálculos de execução e desvio com tratamento seguro de divisão por zero

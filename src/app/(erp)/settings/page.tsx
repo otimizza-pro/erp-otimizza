@@ -86,36 +86,31 @@ export default function SettingsPage() {
 
   // Marketing Tags
   const defaultMarketingTags = [
-    { id: "1", name: "Contrato Recorrente (Retainer)", color: "bg-blue-50 text-blue-700 border-blue-200" },
-    { id: "2", name: "Gestão de Tráfego", color: "bg-purple-50 text-purple-700 border-purple-200" },
+    { id: "1", name: "Contrato Recorrente (Retainer)", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
+    { id: "2", name: "Gestão de Tráfego", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
     { id: "3", name: "Social Media & Criação", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
     { id: "4", name: "E-commerce / Vendas", color: "bg-amber-50 text-amber-700 border-amber-200" },
     { id: "5", name: "Infoproduto / Lançamentos", color: "bg-rose-50 text-rose-700 border-rose-200" },
-    { id: "6", name: "Negócio Local", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
-    { id: "7", name: "Hospedagem & Domínio Ativo", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+    { id: "6", name: "Negócio Local", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
+    { id: "7", name: "Hospedagem & Domínio Ativo", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
     { id: "8", name: "Cliente VIP / Alta Prioridade", color: "bg-amber-100 text-amber-900 border-amber-300" },
   ];
 
-  const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("otimizza_agency_tags");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {}
-      }
-    }
-    return defaultMarketingTags;
-  });
-
+  const [tags, setTags] = useState<{ id: string; name: string; color: string }[]>(defaultMarketingTags);
   const [newTagName, setNewTagName] = useState("");
 
   // Agency info
   const [agencyName, setAgencyName] = useState("Otimizza Soluções");
   const [agencySlogan, setAgencySlogan] = useState("Data & Growth • Agência de Marketing Digital e Performance");
   const [agencyEmail, setAgencyEmail] = useState("otimizzapro@gmail.com");
-  const [agencyCurrency, setAgencyCurrency] = useState("BRL (R$)");
+  const [agencyCurrency, setAgencyCurrency] = useState("BRL");
   const [savedAgencyMsg, setSavedAgencyMsg] = useState(false);
+  const [savingAgency, setSavingAgency] = useState(false);
+  const [healthStatus, setHealthStatus] = useState<{
+    status: string;
+    databaseStatus: string;
+    latencyMs: number | null;
+  } | null>(null);
 
   const loadCategories = async () => {
     setLoadingCats(true);
@@ -132,6 +127,32 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadCategories();
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        if (data.agency) {
+          setAgencyName(data.agency.name || "Otimizza Soluções");
+          setAgencySlogan(data.agency.slogan || "");
+          setAgencyEmail(data.agency.email || "");
+          setAgencyCurrency(data.agency.currency || "BRL");
+        }
+        if (Array.isArray(data.tags) && data.tags.length > 0) {
+          setTags(data.tags);
+        }
+      })
+      .catch(() => {});
+    fetch("/api/health")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data) return;
+        setHealthStatus({
+          status: data.status || "healthy",
+          databaseStatus: data.services?.database?.status || "connected",
+          latencyMs: data.services?.database?.latencyMs ?? null,
+        });
+      })
+      .catch(() => {});
   }, []);
 
   const handleCreateCategory = async (e: React.FormEvent) => {
@@ -154,26 +175,34 @@ export default function SettingsPage() {
 
       setNewCatName("");
       setNewCatDesc("");
-      setCatFeedback("Categoria cadastrada com sucesso!");
+      setCatFeedback("Categoria cadastrada com sucesso.");
       loadCategories();
       setTimeout(() => setCatFeedback(null), 4000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao cadastrar categoria.");
+      setCatFeedback(err instanceof Error ? err.message : "Erro ao cadastrar categoria.");
     } finally {
       setSavingCat(false);
     }
+  };
+
+  const persistTags = async (updated: { id: string; name: string; color: string }[]) => {
+    try {
+      await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tags: updated }),
+      });
+    } catch {}
   };
 
   const handleAddTag = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTagName.trim()) return;
     const colors = [
-      "bg-blue-50 text-blue-700 border-blue-200",
-      "bg-purple-50 text-purple-700 border-purple-200",
+      "bg-zinc-100 text-zinc-700 border-zinc-200",
       "bg-emerald-50 text-emerald-700 border-emerald-200",
       "bg-amber-50 text-amber-700 border-amber-200",
       "bg-rose-50 text-rose-700 border-rose-200",
-      "bg-indigo-50 text-indigo-700 border-indigo-200",
     ];
     const randomColor = colors[tags.length % colors.length];
     const newTag = {
@@ -184,23 +213,39 @@ export default function SettingsPage() {
     const updated = [...tags, newTag];
     setTags(updated);
     setNewTagName("");
-    if (typeof window !== "undefined") {
-      localStorage.setItem("otimizza_agency_tags", JSON.stringify(updated));
-    }
+    void persistTags(updated);
   };
 
   const handleRemoveTag = (id: string) => {
     const updated = tags.filter((t) => t.id !== id);
     setTags(updated);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("otimizza_agency_tags", JSON.stringify(updated));
-    }
+    void persistTags(updated);
   };
 
-  const handleSaveAgency = (e: React.FormEvent) => {
+  const handleSaveAgency = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedAgencyMsg(true);
-    setTimeout(() => setSavedAgencyMsg(false), 3000);
+    setSavingAgency(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agency: {
+            name: agencyName.trim() || "Otimizza",
+            slogan: agencySlogan.trim(),
+            email: agencyEmail.trim(),
+            currency: agencyCurrency.trim() || "BRL",
+          },
+        }),
+      });
+      if (!res.ok) throw new Error("Falha ao salvar dados da agência");
+      setSavedAgencyMsg(true);
+      setTimeout(() => setSavedAgencyMsg(false), 3000);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingAgency(false);
+    }
   };
 
   return (
@@ -635,28 +680,34 @@ export default function SettingsPage() {
                     Status operacional do banco de dados relacional e serviços conectados
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Conexão Operacional
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${
+                  healthStatus?.status === "degraded"
+                    ? "bg-rose-50 text-rose-700 border-rose-200"
+                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${healthStatus?.status === "degraded" ? "bg-rose-500" : "bg-emerald-500"}`} />
+                  {healthStatus
+                    ? `${healthStatus.databaseStatus === "connected" ? "Conexão Operacional" : "Degradado"}${healthStatus.latencyMs !== null ? ` (${healthStatus.latencyMs}ms)` : ""}`
+                    : "Verificando conexão"}
                 </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                 <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
-                  <span className="text-[11px] font-semibold text-zinc-400 block uppercase">Motor de Banco</span>
-                  <p className="font-bold text-zinc-900">PostgreSQL 16</p>
+                  <span className="text-[11px] font-medium text-zinc-500 block">Motor de Banco</span>
+                  <p className="font-semibold text-zinc-900">PostgreSQL 16</p>
                   <span className="text-[11px] text-zinc-500">Supabase Managed Database</span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
-                  <span className="text-[11px] font-semibold text-zinc-400 block uppercase">Conexão & Pool</span>
-                  <p className="font-bold text-emerald-700 flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" /> Pooler Ativo & RLS
+                  <span className="text-[11px] font-medium text-zinc-500 block">Conexão & Pool</span>
+                  <p className="font-semibold text-emerald-700 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" strokeWidth={1.5} /> Pooler Ativo & RLS
                   </p>
                   <span className="text-[11px] text-zinc-500">pgBouncer com transação isolada</span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-zinc-50 border border-zinc-200/70 space-y-1">
-                  <span className="text-[11px] font-semibold text-zinc-400 block uppercase">Deploy de Produção</span>
-                  <p className="font-bold text-zinc-900">Vercel Edge & Serverless</p>
+                  <span className="text-[11px] font-medium text-zinc-500 block">Deploy de Produção</span>
+                  <p className="font-semibold text-zinc-900">Vercel Edge & Serverless</p>
                   <span className="text-[11px] text-zinc-500">Região gru1 (São Paulo, Brasil)</span>
                 </div>
               </div>
@@ -670,7 +721,7 @@ export default function SettingsPage() {
             <div className="p-6 rounded-2xl bg-white border border-zinc-200/80 shadow-hourline space-y-4">
               <div>
                 <h2 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-indigo-600" />
+                  <Globe className="w-4 h-4 text-zinc-700" strokeWidth={1.5} />
                   Integrações do Sistema
                 </h2>
                 <p className="text-xs text-zinc-500">
@@ -730,16 +781,16 @@ export default function SettingsPage() {
                 {/* GitHub */}
                 <div className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
-                      <Activity className="w-4 h-4" />
+                    <div className="p-2.5 rounded-xl bg-zinc-100 text-zinc-700 border border-zinc-200">
+                      <Activity className="w-4 h-4" strokeWidth={1.5} />
                     </div>
                     <div>
                       <h3 className="font-semibold text-zinc-900">Repositório GitHub (otimizza-pro/erp-otimizza)</h3>
                       <p className="text-zinc-500 text-[11px]">Controle de versão, CI/CD e auditoria de código</p>
                     </div>
                   </div>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <Check className="w-3.5 h-3.5" /> Sincronizado
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <Check className="w-3.5 h-3.5" strokeWidth={1.5} /> Sincronizado
                   </span>
                 </div>
               </div>

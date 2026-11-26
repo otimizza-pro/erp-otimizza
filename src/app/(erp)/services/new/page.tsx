@@ -10,6 +10,7 @@ import { ArrowLeft, Save, AlertCircle, Plus, X, Check } from "lucide-react";
 import { ServiceCategory, BillingUnit } from "@/modules/catalog/types";
 import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { toast } from "@/components/ui/toast-provider";
 
 export default function NewServicePage() {
   const router = useRouter();
@@ -87,7 +88,7 @@ export default function NewServicePage() {
       setNewCatDesc("");
       loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao criar categoria.");
+      toast.error(err instanceof Error ? err.message : "Erro ao criar categoria.");
     } finally {
       setSavingCat(false);
     }
@@ -414,7 +415,7 @@ export default function NewServicePage() {
 
       {/* Modal Rápido de Nova Categoria */}
       {newCatModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-zinc-200 space-y-4">
             <h3 className="font-bold text-zinc-950 text-base">Nova Categoria de Serviços</h3>
             <div className="space-y-3 text-xs">

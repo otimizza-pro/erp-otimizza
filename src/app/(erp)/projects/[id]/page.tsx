@@ -8,6 +8,8 @@ import React, { useState, useEffect, useCallback, use } from "react";
 import Link from "next/link";
 import {EditRecordAction} from "@/components/ui/edit-record-action";
 import {ArchiveRecordAction} from "@/components/ui/archive-record-action";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useRouter } from "next/navigation";
 import {
   Briefcase,
@@ -142,6 +144,15 @@ export default function ProjectWorkspacePage({
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Erro ao carregar projeto");
       setProject(json.data);
+      setSelectedTaskForModal((prev) => {
+        if (!prev) return null;
+        const stages = Array.isArray(json.data?.stages) ? json.data.stages : [];
+        for (const stg of stages) {
+          const updatedTask = (stg.tasks || []).find((t: ProjectTaskRecord) => t.id === prev.id);
+          if (updatedTask) return updatedTask;
+        }
+        return prev;
+      });
 
       const timeRes = await fetch(`/api/projects/${id}/time-entries`);
       const timeJson = await timeRes.json();
@@ -166,11 +177,16 @@ export default function ProjectWorkspacePage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) {
-        loadProject();
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(json.error || "Erro ao atualizar status do projeto.");
+        return;
       }
+      await loadProject();
+      toast.success("Status do projeto atualizado.");
     } catch (err) {
       console.error("Erro ao atualizar status do projeto:", err);
+      toast.error("Erro de conexão ao atualizar status do projeto.");
     }
   };
 
@@ -233,10 +249,10 @@ export default function ProjectWorkspacePage({
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.error || "Erro ao iniciar cronômetro");
       await loadActiveTimers();
-      setTimerFeedback("⏱️ Cronômetro iniciado!");
+      setTimerFeedback("Cronômetro iniciado.");
       setTimeout(() => setTimerFeedback(null), 3000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao iniciar cronômetro.");
+      toast.error(err instanceof Error ? err.message : "Erro ao iniciar cronômetro.");
       throw err;
     }
   };
@@ -252,7 +268,7 @@ export default function ProjectWorkspacePage({
       if (!res.ok || !json.success) throw new Error(json.error || "Erro ao pausar cronômetro");
       await loadActiveTimers();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao pausar cronômetro.");
+      toast.error(err instanceof Error ? err.message : "Erro ao pausar cronômetro.");
     }
   };
 
@@ -267,7 +283,7 @@ export default function ProjectWorkspacePage({
       if (!res.ok || !json.success) throw new Error(json.error || "Erro ao retomar cronômetro");
       await loadActiveTimers();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao retomar cronômetro.");
+      toast.error(err instanceof Error ? err.message : "Erro ao retomar cronômetro.");
     }
   };
 
@@ -287,16 +303,22 @@ export default function ProjectWorkspacePage({
       setStoppingTimer(null);
       await loadActiveTimers();
       await loadProject();
-      setTimerFeedback(`🎉 ${json.message || "Apontamento registrado com sucesso!"}`);
+      setTimerFeedback(json.message || "Apontamento registrado com sucesso.");
       setTimeout(() => setTimerFeedback(null), 4000);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao finalizar cronômetro.");
+      toast.error(err instanceof Error ? err.message : "Erro ao finalizar cronômetro.");
       throw err;
     }
   };
 
   const handleDiscardTimer = async (timerId: string) => {
-    if (!confirm("Tem certeza que deseja descartar este cronômetro? O tempo percorrido não será salvo.")) return;
+    const confirmed = await confirmAction({
+      title: "Descartar cronômetro",
+      message: "Tem certeza que deseja descartar este cronômetro? O tempo percorrido não será salvo.",
+      confirmLabel: "Descartar",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/projects/${id}/timers`, {
         method: "POST",
@@ -308,7 +330,7 @@ export default function ProjectWorkspacePage({
       if (stoppingTimer?.id === timerId) setStoppingTimer(null);
       await loadActiveTimers();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao descartar cronômetro.");
+      toast.error(err instanceof Error ? err.message : "Erro ao descartar cronômetro.");
     }
   };
 
@@ -409,12 +431,19 @@ export default function ProjectWorkspacePage({
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    if (!confirm("Excluir esta tarefa permanentemente?")) return;
+    if (!(await confirmAction({ title: "Excluir tarefa", message: "Excluir esta tarefa permanentemente?", confirmLabel: "Excluir", tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/projects/tasks/${taskId}`, { method: "DELETE" });
-      if (res.ok) loadProject();
+      if (res.ok) {
+        toast.success("Tarefa excluída.");
+        loadProject();
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error || "Erro ao excluir tarefa.");
+      }
     } catch (err) {
       console.error(err);
+      toast.error("Erro ao excluir tarefa.");
     }
   };
 
@@ -426,7 +455,7 @@ export default function ProjectWorkspacePage({
     return (
       <>
         <div className="p-12 text-center text-slate-500">
-          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600" />
+          <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-zinc-800" />
           Carregando projeto...
         </div>
       </>
@@ -464,7 +493,7 @@ export default function ProjectWorkspacePage({
             </Link>
             <div>
               <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                <span className="font-mono text-indigo-600 font-bold">{project.projectNumber}</span>
+                <span className="font-mono text-zinc-800 font-bold">{project.projectNumber}</span>
                 <span>•</span>
                 <span>{project.clientName || "Projeto Interno"}</span>
                 {project.competency && (
@@ -582,7 +611,7 @@ export default function ProjectWorkspacePage({
             <div className="flex items-center gap-2 mt-1">
               <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
                 <div
-                  className="bg-indigo-600 h-full rounded-full transition-all"
+                  className="bg-zinc-900 h-full rounded-full transition-colors"
                   style={{ width: `${taskProgressPct}%` }}
                 />
               </div>
@@ -611,7 +640,7 @@ export default function ProjectWorkspacePage({
             onClick={() => setActiveTab("TASKS")}
             className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === "TASKS"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-zinc-400 text-zinc-800"
                 : "border-transparent hover:text-slate-900"
             }`}
           >
@@ -623,7 +652,7 @@ export default function ProjectWorkspacePage({
             onClick={() => setActiveTab("TIMES")}
             className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === "TIMES"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-zinc-400 text-zinc-800"
                 : "border-transparent hover:text-slate-900"
             }`}
           >
@@ -635,7 +664,7 @@ export default function ProjectWorkspacePage({
             onClick={() => setActiveTab("DOCS")}
             className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === "DOCS"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-zinc-400 text-zinc-800"
                 : "border-transparent hover:text-slate-900"
             }`}
           >
@@ -647,7 +676,7 @@ export default function ProjectWorkspacePage({
             onClick={() => setActiveTab("DETAILS")}
             className={`pb-3 border-b-2 transition-colors flex items-center gap-2 ${
               activeTab === "DETAILS"
-                ? "border-indigo-600 text-indigo-600"
+                ? "border-zinc-400 text-zinc-800"
                 : "border-transparent hover:text-slate-900"
             }`}
           >
@@ -692,10 +721,10 @@ export default function ProjectWorkspacePage({
                           <div
                             key={t.id}
                             onClick={() => setSelectedTaskForModal(t)}
-                            className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer space-y-2.5 group"
+                            className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-xs hover:shadow-md hover:border-zinc-400 transition-colors cursor-pointer space-y-2.5 group"
                           >
                             <div className="flex items-center justify-between">
-                              <span className="font-mono text-[10px] font-bold text-slate-400 group-hover:text-indigo-600 transition">
+                              <span className="font-mono text-[10px] font-bold text-slate-400 group-hover:text-zinc-950 transition">
                                 {t.taskNumber}
                               </span>
                               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
@@ -723,7 +752,7 @@ export default function ProjectWorkspacePage({
                               </div>
                             </div>
 
-                            <h5 className="font-bold text-xs text-slate-900 group-hover:text-indigo-600 transition leading-snug">
+                            <h5 className="font-bold text-xs text-slate-900 group-hover:text-zinc-950 transition leading-snug">
                               {t.title}
                             </h5>
 
@@ -740,7 +769,7 @@ export default function ProjectWorkspacePage({
                                 e.stopPropagation();
                                 setSelectedTaskForModal(t);
                               }}
-                              className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-indigo-50/70 group-hover:bg-zinc-950 text-indigo-700 group-hover:text-white text-[11px] font-semibold border border-indigo-200/80 group-hover:border-transparent transition-all shadow-2xs"
+                              className="w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg bg-zinc-100 group-hover:bg-zinc-950 text-zinc-800 group-hover:text-white text-[11px] font-semibold border border-zinc-200 group-hover:border-transparent transition-colors shadow-2xs"
                             >
                               <Sparkles className="w-3.5 h-3.5" />
                               <span>Executar Tarefa / Detalhes</span>
@@ -796,7 +825,7 @@ export default function ProjectWorkspacePage({
                                       handleAddChecklist(t.id);
                                     }
                                   }}
-                                  className="w-full text-[11px] px-2 py-0.5 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                  className="w-full text-[11px] px-2 py-0.5 border border-slate-200 rounded focus:outline-none focus:ring-1 focus:ring-zinc-300"
                                 />
                               </div>
                             </div>
@@ -894,7 +923,7 @@ export default function ProjectWorkspacePage({
                       <td className="py-2.5 px-4 text-right text-slate-500">
                         {formatCurrency(te.hourlyRate)}
                       </td>
-                      <td className="py-2.5 px-4 text-right font-bold text-indigo-700">
+                      <td className="py-2.5 px-4 text-right font-bold text-zinc-800">
                         {formatCurrency(te.calculatedCost)}
                       </td>
                     </tr>
@@ -931,7 +960,7 @@ export default function ProjectWorkspacePage({
                 <span className="font-semibold text-slate-800 block mb-1">Vínculo de Negócio</span>
                 <p className="text-slate-600">Cliente: {project.clientName || "Projeto Interno"}</p>
                 {project.contractNumber && (
-                  <p className="text-indigo-600 font-medium">Contrato / Assinatura: {project.contractNumber}</p>
+                  <p className="text-zinc-800 font-medium">Contrato / Assinatura: {project.contractNumber}</p>
                 )}
                 {project.templateName && (
                   <p className="text-slate-600">Modelo / Template: {project.templateName}</p>
@@ -957,7 +986,7 @@ export default function ProjectWorkspacePage({
 
         {/* Modal Nova Tarefa */}
         {isTaskModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-zinc-950/45 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-slate-200 overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <h3 className="font-bold text-slate-900 text-base">Nova Tarefa</h3>
@@ -980,7 +1009,7 @@ export default function ProjectWorkspacePage({
                     value={taskTitle}
                     onChange={(e) => setTaskTitle(e.target.value)}
                     placeholder="Ex: Criar novos anúncios no Meta Ads"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   />
                 </div>
 
@@ -993,7 +1022,7 @@ export default function ProjectWorkspacePage({
                     value={taskDesc}
                     onChange={(e) => setTaskDesc(e.target.value)}
                     placeholder="Instruções ou referências..."
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   />
                 </div>
 
@@ -1006,7 +1035,7 @@ export default function ProjectWorkspacePage({
                       type="date"
                       value={taskDueDate}
                       onChange={(e) => setTaskDueDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                     />
                   </div>
 
@@ -1017,7 +1046,7 @@ export default function ProjectWorkspacePage({
                     <select
                       value={taskPriority}
                       onChange={(e) => setTaskPriority(e.target.value as ProjectPriority)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                     >
                       <option value="LOW">Baixa</option>
                       <option value="MEDIUM">Média</option>
@@ -1037,7 +1066,7 @@ export default function ProjectWorkspacePage({
                     min="0"
                     value={taskEstimatedHours}
                     onChange={(e) => setTaskEstimatedHours(parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   />
                 </div>
 
@@ -1063,7 +1092,7 @@ export default function ProjectWorkspacePage({
 
         {/* Modal Apontamento de Horas */}
         {isTimeModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-zinc-950/45 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-slate-200 overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <h3 className="font-bold text-slate-900 text-base">Apontar Horas</h3>
@@ -1083,7 +1112,7 @@ export default function ProjectWorkspacePage({
                   <select
                     value={timeTaskId}
                     onChange={(e) => setTimeTaskId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   >
                     <option value="">Atividade Geral do Projeto</option>
                     {allTasks.map((t) => (
@@ -1104,7 +1133,7 @@ export default function ProjectWorkspacePage({
                       required
                       value={timeDate}
                       onChange={(e) => setTimeDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                     />
                   </div>
 
@@ -1119,7 +1148,7 @@ export default function ProjectWorkspacePage({
                       required
                       value={timeHours}
                       onChange={(e) => setTimeHours(parseFloat(e.target.value) || 0)}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                     />
                   </div>
                 </div>
@@ -1134,7 +1163,7 @@ export default function ProjectWorkspacePage({
                     value={timeDesc}
                     onChange={(e) => setTimeDesc(e.target.value)}
                     placeholder="Ex: Análise das palavras-chave e ajuste de lance"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   />
                 </div>
 
@@ -1149,7 +1178,7 @@ export default function ProjectWorkspacePage({
                     value={timeRate}
                     onChange={(e) => setTimeRate(parseFloat(e.target.value) || 0)}
                     placeholder="0.00"
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                   />
                   <span className="text-[10px] text-slate-500 mt-0.5 block">
                     Custo referencial interno para rentabilidade, não gera título a pagar.
@@ -1200,7 +1229,7 @@ export default function ProjectWorkspacePage({
         />
 
         {deleteDialog.open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl space-y-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900">

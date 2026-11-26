@@ -751,7 +751,7 @@ function NewProposalWizard() {
                   key={step.num}
                   type="button"
                   onClick={() => setCurrentStep(step.num)}
-                  className={`text-left p-3 rounded-xl border transition-all ${
+                  className={`text-left p-3 rounded-xl border transition-colors ${
                     isActive
                       ? "bg-emerald-50/70 border-emerald-500 ring-2 ring-emerald-500/20"
                       : isPast
@@ -824,7 +824,7 @@ function NewProposalWizard() {
                       onClick={() => setRecipientType("LEAD")}
                       className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition ${
                         recipientType === "LEAD"
-                          ? "bg-white text-purple-700 shadow-2xs"
+                          ? "bg-white text-zinc-800 shadow-2xs"
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
@@ -862,7 +862,7 @@ function NewProposalWizard() {
                         const ld = leads.find((l) => l.id === e.target.value);
                         if (ld) setTitle(`Proposta Comercial — ${ld.companyName || ld.name}`);
                       }}
-                      className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:bg-white focus:ring-2 focus:ring-zinc-300"
                     >
                       <option value="">Selecione um lead...</option>
                       {leads.map((l) => (
@@ -909,7 +909,7 @@ function NewProposalWizard() {
                   disabled={isAiLoading || !currentScenario.trim() || !dnaReady}
                   className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold hover:brightness-105 shadow-sm transition disabled:opacity-50 shrink-0"
                 >
-                  <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                  <Sparkles className="w-3.5 h-3.5" />
                   {isAiLoading ? "Ajustando com IA..." : "✨ Ajustar Textos com IA"}
                 </button>
               </div>
@@ -959,7 +959,7 @@ function NewProposalWizard() {
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-2">
                   <label htmlFor="proposal-scenario" className="text-xs font-semibold text-slate-700">Texto do Slide: Cenário Atual & Desafios Mapeados</label>
-                  <button type="button" aria-label="Melhorar a redação do cenário com IA" title="Melhorar a redação sem alterar o sentido" disabled={isAiLoading || !currentScenario.trim()} onClick={() => runProposalAi("POLISH_SCENARIO")} className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-40"><Sparkles className={`h-4 w-4 ${aiAction === "POLISH_SCENARIO" ? "animate-pulse" : ""}`} /></button>
+                  <button type="button" aria-label="Melhorar a redação do cenário com IA" title="Melhorar a redação sem alterar o sentido" disabled={isAiLoading || !currentScenario.trim()} onClick={() => runProposalAi("POLISH_SCENARIO")} className="rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-emerald-700 transition hover:bg-emerald-100 disabled:opacity-40"><Sparkles className={`h-4 w-4 ${aiAction === "POLISH_SCENARIO" ? "" : ""}`} /></button>
                 </div>
                 <textarea
                   rows={3}
@@ -1069,7 +1069,7 @@ function NewProposalWizard() {
                           e.target.value = "";
                         }
                       }}
-                      className="px-3 py-2 text-xs font-semibold bg-indigo-50 border border-indigo-200 rounded-xl text-indigo-800 hover:bg-indigo-100 focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                      className="px-3 py-2 text-xs font-semibold bg-zinc-100 border border-zinc-200 rounded-xl text-zinc-800 hover:bg-zinc-100 focus:ring-2 focus:ring-zinc-300 cursor-pointer"
                       defaultValue=""
                     >
                       <option value="" disabled>
@@ -1476,7 +1476,7 @@ function NewProposalWizard() {
                       <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
                         PROPOSTA COMERCIAL
                       </span>
-                      <h2 className="text-2xl md:text-4xl font-extrabold tracking-tight max-w-xl leading-tight">
+                      <h2 className="text-2xl md:text-4xl font-semibold tracking-tight max-w-xl leading-tight">
                         {title || "Proposta Comercial"}
                       </h2>
                     </div>
@@ -1511,14 +1511,14 @@ function NewProposalWizard() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center my-auto">
                       <div className="space-y-4">
-                        <h2 className="text-3xl md:text-5xl font-black text-emerald-300">Data & Growth</h2>
+                        <h2 className="text-3xl md:text-5xl font-semibold text-emerald-300">Data & Growth</h2>
                         <p className="text-sm md:text-base text-emerald-100/90 leading-relaxed">
                           A Otimizza conecta <strong>análise de dados</strong>, <strong>planejamento de marketing</strong> e <strong>gestão de campanhas</strong> para ajudar sua empresa a identificar oportunidades e direcionar melhor seus investimentos.
                         </p>
                       </div>
 
                       <div className="p-6 md:p-8 rounded-2xl bg-[#10b981] text-[#05372c] space-y-3 shadow-lg">
-                        <h3 className="text-xl md:text-2xl font-black leading-snug">
+                        <h3 className="text-xl md:text-2xl font-semibold leading-snug">
                           Clareza para decidir. <br />
                           Direção para crescer.
                         </h3>
@@ -1549,12 +1549,12 @@ function NewProposalWizard() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center my-auto">
                       <div className="p-6 rounded-2xl bg-[#05372c] text-white space-y-2">
                         <span className="text-xs text-emerald-400 font-bold block">since</span>
-                        <div className="text-4xl md:text-5xl font-black">2014.</div>
+                        <div className="text-4xl md:text-5xl font-semibold">2014.</div>
                         <p className="text-xs text-emerald-200">Criatividade, tecnologia e resultado.</p>
                       </div>
 
                       <div className="md:col-span-2 space-y-4">
-                        <h2 className="text-2xl md:text-3xl font-black text-slate-950">Quem Somos?</h2>
+                        <h2 className="text-2xl md:text-3xl font-semibold text-slate-950">Quem Somos?</h2>
                         <p className="text-sm md:text-base text-slate-600 leading-relaxed">
                           Desde 2014, ajudamos marcas a crescerem no digital com estratégia e propósito. Ao longo desses anos, ampliamos nossa atuação e hoje entregamos soluções completas em Social Media, Tráfego Pago, Website, Sistemas e Produção de Conteúdo, unindo criatividade, tecnologia e dados em cada projeto.
                         </p>
@@ -1583,7 +1583,7 @@ function NewProposalWizard() {
                       <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
                         DIAGNÓSTICO ESTRATÉGICO
                       </span>
-                      <h2 className="text-2xl md:text-3xl font-black text-slate-950">Cenário Atual</h2>
+                      <h2 className="text-2xl md:text-3xl font-semibold text-slate-950">Cenário Atual</h2>
                       <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-sm md:text-base text-slate-700 leading-relaxed">
                         {currentScenario}
                       </div>
@@ -1609,7 +1609,7 @@ function NewProposalWizard() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-auto">
                       <div className="p-6 rounded-2xl bg-[#10b981] text-[#05372c] space-y-2.5">
-                        <h4 className="text-xs font-black uppercase tracking-wider">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider">
                           O FOCO DESTA PARCERIA
                         </h4>
                         <p className="text-sm md:text-base font-semibold leading-relaxed">
@@ -1618,7 +1618,7 @@ function NewProposalWizard() {
                       </div>
 
                       <div className="p-6 rounded-2xl bg-[#0a4d3c] text-white space-y-2.5">
-                        <h4 className="text-xs font-black uppercase tracking-wider text-emerald-300">
+                        <h4 className="text-xs font-semibold uppercase tracking-wider text-emerald-300">
                           O QUE VAMOS ACOMPANHAR
                         </h4>
                         <p className="text-sm md:text-base text-emerald-50 leading-relaxed">
@@ -1657,7 +1657,7 @@ function NewProposalWizard() {
                             <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
                               ESCOPO & ENTREGÁVEIS
                             </span>
-                            <h2 className="text-2xl md:text-3xl font-black text-slate-950">
+                            <h2 className="text-2xl md:text-3xl font-semibold text-slate-950">
                               {item.name}
                             </h2>
 
@@ -1697,7 +1697,7 @@ function NewProposalWizard() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center my-auto">
                       <div className="space-y-3">
-                        <h2 className="text-2xl md:text-3xl font-black text-slate-950">Como Trabalhamos</h2>
+                        <h2 className="text-2xl md:text-3xl font-semibold text-slate-950">Como Trabalhamos</h2>
                         <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
                           Nossa atuação é estruturada em etapas claras, do entendimento do negócio à avaliação contínua dos resultados.
                         </p>
@@ -1737,14 +1737,14 @@ function NewProposalWizard() {
                     </div>
 
                     <div className="my-auto space-y-6">
-                      <h2 className="text-2xl md:text-4xl font-black">Investimento Proposto</h2>
+                      <h2 className="text-2xl md:text-4xl font-semibold">Investimento Proposto</h2>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {totalMonthly > 0 && (
                           <div className="p-4 rounded-xl bg-[#10b981] text-[#05372c]">
                             <span className="text-[10px] font-bold uppercase tracking-wider">
                               MENSALIDADE
                             </span>
-                            <div className="text-xl md:text-2xl font-black font-mono">
+                            <div className="text-xl md:text-2xl font-semibold font-mono">
                               R$ {totalMonthly.toFixed(2)}
                             </div>
                           </div>
@@ -1754,7 +1754,7 @@ function NewProposalWizard() {
                             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
                               ANUIDADE
                             </span>
-                            <div className="text-xl md:text-2xl font-black font-mono">
+                            <div className="text-xl md:text-2xl font-semibold font-mono">
                               R$ {totalYearly.toFixed(2)}
                             </div>
                           </div>
@@ -1764,7 +1764,7 @@ function NewProposalWizard() {
                             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">
                               AVULSO / SETUP
                             </span>
-                            <div className="text-xl md:text-2xl font-black font-mono">
+                            <div className="text-xl md:text-2xl font-semibold font-mono">
                               R$ {totalOneTime.toFixed(2)}
                             </div>
                             <span className="text-[10px] text-emerald-300">ou em até 3x sem juros</span>

@@ -1,5 +1,7 @@
 import { isEditorialTemplate, isOnboardingTemplate } from "@/modules/projects/editorial-template";
 import { query, withTransaction } from "@/lib/db/pool";
+import { NotificationService } from "@/modules/notifications/service";
+import type { PoolClient } from "pg";
 import { createSocialMediaMonth, saveSocialMediaSchedule } from "./social-media-planning";
 import {
   ProjectRecord,
@@ -385,12 +387,13 @@ export async function createProject(
         [templateId]
       );
 
-      const projStartDate = new Date(validated.startDate);
+      const [startYear, startMonth, startDay] = validated.startDate.split("-").map(Number);
+      const projStartDate = new Date(Date.UTC(startYear, startMonth - 1, startDay));
 
       for (const t of tasksRes.rows) {
         const newStageId = t.stage_id ? stageMap.get(t.stage_id) || null : null;
-        const taskDueDate = new Date(projStartDate);
-        taskDueDate.setDate(taskDueDate.getDate() + (t.relative_due_days || 0));
+        const taskDueDate = new Date(projStartDate.getTime());
+        taskDueDate.setUTCDate(taskDueDate.getUTCDate() + (t.relative_due_days || 0));
         const dueDateStr = taskDueDate.toISOString().substring(0, 10);
 
         await client.query(
@@ -425,6 +428,25 @@ export async function createProject(
 
   const full = await getProjectById(projectId);
   if (!full) throw new Error("Erro ao carregar projeto criado.");
+
+  const rawDueDate = full.dueDate as unknown;
+  const formattedDueDate =
+    rawDueDate instanceof Date
+      ? rawDueDate.toISOString().slice(0, 10)
+      : String(rawDueDate || "").slice(0, 10);
+
+  await NotificationService.createSafeNotification({
+    title: "Novo projeto criado",
+    message: `${full.name}${full.clientName ? ` (${full.clientName})` : ""} foi criado com entrega prevista para ${formattedDueDate}.`,
+    type: "SUCCESS",
+    category: "PROJECTS",
+    severity: "success",
+    dedupKey: `project:created:${full.id}`,
+    entityType: "project",
+    entityId: full.id,
+    linkUrl: `/projects/${full.id}`,
+  });
+
   return full;
 }
 
@@ -445,6 +467,30 @@ export async function updateProject(
     params.push(validated.description);
     updates.push(`description = $${params.length}`);
   }
+  if (validated.projectType !== undefined) {
+    params.push(validated.projectType);
+    updates.push(`project_type = $${params.length}`);
+  }
+  if (validated.clientId !== undefined) {
+    params.push(validated.clientId);
+    updates.push(`client_id = $${params.length}`);
+  }
+  if (validated.contractId !== undefined) {
+    params.push(validated.contractId);
+    updates.push(`contract_id = $${params.length}`);
+  }
+  if (validated.contractVersionId !== undefined) {
+    params.push(validated.contractVersionId);
+    updates.push(`contract_version_id = $${params.length}`);
+  }
+  if (validated.templateId !== undefined) {
+    params.push(validated.templateId);
+    updates.push(`template_id = $${params.length}`);
+  }
+  if (validated.competency !== undefined) {
+    params.push(validated.competency);
+    updates.push(`competency = $${params.length}`);
+  }
   if (validated.status !== undefined) {
     params.push(validated.status);
     updates.push(`status = $${params.length}`);
@@ -458,9 +504,21 @@ export async function updateProject(
     params.push(validated.priority);
     updates.push(`priority = $${params.length}`);
   }
+  if (validated.startDate !== undefined) {
+    params.push(validated.startDate);
+    updates.push(`start_date = $${params.length}`);
+  }
   if (validated.dueDate !== undefined) {
     params.push(validated.dueDate);
     updates.push(`due_date = $${params.length}`);
+  }
+  if (validated.estimatedBudget !== undefined) {
+    params.push(validated.estimatedBudget);
+    updates.push(`estimated_budget = $${params.length}`);
+  }
+  if (validated.estimatedHours !== undefined) {
+    params.push(validated.estimatedHours);
+    updates.push(`estimated_hours = $${params.length}`);
   }
   if (validated.notes !== undefined) {
     params.push(validated.notes);
@@ -471,8 +529,23 @@ export async function updateProject(
   const res = await query(sql, params);
   if (res.rows.length === 0) throw new Error("Projeto não encontrado.");
 
-  const updated = await getProjectById(id,true);
+  const updated = await getProjectById(id, true);
   if (!updated) throw new Error("Erro ao obter projeto atualizado.");
+
+  if (validated.status === "COMPLETED" || validated.status === "CANCELED") {
+    await NotificationService.createSafeNotification({
+      title: validated.status === "COMPLETED" ? "Projeto concluído" : "Projeto cancelado",
+      message: `${updated.name}${updated.clientName ? ` (${updated.clientName})` : ""} foi marcado como ${validated.status === "COMPLETED" ? "concluído" : "cancelado"}.`,
+      type: validated.status === "COMPLETED" ? "SUCCESS" : "WARNING",
+      category: "PROJECTS",
+      severity: validated.status === "COMPLETED" ? "success" : "warning",
+      dedupKey: `project:status:${updated.id}:${validated.status}`,
+      entityType: "project",
+      entityId: updated.id,
+      linkUrl: `/projects/${updated.id}`,
+    });
+  }
+
   return updated;
 }
 
@@ -644,7 +717,23 @@ export async function updateProjectTask(
   `;
   const res = await query<ProjectTaskRecord>(sql, params);
   if (res.rows.length === 0) throw new Error("Tarefa não encontrada.");
-  return res.rows[0];
+
+  const task = res.rows[0];
+  if (validated.status === "DONE" || validated.status === "IN_REVIEW") {
+    await NotificationService.createSafeNotification({
+      title: validated.status === "DONE" ? "Tarefa concluída" : "Tarefa aguardando revisão",
+      message: `${task.taskNumber ? `${task.taskNumber} — ` : ""}${task.title} mudou para ${validated.status === "DONE" ? "Concluído" : "Em Revisão"}.`,
+      type: validated.status === "DONE" ? "SUCCESS" : "INFO",
+      category: "PROJECTS",
+      severity: validated.status === "DONE" ? "success" : "info",
+      dedupKey: `task:status:${task.id}:${validated.status}`,
+      entityType: "project_task",
+      entityId: task.id,
+      linkUrl: `/projects/${task.projectId}`,
+    });
+  }
+
+  return task;
 }
 
 export async function deleteProjectTask(id: string): Promise<void> {
@@ -703,12 +792,13 @@ export async function deleteChecklistItem(id: string): Promise<void> {
 // ----------------------------------------------------------------------
 
 export async function addProjectTimeEntry(
-  input: CreateTimeEntryInput
+  input: CreateTimeEntryInput,
+  externalClient?: PoolClient
 ): Promise<ProjectTimeEntryRecord> {
   const validated = CreateTimeEntrySchema.parse(input);
   const calculatedCost = Math.round(validated.hours * validated.hourlyRate * 100) / 100;
 
-  return await withTransaction(async (client) => {
+  const executeInsert = async (client: PoolClient): Promise<ProjectTimeEntryRecord> => {
     const sql = `
       INSERT INTO project_time_entries (
         project_id, task_id, entry_date, hours, description, hourly_rate, calculated_cost
@@ -753,7 +843,12 @@ export async function addProjectTimeEntry(
     }
 
     return entry;
-  });
+  };
+
+  if (externalClient) {
+    return executeInsert(externalClient);
+  }
+  return await withTransaction(executeInsert);
 }
 
 export async function getProjectTimeEntries(projectId: string): Promise<ProjectTimeEntryRecord[]> {

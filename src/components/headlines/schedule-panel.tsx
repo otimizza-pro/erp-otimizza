@@ -51,12 +51,13 @@ export function SchedulePanel({
   onBackToImagePrompt,
 }: SchedulePanelProps) {
   const [scheduledDate, setScheduledDate] = useState(() => {
-    const today = new Date();
-    today.setDate(today.getDate() + 1);
-    return today.toISOString().split("T")[0];
+    const todaySp = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const [y, m, d] = todaySp.split("-").map(Number);
+    const tomorrow = new Date(Date.UTC(y, m - 1, d + 1));
+    return tomorrow.toISOString().split("T")[0];
   });
   const [scheduledTime, setScheduledTime] = useState("18:00");
-  const [status, setStatus] = useState<"SCHEDULED" | "PLANNED" | "APPROVED">("SCHEDULED");
+  const [status, setStatus] = useState<"SCHEDULED" | "PLANNED" | "APPROVED">("PLANNED");
   const [published, setPublished] = useState(false);
   const [imageUrl, setImageUrl] = useState(initialImageUrl || "");
 
@@ -75,7 +76,9 @@ export function SchedulePanel({
         const res = await fetch(`/api/content-studio/calendar?clientId=${clientId}`);
         if (!res.ok) return;
         const d = await res.json();
-        setCalendarPosts(Array.isArray(d.items) ? d.items : Array.isArray(d.data) ? d.data : []);
+        const items: CalendarPost[] = Array.isArray(d.items) ? d.items : Array.isArray(d.data) ? d.data : [];
+        items.sort((a, b) => (a.scheduled_date || "9999-12-31").localeCompare(b.scheduled_date || "9999-12-31"));
+        setCalendarPosts(items);
       } catch {} finally {
         setLoadingCalendar(false);
       }
@@ -135,7 +138,7 @@ export function SchedulePanel({
       }
 
       setScheduledSuccess(true);
-      setFeedback({ type: "success", text: "Publicação agendada no Calendário com sucesso!" });
+      setFeedback({ type: "success", text: "Publicação agendada no Calendário com sucesso." });
     } catch (e: unknown) {
       const err = e as Error;
       setFeedback({ type: "error", text: err.message || "Falha ao agendar publicação." });
@@ -204,7 +207,7 @@ export function SchedulePanel({
         <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Conteúdo a Publicar:</span>
-            <div className="text-sm font-extrabold text-zinc-900">{headline}</div>
+            <div className="text-sm font-semibold text-zinc-900">{headline}</div>
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-lg bg-white border border-zinc-200 px-2.5 py-1 text-xs font-semibold text-zinc-700">
@@ -232,7 +235,7 @@ export function SchedulePanel({
           </div>
 
           <div>
-            <h2 className="text-2xl font-extrabold text-zinc-950">Post Agendado com Sucesso!</h2>
+            <h2 className="text-2xl font-semibold text-zinc-950">Post Agendado com Sucesso!</h2>
             <p className="mt-1 text-sm text-zinc-600 max-w-md mx-auto">
               Sua publicação foi programada para o dia <strong>{scheduledDate.split("-").reverse().join("/")}</strong> às <strong>{scheduledTime}</strong> para o cliente <strong>{companyName}</strong>.
             </p>
@@ -329,7 +332,7 @@ export function SchedulePanel({
             <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
               <div>
                 <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
-                  <CalendarDays size={18} className="text-indigo-600" />
+                  <CalendarDays size={18} className="text-zinc-700" />
                   Próximos Posts Deste Cliente
                 </h3>
                 <p className="text-xs text-zinc-500">

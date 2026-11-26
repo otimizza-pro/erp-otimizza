@@ -23,6 +23,7 @@ import {
 } from "./types";
 import { createContract, getContractById } from "@/modules/contracts/service";
 import type { ContractRecord } from "@/modules/contracts/types";
+import { NotificationService } from "@/modules/notifications/service";
 
 // Helpers para normalização monetária e cálculos determinísticos
 function toCents(amount: number): number {
@@ -668,11 +669,17 @@ export class ProposalService {
         [input.items.map((item) => item.serviceId)]
       );
       const servicePresentations = Object.fromEntries(presentationRows.rows.map((row) => [row.id, ServicePresentationSchema.parse({ ...row.presentation, overview: row.presentation?.overview || row.description || "" })]));
+      const serializedPropValidUntil =
+        prop.valid_until instanceof Date
+          ? prop.valid_until.toISOString().slice(0, 10)
+          : typeof prop.valid_until === "string"
+          ? prop.valid_until.slice(0, 10)
+          : undefined;
       const commercialTerms = {
         servicePresentations,
         diagnostics: input.diagnostics !== undefined ? (input.diagnostics || undefined) : prevTerms.diagnostics,
         serviceDeliverables: input.serviceDeliverables !== undefined ? (input.serviceDeliverables || undefined) : prevTerms.serviceDeliverables,
-        validUntil: input.validUntil || prop.valid_until,
+        validUntil: input.validUntil || serializedPropValidUntil,
         paymentTerms: input.paymentTerms !== undefined ? input.paymentTerms : prevTerms.paymentTerms,
         startLeadTimeDays:
           input.startLeadTimeDays !== undefined ? input.startLeadTimeDays : prevTerms.startLeadTimeDays,
@@ -827,7 +834,7 @@ export class ProposalService {
   ): Promise<ProposalRecord> {
     return withTransaction(async (client) => {
       const propRes = await client.query<DbProposalRow>(
-        `SELECT * FROM proposals WHERE id = $1 FOR UPDATE`,
+        `SELECT * FROM proposals WHERE id = $1 AND archived_at IS NULL FOR UPDATE`,
         [id]
       );
       if (!propRes.rows[0]) throw new Error("Proposta não encontrada.");
@@ -929,6 +936,20 @@ export class ProposalService {
         ]
       );
 
+      await NotificationService.createSafeNotification(
+        {
+          type: "PROPOSAL_APPROVED",
+          severity: "success",
+          category: "COMMERCIAL",
+          entityType: "proposal",
+          entityId: id,
+          title: `Proposta aprovada (${prop.proposal_code})`,
+          message: `${prop.title} — pronta para conversão em contrato`,
+          linkUrl: `/proposals/${id}`,
+        },
+        client
+      );
+
       return (await this.getProposalById(id, client))!;
     };
     return externalClient ? run(externalClient) : withTransaction(run);
@@ -940,14 +961,14 @@ export class ProposalService {
   static async rejectProposal(id: string, input: RejectProposalInput): Promise<ProposalRecord> {
     return withTransaction(async (client) => {
       const propRes = await client.query<DbProposalRow>(
-        `SELECT * FROM proposals WHERE id = $1 FOR UPDATE`,
+        `SELECT * FROM proposals WHERE id = $1 AND archived_at IS NULL FOR UPDATE`,
         [id]
       );
       if (!propRes.rows[0]) throw new Error("Proposta não encontrada.");
       const prop = propRes.rows[0];
 
-      if (prop.status === "APPROVED") {
-        throw new Error("Propostas aprovadas não podem ser rejeitadas diretamente.");
+      if (prop.status === "APPROVED" || prop.status === "CANCELED") {
+        throw new Error("Propostas aprovadas ou canceladas não podem ser rejeitadas.");
       }
 
       await client.query(
@@ -980,6 +1001,20 @@ export class ProposalService {
         ]
       );
 
+      await NotificationService.createSafeNotification(
+        {
+          type: "PROPOSAL_REJECTED",
+          severity: "warning",
+          category: "COMMERCIAL",
+          entityType: "proposal",
+          entityId: id,
+          title: `Proposta rejeitada (${prop.proposal_code})`,
+          message: input.reason.trim(),
+          linkUrl: `/proposals/${id}`,
+        },
+        client
+      );
+
       return (await this.getProposalById(id, client))!;
     });
   }
@@ -990,7 +1025,7 @@ export class ProposalService {
   static async cancelProposal(id: string, input: CancelProposalInput): Promise<ProposalRecord> {
     return withTransaction(async (client) => {
       const propRes = await client.query<DbProposalRow>(
-        `SELECT * FROM proposals WHERE id = $1 FOR UPDATE`,
+        `SELECT * FROM proposals WHERE id = $1 AND archived_at IS NULL FOR UPDATE`,
         [id]
       );
       if (!propRes.rows[0]) throw new Error("Proposta não encontrada.");
@@ -1017,6 +1052,20 @@ export class ProposalService {
           input.actorId || null,
           input.actorName || "Administrador",
         ]
+      );
+
+      await NotificationService.createSafeNotification(
+        {
+          type: "PROPOSAL_CANCELED",
+          severity: "info",
+          category: "COMMERCIAL",
+          entityType: "proposal",
+          entityId: id,
+          title: `Proposta cancelada (${prop.proposal_code})`,
+          message: input.reason.trim(),
+          linkUrl: `/proposals/${id}`,
+        },
+        client
       );
 
       return (await this.getProposalById(id, client))!;
@@ -1065,7 +1114,7 @@ export class ProposalService {
         const fullProposal = (await this.getProposalById(id, client))!;
         const existingContracts: ContractRecord[] = [];
         for (const row of existingConv.rows) {
-          const c = await getContractById(row.contract_id);
+          const c = await getContractById(row.contract_id, client);
           if (c) {
             existingContracts.push({
               ...c,
@@ -1509,10 +1558,10 @@ export class ProposalService {
         it.supplierNameSnapshot || (supplierId ? supplierNameMap.get(supplierId) : null) || null;
 
       const qty = (it.quantity && it.quantity > 0) ? Number(it.quantity) : 1;
-      const effectiveNegPrice = (it.negotiatedUnitPrice !== undefined && it.negotiatedUnitPrice !== null && it.negotiatedUnitPrice > 0)
+      const effectiveNegPrice = (it.negotiatedUnitPrice !== undefined && it.negotiatedUnitPrice !== null && it.negotiatedUnitPrice >= 0)
         ? it.negotiatedUnitPrice
         : (it.unitPrice ?? it.referenceUnitPrice ?? Number(sInfo?.default_price || 0));
-      const effectiveRefPrice = (it.referenceUnitPrice !== undefined && it.referenceUnitPrice !== null && it.referenceUnitPrice > 0)
+      const effectiveRefPrice = (it.referenceUnitPrice !== undefined && it.referenceUnitPrice !== null && it.referenceUnitPrice >= 0)
         ? it.referenceUnitPrice
         : (effectiveNegPrice || Number(sInfo?.default_price || 0));
 

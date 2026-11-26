@@ -51,7 +51,7 @@ export async function syncBriefingIdentity(client:PoolClient,clientId:string,ext
  if (Array.isArray(ext.catalogItems) && ext.catalogItems.length > 0) {
    try {
      await client.query("UPDATE client_identities SET catalog_items = $1::jsonb WHERE client_id = $2", [JSON.stringify(ext.catalogItems), clientId]);
-     await syncCatalogItems(clientId, ext.catalogItems as Parameters<typeof syncCatalogItems>[1]);
+     await syncCatalogItems(clientId, ext.catalogItems as Parameters<typeof syncCatalogItems>[1], client);
    } catch (catErr) {
      console.warn("Aviso ao sincronizar catálogo do briefing:", catErr);
    }

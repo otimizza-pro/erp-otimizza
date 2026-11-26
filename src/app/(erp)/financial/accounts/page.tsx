@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { FinancialAccountRecord, AccountType } from "@/modules/financial/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { formatMoney } from "@/shared/money";
 
 export default function FinancialAccountsPage() {
@@ -169,8 +171,8 @@ export default function FinancialAccountsPage() {
   };
 
   const handleDeleteAccount = async (acc: FinancialAccountRecord) => {
-    const confirmMsg = `Deseja realmente excluir ou desativar a conta "${acc.name}"?\n\n• Se ela não possuir movimentações, será apagada definitivamente.\n• Se possuir histórico contábil, será desativada para não receber novos lançamentos.`;
-    if (!confirm(confirmMsg)) return;
+    const confirmMsg = `Deseja realmente excluir ou desativar a conta "${acc.name}"? Contas sem movimentação são excluídas definitivamente; contas com histórico contábil são desativadas.`;
+    if (!(await confirmAction({ title: `Excluir conta ${acc.name}`, message: confirmMsg, confirmLabel: "Confirmar", tone: "danger" }))) return;
 
     try {
       const res = await fetch(`/api/financial/accounts/${acc.id}`, {
@@ -180,10 +182,10 @@ export default function FinancialAccountsPage() {
       if (!res.ok) {
         throw new Error(data.error || "Erro ao excluir conta.");
       }
-      alert(data.message || "Operação realizada com sucesso.");
+      toast.success(data.message || "Operação realizada com sucesso.");
       loadAccounts();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir conta.");
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir conta.");
     }
   };
 
@@ -272,7 +274,7 @@ export default function FinancialAccountsPage() {
             <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
               Disponibilidade Financeira Total Consolidada
             </p>
-            <p className="text-3xl font-extrabold text-zinc-950 mt-1">
+            <p className="text-3xl font-semibold text-zinc-950 mt-1">
               R${" "}
               {accounts
                 .reduce((acc, a) => acc + a.currentBalance, 0)
@@ -398,7 +400,7 @@ export default function FinancialAccountsPage() {
 
       {/* Modal Nova Conta */}
       {newAccModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-zinc-200 space-y-4">
             <h3 className="font-bold text-zinc-950 text-base">Nova Conta Financeira</h3>
             {accError && <div className="p-3 rounded-lg bg-rose-50 text-rose-700 text-xs">{accError}</div>}
@@ -475,7 +477,7 @@ export default function FinancialAccountsPage() {
 
       {/* Modal Editar Conta */}
       {editAccModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-zinc-200 space-y-4">
             <h3 className="font-bold text-zinc-950 text-base">Editar Conta Financeira</h3>
             {accError && <div className="p-3 rounded-lg bg-rose-50 text-rose-700 text-xs">{accError}</div>}
@@ -574,7 +576,7 @@ export default function FinancialAccountsPage() {
 
       {/* Modal Transferência */}
       {transferModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-zinc-200 space-y-4">
             <h3 className="font-bold text-zinc-950 text-base">Transferência entre Contas</h3>
             {transferError && <div className="p-3 rounded-lg bg-rose-50 text-rose-700 text-xs">{transferError}</div>}

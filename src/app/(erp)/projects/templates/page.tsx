@@ -134,7 +134,7 @@ function ProjectTemplatesContent() {
                 <span className="text-slate-900 font-semibold">Modelos & Onboardings</span>
               </div>
               <h1 className="text-2xl font-bold text-slate-950 mt-0.5 flex items-center gap-2">
-                <Rocket className="w-6 h-6 text-indigo-600" />
+                <Rocket className="w-6 h-6 text-zinc-800" />
                 Onboarding e Templates
               </h1>
             </div>
@@ -169,7 +169,7 @@ function ProjectTemplatesContent() {
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
                 categoryFilter === "ONBOARDING"
                   ? "bg-zinc-950 text-white shadow-2xs"
-                  : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                  : "bg-zinc-100 text-zinc-800 hover:bg-zinc-100"
               }`}
             >
               <Rocket className="w-3.5 h-3.5" /> Onboardings de Clientes ({templates.filter((t) => t.code.startsWith("ONB-")).length})
@@ -208,7 +208,7 @@ function ProjectTemplatesContent() {
 
         {loading ? (
           <div className="p-16 text-center text-slate-500 text-xs">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600" />
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-zinc-800" />
             Carregando modelos de projeto e onboardings...
           </div>
         ) : (
@@ -220,7 +220,7 @@ function ProjectTemplatesContent() {
                 <div
                   key={tmpl.id}
                   className={`bg-white border rounded-2xl p-6 shadow-2xs hover:shadow-md transition-shadow flex flex-col justify-between ${
-                    isOnboarding ? "border-indigo-100 hover:border-indigo-300" : "border-slate-200 hover:border-slate-300"
+                    isOnboarding ? "border-zinc-200 hover:border-zinc-400" : "border-slate-200 hover:border-slate-300"
                   }`}
                 >
                   <div>
@@ -229,15 +229,15 @@ function ProjectTemplatesContent() {
                         <span
                           className={`font-mono text-xs font-bold px-2.5 py-0.5 rounded-lg border ${
                             isOnboarding
-                              ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                              ? "bg-zinc-100 text-zinc-800 border-zinc-200"
                               : "bg-slate-50 text-slate-700 border-slate-200"
                           }`}
                         >
                           {tmpl.code}
                         </span>
                         {/social|editorial|grava|conte[uú]do|post/i.test(`${tmpl.code} ${tmpl.name}`) && (
-                          <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-indigo-600" />
+                          <span className="text-[10px] font-semibold text-zinc-800 bg-zinc-100 px-2 py-0.5 rounded-full border border-zinc-200 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-zinc-800" />
                             Social Media
                           </span>
                         )}
@@ -288,11 +288,11 @@ function ProjectTemplatesContent() {
 
         {/* Modal Interativo de Cronograma das Fases */}
         {selectedTemplateId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4 overflow-y-auto">
             <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl space-y-5 my-8">
               <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                 <div className="flex items-center gap-2.5">
-                  <span className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                  <span className="p-2 rounded-xl bg-zinc-100 text-zinc-800">
                     <Rocket className="w-5 h-5" />
                   </span>
                   <div>
@@ -315,18 +315,18 @@ function ProjectTemplatesContent() {
 
               {loadingDetails ? (
                 <div className="p-12 text-center text-xs text-zinc-400">
-                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-indigo-600" />
+                  <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-zinc-800" />
                   Calculando fases e etapas do processo...
                 </div>
               ) : templateDetails ? (
                 <div className="space-y-5">
                   {/* Simulador de Data de Início */}
-                  <div className="bg-indigo-50/70 border border-indigo-100 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="bg-zinc-100 border border-zinc-200 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                      <label className="text-xs font-bold text-indigo-950 block mb-0.5">
+                      <label className="text-xs font-bold text-zinc-800 block mb-0.5">
                         Definir Data de Início do Onboarding:
                       </label>
-                      <p className="text-[11px] text-indigo-700">
+                      <p className="text-[11px] text-zinc-800">
                         Todas as fases e prazos das tarefas abaixo são recalculados automaticamente a partir desta data.
                       </p>
                     </div>
@@ -335,19 +335,19 @@ function ProjectTemplatesContent() {
                         type="date"
                         value={simulatedStartDate}
                         onChange={(e) => setSimulatedStartDate(e.target.value)}
-                        className="px-3 py-2 bg-white border border-indigo-200 rounded-xl text-xs font-bold text-indigo-950 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                        className="px-3 py-2 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-300"
                       />
                     </div>
                   </div>
 
                   {/social|editorial|grava|conte[uú]do|post/i.test(`${templateDetails.code} ${templateDetails.name}`) && (
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 p-3.5 rounded-2xl flex items-center gap-3 text-xs text-indigo-950">
-                      <div className="p-2 bg-indigo-600 text-white rounded-xl shrink-0">
+                    <div className="bg-zinc-50 border border-zinc-200 p-3.5 rounded-2xl flex items-center gap-3 text-xs text-zinc-800">
+                      <div className="p-2 bg-zinc-900 text-white rounded-xl shrink-0">
                         <Calendar className="w-4 h-4" />
                       </div>
                       <div>
                         <span className="font-bold block">Modelo integrado com Grade de Social Media</span>
-                        <span className="text-indigo-700 text-[11px]">
+                        <span className="text-zinc-800 text-[11px]">
                           Ao iniciar um projeto a partir deste modelo, o formulário de cadastro abre diretamente o planejador com a quantidade de posts, dias da semana e calendário interativo para vinculação ao projeto.
                         </span>
                       </div>
@@ -367,7 +367,7 @@ function ProjectTemplatesContent() {
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-200/60 pb-2.5">
                             <div className="flex items-center gap-2">
-                              <span className="w-6 h-6 rounded-full bg-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                              <span className="w-6 h-6 rounded-full bg-zinc-900 text-white font-bold text-xs flex items-center justify-center shrink-0">
                                 {sIdx + 1}
                               </span>
                               <h4 className="font-bold text-sm text-zinc-900">
@@ -404,7 +404,7 @@ function ProjectTemplatesContent() {
                                   </div>
 
                                   <div className="text-right shrink-0">
-                                    <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100 text-[10px]">
+                                    <span className="font-mono font-bold text-zinc-800 bg-zinc-100 px-2 py-0.5 rounded border border-zinc-200 text-[10px]">
                                       Prazo: {taskDueDateStr}
                                     </span>
                                     <span className="text-[10px] text-zinc-400 block mt-0.5">

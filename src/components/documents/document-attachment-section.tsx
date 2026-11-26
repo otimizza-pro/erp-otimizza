@@ -112,7 +112,7 @@ export function DocumentAttachmentSection({
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-indigo-600" />
+            <FileText className="w-5 h-5 text-zinc-800" />
             Documentos & Anexos
           </h3>
           <p className="text-xs text-slate-500">
@@ -158,7 +158,7 @@ export function DocumentAttachmentSection({
               className="flex items-center justify-between p-3.5 hover:bg-slate-50 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg shrink-0">
+                <div className="p-2 bg-zinc-100 text-zinc-800 rounded-lg shrink-0">
                   <FileText className="w-4 h-4" />
                 </div>
                 <div className="truncate">
@@ -184,7 +184,7 @@ export function DocumentAttachmentSection({
               <div className="flex items-center gap-2 shrink-0">
                 <a
                   href={`/api/documents/${doc.id}/download`}
-                  className="p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                  className="p-1.5 text-slate-600 hover:text-zinc-950 hover:bg-zinc-100 rounded-md transition-colors"
                   title="Download do documento"
                   download
                 >
@@ -198,7 +198,7 @@ export function DocumentAttachmentSection({
 
       {/* Modal de Anexo Rápido */}
       {uploadModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-200">
             <h4 className="text-base font-semibold text-slate-900 mb-1">Anexar Novo Arquivo</h4>
             <p className="text-xs text-slate-500 mb-4">
@@ -225,7 +225,7 @@ export function DocumentAttachmentSection({
                     }
                   }}
                   required
-                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-lg p-1.5"
+                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-zinc-100 file:text-zinc-800 hover:file:bg-zinc-100 cursor-pointer border border-slate-200 rounded-lg p-1.5"
                 />
               </div>
 
@@ -238,7 +238,7 @@ export function DocumentAttachmentSection({
                   value={docTitle}
                   onChange={(e) => setDocTitle(e.target.value)}
                   placeholder="Ex: Contrato Assinado, Comprovante de Pagamento"
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300"
                 />
               </div>
 
@@ -247,7 +247,7 @@ export function DocumentAttachmentSection({
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-300"
                 >
                   <option value="PROPOSAL">Proposta Comercial</option>
                   <option value="CONTRACT">Contrato / Assinatura</option>

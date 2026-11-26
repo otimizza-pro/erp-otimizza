@@ -6,6 +6,7 @@ import { ProjectPostPicker, type PlannedProjectPost } from "@/components/content
 import { SocialWorkflowStepper } from "@/components/content-studio/social-workflow-stepper";
 import { ContentCalendar } from "@/components/operations/content-calendar";
 import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCompany } from "@/lib/context/company-context";
 import { contentCompanyId } from "@/modules/clients/internal-company";
@@ -1122,7 +1123,7 @@ function Workspace({ clientId, companyName, projectPost }: {
   }
 
   async function handleDeleteIdea(ideaId: string) {
-    if (!confirm("Deseja realmente excluir esta ideia de conteúdo definitivamente?")) return;
+    if (!(await confirmAction({ title: "Excluir ideia de conteúdo", message: "Deseja realmente excluir esta ideia de conteúdo definitivamente?", confirmLabel: "Excluir", tone: "danger" }))) return;
     try {
       const res = await fetch("/api/headlines/brainstorm", {
         method: "POST",
@@ -1723,13 +1724,13 @@ function Workspace({ clientId, companyName, projectPost }: {
                     value={selectedOffer}
                     onChange={(e) => setSelectedOffer(e.target.value)}
                   >
-                    <option value="">🏢 Institucional / Marca (divulgação geral)</option>
+                    <option value="">Institucional / Marca (divulgação geral)</option>
                     {catalogOffers.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.type === "SERVICE" ? "🛠️ Serviço" : "📦 Produto"}: {item.name}
+                        {item.type === "SERVICE" ? "Serviço" : "Produto"}: {item.name}
                       </option>
                     ))}
-                    <option value="custom">➕ Outra oferta para esta rodada...</option>
+                    <option value="custom">Outra oferta para esta rodada...</option>
                   </select>
 
                   {selectedOffer === "custom" && (
@@ -1749,7 +1750,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                 {/* 2. Por qual ângulo você quer abordar esse assunto? */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-zinc-900 flex items-center gap-1.5">
-                    <Target className="w-3.5 h-3.5 text-purple-600" />
+                    <Target className="w-3.5 h-3.5 text-zinc-800" />
                     Por qual ângulo você quer abordar esse assunto?
                   </label>
                   <select
@@ -1792,7 +1793,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100/80 border border-amber-200 px-3 py-1.5 rounded-xl transition cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  {suggestingFocus ? "Analisando estratégia e públicos..." : "✨ Me ajude a escolher um foco"}
+                  {suggestingFocus ? "Analisando estratégia e públicos..." : "Me ajude a escolher um foco"}
                 </button>
                 {focusSuggestions.length > 0 && (
                   <button
@@ -1883,7 +1884,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                       onClick={() => setBrainstormTeam("B")}
                       className={
                         "rounded-lg py-1.5 text-xs font-bold transition cursor-pointer " +
-                        (brainstormTeam === "B" ? "bg-indigo-600 text-white shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
+                        (brainstormTeam === "B" ? "bg-zinc-900 text-white shadow-2xs" : "text-zinc-600 hover:text-zinc-950")
                       }
                     >
                       Time B (Storytelling)
@@ -1957,7 +1958,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                             <span
                               className={
                                 "rounded-md px-2 py-0.5 text-[10px] font-bold " +
-                                (idea.team === "A" ? "bg-emerald-700 text-white" : "bg-indigo-700 text-white")
+                                (idea.team === "A" ? "bg-emerald-700 text-white" : "bg-zinc-900 text-white")
                               }
                             >
                               {idea.team === "A" ? "Time A" : "Time B"}
@@ -1973,8 +1974,8 @@ function Workspace({ clientId, companyName, projectPost }: {
                             {idea.format}
                           </span>
                           {idea.offer_name && (
-                            <span className="rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-bold text-purple-900 flex items-center gap-1">
-                              <Package size={11} className="text-purple-700" />
+                            <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[10px] font-bold text-zinc-800 flex items-center gap-1">
+                              <Package size={11} className="text-zinc-800" />
                               {idea.offer_name}
                             </span>
                           )}
@@ -2189,7 +2190,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                             <span
                               className={
                                 "rounded-md px-2 py-0.5 text-[10px] font-bold " +
-                                (idea.team === "A" ? "bg-emerald-700 text-white" : "bg-indigo-700 text-white")
+                                (idea.team === "A" ? "bg-emerald-700 text-white" : "bg-zinc-900 text-white")
                               }
                             >
                               {idea.team === "A" ? "Time A" : "Time B"}
@@ -2207,8 +2208,8 @@ function Workspace({ clientId, companyName, projectPost }: {
                             {idea.format}
                           </span>
                           {idea.offer_name && (
-                            <span className="rounded-md bg-purple-100 px-2.5 py-0.5 text-[10px] font-bold text-purple-900 flex items-center gap-1">
-                              <Package size={11} className="text-purple-700" />
+                            <span className="rounded-md bg-zinc-100 px-2.5 py-0.5 text-[10px] font-bold text-zinc-800 flex items-center gap-1">
+                              <Package size={11} className="text-zinc-800" />
                               {idea.offer_name}
                             </span>
                           )}
@@ -2232,28 +2233,28 @@ function Workspace({ clientId, companyName, projectPost }: {
                         <div className="space-y-1 text-xs text-zinc-600 bg-zinc-50 rounded-lg p-2.5">
                           {idea.angle && (
                             <p>
-                              <strong className="text-zinc-800">🎯 Ângulo:</strong> {idea.angle}
+                              <strong className="text-zinc-800">Ângulo:</strong> {idea.angle}
                             </p>
                           )}
                           {idea.target_audience && (
                             <p>
-                              <strong className="text-zinc-800">👥 Público:</strong> {idea.target_audience}
+                              <strong className="text-zinc-800">Público:</strong> {idea.target_audience}
                             </p>
                           )}
                           {idea.pain_or_desire && (
                             <p>
-                              <strong className="text-zinc-800">⚡ Dor/Desejo:</strong> {idea.pain_or_desire}
+                              <strong className="text-zinc-800">Dor/Desejo:</strong> {idea.pain_or_desire}
                             </p>
                           )}
                           {idea.goal && (
                             <p>
-                              <strong className="text-zinc-800">🎯 Objetivo:</strong> {idea.goal}
+                              <strong className="text-zinc-800">Objetivo:</strong> {idea.goal}
                             </p>
                           )}
                         </div>
 
                         {idea.rationale && (
-                          <p className="text-[11px] text-zinc-500 italic leading-relaxed">
+                          <p className="text-[11px] text-zinc-500 leading-relaxed">
                             &ldquo;{idea.rationale}&rdquo;
                           </p>
                         )}
@@ -2269,7 +2270,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                           title="Usar esta ideia e avançar para o Passo 3: Headlines"
                         >
                           <Sparkles size={16} className={isConverting ? "animate-spin" : ""} />
-                          {isConverting ? "Preparando headlines..." : "🎯 Usar essa ideia (Criar Headlines)"}
+                          {isConverting ? "Preparando headlines..." : "Usar essa ideia (Criar Headlines)"}
                         </button>
                         {renderSuggestedPosts(idea)}
                         {projectPost && !idea.content_id && <button type="button" className={button + " w-full"} disabled={isConverting}
@@ -2421,7 +2422,7 @@ function Workspace({ clientId, companyName, projectPost }: {
 
           {/* MODAL / FORMULÁRIO DE NOVA IDEIA MANUAL */}
           {showManualModal && (
-            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl border border-zinc-200 shadow-xl max-w-lg w-full p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-zinc-950">Nova Ideia de Conteúdo</h3>
@@ -2553,14 +2554,14 @@ function Workspace({ clientId, companyName, projectPost }: {
 
             {activeIdeaForHeadline && (
               <span className="text-xs text-emerald-800 font-semibold bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-lg">
-                📌 Pauta Ativa: &ldquo;{activeIdeaForHeadline.title}&rdquo;
+                Pauta Ativa: &ldquo;{activeIdeaForHeadline.title}&rdquo;
               </span>
             )}
 
             {targetContentId && (
               <button
                 onClick={() => setActiveTab("content")}
-                className="inline-flex items-center gap-2 text-xs font-bold text-indigo-700 hover:text-indigo-950 transition cursor-pointer"
+                className="inline-flex items-center gap-2 text-xs font-bold text-zinc-800 hover:text-zinc-950 transition cursor-pointer"
               >
                 Avançar para Passo 4: Redação Completa →
               </button>
@@ -2991,7 +2992,7 @@ function Workspace({ clientId, companyName, projectPost }: {
                     <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
                       ✓ Headline Vencedora da Peça
                     </span>
-                    <h2 className="text-xl font-extrabold text-emerald-950 mt-1">{data.workspace.selected_headline}</h2>
+                    <h2 className="text-xl font-semibold text-emerald-950 mt-1">{data.workspace.selected_headline}</h2>
                     {data.workspace.selected_subheadline && (
                       <p className="text-sm text-emerald-800 mt-1">{data.workspace.selected_subheadline}</p>
                     )}

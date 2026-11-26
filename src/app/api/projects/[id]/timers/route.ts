@@ -128,9 +128,12 @@ export async function POST(
     }
 
     if (action === "PAUSE") {
+      if (!timerId && !taskId) {
+        return NextResponse.json({ error: "Informe o timer ou tarefa para pausar." }, { status: 400 });
+      }
       const timerRes = await query(
         `SELECT * FROM public.project_active_timers 
-         WHERE project_id = $1 AND (id = $2 OR task_id = $3 OR ($2 IS NULL AND $3 IS NULL)) 
+         WHERE project_id = $1 AND (($2::uuid IS NOT NULL AND id = $2::uuid) OR ($3::uuid IS NOT NULL AND task_id = $3::uuid)) 
          ORDER BY updated_at DESC LIMIT 1`,
         [projectId, timerId || null, taskId || null]
       );
@@ -160,9 +163,12 @@ export async function POST(
     }
 
     if (action === "RESUME") {
+      if (!timerId && !taskId) {
+        return NextResponse.json({ error: "Informe o timer ou tarefa para retomar." }, { status: 400 });
+      }
       const timerRes = await query(
         `SELECT * FROM public.project_active_timers 
-         WHERE project_id = $1 AND (id = $2 OR task_id = $3 OR ($2 IS NULL AND $3 IS NULL)) 
+         WHERE project_id = $1 AND (($2::uuid IS NOT NULL AND id = $2::uuid) OR ($3::uuid IS NOT NULL AND task_id = $3::uuid)) 
          ORDER BY updated_at DESC LIMIT 1`,
         [projectId, timerId || null, taskId || null]
       );
@@ -185,13 +191,17 @@ export async function POST(
     }
 
     if (action === "STOP") {
+      if (!timerId && !taskId) {
+        return NextResponse.json({ error: "Informe o timer ou tarefa para finalizar." }, { status: 400 });
+      }
       return await withTransaction(async (client) => {
         const timerRes = await client.query(
           `SELECT pat.*, t.title as task_title 
            FROM public.project_active_timers pat
            LEFT JOIN public.project_tasks t ON t.id = pat.task_id
-           WHERE pat.project_id = $1 AND (pat.id = $2 OR pat.task_id = $3 OR ($2 IS NULL AND $3 IS NULL))
-           ORDER BY pat.updated_at DESC LIMIT 1`,
+           WHERE pat.project_id = $1 AND (($2::uuid IS NOT NULL AND pat.id = $2::uuid) OR ($3::uuid IS NOT NULL AND pat.task_id = $3::uuid))
+           ORDER BY pat.updated_at DESC LIMIT 1
+           FOR UPDATE OF pat`,
           [projectId, timerId || null, taskId || null]
         );
 
@@ -215,15 +225,19 @@ export async function POST(
         const finalDesc = description?.trim() || timer.description || timer.task_title || "Atividade no projeto";
         const finalRate = hourlyRate !== undefined ? Number(hourlyRate) : Number(timer.hourly_rate) || 0;
 
-        // Gravar no histórico oficial de apontamentos
-        const entry = await addProjectTimeEntry({
-          projectId,
-          taskId: timer.task_id || undefined,
-          entryDate: new Date().toISOString().split("T")[0],
-          hours: finalHours,
-          description: finalDesc,
-          hourlyRate: finalRate,
-        });
+        // Gravar no histórico oficial de apontamentos dentro da mesma transação
+        const todaySp = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+        const entry = await addProjectTimeEntry(
+          {
+            projectId,
+            taskId: timer.task_id || undefined,
+            entryDate: todaySp,
+            hours: finalHours,
+            description: finalDesc,
+            hourlyRate: finalRate,
+          },
+          client
+        );
 
         // Remover da lista de timers ativos
         await client.query(`DELETE FROM public.project_active_timers WHERE id = $1`, [timer.id]);
@@ -239,9 +253,12 @@ export async function POST(
     }
 
     if (action === "DISCARD") {
+      if (!timerId && !taskId) {
+        return NextResponse.json({ error: "Informe o timer ou tarefa para descartar." }, { status: 400 });
+      }
       const deleteRes = await query(
         `DELETE FROM public.project_active_timers 
-         WHERE project_id = $1 AND (id = $2 OR task_id = $3 OR ($2 IS NULL AND $3 IS NULL))
+         WHERE project_id = $1 AND (($2::uuid IS NOT NULL AND id = $2::uuid) OR ($3::uuid IS NOT NULL AND task_id = $3::uuid))
          RETURNING id`,
         [projectId, timerId || null, taskId || null]
       );

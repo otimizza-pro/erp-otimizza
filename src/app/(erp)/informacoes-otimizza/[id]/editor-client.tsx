@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import { KnowledgePage, KnowledgeInfoType, KnowledgePageVersion } from "@/modules/knowledge/types";
 import { TiptapEditor } from "./tiptap-editor";
 import {
@@ -154,7 +156,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
 
   // Publicar alterações
   const handlePublish = async () => {
-    if (!confirm("Confirmar a publicação desta página na área externa pública? O conteúdo ficará acessível sem login.")) {
+    if (!(await confirmAction({ title: "Publicar página", message: "Confirmar a publicação desta página na área externa pública? O conteúdo ficará acessível sem login.", confirmLabel: "Publicar" }))) {
       return;
     }
 
@@ -189,7 +191,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
 
   // Retirar publicação
   const handleUnpublish = async () => {
-    if (!confirm("Atenção: Ao retirar a publicação, esta página e todas as suas subpáginas deixarão de ser públicas. Deseja continuar?")) {
+    if (!(await confirmAction({ title: "Retirar publicação", message: "Atenção: Ao retirar a publicação, esta página e todas as suas subpáginas deixarão de ser públicas. Deseja continuar?", confirmLabel: "Retirar publicação", tone: "danger" }))) {
       return;
     }
 
@@ -218,7 +220,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
 
   // Restaurar versão anterior
   const handleRestoreVersion = async (versionNum: number) => {
-    if (!confirm(`Restaurar a versão v${versionNum} como rascunho atual? Suas alterações não salvas serão substituídas.`)) {
+    if (!(await confirmAction({ title: `Restaurar versão v${versionNum}`, message: `Restaurar a versão v${versionNum} como rascunho atual? Suas alterações não salvas serão substituídas.`, confirmLabel: "Restaurar", tone: "danger" }))) {
       return;
     }
 
@@ -244,7 +246,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
       setSuccessMessage(`Versão v${versionNum} restaurada como rascunho!`);
       setTimeout(() => setSuccessMessage(null), 3500);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao restaurar versão.");
+      toast.error(err instanceof Error ? err.message : "Erro ao restaurar versão.");
     }
   };
 
@@ -273,7 +275,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
                   setTitle(e.target.value);
                   setIsDirty(true);
                 }}
-                className="text-base sm:text-lg font-bold text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none px-1 py-0.5 rounded transition-colors"
+                className="text-base sm:text-lg font-bold text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-zinc-500 focus:outline-none px-1 py-0.5 rounded transition-colors"
                 placeholder="Título da página..."
               />
 
@@ -290,7 +292,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
               )}
 
               {(isDirty || (page.has_unpublished_changes && isPublished)) && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-md bg-zinc-100 text-zinc-800 border border-zinc-200">
                   {isDirty ? "Alterações não salvas" : "Alterações não publicadas"}
                 </span>
               )}
@@ -311,7 +313,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
               type="button"
               onClick={() => setActiveTab("editor")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                activeTab === "editor" ? "bg-white text-indigo-700 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                activeTab === "editor" ? "bg-white text-zinc-800 shadow-2xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               Editor
@@ -320,7 +322,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
               type="button"
               onClick={() => setActiveTab("preview")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                activeTab === "preview" ? "bg-white text-indigo-700 shadow-2xs" : "text-slate-600 hover:text-slate-900"
+                activeTab === "preview" ? "bg-white text-zinc-800 shadow-2xs" : "text-slate-600 hover:text-slate-900"
               }`}
             >
               Pré-visualização
@@ -442,7 +444,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
         <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4 animate-in fade-in duration-150">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div className="flex items-center gap-2">
-              <Compass className="w-4 h-4 text-indigo-600" />
+              <Compass className="w-4 h-4 text-zinc-800" />
               <h3 className="text-sm font-bold text-slate-900">Metadados para Contexto da IA Externa</h3>
             </div>
             <button
@@ -466,7 +468,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
                   setSlug(e.target.value);
                   setIsDirty(true);
                 }}
-                className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono focus:outline-none focus:border-indigo-500"
+                className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 font-mono focus:outline-none focus:border-zinc-500"
               />
               <span className="text-[10px] text-slate-400 mt-1 block">
                 Ao alterar o slug, redirecionamentos automáticos são criados para manter os links antigos.
@@ -483,7 +485,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
                   setInfoType(e.target.value as KnowledgeInfoType);
                   setIsDirty(true);
                 }}
-                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500 font-medium"
+                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-zinc-500 font-medium"
               >
                 <option value="DIRECTIVE">Diretriz Aprovada (Oficial)</option>
                 <option value="HYPOTHESIS">Hipótese em Avaliação (Em Teste)</option>
@@ -504,7 +506,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
                   setParentId(e.target.value || null);
                   setIsDirty(true);
                 }}
-                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-zinc-500"
               >
                 <option value="">Nenhuma (Página Raiz)</option>
                 {eligibleParents.map(p => (
@@ -529,7 +531,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
                   setIsDirty(true);
                 }}
                 placeholder="Breve resumo desta página para a IA e a equipe..."
-                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-zinc-500"
               />
             </div>
 
@@ -546,7 +548,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
                     setIsDirty(true);
                   }}
                   placeholder="marca, posicionamento, regras"
-                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:border-zinc-500"
                 />
               </div>
 
@@ -596,7 +598,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
         <div className="bg-white rounded-xl border border-slate-200 p-8 shadow-xs space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200">
             <div>
-              <span className="text-xs text-indigo-600 font-semibold uppercase tracking-wider block mb-1">
+              <span className="text-xs text-zinc-800 font-semibold uppercase tracking-wider block mb-1">
                 Pré-visualização Autenticada
               </span>
               <h2 className="text-2xl font-bold text-slate-900">{title}</h2>
@@ -607,7 +609,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
           </div>
 
           {summary && (
-            <p className="text-sm text-slate-600 italic bg-slate-50 p-4 rounded-lg border-l-4 border-indigo-500">
+            <p className="text-sm text-slate-600 italic bg-slate-50 p-4 rounded-lg border-l-4 border-zinc-400">
               {summary}
             </p>
           )}
@@ -615,7 +617,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
           <div
             className="prose prose-slate max-w-none text-slate-800 leading-relaxed
                        prose-headings:text-slate-900 prose-headings:font-bold
-                       prose-a:text-indigo-600
+                       prose-a:text-emerald-700
                        prose-table:border-collapse prose-table:w-full prose-table:border prose-table:border-slate-200
                        prose-th:bg-slate-100 prose-th:p-2.5 prose-th:text-left prose-th:border prose-th:border-slate-200
                        prose-td:p-2.5 prose-td:border prose-td:border-slate-200"
@@ -626,11 +628,11 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
 
       {/* Gaveta Lateral de Histórico de Versões */}
       {showHistoryDrawer && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-2xs">
+        <div className="fixed inset-0 z-50 flex justify-end bg-zinc-950/45">
           <div className="bg-white w-full max-w-md h-full shadow-2xl border-l border-slate-200 p-6 flex flex-col space-y-4 animate-in slide-in-from-right duration-200">
             <div className="flex items-center justify-between border-b border-slate-200 pb-4">
               <div className="flex items-center gap-2">
-                <History className="w-5 h-5 text-indigo-600" />
+                <History className="w-5 h-5 text-zinc-800" />
                 <h3 className="text-base font-bold text-slate-900">Histórico de Versões</h3>
               </div>
               <button
@@ -679,7 +681,7 @@ export function KnowledgeEditorClient({ initialPage, allPages }: Props) {
                       <button
                         type="button"
                         onClick={() => handleRestoreVersion(ver.version_number)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded bg-zinc-100 text-zinc-800 hover:bg-zinc-100 transition-colors"
                       >
                         <RotateCcw className="w-3 h-3" />
                         <span>Restaurar</span>

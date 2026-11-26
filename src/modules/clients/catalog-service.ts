@@ -201,9 +201,10 @@ export async function syncCatalogItems(
     target_audience_ids?: string[];
     is_active?: boolean;
     order_index?: number;
-  }>
+  }>,
+  externalClient?: PoolClient
 ): Promise<ClientCatalogItem[]> {
-  return withTransaction(async (client) => {
+  const run = async (client: PoolClient) => {
     const existing = await getCatalogItemsByClientId(clientId, client);
     const existingIds = new Set(existing.map((e) => e.id));
     const processedIds = new Set<string>();
@@ -236,7 +237,8 @@ export async function syncCatalogItems(
     }
 
     return saved;
-  });
+  };
+  return externalClient ? run(externalClient) : withTransaction(run);
 }
 
 export async function getCatalogItemsForAudience(

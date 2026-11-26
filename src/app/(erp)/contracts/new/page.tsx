@@ -24,6 +24,7 @@ import { ContractBillingPeriod, ContractItemInput } from "@/modules/contracts/ty
 import { ProposalRecord } from "@/modules/proposals/types";
 import { Autocomplete, AutocompleteOption } from "@/components/ui/autocomplete";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { toast } from "@/components/ui/toast-provider";
 import { formatMoney } from "@/shared/money";
 
 interface ClientOption {
@@ -459,7 +460,7 @@ function NewContractFormContent() {
     if (items.length === 0) return;
     const target = parseFloat(targetClosedAmount.replace(/\./g, "").replace(",", ".")) || 0;
     if (target < 0) {
-      alert("O valor final não pode ser negativo.");
+      toast.warning("O valor final não pode ser negativo.");
       return;
     }
 

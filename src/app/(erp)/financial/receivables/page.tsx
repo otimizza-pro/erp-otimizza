@@ -19,6 +19,7 @@ import {
 import { ReceivableRecord, FinancialStatus } from "@/modules/financial/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
 import { formatMoney } from "@/shared/money";
+import { toast } from "@/components/ui/toast-provider";
 
 function ReceivablesListPageContent() {
   const searchParams = useSearchParams();
@@ -41,10 +42,9 @@ function ReceivablesListPageContent() {
       setStatusFilter(statusParam);
     }
     if (overdueParam === "true") {
-      setStatusFilter("PENDING");
+      setStatusFilter("OVERDUE");
       setDateType("dueDate");
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-      setEndDate(yesterday);
+      setEndDate("");
       setPeriodPreset("OVERDUE");
     }
   }, [searchParams]);
@@ -173,15 +173,16 @@ function ReceivablesListPageContent() {
     setRecurrenceMessage("");
     try {
       const res = await fetch("/api/financial/recurrence/process", { method: "POST" });
-      if (res.ok) {
-        const data = await res.json();
-        setRecurrenceMessage(
-          `Motor processado para ${data.competency}: ${data.receivables?.createdCount} nova(s) cobrança(s) gerada(s).`
-        );
-        loadReceivables();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Não foi possível processar a recorrência.");
       }
+      const msg = `Motor processado para ${data.competency}: ${data.receivables?.createdCount ?? 0} nova(s) cobrança(s) gerada(s).`;
+      setRecurrenceMessage(msg);
+      toast.success("Recorrência processada", msg);
+      loadReceivables();
     } catch (err) {
-      console.error(err);
+      toast.error("Erro na recorrência", err instanceof Error ? err.message : "Falha ao processar recorrência.");
     } finally {
       setProcessingRecurrence(false);
     }
@@ -369,10 +370,15 @@ function ReceivablesListPageContent() {
               <p className="text-xs font-medium text-rose-600 uppercase tracking-wider">
                 Total Vencido / Atrasado
               </p>
-              <p className="text-2xl font-bold text-rose-700 mt-1">
+              <p className="text-2xl font-semibold text-rose-700 mt-1 tabular-nums">
                 R${" "}
                 {receivables
-                  .filter((r) => r.status === "OVERDUE")
+                  .filter(
+                    (r) =>
+                      r.status === "OVERDUE" ||
+                      ((r.status === "PENDING" || r.status === "PARTIALLY_PAID") &&
+                        r.dueDate.slice(0, 10) < new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date()))
+                  )
                   .reduce((acc, r) => acc + r.balanceAmount, 0)
                   .toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
               </p>
@@ -620,7 +626,7 @@ function ReceivablesListPageContent() {
 
       {/* Modal Baixa Rápida */}
       {settleModalOpen && selectedReceivable && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-zinc-950/45 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-zinc-200 space-y-4">
             <div>
               <h3 className="font-bold text-zinc-950 text-base">Liquidação Manual de Recebimento</h3>

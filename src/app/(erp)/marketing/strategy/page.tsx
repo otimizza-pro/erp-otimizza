@@ -4,6 +4,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 
 import { useCompany } from "@/lib/context/company-context";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import {
   Compass,
   Building,
@@ -36,7 +38,7 @@ const CLASSIFICATION_COLORS: Record<string, { bg: string; text: string; border: 
   DECIDIDO: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
   DECLARADO: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
   HIPOTESE: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-  RECOMENDACAO: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
+  RECOMENDACAO: { bg: "bg-zinc-100", text: "text-zinc-800", border: "border-zinc-200" },
   PENDENTE: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" },
 };
 
@@ -126,10 +128,10 @@ export default function UnifiedStrategyPage() {
         );
         setEditingBlockId(null);
       } else {
-        alert("Erro ao salvar alterações no bloco.");
+        toast.error("Erro ao salvar alterações no bloco.");
       }
     } catch {
-      alert("Falha de rede ao salvar bloco.");
+      toast.error("Falha de rede ao salvar bloco.");
     } finally {
       setSavingBlock(false);
     }
@@ -137,7 +139,7 @@ export default function UnifiedStrategyPage() {
 
   // Excluir bloco
   const handleDeleteBlock = async (blockId: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta diretriz/bloco?")) return;
+    if (!(await confirmAction({ title: "Excluir diretriz/bloco", message: "Tem certeza que deseja excluir esta diretriz/bloco?", confirmLabel: "Excluir", tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/strategy/blocks/${blockId}`, { method: "DELETE" });
       if (res.ok) {
@@ -150,11 +152,11 @@ export default function UnifiedStrategyPage() {
             })),
           }))
         );
-        setFeedback("Bloco removido!");
+        setFeedback("Bloco removido.");
         setTimeout(() => setFeedback(null), 2000);
       }
     } catch {
-      alert("Erro ao excluir bloco.");
+      toast.error("Erro ao excluir bloco.");
     }
   };
 
@@ -183,10 +185,10 @@ export default function UnifiedStrategyPage() {
         setNewBlockText("");
         loadStrategy();
       } else {
-        alert("Erro ao criar novo bloco.");
+        toast.error("Erro ao criar novo bloco.");
       }
     } catch {
-      alert("Falha ao criar bloco.");
+      toast.error("Falha ao criar bloco.");
     } finally {
       setCreatingBlock(false);
     }
@@ -222,7 +224,7 @@ export default function UnifiedStrategyPage() {
         <div className="bg-white border border-zinc-200/90 rounded-2xl p-6 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-purple-600 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-bold uppercase tracking-wider text-zinc-800 bg-zinc-100 border border-zinc-200 px-2.5 py-0.5 rounded-full">
                 Marketing & Growth
               </span>
               <span className="text-xs text-zinc-400">•</span>
@@ -237,8 +239,8 @@ export default function UnifiedStrategyPage() {
               </span>
             </div>
 
-            <h1 className="text-2xl font-black tracking-tight text-zinc-950 flex items-center gap-2">
-              <Compass className="w-6 h-6 text-purple-600" />
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 flex items-center gap-2">
+              <Compass className="w-6 h-6 text-zinc-800" />
               Estratégia da Empresa
             </h1>
 
@@ -268,7 +270,7 @@ export default function UnifiedStrategyPage() {
               className="p-2 border border-zinc-300 hover:bg-zinc-50 text-zinc-700 rounded-xl transition"
               title="Recarregar Estratégia"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-purple-600" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin text-zinc-800" : ""}`} />
             </button>
           </div>
         </div>
@@ -281,7 +283,7 @@ export default function UnifiedStrategyPage() {
         )}
 
         {/* Barra de Navegação Rápida entre Headlines (Sticky Pill Bar) */}
-        <div className="sticky top-2 z-20 bg-white/95 backdrop-blur-md border border-zinc-200 rounded-2xl p-2 shadow-sm flex items-center gap-1.5 overflow-x-auto text-xs font-semibold">
+        <div className="sticky top-2 z-20 bg-white/95 border border-zinc-200 rounded-2xl p-2 shadow-sm flex items-center gap-1.5 overflow-x-auto text-xs font-semibold">
           {headlines.map((h, idx) => {
             const Icon = getHeadlineIcon(h.iconName);
             const isActive = activeHeadlineId === h.id;
@@ -297,7 +299,7 @@ export default function UnifiedStrategyPage() {
                     : "text-zinc-600 hover:text-zinc-950 hover:bg-zinc-100"
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-purple-300" : "text-zinc-400"}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-zinc-500" : "text-zinc-400"}`} />
                 <span>{h.title.split(". ")[1] || h.title}</span>
               </a>
             );
@@ -307,7 +309,7 @@ export default function UnifiedStrategyPage() {
         {/* Conteúdo Principal com todas as divisões de Headlines em Uma Tela Só */}
         {loading ? (
           <div className="p-20 text-center bg-white rounded-2xl border border-zinc-200 text-xs text-zinc-500 space-y-2">
-            <RefreshCw className="w-6 h-6 animate-spin mx-auto text-purple-600" />
+            <RefreshCw className="w-6 h-6 animate-spin mx-auto text-zinc-800" />
             <p className="font-semibold text-zinc-700">Carregando diretrizes estratégicas unificadas...</p>
           </div>
         ) : headlines.length === 0 ? (
@@ -334,14 +336,14 @@ export default function UnifiedStrategyPage() {
                   className="bg-white border border-zinc-200/90 rounded-2xl overflow-hidden shadow-2xs scroll-mt-20"
                 >
                   {/* Headline Header Banner */}
-                  <div className="p-5 border-b border-zinc-100 bg-gradient-to-r from-zinc-50/90 via-white to-purple-50/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="p-5 border-b border-zinc-100 bg-gradient-to-r from-zinc-50/90 via-white to-zinc-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <div className="p-2.5 rounded-xl bg-purple-100/70 text-purple-700 border border-purple-200/80 shrink-0 mt-0.5">
+                      <div className="p-2.5 rounded-xl bg-zinc-100 text-zinc-800 border border-zinc-200 shrink-0 mt-0.5">
                         <Icon className="w-5 h-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h2 className="text-base font-extrabold text-zinc-950 tracking-tight">
+                          <h2 className="text-base font-semibold text-zinc-950 tracking-tight">
                             {headline.title}
                           </h2>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 border border-zinc-200 uppercase">
@@ -370,7 +372,7 @@ export default function UnifiedStrategyPage() {
                           <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
                             <div>
                               <h3 className="text-xs font-bold text-zinc-800 uppercase tracking-wide flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-purple-600 inline-block" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-zinc-900 inline-block" />
                                 {section.title}
                               </h3>
                               {section.description && (
@@ -381,7 +383,7 @@ export default function UnifiedStrategyPage() {
                             <button
                               type="button"
                               onClick={() => setNewBlockModal({ open: true, sectionId: section.id })}
-                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded-lg transition"
+                              className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-800 hover:text-zinc-950 bg-zinc-100 hover:bg-zinc-100 px-2 py-1 rounded-lg transition"
                             >
                               <Plus className="w-3 h-3" /> Adicionar Bloco
                             </button>
@@ -397,9 +399,9 @@ export default function UnifiedStrategyPage() {
                               return (
                                 <div
                                   key={block.id}
-                                  className={`rounded-xl border transition-all flex flex-col justify-between p-4 ${
+                                  className={`rounded-xl border transition-colors flex flex-col justify-between p-4 ${
                                     isEditing
-                                      ? "bg-purple-50/40 border-purple-300 ring-2 ring-purple-400/20 shadow-md"
+                                      ? "bg-zinc-100 border-zinc-200 ring-2 ring-zinc-300 shadow-md"
                                       : "bg-zinc-50/60 hover:bg-white border-zinc-200/80 shadow-2xs hover:shadow-xs"
                                   }`}
                                 >
@@ -411,7 +413,7 @@ export default function UnifiedStrategyPage() {
                                           type="text"
                                           value={editTitle}
                                           onChange={(e) => setEditTitle(e.target.value)}
-                                          className="w-full text-xs font-bold text-zinc-950 bg-white border border-purple-300 rounded px-2 py-1 focus:outline-none"
+                                          className="w-full text-xs font-bold text-zinc-950 bg-white border border-zinc-200 rounded px-2 py-1 focus:outline-none"
                                         />
                                       ) : (
                                         <h4 className="text-xs font-bold text-zinc-900 leading-tight">
@@ -432,7 +434,7 @@ export default function UnifiedStrategyPage() {
                                         rows={4}
                                         value={editText}
                                         onChange={(e) => setEditText(e.target.value)}
-                                        className="w-full text-xs text-zinc-800 bg-white border border-purple-300 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-purple-500 font-mono"
+                                        className="w-full text-xs text-zinc-800 bg-white border border-zinc-200 rounded-lg p-2 focus:outline-none focus:ring-1 focus:ring-zinc-300 font-mono"
                                         placeholder="Conteúdo textual ou lista separada por linha..."
                                       />
                                     ) : (
@@ -441,7 +443,7 @@ export default function UnifiedStrategyPage() {
                                           <ul className="space-y-1 pl-1">
                                             {block.content.list.map((item, i) => (
                                               <li key={i} className="flex items-start gap-1.5 text-zinc-800">
-                                                <span className="text-purple-600 font-bold">•</span>
+                                                <span className="text-zinc-800 font-bold">•</span>
                                                 <span>{item}</span>
                                               </li>
                                             ))}
@@ -519,7 +521,7 @@ export default function UnifiedStrategyPage() {
 
         {/* Modal de Criar Novo Bloco */}
         {newBlockModal.open && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-zinc-950/45 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-zinc-200 overflow-hidden animate-in fade-in zoom-in-95">
               <div className="p-4 border-b border-zinc-100 flex items-center justify-between bg-zinc-50">
                 <h3 className="font-bold text-zinc-900 text-sm">Adicionar Nova Diretriz / Bloco</h3>
@@ -541,7 +543,7 @@ export default function UnifiedStrategyPage() {
                     value={newBlockTitle}
                     onChange={(e) => setNewBlockTitle(e.target.value)}
                     placeholder="Ex: Novo Canal de Aquisição"
-                    className="w-full border border-zinc-300 rounded-lg px-3 py-1.5 focus:ring-1 focus:ring-purple-500"
+                    className="w-full border border-zinc-300 rounded-lg px-3 py-1.5 focus:ring-1 focus:ring-zinc-300"
                   />
                 </div>
 
@@ -550,7 +552,7 @@ export default function UnifiedStrategyPage() {
                   <select
                     value={newBlockType}
                     onChange={(e) => setNewBlockType(e.target.value)}
-                    className="w-full border border-zinc-300 rounded-lg px-3 py-1.5 focus:ring-1 focus:ring-purple-500 bg-white"
+                    className="w-full border border-zinc-300 rounded-lg px-3 py-1.5 focus:ring-1 focus:ring-zinc-300 bg-white"
                   >
                     <option value="TEXT">Texto Explicativo</option>
                     <option value="CALLOUT">Destaque Estratégico (Callout)</option>
@@ -566,7 +568,7 @@ export default function UnifiedStrategyPage() {
                     value={newBlockText}
                     onChange={(e) => setNewBlockText(e.target.value)}
                     placeholder="Descreva a diretriz ou decisão estratégica..."
-                    className="w-full border border-zinc-300 rounded-lg p-2.5 focus:ring-1 focus:ring-purple-500"
+                    className="w-full border border-zinc-300 rounded-lg p-2.5 focus:ring-1 focus:ring-zinc-300"
                   />
                 </div>
 

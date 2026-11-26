@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { PayableRecord, FinancialAccountRecord } from "@/modules/financial/types";
 import { CurrencyInput } from "@/components/ui/currency-input";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export default function PayableDetailPage({
   params,
@@ -38,9 +40,12 @@ export default function PayableDetailPage({
   const handleDeletePayable = async () => {
     if (!payable) return;
     if (
-      !window.confirm(
-        `Tem certeza que deseja excluir o título a pagar ${payable.payableNumber} (${payable.description})?`
-      )
+      !(await confirmAction({
+        title: `Excluir título ${payable.payableNumber}`,
+        message: `Tem certeza que deseja excluir o título a pagar ${payable.payableNumber} (${payable.description})?`,
+        confirmLabel: "Excluir",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -51,11 +56,11 @@ export default function PayableDetailPage({
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao excluir título.");
-      alert(data.message || "Título excluído com sucesso!");
+      toast.success(data.message || "Título excluído com sucesso.");
       router.push("/financial/payables");
       router.refresh();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao excluir título.");
+      toast.error(err instanceof Error ? err.message : "Erro ao excluir título.");
       setDeletingPayable(false);
     }
   };
@@ -115,7 +120,7 @@ export default function PayableDetailPage({
     if (!payable) return;
     const amt = Number(settleAmount);
     if (!amt || amt <= 0 || amt > payable.balanceAmount) {
-      alert("Valor de pagamento inválido ou maior que o saldo devido.");
+      toast.warning("Valor de pagamento inválido ou maior que o saldo devido.");
       return;
     }
 
@@ -141,7 +146,7 @@ export default function PayableDetailPage({
       setIsSettleModalOpen(false);
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro ao efetuar pagamento.");
+      toast.error(err instanceof Error ? err.message : "Erro ao efetuar pagamento.");
     } finally {
       setIsSubmittingSettle(false);
     }
@@ -170,7 +175,7 @@ export default function PayableDetailPage({
       setReversalReason("");
       await loadData();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Erro no estorno.");
+      toast.error(err instanceof Error ? err.message : "Erro no estorno.");
     } finally {
       setIsSubmittingReversal(false);
     }
@@ -480,7 +485,7 @@ export default function PayableDetailPage({
 
       {/* MODAL DE PAGAMENTO / BAIXA */}
       {isSettleModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
@@ -581,7 +586,7 @@ export default function PayableDetailPage({
 
       {/* MODAL DE ESTORNO */}
       {reversalSettlementId && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>

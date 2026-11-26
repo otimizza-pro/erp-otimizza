@@ -499,7 +499,7 @@ export function ClientStrategyPanel({
             <span className="text-xs text-zinc-400">·</span>
             <span className="text-xs font-semibold text-zinc-600">{companyName}</span>
           </div>
-          <h2 className="mt-1 text-xl font-extrabold text-zinc-950">Estratégia Completa do Cliente</h2>
+          <h2 className="mt-1 text-xl font-semibold text-zinc-950">Estratégia Completa do Cliente</h2>
           <p className="text-xs text-zinc-500">
             Todas as diretrizes estratégicas que orientam o Brainstorm, as Headlines e os roteiros da IA.
           </p>
@@ -774,7 +774,7 @@ export function ClientStrategyPanel({
             {/* Arquétipos e Diferenciais */}
             <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs">
               <h3 className="text-base font-bold text-zinc-950 flex items-center gap-2">
-                <Sparkles size={18} className="text-indigo-600" />
+                <Sparkles size={18} className="text-zinc-800" />
                 Arquétipos & Diferenciais
               </h3>
 
@@ -1190,7 +1190,7 @@ export function ClientStrategyPanel({
             {/* Termos Obrigatórios */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-2xs space-y-3">
               <h4 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5">
-                <Sparkles size={16} className="text-indigo-600" />
+                <Sparkles size={16} className="text-zinc-800" />
                 Termos Obrigatórios
               </h4>
               <div className="flex gap-1.5">
@@ -1218,13 +1218,13 @@ export function ClientStrategyPanel({
                 {mandatoryTerms.map((term) => (
                   <span
                     key={term}
-                    className="flex items-center justify-between rounded-lg border border-indigo-200 bg-indigo-50/50 p-2 text-xs text-indigo-900"
+                    className="flex items-center justify-between rounded-lg border border-zinc-200 bg-zinc-100 p-2 text-xs text-zinc-800"
                   >
                     {term}
                     <button
                       type="button"
                       onClick={() => removeItem(setMandatoryTerms, term)}
-                      className="text-indigo-400 hover:text-rose-600"
+                      className="text-zinc-500 hover:text-rose-600"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -1300,7 +1300,7 @@ export function ClientStrategyPanel({
               {/* Padrão para Reels */}
               <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 space-y-3">
                 <h4 className="text-sm font-bold text-zinc-950 flex items-center gap-1.5">
-                  <Video size={16} className="text-indigo-600" />
+                  <Video size={16} className="text-zinc-800" />
                   Padrão para Reels & Vídeos
                 </h4>
                 <p className="text-[11px] text-zinc-500">

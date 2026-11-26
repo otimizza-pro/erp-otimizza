@@ -517,7 +517,11 @@ export class DocumentService {
       [version.id]
     );
 
-    const fileBuffer: Buffer | null = payloadRes.rows[0]?.payload || null;
+    let fileBuffer: Buffer | null = payloadRes.rows[0]?.payload || null;
+
+    if (!fileBuffer && version.storageProvider === "SUPABASE_STORAGE" && version.storagePath) {
+      fileBuffer = await DocumentStorage.downloadFile(version.storagePath);
+    }
 
     if (!fileBuffer) {
       throw new Error("Arquivo não encontrado no repositório de armazenamento.");

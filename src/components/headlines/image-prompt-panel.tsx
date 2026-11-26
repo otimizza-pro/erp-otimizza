@@ -108,7 +108,7 @@ export function ImagePromptPanel({
           format,
           textContent,
           visualType,
-          draftOnly: true,
+          draftOnly: !contentId,
         }),
       });
 
@@ -120,7 +120,8 @@ export function ImagePromptPanel({
       setCoverTextSuggestion(d.coverTextSuggestion || "");
       setArtDirectionNotes(d.artDirectionNotes || "");
       setRecommendedAspect(d.recommendedAspect || "4:5");
-      setFeedback({ type: "success", text: "Prompt visual detalhado gerado com sucesso!" });
+      if (d.editVersion) setEditVersion(d.editVersion);
+      setFeedback({ type: "success", text: "Prompt visual detalhado gerado com sucesso." });
     } catch (e: unknown) {
       const err = e as Error;
       setFeedback({ type: "error", text: err.message || "Erro na geração do prompt." });
@@ -183,16 +184,17 @@ export function ImagePromptPanel({
       });
 
       const d = await res.json();
-      if (!res.ok || !d.url) throw new Error(d.error || "Falha ao fazer upload da imagem.");
+      const uploadedUrl = d.imageUrl || d.url;
+      if (!res.ok || !uploadedUrl) throw new Error(d.error || "Falha ao fazer upload da imagem.");
 
-      setImageUrl(d.url);
+      setImageUrl(uploadedUrl);
 
       // Salva automaticamente na peça
       if (contentId) {
         const linked = await fetch(`/api/content-studio/posts/${contentId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageUrl: d.url, clientId, editVersion }),
+          body: JSON.stringify({ imageUrl: uploadedUrl, clientId, editVersion }),
         });
         if (!linked.ok) throw new Error("A imagem foi enviada, mas o vínculo falhou. Salve o link exibido para tentar de novo.");
         const result = await linked.json();
@@ -274,7 +276,7 @@ export function ImagePromptPanel({
         <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Headline da Peça:</span>
-            <div className="text-sm font-extrabold text-zinc-900">{headline}</div>
+            <div className="text-sm font-semibold text-zinc-900">{headline}</div>
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-lg bg-white border border-zinc-200 px-2.5 py-1 text-xs font-semibold text-zinc-700">
@@ -368,11 +370,11 @@ export function ImagePromptPanel({
               )}
 
               {coverTextSuggestion && (
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-900">
+                <div className="rounded-xl border border-zinc-200 bg-zinc-100 p-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-800">
                     Sugestão de Texto para Sobrepor na Arte/Capa:
                   </span>
-                  <div className="text-xs font-extrabold text-indigo-950 mt-0.5">
+                  <div className="text-xs font-semibold text-zinc-800 mt-0.5">
                     &ldquo;{coverTextSuggestion}&rdquo;
                   </div>
                 </div>
@@ -399,7 +401,7 @@ export function ImagePromptPanel({
         <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xs space-y-4">
           <div className="border-b border-zinc-100 pb-3">
             <h3 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
-              <ImageIcon size={16} className="text-indigo-600" />
+              <ImageIcon size={16} className="text-zinc-800" />
               Arte Final da Peça
             </h3>
             <p className="text-[11px] text-zinc-500">

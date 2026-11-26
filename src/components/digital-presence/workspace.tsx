@@ -3,6 +3,7 @@
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
 import {Sparkles,Save,Copy,Download,History,FileText,Code2,Eye,RefreshCw,ArrowUpRight} from "lucide-react";
+import {confirmAction} from "@/components/ui/confirm-dialog";
 
 import {readJsonResponse} from "@/lib/http/read-json-response";
 import {useCompany} from "@/lib/context/company-context";
@@ -82,7 +83,7 @@ function CreationEditor({clientId,companyName,area}:{clientId:string;companyName
     finally{if(live.current)setSaving(false);}
   }
   async function changeSaved(document:SavedMaterial,action:"ARCHIVE"|"RESTORE"|"DELETE"){
-    if(action==="DELETE"&&!window.confirm("Excluir permanentemente esta versão de "+document.title+"?"))return;
+    if(action==="DELETE"&&!(await confirmAction({title:"Excluir versão",message:"Excluir permanentemente esta versão de "+document.title+"?",confirmLabel:"Excluir",tone:"danger"})))return;
     setSaving(true);setError("");setMessage("");try{const response=await fetch("/api/digital-presence",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({clientId,area,id:document.id,action})});const data=await readJsonResponse<{success:boolean;error?:string}>(response);if(!response.ok||!data.success)throw new Error(data.error||"A alteração não foi confirmada.");setMaterials(current=>current.filter(m=>m.id!==document.id));setMessage(action==="DELETE"?"Versão excluída.":action==="ARCHIVE"?"Versão arquivada.":"Versão restaurada.");}catch(error){setError(error instanceof Error?error.message:"Falha na alteração.");}finally{setSaving(false);}
   }
   function open(document:SavedMaterial){

@@ -51,7 +51,7 @@ export default async function PublicPageDetail({
       {/* Breadcrumbs e Botão Voltar */}
       <nav aria-label="Navegação estrutural" className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <Link href="/estrategia-otimizza" className="hover:text-indigo-600 transition-colors font-medium">
+          <Link href="/estrategia-otimizza" className="hover:text-zinc-950 transition-colors font-medium">
             Estratégia Otimizza
           </Link>
           {page.breadcrumbs.slice(0, -1).map((crumb) => (
@@ -59,7 +59,7 @@ export default async function PublicPageDetail({
               <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <Link
                 href={`/estrategia-otimizza/${crumb.slug}`}
-                className="hover:text-indigo-600 transition-colors font-medium"
+                className="hover:text-zinc-950 transition-colors font-medium"
               >
                 {crumb.title}
               </Link>
@@ -86,7 +86,7 @@ export default async function PublicPageDetail({
             <div className="flex items-center gap-2">
               <Link
                 href={`/estrategia-otimizza/completo#${page.slug}`}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-md border border-slate-200 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-zinc-950 hover:bg-slate-50 rounded-md border border-slate-200 transition-colors"
                 title="Ver no documento contínuo completo"
               >
                 <BookOpen className="w-3.5 h-3.5" />
@@ -95,12 +95,12 @@ export default async function PublicPageDetail({
             </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mb-4">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 tracking-tight mb-4">
             {page.title}
           </h1>
 
           {page.summary && (
-            <p className="text-sm sm:text-base text-slate-600 italic bg-slate-50 p-4 rounded-lg border-l-4 border-indigo-500 mb-6">
+            <p className="text-sm sm:text-base text-slate-600 italic bg-slate-50 p-4 rounded-lg border-l-4 border-zinc-400 mb-6">
               {page.summary}
             </p>
           )}
@@ -146,7 +146,7 @@ export default async function PublicPageDetail({
           className="prose prose-slate max-w-none text-slate-800 leading-relaxed
                      prose-headings:text-slate-900 prose-headings:font-bold prose-headings:tracking-tight
                      prose-h1:text-2xl prose-h2:text-xl prose-h3:text-lg
-                     prose-a:text-indigo-600 prose-a:no-underline hover:prose-a:underline
+                     prose-a:text-emerald-700 prose-a:no-underline hover:prose-a:underline
                      prose-table:border-collapse prose-table:w-full prose-table:border prose-table:border-slate-200
                      prose-th:bg-slate-100 prose-th:p-3 prose-th:text-left prose-th:border prose-th:border-slate-200
                      prose-td:p-3 prose-td:border prose-td:border-slate-200
@@ -159,7 +159,7 @@ export default async function PublicPageDetail({
         {page.subpages && page.subpages.length > 0 && (
           <div className="mt-12 pt-8 border-t border-slate-200">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-indigo-600" />
+              <BookOpen className="w-4 h-4 text-zinc-800" />
               Subpáginas desta Seção
             </h2>
 
@@ -170,13 +170,13 @@ export default async function PublicPageDetail({
                   <Link
                     key={sub.slug}
                     href={`/estrategia-otimizza/${sub.slug}`}
-                    className="p-4 rounded-lg border border-slate-200 hover:border-indigo-400 hover:bg-slate-50/50 transition-all flex flex-col justify-between"
+                    className="p-4 rounded-lg border border-slate-200 hover:border-zinc-400 hover:bg-slate-50/50 transition-colors flex flex-col justify-between"
                   >
                     <div>
                       <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-md border ${subConf.bg} ${subConf.text} ${subConf.border} mb-1.5`}>
                         {subConf.label}
                       </span>
-                      <h3 className="text-sm font-bold text-slate-900 hover:text-indigo-600 transition-colors">
+                      <h3 className="text-sm font-bold text-slate-900 hover:text-zinc-950 transition-colors">
                         {sub.title}
                       </h3>
                       {sub.summary && (

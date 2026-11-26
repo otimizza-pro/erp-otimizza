@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { formatBRL } from "@/shared/money";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export default function CombosPage() {
   const [combos, setCombos] = useState<Combo[]>([]);
@@ -41,7 +42,13 @@ export default function CombosPage() {
 
   const handleToggleArchive = async (id: string, currentStatus: string) => {
     const isArchiving = currentStatus === "ACTIVE";
-    if (!window.confirm(isArchiving ? "Deseja realmente arquivar este combo?" : "Deseja reativar este combo?")) {
+    if (
+      !(await confirmAction({
+        title: isArchiving ? "Arquivar combo" : "Reativar combo",
+        message: isArchiving ? "Deseja realmente arquivar este combo?" : "Deseja reativar este combo?",
+        confirmLabel: isArchiving ? "Arquivar" : "Reativar",
+      }))
+    ) {
       return;
     }
     setFeedback(null);
@@ -61,7 +68,14 @@ export default function CombosPage() {
   };
 
   const handleDeleteCombo = async (combo: Combo) => {
-    if (!window.confirm(`Tem certeza que deseja excluir o combo "${combo.name}"? Combos vinculados a contratos têm exclusão bloqueada; use Arquivar.`)) {
+    if (
+      !(await confirmAction({
+        title: "Excluir combo",
+        message: `Tem certeza que deseja excluir o combo "${combo.name}"? Combos vinculados a contratos têm exclusão bloqueada; use Arquivar.`,
+        confirmLabel: "Excluir",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
     setFeedback(null);

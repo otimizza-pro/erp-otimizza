@@ -38,7 +38,7 @@ export default function KnowledgeError({
       <div className="flex flex-wrap items-center justify-center gap-3">
         <button
           onClick={() => reset()}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 transition-colors cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           <span>Tentar novamente</span>

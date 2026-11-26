@@ -185,7 +185,7 @@ export function IdentityAiButton({
 
       {open && (
         <div
-          className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-[95] flex items-center justify-center bg-zinc-950/45 p-4"
           onClick={() => setOpen(false)}
         >
           <section
@@ -439,8 +439,8 @@ export function IdentityAiButton({
               ) : suggestion !== null ? (
                 <div className="space-y-2">
                   {activeAiMode === "improve" && (
-                    <div className="px-3 py-1.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-900 text-[11px] font-medium flex items-center gap-1.5">
-                      <Wand2 className="w-3.5 h-3.5 text-indigo-600" />
+                    <div className="px-3 py-1.5 rounded-lg bg-zinc-100 border border-zinc-200 text-zinc-800 text-[11px] font-medium flex items-center gap-1.5">
+                      <Wand2 className="w-3.5 h-3.5 text-zinc-800" />
                       <span>Versão refinada e lapidada a partir da sua redação original:</span>
                     </div>
                   )}

@@ -49,7 +49,7 @@ export function ClientFiles({ clientId }: { clientId: string }) {
       <div className="flex flex-wrap gap-2">
         {["Propostas", "Contratos", "Financeiro", "Documentos", ...folders.map(f => f.name)].map(f => (
           <button className={`rounded px-3 py-2 ${folder === f ? "bg-zinc-950 text-white" : "bg-slate-100"}`} key={f} onClick={() => setFolder(f)}>
-            📁 {f}
+            {f}
           </button>
         ))}
       </div>
@@ -61,7 +61,7 @@ export function ClientFiles({ clientId }: { clientId: string }) {
       {!["Propostas", "Contratos", "Financeiro"].includes(folder) && (
         <div className="flex flex-wrap items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
           <label className="text-xs font-medium text-slate-700 cursor-pointer">
-            {busy ? "Enviando…" : "📁 Fazer upload de arquivo"}
+            {busy ? "Enviando..." : "Fazer upload de arquivo"}
             <input disabled={busy} type="file" className="block text-xs mt-1" onChange={e => { const file = e.target.files?.[0]; if (file) void upload(file); e.target.value = ""; }} />
           </label>
           <span className="text-xs text-slate-400">ou</span>
@@ -69,15 +69,15 @@ export function ClientFiles({ clientId }: { clientId: string }) {
             type="button"
             disabled={busy}
             onClick={() => setShowWriteModal(true)}
-            className="text-xs font-medium px-3 py-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded border border-indigo-200 transition-colors"
+            className="text-xs font-medium px-3 py-1.5 bg-zinc-100 text-zinc-800 hover:bg-zinc-200 rounded border border-zinc-200 transition-colors"
           >
-            ✍️ Escrever documento nesta pasta
+            Escrever documento nesta pasta
           </button>
         </div>
       )}
 
       {showWriteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-5 border border-slate-200">
             <h3 className="font-bold text-slate-900 mb-2">Escrever Documento na pasta &quot;{folder}&quot;</h3>
             <form onSubmit={saveWrittenDoc} className="space-y-3">
@@ -120,7 +120,7 @@ export function ClientFiles({ clientId }: { clientId: string }) {
       {error && <p role="alert" className="text-red-700 text-xs">{error}</p>}
       {files.filter(f => f.folder === folder).map(f => (
         <div key={f.id} className="flex justify-between items-center gap-4 border-b py-3 text-sm">
-          <a href={f.href} className="text-indigo-700 hover:underline">{f.title}</a>
+          <a href={f.href} className="text-zinc-800 hover:underline">{f.title}</a>
           {f.document_id && (
             <select aria-label={`Mover ${f.title}`} value="" onChange={e => action({ action: "move", documentId: f.document_id, folderId: e.target.value }).catch(e => setError(e.message))} className="text-xs border rounded p-1">
               <option value="">Mover para…</option>

@@ -6,11 +6,18 @@ import { query } from "@/lib/db/pool";
 import { encryptPassword, decryptPassword } from "@/modules/passwords/crypto";
 
 const metadata = "id, title, username, website, updated_at";
-const schema = z.object({
+const createSchema = z.object({
   title: z.string().trim().min(1).max(160),
   username: z.string().trim().max(320),
-  website: z.string().trim().max(2048).refine(v => !v || /^https?:\/\//i.test(v) && URL.canParse(v)),
+  website: z.string().trim().max(2048).refine(v => !v || (/^https?:\/\//i.test(v) && URL.canParse(v))),
   password: z.string().min(1).max(4096),
+});
+const updateSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().trim().min(1).max(160),
+  username: z.string().trim().max(320),
+  website: z.string().trim().max(2048).refine(v => !v || (/^https?:\/\//i.test(v) && URL.canParse(v))),
+  password: z.string().max(4096).optional().default(""),
 });
 const uuid = z.string().uuid();
 function json(data: unknown, status = 200) {
@@ -41,15 +48,38 @@ async function handle(request: NextRequest) {
       const result = await query("DELETE FROM password_vault_entries WHERE id=$1 AND owner_id=$2 RETURNING id", [uuid.parse(body.id), user.id]);
       return result.rowCount ? json({ ok: true }) : json({ error: "Registro não encontrado." }, 404);
     }
-    const input = schema.parse(body);
-    const id = request.method === "PUT" ? uuid.parse(body.id) : randomUUID();
+    if (request.method === "PUT") {
+      const input = updateSchema.parse(body);
+      const hasNewPassword = input.password.trim().length > 0;
+      const result = hasNewPassword
+        ? await query(
+            `UPDATE password_vault_entries SET title=$3, username=$4, website=$5, encrypted_password=$6, updated_at=now() WHERE id=$1 AND owner_id=$2 RETURNING ${metadata}`,
+            [input.id, user.id, input.title, input.username, input.website, encryptPassword(input.password, `${user.id}:${input.id}`)]
+          )
+        : await query(
+            `UPDATE password_vault_entries SET title=$3, username=$4, website=$5, updated_at=now() WHERE id=$1 AND owner_id=$2 RETURNING ${metadata}`,
+            [input.id, user.id, input.title, input.username, input.website]
+          );
+      return result.rows[0] ? json({ entry: result.rows[0] }, 200) : json({ error: "Registro não encontrado." }, 404);
+    }
+    const input = createSchema.parse(body);
+    const id = randomUUID();
     const values = [id, user.id, input.title, input.username, input.website, encryptPassword(input.password, `${user.id}:${id}`)];
-    const result = request.method === "PUT"
-      ? await query(`UPDATE password_vault_entries SET title=$3, username=$4, website=$5, encrypted_password=$6, updated_at=now() WHERE id=$1 AND owner_id=$2 RETURNING ${metadata}`, values)
-      : await query(`INSERT INTO password_vault_entries (id,owner_id,title,username,website,encrypted_password) VALUES ($1,$2,$3,$4,$5,$6) RETURNING ${metadata}`, values);
-    return result.rows[0] ? json({ entry: result.rows[0] }, request.method === "PUT" ? 200 : 201) : json({ error: "Registro não encontrado." }, 404);
+    const result = await query(`INSERT INTO password_vault_entries (id,owner_id,title,username,website,encrypted_password) VALUES ($1,$2,$3,$4,$5,$6) RETURNING ${metadata}`, values);
+    return result.rows[0] ? json({ entry: result.rows[0] }, 201) : json({ error: "Registro não encontrado." }, 404);
   } catch (error) {
-    if (error instanceof z.ZodError || error instanceof SyntaxError) return json({ error: "Verifique os campos e informe um endereço http:// ou https:// válido." }, 400);
+    if (error instanceof z.ZodError) {
+      const hasWebsiteIssue = error.issues.some((i) => i.path.includes("website"));
+      return json(
+        {
+          error: hasWebsiteIssue
+            ? "Informe um endereço válido começando com http:// ou https://"
+            : "Verifique os campos obrigatórios antes de salvar",
+        },
+        400
+      );
+    }
+    if (error instanceof SyntaxError) return json({ error: "Dados da requisição inválidos." }, 400);
     if (error instanceof Error && error.message === "VAULT_NOT_CONFIGURED") return json({ error: "O administrador precisa configurar a chave do cofre." }, 503);
     return json({ error: "Não foi possível acessar o cofre. Tente novamente." }, 500);
   }

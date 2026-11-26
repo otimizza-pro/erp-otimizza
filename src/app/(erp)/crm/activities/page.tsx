@@ -6,6 +6,8 @@ import {EditRecordAction} from "@/components/ui/edit-record-action";
 
 import {ArchiveRecordAction} from "@/components/ui/archive-record-action";
 import { useSearchParams } from "next/navigation";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import {
   Calendar as CalendarIcon,
@@ -198,10 +200,10 @@ function CommercialActivitiesPageContent() {
         setNoShowReason("");
         loadActivities();
       } else {
-        alert("Erro ao registrar no-show.");
+        toast.error("Erro ao registrar no-show.");
       }
     } catch {
-      alert("Falha de conexão com o servidor.");
+      toast.error("Falha de conexão com o servidor.");
     } finally {
       setSavingNoShow(false);
     }
@@ -209,7 +211,7 @@ function CommercialActivitiesPageContent() {
 
   async function handleRescheduleConfirm() {
     if (!rescheduleTarget || !rescheduleDate) {
-      alert("Informe a nova data e horário para o reagendamento.");
+      toast.warning("Informe a nova data e horário para o reagendamento.");
       return;
     }
     setRescheduling(true);
@@ -229,26 +231,26 @@ function CommercialActivitiesPageContent() {
         setRescheduleReason("");
         loadActivities();
       } else {
-        alert("Erro ao reagendar atividade.");
+        toast.error("Erro ao reagendar atividade.");
       }
     } catch {
-      alert("Falha de conexão com o servidor.");
+      toast.error("Falha de conexão com o servidor.");
     } finally {
       setRescheduling(false);
     }
   }
 
   async function handleDeleteActivity(id: string, isTask = false) {
-    if (!confirm(isTask ? "Deseja realmente excluir esta tarefa?" : "Deseja realmente excluir esta atividade comercial?")) return;
+    if (!(await confirmAction({ title: isTask ? "Excluir tarefa" : "Excluir atividade comercial", message: isTask ? "Deseja realmente excluir esta tarefa?" : "Deseja realmente excluir esta atividade comercial?", confirmLabel: "Excluir", tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/crm/activities/${id}`, { method: "DELETE" });
       if (res.ok) {
         loadActivities();
       } else {
-        alert("Erro ao excluir atividade.");
+        toast.error("Erro ao excluir atividade.");
       }
     } catch {
-      alert("Falha de comunicação.");
+      toast.error("Falha de comunicação.");
     }
   }
 
@@ -309,10 +311,10 @@ function CommercialActivitiesPageContent() {
 
   const activityTypeConfig: Record<ActivityType, { label: string; icon: LucideIcon; color: string; bg: string }> = {
     CALL: { label: "Ligação", icon: Phone, color: "text-blue-600", bg: "bg-blue-50 border-blue-200" },
-    MEETING: { label: "Reunião", icon: Video, color: "text-purple-600", bg: "bg-purple-50 border-purple-200" },
+    MEETING: { label: "Reunião", icon: Video, color: "text-zinc-800", bg: "bg-zinc-100 border-zinc-200" },
     WHATSAPP: { label: "WhatsApp", icon: MessageSquare, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-200" },
     EMAIL: { label: "E-mail", icon: Mail, color: "text-amber-600", bg: "bg-amber-50 border-amber-200" },
-    FOLLOW_UP: { label: "Follow-up", icon: FileText, color: "text-indigo-600", bg: "bg-indigo-50 border-indigo-200" },
+    FOLLOW_UP: { label: "Follow-up", icon: FileText, color: "text-zinc-800", bg: "bg-zinc-100 border-zinc-200" },
     NOTE: { label: "Nota Interna", icon: ListTodo, color: "text-slate-600", bg: "bg-slate-50 border-slate-200" },
     OTHER: { label: "Outro", icon: Clock, color: "text-slate-600", bg: "bg-slate-50 border-slate-200" },
   };
@@ -323,7 +325,7 @@ function CommercialActivitiesPageContent() {
     { status: "OVERDUE", label: "Atrasadas", value: metrics.overdue, icon: AlertTriangle, color: "text-rose-600" },
     { status: "COMPLETED", label: "Concluídas", value: metrics.completed, icon: CheckCircle2, color: "text-emerald-700" },
     { status: "NO_SHOW", label: "No-Show (Faltas)", value: metrics.noShow, icon: UserX, color: "text-amber-700" },
-    { status: "RESCHEDULED", label: "Reagendadas", value: metrics.rescheduled, icon: CalendarClock, color: "text-purple-700" },
+    { status: "RESCHEDULED", label: "Reagendadas", value: metrics.rescheduled, icon: CalendarClock, color: "text-zinc-800" },
   ];
 
   return (
@@ -344,7 +346,7 @@ function CommercialActivitiesPageContent() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => handleOpenModal(true)} className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-violet-700"><ListTodo className="h-4 w-4" />Criar tarefa</button>
+            <button type="button" onClick={() => handleOpenModal(true)} className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-zinc-800"><ListTodo className="h-4 w-4" />Criar tarefa</button>
             <button
               onClick={() => handleOpenModal(false)}
               className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
@@ -465,12 +467,12 @@ function CommercialActivitiesPageContent() {
                 return (
                   <div
                     key={act.id}
-                    className={`p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-slate-50/80 transition-colors ${isTask ? "border-l-4 border-l-violet-400 bg-violet-50/30" : ""} ${
+                    className={`p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-slate-50/80 transition-colors ${isTask ? "border-l-4 border-l-violet-400 bg-zinc-100" : ""} ${
                       act.status === "COMPLETED" ? "opacity-60 bg-slate-50/40" : ""
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`p-2.5 rounded-lg border ${isTask ? "border-violet-200 bg-violet-50 text-violet-600" : `${conf.bg} ${conf.color}`} shrink-0 mt-0.5`}>
+                      <div className={`p-2.5 rounded-lg border ${isTask ? "border-zinc-200 bg-zinc-100 text-zinc-800" : `${conf.bg} ${conf.color}`} shrink-0 mt-0.5`}>
                         <Icon className="h-5 w-5" />
                       </div>
 
@@ -506,7 +508,7 @@ function CommercialActivitiesPageContent() {
                             </span>
                           )}
                           {act.status === "RESCHEDULED" && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200 flex items-center gap-1">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-800 border border-zinc-200 flex items-center gap-1">
                               <CalendarClock className="h-3 w-3" /> Reagendada ({act.rescheduleCount || 1}x)
                             </span>
                           )}
@@ -527,7 +529,7 @@ function CommercialActivitiesPageContent() {
                           <p className="text-xs text-slate-500 max-w-2xl">{act.description}</p>
                         )}
 
-                        {isTask && <p className="text-[11px] font-medium text-violet-600">Tarefa interna sem vínculo comercial</p>}
+                        {isTask && <p className="text-[11px] font-medium text-zinc-800">Tarefa interna sem vínculo comercial</p>}
                         {/* Vínculo (Lead, Cliente, Oportunidade) */}
                         <div className="flex items-center gap-3 text-xs text-slate-500 pt-1 flex-wrap">
                           {act.leadId && <Link href={`/crm/leads/${act.leadId}`} className="text-blue-600 hover:underline">Lead</Link>}
@@ -608,10 +610,10 @@ function CommercialActivitiesPageContent() {
                                 setRescheduleTarget(act);
                                 setRescheduleDate(act.dueDate ? act.dueDate.slice(0, 16) : "");
                               }}
-                              className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition flex items-center gap-1"
+                              className="px-2.5 py-1 text-xs font-semibold text-zinc-800 bg-zinc-100 hover:bg-zinc-100 border border-zinc-200 rounded-lg transition flex items-center gap-1"
                               title="Adiar / Reagendar com novo horário"
                             >
-                              <CalendarClock className="h-3.5 w-3.5 text-purple-600" />
+                              <CalendarClock className="h-3.5 w-3.5 text-zinc-800" />
                               Adiar
                             </button>
                           </>
@@ -637,7 +639,7 @@ function CommercialActivitiesPageContent() {
         {!loadError && hasMore && !loading && <button type="button" onClick={() => fetchActivities(true)} className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">Carregar mais itens</button>}
         {/* Modal de Criação de Atividade */}
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
               <h2 className="text-lg font-bold text-slate-900">{creatingTask ? "Criar tarefa" : "Nova Atividade Comercial"}</h2>
               <p className="text-xs text-slate-500 mt-1">
@@ -872,7 +874,7 @@ function CommercialActivitiesPageContent() {
         )}
         {/* Modal de Confirmação de No-Show */}
         {noShowTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
               <div className="flex items-center gap-2 text-amber-600 mb-2">
                 <UserX className="h-5 w-5" />
@@ -924,9 +926,9 @@ function CommercialActivitiesPageContent() {
 
         {/* Modal de Reagendamento / Adiamento */}
         {rescheduleTarget && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
             <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-md w-full p-6 animate-in fade-in zoom-in-95">
-              <div className="flex items-center gap-2 text-purple-600 mb-2">
+              <div className="flex items-center gap-2 text-zinc-800 mb-2">
                 <CalendarClock className="h-5 w-5" />
                 <h3 className="text-base font-bold text-slate-900">Adiar / Reagendar Atividade</h3>
               </div>
@@ -948,7 +950,7 @@ function CommercialActivitiesPageContent() {
                     required
                     value={rescheduleDate}
                     onChange={(e) => setRescheduleDate(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-zinc-300 focus:outline-none"
                   />
                   <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                     <span className="text-[10px] text-slate-400 font-medium">Horários:</span>
@@ -977,7 +979,7 @@ function CommercialActivitiesPageContent() {
                     placeholder="Ex: Cliente pediu para ligar na quinta-feira à tarde..."
                     value={rescheduleReason}
                     onChange={(e) => setRescheduleReason(e.target.value)}
-                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                    className="w-full text-sm border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-zinc-300 focus:outline-none"
                   />
                 </div>
 

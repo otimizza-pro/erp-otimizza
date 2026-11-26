@@ -137,7 +137,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   try {
-    await query(`UPDATE client_editorial_lines SET is_active = false, updated_at = now() WHERE id = $1`, [id]);
+    await query(`UPDATE client_editorial_lines SET is_active = false, archived_at = COALESCE(archived_at, now()), updated_at = now() WHERE id = $1`, [id]);
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Erro ao desativar linha editorial.";

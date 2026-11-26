@@ -114,7 +114,7 @@ export default function DREPage() {
               <span className="text-slate-900 font-semibold">DRE Gerencial</span>
             </div>
             <h1 className="text-2xl font-bold text-slate-900 mt-1 flex items-center gap-2">
-              <TrendingUp className="w-7 h-7 text-indigo-600" />
+              <TrendingUp className="w-7 h-7 text-zinc-800" />
               Demonstração do Resultado do Exercício
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
@@ -147,9 +147,9 @@ export default function DREPage() {
           <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
             <button
               onClick={() => setAccountingMethod("ACCRUAL")}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
+              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${
                 accountingMethod === "ACCRUAL"
-                  ? "bg-white text-indigo-700 shadow-sm"
+                  ? "bg-white text-zinc-800 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -157,9 +157,9 @@ export default function DREPage() {
             </button>
             <button
               onClick={() => setAccountingMethod("CASH")}
-              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-all ${
+              className={`px-4 py-1.5 text-xs font-semibold rounded-md transition-colors ${
                 accountingMethod === "CASH"
-                  ? "bg-white text-indigo-700 shadow-sm"
+                  ? "bg-white text-zinc-800 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -175,7 +175,7 @@ export default function DREPage() {
                 type="month"
                 value={competency}
                 onChange={(e) => setCompetency(e.target.value)}
-                className="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-300"
               />
             </div>
 
@@ -184,7 +184,7 @@ export default function DREPage() {
               <select
                 value={costCenterId}
                 onChange={(e) => setCostCenterId(e.target.value)}
-                className="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="px-3 py-1.5 text-xs font-medium border border-slate-300 rounded-lg bg-white text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-300"
               >
                 <option value="">Todos os Centros de Custo</option>
                 {costCenters.map((cc) => (
@@ -225,10 +225,10 @@ export default function DREPage() {
 
             <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
               <span className="text-xs font-medium text-slate-500 block">Margem de Contribuição</span>
-              <div className="text-xl font-bold text-indigo-600 mt-1">
+              <div className="text-xl font-bold text-zinc-800 mt-1">
                 {formatCurrency(statement.contributionMargin)}
               </div>
-              <span className="text-[11px] text-indigo-600 font-medium block mt-1">
+              <span className="text-[11px] text-zinc-800 font-medium block mt-1">
                 Margem: {formatPct(statement.contributionMarginPercentage)}
               </span>
             </div>
@@ -328,7 +328,7 @@ export default function DREPage() {
         {statement && (
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-slate-700 text-xs">
             <div className="flex items-center gap-2 font-semibold text-slate-800 mb-2">
-              <Info className="w-4 h-4 text-indigo-600" />
+              <Info className="w-4 h-4 text-zinc-800" />
               <span>Painel de Conciliação e Integridade de Indicadores</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -373,7 +373,7 @@ export default function DREPage() {
 
           {loading ? (
             <div className="p-12 text-center text-slate-500 text-sm">
-              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-600" />
+              <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-zinc-800" />
               Processando e conciliando lançamentos da DRE...
             </div>
           ) : error ? (
@@ -398,7 +398,7 @@ export default function DREPage() {
                     onClick={() => toggleSection("grossRevenue")}
                     className="hover:bg-slate-50/80 cursor-pointer font-semibold text-slate-900"
                   >
-                    <td className="py-2.5 px-4 text-indigo-600 font-mono text-xs">1</td>
+                    <td className="py-2.5 px-4 text-zinc-800 font-mono text-xs">1</td>
                     <td className="py-2.5 px-4 flex items-center gap-2">
                       {expandedSections.grossRevenue ? (
                         <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -438,15 +438,15 @@ export default function DREPage() {
                   </tr>
 
                   {/* 3. RECEITA LÍQUIDA */}
-                  <tr className="bg-indigo-50/60 font-bold text-slate-900 border-y border-indigo-100">
-                    <td className="py-3 px-4 text-indigo-600 font-mono text-xs">3</td>
-                    <td className="py-3 px-4 text-indigo-950 font-bold uppercase tracking-wide">
+                  <tr className="bg-zinc-100 font-bold text-slate-900 border-y border-zinc-200">
+                    <td className="py-3 px-4 text-zinc-800 font-mono text-xs">3</td>
+                    <td className="py-3 px-4 text-zinc-800 font-bold uppercase tracking-wide">
                       (=) Receita Líquida Operacional
                     </td>
-                    <td className="py-3 px-4 text-right text-indigo-950 text-base">
+                    <td className="py-3 px-4 text-right text-zinc-800 text-base">
                       {formatCurrency(statement.netRevenue)}
                     </td>
-                    <td className="py-3 px-4 text-right text-indigo-700 font-bold">100,0%</td>
+                    <td className="py-3 px-4 text-right text-zinc-800 font-bold">100,0%</td>
                   </tr>
 
                   {/* 4. Custos Diretos */}
@@ -454,7 +454,7 @@ export default function DREPage() {
                     onClick={() => toggleSection("directCosts")}
                     className="hover:bg-slate-50/80 cursor-pointer font-semibold text-slate-900"
                   >
-                    <td className="py-2.5 px-4 text-indigo-600 font-mono text-xs">4</td>
+                    <td className="py-2.5 px-4 text-zinc-800 font-mono text-xs">4</td>
                     <td className="py-2.5 px-4 flex items-center gap-2">
                       {expandedSections.directCosts ? (
                         <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -487,14 +487,14 @@ export default function DREPage() {
 
                   {/* 5. MARGEM DE CONTRIBUIÇÃO */}
                   <tr className="bg-slate-100/80 font-bold text-slate-900 border-y border-slate-200">
-                    <td className="py-3 px-4 text-indigo-600 font-mono text-xs">5</td>
+                    <td className="py-3 px-4 text-zinc-800 font-mono text-xs">5</td>
                     <td className="py-3 px-4 text-slate-900 uppercase tracking-wide">
                       (=) Margem de Contribuição
                     </td>
                     <td className="py-3 px-4 text-right text-slate-900 text-base">
                       {formatCurrency(statement.contributionMargin)}
                     </td>
-                    <td className="py-3 px-4 text-right text-indigo-600 font-bold">
+                    <td className="py-3 px-4 text-right text-zinc-800 font-bold">
                       {formatPct(statement.contributionMarginPercentage)}
                     </td>
                   </tr>
@@ -504,7 +504,7 @@ export default function DREPage() {
                     onClick={() => toggleSection("operationalExpenses")}
                     className="hover:bg-slate-50/80 cursor-pointer font-semibold text-slate-900"
                   >
-                    <td className="py-2.5 px-4 text-indigo-600 font-mono text-xs">6</td>
+                    <td className="py-2.5 px-4 text-zinc-800 font-mono text-xs">6</td>
                     <td className="py-2.5 px-4 flex items-center gap-2">
                       {expandedSections.operationalExpenses ? (
                         <ChevronDown className="w-4 h-4 text-slate-400" />
@@ -570,7 +570,7 @@ export default function DREPage() {
                         : "bg-rose-50 text-rose-950 border-rose-200"
                     }`}
                   >
-                    <td className="py-3 px-4 font-mono text-xs text-indigo-600">7</td>
+                    <td className="py-3 px-4 font-mono text-xs text-zinc-800">7</td>
                     <td className="py-3 px-4 uppercase tracking-wide">
                       (=) Resultado Operacional Gerencial
                     </td>
@@ -598,7 +598,7 @@ export default function DREPage() {
 
                   {/* 9. RESULTADO LÍQUIDO */}
                   <tr className="bg-slate-900 text-white font-bold">
-                    <td className="py-3 px-4 font-mono text-xs text-indigo-400">9</td>
+                    <td className="py-3 px-4 font-mono text-xs text-zinc-500">9</td>
                     <td className="py-3 px-4 uppercase tracking-wide">
                       (=) Resultado Líquido Gerencial Final
                     </td>

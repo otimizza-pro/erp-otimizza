@@ -113,7 +113,9 @@ export async function ensureInitialStructure(): Promise<void> {
       `INSERT INTO knowledge_pages (
         title, slug, order_index, summary, info_type, status,
         draft_content_html, draft_content_text, draft_content_json
-      ) VALUES ($1, $2, $3, $4, 'DIRECTIVE', 'DRAFT', $5, $6, $7)`,
+      )
+      SELECT $1, $2, $3, $4, 'DIRECTIVE', 'DRAFT', $5, $6, $7
+      WHERE NOT EXISTS (SELECT 1 FROM knowledge_pages WHERE slug = $2)`,
       [
         p.title,
         p.slug,
@@ -125,6 +127,7 @@ export async function ensureInitialStructure(): Promise<void> {
       ]
     );
   }
+  isStructureInitialized = true;
 }
 
 /**

@@ -15,11 +15,11 @@ export default async function StrategyIndexPage() {
       <section className="bg-white rounded-xl border border-slate-200 p-6 sm:p-8 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-zinc-900 text-white flex items-center justify-center shadow-xs">
               <Compass className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight">
                 Informações e Estratégia da Otimizza
               </h1>
               <p className="text-xs text-slate-500">
@@ -31,7 +31,7 @@ export default async function StrategyIndexPage() {
           <div className="flex flex-wrap items-center gap-2">
             <Link
               href="/estrategia-otimizza/completo"
-              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs"
+              className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-semibold rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-xs"
             >
               <BookOpen className="w-4 h-4" />
               <span>Leitura Completa para IA</span>

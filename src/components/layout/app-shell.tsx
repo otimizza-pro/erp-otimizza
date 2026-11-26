@@ -45,9 +45,17 @@ import {
   Image as ImageIcon,
   Target,
   Bell,
+  AlertCircle,
+  AlertTriangle,
+  Check,
+  CheckCheck,
+  Info,
+  Trash2,
 } from "lucide-react";
 import { SearchItem } from "@/app/api/search/route";
 import { CompanySelector } from "@/components/layout/company-selector";
+import { confirmAction } from "@/components/ui/confirm-dialog";
+import type { NotificationRecord } from "@/modules/notifications/service";
 
 interface NavItem {
   id: string;
@@ -102,6 +110,10 @@ export function AppShell({ children, activeSection }: AppShellProps) {
   // Estados de atalhos rápidos "+ Novo" e Busca Global
   const [newDropdownOpen, setNewDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifFilter, setNotifFilter] = useState<"ALL" | "UNREAD" | "FINANCIAL" | "PROJECTS" | "COMMERCIAL" | "CONTENT" | "BRIEFING">("ALL");
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchItem[]>([]);
@@ -479,9 +491,85 @@ export function AppShell({ children, activeSection }: AppShellProps) {
     };
   }, [searchQuery]);
 
+  const loadNotifications = React.useCallback(
+    async (opts?: { sync?: boolean; forceSync?: boolean }) => {
+      try {
+        setNotifLoading(true);
+        const queryParams = new URLSearchParams({ limit: "40" });
+        if (opts?.sync) queryParams.set("sync", "1");
+        if (opts?.forceSync) queryParams.set("forceSync", "1");
+        if (notifFilter === "UNREAD") queryParams.set("unreadOnly", "true");
+        else if (notifFilter !== "ALL") queryParams.set("category", notifFilter);
+
+        const res = await fetch(`/api/notifications?${queryParams.toString()}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
+        setUnreadCount(typeof data.unreadCount === "number" ? data.unreadCount : 0);
+      } catch (err) {
+        console.warn("Aviso ao carregar notificações:", err);
+      } finally {
+        setNotifLoading(false);
+      }
+    },
+    [notifFilter]
+  );
+
+  useEffect(() => {
+    if (isEmbedded) return;
+    void loadNotifications({ sync: true });
+    const onRefresh = () => void loadNotifications({ sync: true });
+    const onFocus = () => void loadNotifications({ sync: false });
+    const interval = setInterval(() => void loadNotifications({ sync: true }), 120_000);
+    window.addEventListener("otimizza-notifications-changed", onRefresh);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("otimizza-notifications-changed", onRefresh);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [isEmbedded, loadNotifications]);
+
+  const handleNotificationClick = async (item: NotificationRecord) => {
+    if (!item.read) {
+      setNotifications((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)));
+      setUnreadCount((c) => Math.max(0, c - 1));
+      fetch(`/api/notifications/${item.id}/read`, { method: "POST" }).catch(() => {});
+    }
+    setNotificationsOpen(false);
+    if (item.linkUrl) {
+      router.push(item.linkUrl);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+    await fetch("/api/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "MARK_ALL_READ" }),
+    }).catch(() => {});
+  };
+
+  const handleClearRead = async () => {
+    setNotifications((prev) => prev.filter((n) => !n.read));
+    await fetch("/api/notifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "CLEAR_READ" }),
+    }).catch(() => {});
+  };
+
   const handleLogout = async () => {
-    if (typeof window !== "undefined" && !window.confirm("Deseja realmente sair do sistema?")) {
-      return;
+    if (typeof window !== "undefined") {
+      const ok = await confirmAction({
+        title: "Encerrar sessão",
+        message: "Deseja realmente sair do sistema?",
+        confirmLabel: "Sair",
+        tone: "danger",
+      });
+      if (!ok) return;
     }
     setLoggingOut(true);
     try {
@@ -505,22 +593,22 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       {/* Mobile Drawer Backdrop */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-xs transition-opacity"
+          className="fixed inset-0 bg-zinc-950/45 z-40 md:hidden transition-opacity"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar Principal */}
       <aside
-        className={`fixed md:sticky top-0 h-screen bg-white border-r border-zinc-200/80 z-50 flex flex-col justify-between transition-all duration-200 ease-out shadow-xs ${
+        className={`fixed md:sticky top-0 h-screen bg-white border-r border-zinc-200/80 z-50 flex flex-col justify-between transition-[width,transform] duration-200 ease-out shadow-xs ${
           sidebarCollapsed ? "w-20" : "w-68"
         } ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
       >
         <div className="flex flex-col h-full overflow-hidden">
           {/* Cabeçalho do Menu & Logotipo */}
           <div
-            className={`border-b border-zinc-100 flex shrink-0 items-center transition-all ${
-              sidebarCollapsed ? "h-16 justify-between px-2.5" : "h-24 justify-between px-3"
+            className={`border-b border-zinc-100 flex shrink-0 items-center transition-colors ${
+              sidebarCollapsed ? "h-16 justify-between px-2.5" : "h-16 justify-between px-3"
             }`}
           >
             <Link
@@ -663,8 +751,8 @@ export function AppShell({ children, activeSection }: AppShellProps) {
                           isFlyoutOpen ? "block" : "hidden"
                         } group-hover/flyout:block absolute left-full top-0 ml-2 w-52 bg-white border border-zinc-200/90 rounded-xl shadow-xl z-50 py-1.5 px-1 animate-in fade-in duration-100`}
                       >
-                        <div className="px-2.5 py-1 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100 mb-1 flex items-center gap-1.5">
-                          <GroupIcon className="w-3 h-3 text-zinc-500" />
+                        <div className="px-2.5 py-1.5 text-xs font-medium text-zinc-500 border-b border-zinc-100 mb-1 flex items-center gap-1.5">
+                          <GroupIcon className="w-3.5 h-3.5 text-zinc-500" strokeWidth={1.5} />
                           <span>{group.title}</span>
                         </div>
                         <div className="space-y-0.5">
@@ -785,15 +873,15 @@ export function AppShell({ children, activeSection }: AppShellProps) {
       {/* Viewport Principal */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Barra Superior (Header) */}
-        <header className="h-16 border-b border-zinc-200/80 bg-white/90 backdrop-blur-md px-4 sm:px-6 md:px-8 flex items-center justify-between sticky top-0 z-30">
+        <header className="h-16 border-b border-zinc-200/80 bg-white px-4 sm:px-6 md:px-8 flex items-center justify-between sticky top-0 z-30">
           {/* Lado Esquerdo: Mobile Trigger & Barra de Busca Global */}
           <div className="flex items-center gap-3 flex-1 max-w-lg">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="md:hidden text-zinc-600 hover:text-zinc-950 p-2 rounded-xl border border-zinc-200 bg-white shadow-xs focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
+              className="md:hidden text-zinc-600 hover:text-zinc-950 p-2 rounded-lg border border-zinc-200 bg-white shadow-xs focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:outline-none"
               aria-label="Abrir menu"
             >
-              <Menu className="w-4 h-4" />
+              <Menu className="w-4 h-4" strokeWidth={1.5} />
             </button>
 
             {/* Input de Busca Global com atalho Ctrl+K */}
@@ -801,12 +889,12 @@ export function AppShell({ children, activeSection }: AppShellProps) {
               ref={searchTriggerRef}
               type="button"
               onClick={openSearchModal}
-              className="w-full flex items-center justify-between px-3 h-9 rounded-lg border border-zinc-200 bg-zinc-50/70 hover:bg-white text-xs text-zinc-500 hover:text-zinc-700 transition cursor-pointer group focus-visible:ring-1 focus-visible:ring-zinc-400 focus-visible:outline-none"
+              className="w-full flex items-center justify-between px-3 h-9 rounded-lg border border-zinc-200 bg-zinc-50/70 hover:bg-white text-xs text-zinc-500 hover:text-zinc-700 transition-colors cursor-pointer group focus-visible:ring-1 focus-visible:ring-zinc-400 focus-visible:outline-none"
             >
               <div className="flex items-center gap-2">
                 <Search className="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-600" strokeWidth={1.5} />
-                <span className="hidden sm:inline">Buscar clientes, propostas, contratos, títulos...</span>
-                <span className="sm:hidden">Buscar...</span>
+                <span className="hidden sm:inline">Buscar clientes, propostas, contratos ou títulos</span>
+                <span className="sm:hidden">Buscar</span>
               </div>
               <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-zinc-200 bg-white text-[10px] font-mono text-zinc-500">
                 <Command className="w-2.5 h-2.5" /> K
@@ -905,68 +993,187 @@ export function AppShell({ children, activeSection }: AppShellProps) {
               )}
             </div>
 
-            {/* Central de Notificações & Status Otimizza */}
+            {/* Central de Notificações Reais do ERP */}
             <div className="relative" ref={notificationsRef}>
               <button
                 type="button"
-                aria-label="Notificações e status do sistema"
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative p-2 rounded-xl text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100 transition cursor-pointer focus-visible:ring-1 focus-visible:ring-zinc-400 focus-visible:outline-none"
+                aria-label="Notificações e alertas do sistema"
+                onClick={() => {
+                  const nextOpen = !notificationsOpen;
+                  setNotificationsOpen(nextOpen);
+                  if (nextOpen) void loadNotifications({ sync: true });
+                }}
+                className="relative p-2 rounded-lg text-zinc-500 hover:text-zinc-950 hover:bg-zinc-100 transition-colors cursor-pointer focus-visible:ring-1 focus-visible:ring-zinc-400 focus-visible:outline-none"
               >
                 <Bell className="w-4 h-4" strokeWidth={1.5} />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-rose-600 text-[10px] font-mono font-semibold text-white flex items-center justify-center tabular-nums ring-2 ring-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 mt-1.5 w-80 rounded-2xl bg-white border border-zinc-200 shadow-xl p-4 space-y-3 z-50 text-xs animate-in fade-in duration-100">
-                  <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
-                    <div className="flex items-center gap-1.5 font-bold text-zinc-950">
-                      <Bell className="w-3.5 h-3.5 text-emerald-700" />
-                      <span>Notificações & Status</span>
+                <div className="absolute right-0 mt-1.5 w-[24rem] max-w-[92vw] rounded-2xl bg-white border border-zinc-200 shadow-xl z-50 text-xs overflow-hidden">
+                  <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+                    <div className="flex items-center gap-2 font-semibold text-zinc-950">
+                      <Bell className="w-4 h-4 text-zinc-700" strokeWidth={1.5} />
+                      <span>Central de notificações</span>
+                      <span className="font-mono text-[11px] font-medium text-zinc-500 tabular-nums">
+                        {unreadCount > 0 ? `${unreadCount} não lidas` : "Em dia"}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      Operacional
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={notifLoading}
+                        onClick={() => void loadNotifications({ sync: true, forceSync: true })}
+                        title="Atualizar alertas operacionais"
+                        className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-colors cursor-pointer disabled:opacity-40"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${notifLoading ? "animate-spin" : ""}`} strokeWidth={1.5} />
+                      </button>
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => void handleMarkAllRead()}
+                          title="Marcar todas como lidas"
+                          className="p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 transition-colors cursor-pointer"
+                        >
+                          <CheckCheck className="w-3.5 h-3.5" strokeWidth={1.5} />
+                        </button>
+                      )}
+                      {notifications.some((n) => n.read) && (
+                        <button
+                          type="button"
+                          onClick={() => void handleClearRead()}
+                          title="Limpar notificações já lidas"
+                          className="p-1.5 rounded-lg text-zinc-400 hover:bg-rose-50 hover:text-rose-700 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" strokeWidth={1.5} />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-100 space-y-1">
-                      <div className="flex items-center gap-1.5 font-semibold text-zinc-900 text-[11px]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                        Ambiente Otimizza Data & Growth
-                      </div>
-                      <p className="text-[11px] text-zinc-500 leading-relaxed">
-                        Sistema conectado ao PostgreSQL Supabase. Schema auditado, integridade referencial ativa e migrações sincronizadas.
-                      </p>
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-100 space-y-1">
-                      <div className="flex items-center gap-1.5 font-semibold text-zinc-900 text-[11px]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                        Inteligência Artificial & OpenRouter
-                      </div>
-                      <p className="text-[11px] text-zinc-500 leading-relaxed">
-                        Assistente de estratégia e geradores de copy prontos nos modos Adicionar, Substituir e Melhorar.
-                      </p>
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-zinc-50 border border-zinc-100 space-y-1">
-                      <div className="flex items-center gap-1.5 font-semibold text-zinc-900 text-[11px]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                        Notificações de Ação Ativas
-                      </div>
-                      <p className="text-[11px] text-zinc-500 leading-relaxed">
-                        Toasts visuais ativos para confirmações de salvamento, alertas de rede e criação de registros.
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-1 overflow-x-auto border-b border-zinc-100 bg-zinc-50/70 px-3 py-2">
+                    {([
+                      ["ALL", "Todas"],
+                      ["UNREAD", "Não lidas"],
+                      ["FINANCIAL", "Financeiro"],
+                      ["PROJECTS", "Projetos"],
+                      ["COMMERCIAL", "Comercial"],
+                      ["CONTENT", "Conteúdo"],
+                      ["BRIEFING", "Briefings"],
+                    ] as const).map(([key, label]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setNotifFilter(key)}
+                        className={`px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                          notifFilter === key
+                            ? "bg-zinc-900 text-white"
+                            : "text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-900"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
 
-                  <div className="pt-2 border-t border-zinc-100 flex items-center justify-between text-[11px]">
-                    <span className="text-zinc-400">Otimizza ERP v0.1.0</span>
+                  <div className="max-h-96 overflow-y-auto divide-y divide-zinc-100">
+                    {notifLoading && notifications.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-zinc-500">
+                        Carregando alertas operacionais
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="p-6 text-center text-xs text-zinc-500 space-y-1">
+                        <p className="font-medium text-zinc-700">Nenhum alerta nesta visão</p>
+                        <p>Pendências financeiras, tarefas e briefings aparecem aqui automaticamente.</p>
+                      </div>
+                    ) : (
+                      notifications.map((item) => {
+                        const isCritical = item.severity === "critical";
+                        const isWarning = item.severity === "warning";
+                        const isSuccess = item.severity === "success";
+                        const borderClass = item.read
+                          ? ""
+                          : isCritical
+                          ? "border-l-2 border-l-rose-600 bg-rose-50/30"
+                          : isWarning
+                          ? "border-l-2 border-l-amber-500 bg-amber-50/25"
+                          : isSuccess
+                          ? "border-l-2 border-l-emerald-600 bg-emerald-50/20"
+                          : "border-l-2 border-l-zinc-900 bg-zinc-50/60";
+                        return (
+                          <div
+                            key={item.id}
+                            className={`flex items-start gap-2.5 p-3 hover:bg-zinc-50 transition-colors ${borderClass}`}
+                          >
+                            <div className="mt-0.5 shrink-0">
+                              {isCritical ? (
+                                <AlertCircle className="w-4 h-4 text-rose-600" strokeWidth={1.5} />
+                              ) : isWarning ? (
+                                <AlertTriangle className="w-4 h-4 text-amber-600" strokeWidth={1.5} />
+                              ) : isSuccess ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" strokeWidth={1.5} />
+                              ) : (
+                                <Info className="w-4 h-4 text-zinc-500" strokeWidth={1.5} />
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void handleNotificationClick(item)}
+                              className="flex-1 min-w-0 text-left cursor-pointer"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span
+                                  className={`truncate text-xs ${
+                                    item.read ? "font-medium text-zinc-600" : "font-semibold text-zinc-950"
+                                  }`}
+                                >
+                                  {item.title}
+                                </span>
+                                <span className="shrink-0 font-mono text-[10px] text-zinc-400 tabular-nums">
+                                  {new Date(item.createdAt).toLocaleDateString("pt-BR", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                              <p className="mt-0.5 text-[11px] text-zinc-500 leading-relaxed line-clamp-2">
+                                {item.message}
+                              </p>
+                            </button>
+                            {!item.read && (
+                              <button
+                                type="button"
+                                title="Marcar como lida"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setNotifications((prev) =>
+                                    prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
+                                  );
+                                  setUnreadCount((c) => Math.max(0, c - 1));
+                                  fetch(`/api/notifications/${item.id}/read`, { method: "POST" }).catch(() => {});
+                                }}
+                                className="p-1 rounded text-zinc-400 hover:bg-zinc-200/70 hover:text-zinc-800 transition-colors shrink-0 cursor-pointer"
+                              >
+                                <Check className="w-3.5 h-3.5" strokeWidth={1.5} />
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="border-t border-zinc-100 bg-zinc-50/70 px-4 py-2.5 flex items-center justify-between text-[11px]">
+                    <span className="font-mono text-zinc-400">Otimizza ERP</span>
                     <button
                       type="button"
                       onClick={() => setNotificationsOpen(false)}
-                      className="font-semibold text-zinc-700 hover:text-zinc-950 cursor-pointer"
+                      className="font-medium text-zinc-700 hover:text-zinc-950 cursor-pointer"
                     >
                       Fechar
                     </button>
@@ -1043,7 +1250,7 @@ export function AppShell({ children, activeSection }: AppShellProps) {
               }
             }
           }}
-          className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 bg-black/50 backdrop-blur-xs animate-in fade-in"
+          className="fixed inset-0 z-50 flex items-start justify-center pt-16 px-4 bg-zinc-950/45"
         >
           <div
             ref={searchModalContainerRef}

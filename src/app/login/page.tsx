@@ -57,7 +57,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 max-w-lg space-y-8">
           {/* Logo Principal Negativa / Clara para contraste perfeito no fundo escuro */}
-          <div className="inline-block p-3.5 sm:p-4 rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 shadow-2xl">
+          <div className="inline-block p-3.5 sm:p-4 rounded-2xl bg-white/5 border border-white/10 shadow-2xl">
             <Image
               src="/brand/logo-cinza-claro.svg"
               alt="Otimizza ERP Logo"
@@ -69,11 +69,11 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-emerald-400 text-xs font-semibold backdrop-blur-xs border border-white/10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-emerald-400 text-xs font-semibold border border-white/10">
               <ShieldCheck className="w-4 h-4" />
               Ambiente Corporativo Seguro
             </div>
-            <h1 className="text-3xl xl:text-4xl font-extrabold tracking-tight leading-tight text-white">
+            <h1 className="text-3xl xl:text-4xl font-semibold tracking-tight leading-tight text-white">
               Gestão Financeira, Contratos e Inteligência Operacional
             </h1>
             <p className="text-sm text-zinc-300 leading-relaxed">
@@ -110,7 +110,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-zinc-950">
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-950">
               Acesso ao Sistema
             </h2>
             <p className="text-xs sm:text-sm text-zinc-500">

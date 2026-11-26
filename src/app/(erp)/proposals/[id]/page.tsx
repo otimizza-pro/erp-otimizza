@@ -32,6 +32,8 @@ import {
   ProposalPeriodicity,
 } from "@/modules/proposals/types";
 import { DocumentAttachmentSection } from "@/components/documents/document-attachment-section";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export default function ProposalDetailPage() {
   const params = useParams();
@@ -95,8 +97,8 @@ export default function ProposalDetailPage() {
   }, [proposal, selectedVersionNumber]);
 
   // Action: Send proposal
-  const handleSendProposal = () => {
-    if (!confirm("Confirmar envio da proposta ao cliente? O status passará para 'Enviada'.")) return;
+  const handleSendProposal = async () => {
+    if (!(await confirmAction({ title: "Enviar proposta", message: "Confirmar envio da proposta ao cliente? O status passará para 'Enviada'.", confirmLabel: "Confirmar envio" }))) return;
     startTransition(async () => {
       try {
         const res = await fetch(`/api/proposals/${id}/send`, { method: "POST" });
@@ -142,7 +144,7 @@ export default function ProposalDetailPage() {
   // Action: Reject proposal
   const handleRejectProposal = () => {
     if (!rejectionReason.trim()) {
-      alert("Informe o motivo da rejeição.");
+      toast.warning("Informe o motivo da rejeição.");
       return;
     }
     startTransition(async () => {
@@ -168,7 +170,7 @@ export default function ProposalDetailPage() {
   // Action: Cancel proposal
   const handleCancelProposal = () => {
     if (!cancellationReason.trim()) {
-      alert("Informe o motivo do cancelamento.");
+      toast.warning("Informe o motivo do cancelamento.");
       return;
     }
     startTransition(async () => {
@@ -201,6 +203,7 @@ export default function ProposalDetailPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: newVersionTitle.trim() || proposal?.title || "Nova Versão",
+            validUntil: activeVersion.commercialTermsSnapshot?.validUntil || proposal?.validUntil,
             paymentTerms: activeVersion.commercialTermsSnapshot?.paymentTerms,
             startLeadTimeDays: activeVersion.commercialTermsSnapshot?.startLeadTimeDays || 5,
             scopeDescription: activeVersion.commercialTermsSnapshot?.scopeDescription,
@@ -216,6 +219,10 @@ export default function ProposalDetailPage() {
               quantity: it.quantity,
               referenceUnitPrice: it.referenceUnitPrice,
               negotiatedUnitPrice: it.negotiatedUnitPrice,
+              unitCost: it.unitCost,
+              supplierId: it.supplierId || null,
+              supplierNameSnapshot: it.supplierNameSnapshot || null,
+              costPeriodicity: it.costPeriodicity,
               discountAmount: it.discountAmount,
               displayOrder: idx + 1,
             })),
@@ -347,7 +354,7 @@ export default function ProposalDetailPage() {
           <div className="mt-4">
             <Link
               href="/proposals"
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100"
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-zinc-800 bg-zinc-100 rounded-lg hover:bg-zinc-100"
             >
               <ArrowLeft className="w-4 h-4" />
               Voltar para Listagem
@@ -397,7 +404,7 @@ export default function ProposalDetailPage() {
             </Link>
             <div>
               <div className="flex items-center gap-3">
-                <span className="text-xl font-extrabold text-indigo-600 tracking-tight">
+                <span className="text-xl font-semibold text-zinc-800 tracking-tight">
                   {proposal.proposalCode}
                 </span>
                 {getStatusBadge(proposal.status)}
@@ -458,9 +465,9 @@ export default function ProposalDetailPage() {
             {isConverted && proposal.contractId && (
               <Link
                 href={`/contracts/${proposal.contractId}`}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-zinc-800 bg-zinc-100 hover:bg-zinc-100 border border-zinc-200 rounded-lg transition-colors shadow-sm"
               >
-                <FileCheck className="w-4 h-4 text-indigo-600" />
+                <FileCheck className="w-4 h-4 text-zinc-800" />
                 Ver Contrato Gerado
               </Link>
             )}
@@ -494,9 +501,9 @@ export default function ProposalDetailPage() {
               <button
                 onClick={() => setShowConvertModal(true)}
                 disabled={isPending}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-zinc-800 bg-zinc-100 hover:bg-zinc-100 border border-zinc-200 rounded-lg transition-colors shadow-sm disabled:opacity-50"
               >
-                <FileCheck className="w-4 h-4 text-indigo-600" />
+                <FileCheck className="w-4 h-4 text-zinc-800" />
                 Conversão Rápida
               </button>
             )}
@@ -612,13 +619,13 @@ export default function ProposalDetailPage() {
           <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
             <div>
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5 pb-3 border-b border-slate-100">
-                <TrendingUp className="w-4 h-4 text-indigo-500" />
+                <TrendingUp className="w-4 h-4 text-zinc-800" />
                 Vínculo com CRM
               </span>
               <div className="mt-3">
                 <p className="text-xs text-slate-400">Oportunidade Comercial</p>
                 {proposal.opportunityTitle ? (
-                  <p className="font-semibold text-indigo-700 mt-0.5">{proposal.opportunityTitle}</p>
+                  <p className="font-semibold text-zinc-800 mt-0.5">{proposal.opportunityTitle}</p>
                 ) : (
                   <p className="text-sm text-slate-500 mt-0.5">Sem oportunidade vinculada</p>
                 )}
@@ -644,7 +651,7 @@ export default function ProposalDetailPage() {
                 <button
                   key={ver.id}
                   onClick={() => setSelectedVersionNumber(ver.versionNumber)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-all ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors ${
                     isSelected
                       ? "bg-slate-900 text-white shadow-sm"
                       : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
@@ -667,7 +674,7 @@ export default function ProposalDetailPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Avulso / Implantação</p>
-              <p className="text-2xl font-black text-amber-700 mt-1">
+              <p className="text-2xl font-semibold text-amber-700 mt-1">
                 {formatBRL(activeVersion.totalOneTimeEffective)}
               </p>
               <p className="text-xs text-slate-400 mt-1">Serviços pontuais e setup</p>
@@ -675,7 +682,7 @@ export default function ProposalDetailPage() {
 
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Recorrente Mensal</p>
-              <p className="text-2xl font-black text-indigo-700 mt-1">
+              <p className="text-2xl font-semibold text-zinc-800 mt-1">
                 {formatBRL(activeVersion.totalMonthlyEffective)}
               </p>
               <p className="text-xs text-slate-400 mt-1">Assinatura mensal contínua</p>
@@ -683,7 +690,7 @@ export default function ProposalDetailPage() {
 
             <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Ciclo Anual</p>
-              <p className="text-2xl font-black text-purple-700 mt-1">
+              <p className="text-2xl font-semibold text-zinc-800 mt-1">
                 {formatBRL(activeVersion.totalYearlyEffective)}
               </p>
               <p className="text-xs text-slate-400 mt-1">Serviços renovados anualmente</p>
@@ -737,7 +744,7 @@ export default function ProposalDetailPage() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Layers className="w-4 h-4 text-indigo-600" />
+              <Layers className="w-4 h-4 text-zinc-800" />
               Itens da Versão v{activeVersion?.versionNumber}
             </h3>
             <span className="text-xs text-slate-500">
@@ -764,7 +771,7 @@ export default function ProposalDetailPage() {
                     <td className="py-3.5 px-4">
                       <div className="flex items-center gap-1.5">
                         {item.sourceType === "COMBO" ? (
-                          <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-indigo-100 text-indigo-800 rounded">
+                          <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-zinc-100 text-zinc-800 rounded">
                             Combo
                           </span>
                         ) : (
@@ -892,7 +899,7 @@ export default function ProposalDetailPage() {
 
         {/* MODAL: Aprovar Proposta */}
         {showApproveModal && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -952,10 +959,10 @@ export default function ProposalDetailPage() {
 
         {/* MODAL: Converter em Contrato */}
         {showConvertModal && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                <div className="p-3 bg-zinc-100 text-zinc-800 rounded-xl">
                   <FileCheck className="w-6 h-6" />
                 </div>
                 <div>
@@ -964,7 +971,7 @@ export default function ProposalDetailPage() {
                 </div>
               </div>
 
-              <div className="p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl text-xs space-y-1.5 text-indigo-900">
+              <div className="p-3 bg-zinc-100 border border-zinc-200 rounded-xl text-xs space-y-1.5 text-zinc-800">
                 <p className="font-semibold">Regras da Conversão:</p>
                 <ul className="list-disc list-inside space-y-0.5 text-slate-700">
                   {isLead && <li>O Lead será convertido automaticamente em Cliente cadastrado.</li>}
@@ -982,7 +989,7 @@ export default function ProposalDetailPage() {
                   max="31"
                   value={conversionDueDate}
                   onChange={(e) => setConversionDueDate(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-zinc-300"
                 />
               </div>
 
@@ -1009,7 +1016,7 @@ export default function ProposalDetailPage() {
 
         {/* MODAL: Rejeitar Proposta */}
         {showRejectModal && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-red-50 text-red-600 rounded-xl">
@@ -1056,7 +1063,7 @@ export default function ProposalDetailPage() {
 
         {/* MODAL: Cancelar Proposta */}
         {showCancelModal && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="p-3 bg-gray-100 text-gray-600 rounded-xl">
@@ -1103,10 +1110,10 @@ export default function ProposalDetailPage() {
 
         {/* MODAL: Criar Nova Versão */}
         {showNewVersionModal && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-zinc-950/45 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                <div className="p-3 bg-zinc-100 text-zinc-800 rounded-xl">
                   <Plus className="w-6 h-6" />
                 </div>
                 <div>
@@ -1124,7 +1131,7 @@ export default function ProposalDetailPage() {
                   placeholder={proposal.title}
                   value={newVersionTitle}
                   onChange={(e) => setNewVersionTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg text-slate-900 focus:bg-white focus:ring-2 focus:ring-zinc-300"
                 />
               </div>
 

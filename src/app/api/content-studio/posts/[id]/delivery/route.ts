@@ -3,6 +3,7 @@ import { requireAdminUser } from "@/lib/auth/require-auth";
 import { query, withTransaction } from "@/lib/db/pool";
 import { deliveryAction, reviewMaterials, publicationReady, type DeliveryState, type Measurement, type Publication, type Review } from "@/modules/clients/content-delivery";
 import { productionChecklistTemplate } from "@/modules/clients/production-checklist";
+import { NotificationService } from "@/modules/notifications/service";
 
 type Context = { params: Promise<{ id: string }> };
 const scope = z.object({ id: z.uuid(), clientId: z.uuid() });
@@ -114,6 +115,16 @@ export async function POST(request: Request, context: Context) {
              SELECT $1,$2,COALESCE(max(version),0)+1,$3::jsonb,$4,$5 FROM content_material_reviews
              WHERE content_id=$1 AND material=$2`, [id, item.key, JSON.stringify(item.snapshot), user.id, user.email],
           );
+          await NotificationService.createSafeNotification({
+            type: "CONTENT_SUBMITTED",
+            severity: "info",
+            category: "CONTENT",
+            entityType: "content_calendar_item",
+            entityId: id,
+            title: `Material enviado para revisão (${piece.title})`,
+            message: `Material "${item.key}" aguardando aprovação`,
+            linkUrl: `/prompt-creator?contentId=${id}`,
+          });
         } else if (data.action === "DECIDE") {
           const item = state.materials.find(material => material.current?.id === data.reviewId);
           if (!item || item.stale || item.current?.decision !== "PENDING") return fail("Esta versão já mudou ou recebeu uma decisão.");
@@ -122,6 +133,16 @@ export async function POST(request: Request, context: Context) {
             "UPDATE content_material_reviews SET decision=$2,comment=$3,decided_by=$4,decided_by_email=$5,decided_at=now() WHERE id=$1",
             [data.reviewId, data.decision, data.comment || null, user.id, user.email],
           );
+          await NotificationService.createSafeNotification({
+            type: data.decision === "APPROVED" ? "CONTENT_APPROVED" : "CONTENT_CHANGES_REQUESTED",
+            severity: data.decision === "APPROVED" ? "success" : "warning",
+            category: "CONTENT",
+            entityType: "content_calendar_item",
+            entityId: id,
+            title: data.decision === "APPROVED" ? `Material aprovado (${piece.title})` : `Ajuste solicitado (${piece.title})`,
+            message: data.comment || `Revisão do material "${item.key}" registrada`,
+            linkUrl: `/prompt-creator?contentId=${id}`,
+          });
         } else {
           if (piece.content_type !== "SOCIAL_MEDIA") return fail("Este registro de publicação é para peças de social media.");
           if (!state.ready) return fail("Aprove as versões atuais dos materiais antes de registrar a publicação.");
@@ -142,6 +163,16 @@ export async function POST(request: Request, context: Context) {
               piece.editorial_brief?.goal || piece.headline_brief?.goal || null, data.primaryMetric],
           );
           await db.query("UPDATE content_calendar_items SET status='PUBLISHED',updated_at=now() WHERE id=$1", [id]);
+          await NotificationService.createSafeNotification({
+            type: "CONTENT_PUBLISHED",
+            severity: "success",
+            category: "CONTENT",
+            entityType: "content_calendar_item",
+            entityId: id,
+            title: `Conteúdo publicado (${piece.title})`,
+            message: `Publicação registrada em ${data.platform}`,
+            linkUrl: `/prompt-creator/saved`,
+          });
         }
       }
       return Response.json(await readDelivery(db.query.bind(db), id, clientId, piece));

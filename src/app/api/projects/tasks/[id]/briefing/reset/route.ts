@@ -3,6 +3,7 @@ import { query } from "@/lib/db/pool";
 import { requireAdminUser } from "@/lib/auth/require-auth";
 import { getClientDnaContext } from "@/modules/clients/dna-briefing-sync";
 import { formatContactFirstName } from "@/modules/clients/contact-name";
+import { NotificationService } from "@/modules/notifications/service";
 
 export const dynamic = "force-dynamic";
 
@@ -107,9 +108,20 @@ export async function POST(
       [JSON.stringify([initialMessage]), JSON.stringify(preservedExt), initialNotes, session.id]
     );
 
+    await NotificationService.createSafeNotification({
+      type: "BRIEFING_RESET",
+      severity: "info",
+      category: "BRIEFING",
+      entityType: "briefing_session",
+      entityId: session.id,
+      title: `Briefing reiniciado: ${companyName}`,
+      message: "O chat interativo do cliente foi reiniciado para novo preenchimento",
+      linkUrl: `/projects/${task.project_id}`,
+    });
+
     return NextResponse.json({
       success: true,
-      message: "Chat da Edivânia resetado com sucesso!",
+      message: "Chat da Edivânia resetado com sucesso.",
       session: resetRes.rows[0],
     });
   } catch (err: unknown) {

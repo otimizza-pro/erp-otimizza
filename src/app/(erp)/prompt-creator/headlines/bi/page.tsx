@@ -347,7 +347,7 @@ export default function Page() {
                   "Modo",
                   "Execuções / Falhas",
                   "Opções / Vistas",
-                  "👍 / 👎 / Neutras",
+                  "Aprovadas / Rejeitadas / Neutras",
                   "Aprovação¹",
                   "Cobertura²",
                   "Escolhidas³",
@@ -376,7 +376,7 @@ export default function Page() {
                     {g.liked + g.disliked < 10 && <span className="block text-[10px] text-zinc-400 font-normal">amostra pequena</span>}
                   </td>
                   <td className="p-3">{ratio(g.liked + g.disliked, g.presented)}</td>
-                  <td className="p-3 font-extrabold text-zinc-950">{g.winners}</td>
+                  <td className="p-3 font-semibold text-zinc-950">{g.winners}</td>
                   <td className="p-3 font-mono">
                     ${Number(g.cost).toFixed(5)}
                     {g.unknownCost ? ` + ${g.unknownCost} desc.` : ""}

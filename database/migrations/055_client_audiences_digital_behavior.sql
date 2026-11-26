@@ -11,6 +11,7 @@ DO $$
 DECLARE
   v_client_id UUID := 'a195189e-85f4-4e0b-9121-03aaa88c4b1c';
 BEGIN
+  IF EXISTS (SELECT 1 FROM clients WHERE id = v_client_id) THEN
   -- 1. Público Reabilitação (Foco em Recuperação e Alívio)
   INSERT INTO client_audiences (
     client_id,
@@ -149,5 +150,6 @@ BEGIN
     NOW()
   )
   ON CONFLICT DO NOTHING;
+  END IF;
 
 END $$;

@@ -13,6 +13,7 @@ import { ClientAudiencesManager, type ClientAudienceItem } from "@/components/cl
 import { EditorialPlanner } from "@/components/content-studio/editorial-planner";
 import { ARCHETYPES, normalizeArchetypeId, getArchetypeName } from "@/components/headlines/client-strategy-panel";
 import { type ClientCatalogItem } from "@/modules/clients/catalog-service";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import {
   Compass,
   Target,
@@ -284,6 +285,17 @@ function StrategyContent() {
   const [catalogSolution, setCatalogSolution] = useState("");
   const [catalogAudienceIds, setCatalogAudienceIds] = useState<string[]>([]);
   const [availableAudiences, setAvailableAudiences] = useState<Array<{ id: string; name: string }>>([]);
+  const [editorialLines, setEditorialLines] = useState<
+    Array<{
+      id?: string;
+      pillar_name: string;
+      theme: string;
+      objective: string;
+      preferred_formats: string[];
+      frequency_per_month: string | number;
+      notes: string;
+    }>
+  >([]);
   const [catalogSaving, setCatalogSaving] = useState(false);
 
   // Audiences
@@ -329,6 +341,14 @@ function StrategyContent() {
   }, [activeClientId]);
 
   useEffect(() => {
+    if (!queryClientId || selectedCompany.id === queryClientId) return;
+    const match = availableCompanies.find((c) => c.id === queryClientId);
+    if (match) {
+      selectCompany(match);
+    }
+  }, [queryClientId, availableCompanies, selectedCompany.id, selectCompany]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (catalogModalOpen) setCatalogModalOpen(false);
@@ -348,10 +368,11 @@ function StrategyContent() {
     setDirty(false);
 
     try {
-      const [identRes, catRes, audRes] = await Promise.all([
+      const [identRes, catRes, audRes, edRes] = await Promise.all([
         fetch(`/api/clients/${clientId}/identity`, { cache: "no-store" }),
         fetch(`/api/clients/${clientId}/catalog`, { cache: "no-store" }),
         fetch(`/api/content-studio/audiences?clientId=${encodeURIComponent(clientId)}`, { cache: "no-store" }),
+        fetch(`/api/content-studio/editorial-lines?clientId=${encodeURIComponent(clientId)}`, { cache: "no-store" }),
       ]);
 
       if (currentClientIdRef.current !== clientId) return;
@@ -408,6 +429,14 @@ function StrategyContent() {
           );
         }
       }
+
+      if (edRes.ok) {
+        const edData = await edRes.json();
+        if (currentClientIdRef.current !== clientId) return;
+        setEditorialLines(Array.isArray(edData.editorialLines) ? edData.editorialLines : []);
+      } else {
+        setEditorialLines([]);
+      }
     } catch (err) {
       if (currentClientIdRef.current === clientId) {
         console.error("Erro ao carregar estratégia:", err);
@@ -451,7 +480,9 @@ function StrategyContent() {
       payload.secondaryArchetype = secondaryArchetype;
       payload.communicationProfile = communicationProfile;
 
-      payload.targetAudiences = targetAudiences;
+      if (dirtyFieldsRef.current.has("targetAudiences")) {
+        payload.targetAudiences = targetAudiences;
+      }
       payload.painPoints = painPoints;
       payload.salesObjections = salesObjections;
 
@@ -546,6 +577,10 @@ function StrategyContent() {
   };
 
   const handleBlur = () => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
     if (dirty) {
       void persistChanges(false);
     }
@@ -651,7 +686,7 @@ function StrategyContent() {
   };
 
   const handleDeleteCatalogItem = async (itemId: string, itemName: string) => {
-    if (!confirm(`Deseja realmente remover "${itemName}" do catálogo?`)) return;
+    if (!(await confirmAction({ title: "Remover item do catálogo", message: `Deseja realmente remover "${itemName}" do catálogo?`, confirmLabel: "Remover", tone: "danger" }))) return;
     try {
       const res = await fetch(`/api/clients/${activeClientId}/catalog?itemId=${itemId}`, {
         method: "DELETE",
@@ -686,7 +721,7 @@ function StrategyContent() {
   return (
     <div className="min-h-screen bg-zinc-50/60 pb-20">
       {/* Header Sticky */}
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-zinc-200 shadow-2xs">
+      <header className="sticky top-0 z-30 bg-white/95 border-b border-zinc-200 shadow-2xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-zinc-950 text-white flex items-center justify-center shadow-2xs">
@@ -728,7 +763,7 @@ function StrategyContent() {
               onClick={() => persistChanges(true)}
               disabled={saving}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer ${dirty
-                  ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-xs"
+                  ? "bg-zinc-900 text-white hover:bg-zinc-800 shadow-xs"
                   : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
                 }`}
             >
@@ -824,7 +859,7 @@ function StrategyContent() {
                   <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
                     <div>
                       <h2 className="text-sm font-bold text-zinc-950 flex items-center gap-2">
-                        <Target className="w-4 h-4 text-indigo-600" />
+                        <Target className="w-4 h-4 text-zinc-800" />
                         Posicionamento de Mercado & Proposta de Valor
                       </h2>
                       <p className="text-xs text-zinc-500 mt-0.5">
@@ -850,7 +885,7 @@ function StrategyContent() {
                         value={marketNiche}
                         onChange={(e) => { setMarketNiche(e.target.value); markDirty("marketNiche"); }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[120px]"
+                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-y leading-relaxed text-zinc-900 min-h-[120px]"
                       />
                     </div>
 
@@ -867,7 +902,7 @@ function StrategyContent() {
                         value={valueProposition}
                         onChange={(e) => { setValueProposition(e.target.value); markDirty("valueProposition"); }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[140px]"
+                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-y leading-relaxed text-zinc-900 min-h-[140px]"
                       />
                     </div>
                   </div>
@@ -885,7 +920,7 @@ function StrategyContent() {
                       value={corePromise}
                       onChange={(e) => { setCorePromise(e.target.value); markDirty("corePromise"); }}
                       onBlur={handleBlur}
-                      className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[110px]"
+                      className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-y leading-relaxed text-zinc-900 min-h-[110px]"
                     />
                   </div>
                 </div>
@@ -1341,7 +1376,7 @@ function StrategyContent() {
                           setArchetype(e.target.value);
                           markDirty("archetype");
                         }}
-                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900"
                       >
                         <option value="">Selecione o arquétipo principal...</option>
                         {ARCHETYPES.map((arc) => (
@@ -1362,7 +1397,7 @@ function StrategyContent() {
                           setSecondaryArchetype(e.target.value);
                           markDirty("secondaryArchetype");
                         }}
-                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                        className="w-full px-3.5 py-2.5 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900"
                       >
                         <option value="">Selecione o arquétipo complementar...</option>
                         {ARCHETYPES.map((arc) => (
@@ -1389,7 +1424,7 @@ function StrategyContent() {
                         value={brandHistory}
                         onChange={(e) => { setBrandHistory(e.target.value); markDirty("brandHistory"); }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
+                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
                       />
                     </div>
 
@@ -1406,7 +1441,7 @@ function StrategyContent() {
                         value={brandContext}
                         onChange={(e) => { setBrandContext(e.target.value); markDirty("brandContext"); }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
+                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
                       />
                     </div>
                   </div>
@@ -1478,7 +1513,7 @@ function StrategyContent() {
                       <button
                         type="button"
                         onClick={handleOpenNewCatalogItem}
-                        className="px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-xl hover:bg-indigo-700 transition"
+                        className="px-4 py-2 bg-zinc-900 text-white text-xs font-semibold rounded-xl hover:bg-zinc-800 transition"
                       >
                         Cadastrar primeiro item
                       </button>
@@ -1488,7 +1523,7 @@ function StrategyContent() {
                       {catalogItems.map((item) => (
                         <div
                           key={item.id}
-                          className="p-4 rounded-xl border border-zinc-200 bg-white hover:border-indigo-300 transition shadow-2xs space-y-3 flex flex-col justify-between"
+                          className="p-4 rounded-xl border border-zinc-200 bg-white hover:border-zinc-400 transition shadow-2xs space-y-3 flex flex-col justify-between"
                         >
                           <div className="space-y-2">
                             <div className="flex items-start justify-between gap-2">
@@ -1840,6 +1875,10 @@ function StrategyContent() {
                     clientId={activeClientId}
                     clientName={activeCompany.name}
                     catalogItems={catalogItems.map((it) => ({ id: it.id, name: it.name, type: it.type }))}
+                    onAudiencesChange={(list) => {
+                      setTargetAudiences(list.map((a) => a.name));
+                      setAvailableAudiences(list.map((a) => ({ id: a.id, name: a.name })));
+                    }}
                   />
                 </div>
 
@@ -1950,7 +1989,7 @@ function StrategyContent() {
                           markDirty("salesObjections");
                         }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
+                        className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
                       />
                     </div>
                   </div>
@@ -1990,7 +2029,7 @@ function StrategyContent() {
                           markDirty("instagramHandle");
                         }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                        className="w-full px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900"
                       />
                       {suggestedInstagram && !instagramHandle && (
                         <button
@@ -1999,7 +2038,7 @@ function StrategyContent() {
                             setInstagramHandle(suggestedInstagram);
                             markDirty("instagramHandle");
                           }}
-                          className="mt-1 text-[11px] text-indigo-600 hover:underline block"
+                          className="mt-1 text-[11px] text-zinc-800 hover:underline block"
                         >
                           Importar do briefing: {suggestedInstagram}
                         </button>
@@ -2021,7 +2060,7 @@ function StrategyContent() {
                           markDirty("websiteUrl");
                         }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                        className="w-full px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900"
                       />
                       {suggestedWebsite && !websiteUrl && (
                         <button
@@ -2030,7 +2069,7 @@ function StrategyContent() {
                             setWebsiteUrl(suggestedWebsite);
                             markDirty("websiteUrl");
                           }}
-                          className="mt-1 text-[11px] text-indigo-600 hover:underline block"
+                          className="mt-1 text-[11px] text-zinc-800 hover:underline block"
                         >
                           Importar do briefing: {suggestedWebsite}
                         </button>
@@ -2065,7 +2104,7 @@ function StrategyContent() {
                           markDirty("whatsappCta");
                         }}
                         onBlur={handleBlur}
-                        className="w-full px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 text-zinc-900"
+                        className="w-full px-3.5 py-2 text-xs bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 text-zinc-900"
                       />
                     </div>
                   </div>
@@ -2167,7 +2206,7 @@ function StrategyContent() {
                         markDirty("notes");
                       }}
                       onBlur={handleBlur}
-                      className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
+                      className="w-full px-3.5 py-3 text-xs sm:text-sm bg-zinc-50 border border-zinc-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-300 resize-y leading-relaxed text-zinc-900 min-h-[160px]"
                     />
                   </div>
                 </div>
@@ -2215,7 +2254,7 @@ function StrategyContent() {
       {/* Modal de Criação / Edição de Produto ou Serviço */}
       {catalogModalOpen && (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs"
+          className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-5 bg-zinc-950/45"
           onClick={() => setCatalogModalOpen(false)}
         >
           <div
@@ -2648,7 +2687,7 @@ function StrategyContent() {
       {/* Modal Gerador de Linha Editorial a partir da Estratégia */}
       {editorialPlannerModalOpen && (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs"
+          className="fixed inset-0 z-[90] flex items-center justify-center p-3 sm:p-5 bg-zinc-950/45"
           onClick={() => setEditorialPlannerModalOpen(false)}
         >
           <div
@@ -2677,10 +2716,11 @@ function StrategyContent() {
               <EditorialPlanner
                 clientId={activeClientId}
                 companyName={activeCompany.name}
-                lines={[]}
+                lines={editorialLines}
                 onSaved={() => {
                   setEditorialPlannerModalOpen(false);
-                  toast.success("Pilares e temas salvos na Linha Editorial!");
+                  void loadStrategyData(activeClientId);
+                  toast.success("Pilares e temas salvos na Linha Editorial.");
                 }}
                 onUse={() => {
                   setEditorialPlannerModalOpen(false);

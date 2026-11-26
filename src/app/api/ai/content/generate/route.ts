@@ -90,7 +90,42 @@ export async function POST(request: NextRequest) {
       storedHeadlineContext=stored.rows[0];
     }
     const storedBrief=storedHeadlineContext?.headline_brief as Record<string,unknown>|undefined;
-    const pieceBrief=resolveContentBrief(clientContext,body.editorialBrief ?? storedHeadlineContext?.editorial_brief,{piecePain:typeof storedBrief?.pain==='string'?storedBrief.pain:undefined});
+    let rawEditorialBrief = body.editorialBrief ?? storedHeadlineContext?.editorial_brief;
+    if (!rawEditorialBrief && storedBrief) {
+      const fallbackAudience =
+        (typeof storedBrief.audience === "string" && storedBrief.audience.trim()) ||
+        (clientContext.audiences[0]?.name ? String(clientContext.audiences[0].name) : "") ||
+        (Array.isArray(clientContext.identity.target_audiences) && clientContext.identity.target_audiences[0] ? String(clientContext.identity.target_audiences[0]) : "") ||
+        clientContext.communicationProfile?.audienceTypes?.[0] ||
+        "";
+      const fallbackFunnel = ["TOP", "MIDDLE", "BOTTOM", "AFTER_SALE"].includes(String(storedBrief.funnel))
+        ? String(storedBrief.funnel)
+        : "TOP";
+      const fallbackJourneyMap: Record<string, string> = {
+        TOP: "DISCOVERY",
+        MIDDLE: "CONSIDERATION",
+        BOTTOM: "DECISION",
+        AFTER_SALE: "RETENTION",
+      };
+      const fallbackThemeId =
+        (typeof storedBrief.themeId === "string" && storedBrief.themeId.trim()) ||
+        (clientContext.editorialLines[0]?.id ? String(clientContext.editorialLines[0].id) : "");
+      if (fallbackThemeId && clientContext.communicationProfile?.speakerTypes?.[0] && clientContext.communicationProfile?.contentVoices?.[0] && fallbackAudience) {
+        rawEditorialBrief = {
+          themeId: fallbackThemeId,
+          speaker: (typeof storedBrief.speaker === "string" && storedBrief.speaker.trim()) || clientContext.communicationProfile.speakerTypes[0],
+          voice: (typeof storedBrief.voice === "string" && storedBrief.voice.trim()) || clientContext.communicationProfile.contentVoices[0],
+          audience: fallbackAudience,
+          funnel: fallbackFunnel,
+          journey: fallbackJourneyMap[fallbackFunnel] || "DISCOVERY",
+          goal: (typeof storedBrief.goal === "string" && storedBrief.goal.trim().length >= 3 ? storedBrief.goal.trim() : "") || (centralIdea && centralIdea.trim().length >= 3 ? centralIdea.trim() : "") || (selectedHeadline && selectedHeadline.trim().length >= 3 ? selectedHeadline.trim() : "Gerar engajamento e autoridade"),
+          pain: (typeof storedBrief.pain === "string" && storedBrief.pain.trim()) || "NOT_APPLICABLE",
+          tone: (typeof storedBrief.tone === "string" && storedBrief.tone.trim()) || (Array.isArray(clientContext.identity.tone_of_voice) && clientContext.identity.tone_of_voice[0] ? String(clientContext.identity.tone_of_voice[0]) : "Direto e didático"),
+          cta: (typeof storedBrief.cta === "string" && storedBrief.cta.trim()) || (Array.isArray(clientContext.identity.default_ctas) && clientContext.identity.default_ctas[0] ? String(clientContext.identity.default_ctas[0]) : "Envie uma mensagem no WhatsApp"),
+        };
+      }
+    }
+    const pieceBrief=resolveContentBrief(clientContext,rawEditorialBrief,{piecePain:typeof storedBrief?.pain==='string'?storedBrief.pain:undefined});
     const clientName=String(clientContext.company.trade_name||clientContext.company.name);
     const audience=pieceBrief.audience,tone=pieceBrief.tone,cta=pieceBrief.cta;
     clientContext.currentContent={speaker:pieceBrief.speaker,audience:pieceBrief.audience,voice:pieceBrief.voice};

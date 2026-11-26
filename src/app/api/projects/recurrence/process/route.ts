@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { processAllRecurringProjects } from "@/modules/projects/service";
 import { requireAdminUser } from "@/lib/auth/require-auth";
+import { NotificationService } from "@/modules/notifications/service";
 
 export async function GET(request: Request) {
   if (!process.env.CRON_SECRET || request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -37,6 +38,18 @@ export async function POST(request: Request) {
     }
 
     const result = await processAllRecurringProjects(competency);
+
+    if (result.errors.length > 0) {
+      await NotificationService.createSafeNotification({
+        type: "PROJECTS_RECURRENCE_ERROR",
+        severity: "critical",
+        category: "PROJECTS",
+        dedupKey: `projects-recurrence-err:${competency}`,
+        title: `Falha na recorrência de projetos (${competency})`,
+        message: result.errors.slice(0, 3).join("; "),
+        linkUrl: "/projects",
+      });
+    }
 
     return NextResponse.json({
       success: result.errors.length === 0,

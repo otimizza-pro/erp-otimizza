@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 import {
   Users,
   Plus,
@@ -288,7 +289,7 @@ export function ClientAudiencesManager({
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Deseja realmente excluir o público "${name}"?`)) return;
+    if (!(await confirmAction({ title: "Excluir público", message: `Deseja realmente excluir o público "${name}"?`, confirmLabel: "Excluir", tone: "danger" }))) return;
     setDeletingId(id);
     try {
       const res = await fetch(`/api/content-studio/audiences?id=${id}`, {
@@ -607,7 +608,7 @@ export function ClientAudiencesManager({
       {/* Modal Criar / Editar Público com os 4 Pilares */}
       {modalOpen && createPortal(
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-zinc-950/45 p-4"
           onClick={() => setModalOpen(false)}
         >
           <div

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { processContractRecurrence, processPayableRecurrence } from "@/modules/financial/service";
 import { requireAdminUser } from "@/lib/auth/require-auth";
+import { NotificationService } from "@/modules/notifications/service";
+import { syncOperationalAlerts } from "@/modules/notifications/alerts-sync";
 
 export async function GET(request: Request) {
   if (!process.env.CRON_SECRET || request.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -38,8 +40,32 @@ export async function POST(request: Request) {
       processPayableRecurrence(competency),
     ]);
 
+    const errorsCount = (recResult.errors?.length ?? 0) + (payResult.errors?.length ?? 0);
+    if (errorsCount > 0) {
+      await NotificationService.createSafeNotification({
+        type: "FINANCIAL_RECURRENCE_ERROR",
+        severity: "critical",
+        category: "FINANCIAL",
+        dedupKey: `fin-recurrence-err:${competency}`,
+        title: `Falha na recorrência financeira (${competency})`,
+        message: `${errorsCount} item(ns) falharam ao gerar recorrência`,
+        linkUrl: "/financial/receivables",
+      });
+    } else if (recResult.createdCount > 0 || payResult.createdCount > 0) {
+      await NotificationService.createSafeNotification({
+        type: "FINANCIAL_RECURRENCE_OK",
+        severity: "info",
+        category: "FINANCIAL",
+        dedupKey: `fin-recurrence-ok:${competency}`,
+        title: `Recorrência processada (${competency})`,
+        message: `${recResult.createdCount} recebíveis e ${payResult.createdCount} despesas geradas`,
+        linkUrl: "/financial/cashflow",
+      });
+    }
+    await syncOperationalAlerts(true);
+
     return NextResponse.json({
-      success: true,
+      success: errorsCount === 0,
       competency,
       receivables: recResult,
       payables: payResult,

@@ -6,6 +6,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {ArchiveRecordAction} from "@/components/ui/archive-record-action";
 import { SocialWorkflowStepper } from "@/components/content-studio/social-workflow-stepper";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 import {
   Sparkles,
@@ -139,19 +141,27 @@ export default function SavedPostsPage() {
       });
 
       const upJson = await upRes.json();
-      if (!upJson.success) throw new Error(upJson.error || "Falha no upload");
+      const uploadedUrl = upJson.imageUrl || upJson.url;
+      if (!upRes.ok || !upJson.success || !uploadedUrl) {
+        throw new Error(upJson.error || "Falha no upload");
+      }
 
       // Salva a imageUrl no post
-      await fetch(`/api/content-studio/posts/${postId}`, {
+      const putRes = await fetch(`/api/content-studio/posts/${postId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: upJson.imageUrl }),
+        body: JSON.stringify({ imageUrl: uploadedUrl }),
       });
+      if (!putRes.ok) {
+        const errJson = await putRes.json().catch(() => ({}));
+        throw new Error(errJson.error || "Erro ao vincular imagem ao post.");
+      }
 
+      toast.success("Imagem vinculada com sucesso.");
       await loadPosts();
     } catch (err) {
       console.error(err);
-      alert("Erro ao fazer upload da imagem.");
+      toast.error(err instanceof Error ? err.message : "Erro ao fazer upload da imagem.");
     } finally {
       setUploadingPostId(null);
     }
@@ -160,29 +170,44 @@ export default function SavedPostsPage() {
   // Alterar Status do Anúncio (Ativo, Pausado, Finalizado)
   const handleUpdateAdStatus = async (postId: string, newStatus: "ACTIVE" | "PAUSED" | "FINISHED") => {
     try {
-      await fetch(`/api/content-studio/posts/${postId}`, {
+      const res = await fetch(`/api/content-studio/posts/${postId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adStatus: newStatus }),
       });
+      if (!res.ok) {
+        toast.error("Não foi possível atualizar o status do anúncio.");
+        return;
+      }
       setPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, adStatus: newStatus } : p))
       );
     } catch (e) {
       console.error(e);
+      toast.error("Erro de conexão ao atualizar anúncio.");
     }
   };
 
   // Excluir Post
   const handleDeletePost = async (postId: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta publicação salva?")) return;
+    const confirmed = await confirmAction({
+      title: "Excluir publicação salva",
+      message: "Tem certeza que deseja excluir esta publicação salva?",
+      confirmLabel: "Excluir",
+      tone: "danger",
+    });
+    if (!confirmed) return;
     try {
       const res = await fetch(`/api/content-studio/posts/${postId}`, { method: "DELETE" });
       if (res.ok) {
         setPosts((prev) => prev.filter((p) => p.id !== postId));
+        toast.success("Publicação removida.");
+      } else {
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error || "Erro ao excluir post.");
       }
-    } catch (e) {
-      alert("Erro ao excluir post.");
+    } catch {
+      toast.error("Erro ao excluir post.");
     }
   };
 
@@ -196,7 +221,7 @@ export default function SavedPostsPage() {
       selectedHeadline: p.selectedHeadline || "",
       selectedCaption: p.selectedCaption || "",
       callToAction: p.callToAction || "",
-      scheduledDate: p.scheduledDate || "",
+      scheduledDate: p.scheduledDate ? String(p.scheduledDate).slice(0, 10) : "",
     });
   };
 
@@ -210,17 +235,22 @@ export default function SavedPostsPage() {
       const res = await fetch(`/api/content-studio/posts/${editingPost.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
+        body: JSON.stringify({
+          ...editForm,
+          scheduledDate: editForm.scheduledDate || null,
+        }),
       });
 
       if (res.ok) {
         setEditingPost(null);
+        toast.success("Alterações salvas.");
         await loadPosts();
       } else {
-        alert("Erro ao salvar alterações.");
+        const json = await res.json().catch(() => ({}));
+        toast.error(json.error || "Erro ao salvar alterações.");
       }
-    } catch (e) {
-      alert("Erro de conexão.");
+    } catch {
+      toast.error("Erro de conexão.");
     } finally {
       setSavingEdit(false);
     }
@@ -357,7 +387,7 @@ export default function SavedPostsPage() {
                     : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200"
                 }`}
               >
-                🟢 Ativos
+                Ativos
               </button>
               <button
                 type="button"
@@ -368,7 +398,7 @@ export default function SavedPostsPage() {
                     : "bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200"
                 }`}
               >
-                🟡 Pausados
+                Pausados
               </button>
               <button
                 type="button"
@@ -379,11 +409,17 @@ export default function SavedPostsPage() {
                     : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
                 }`}
               >
-                ⚪ Finalizados
+                Finalizados
               </button>
             </div>
           )}
         </div>
+
+        {loadError && (
+          <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
+            {loadError}
+          </div>
+        )}
 
         {/* Feed Grid (Visualização em Formato de Feed 4:5) */}
         {loading ? (
@@ -422,10 +458,10 @@ export default function SavedPostsPage() {
                       <img
                         src={post.imageUrl}
                         alt={post.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        className="w-full h-full object-cover transition-transform duration-300"
                       />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-gradient-to-br from-zinc-900 to-zinc-950 text-white">
+                      <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-zinc-50 text-white">
                         <ImageIcon className="w-8 h-8 text-zinc-500 mb-2" />
                         <span className="text-xs font-semibold text-zinc-400">
                           {isAd ? "Criativo do Anúncio" : "Imagem do Post (4:5)"}
@@ -438,7 +474,7 @@ export default function SavedPostsPage() {
 
                     {/* Botão de Upload Overlay */}
                     <label
-                      className="absolute bottom-3 right-3 p-2 bg-black/60 hover:bg-black/90 backdrop-blur-xs text-white rounded-xl cursor-pointer transition shadow-md flex items-center gap-1.5 text-[10px] font-semibold"
+                      className="absolute bottom-3 right-3 p-2 bg-zinc-950/45 hover:bg-black/90 text-white rounded-xl cursor-pointer transition shadow-md flex items-center gap-1.5 text-[10px] font-semibold"
                       title="Subir / Trocar imagem (formato feed 4:5)"
                     >
                       <Upload className="w-3.5 h-3.5" />
@@ -457,7 +493,7 @@ export default function SavedPostsPage() {
 
                     {/* Badge de Cliente e Formato no Topo */}
                     <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
-                      <span className="px-2 py-0.5 rounded-lg bg-black/70 backdrop-blur-xs text-white text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded-lg bg-zinc-950/45 text-white text-[10px] font-bold">
                         {post.clientTradeName || post.clientName}
                       </span>
                     </div>
@@ -489,7 +525,7 @@ export default function SavedPostsPage() {
                     <div>
                       {/* Tag do Post & Formato */}
                       <div className="flex items-center justify-between mb-2">
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-zinc-100 text-zinc-800 border border-zinc-200">
                           <Tag className="w-2.5 h-2.5" />
                           {post.postTag || (isAd ? "Meta Ads" : "Feed Social")}
                         </span>
@@ -611,7 +647,7 @@ export default function SavedPostsPage() {
 
         {/* Modal de Edição de Post */}
         {editingPost && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4 overflow-y-auto">
             <form
               onSubmit={handleSaveEdit}
               className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl space-y-4 my-8"

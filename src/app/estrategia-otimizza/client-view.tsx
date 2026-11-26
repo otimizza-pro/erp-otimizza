@@ -64,7 +64,7 @@ export function PublicKnowledgeClient({ initialPages, tree }: Props) {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar páginas, diretrizes, termos ou tags públicas..."
-            className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg shadow-2xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 placeholder:text-slate-400"
+            className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-lg shadow-2xs focus:outline-none focus:ring-2 focus:ring-zinc-300 focus:border-zinc-500 text-slate-900 placeholder:text-slate-400"
           />
         </div>
 
@@ -108,19 +108,19 @@ export function PublicKnowledgeClient({ initialPages, tree }: Props) {
               <Link
                 key={page.id}
                 href={`/estrategia-otimizza/${page.slug}`}
-                className="group bg-white rounded-xl border border-slate-200 p-5 shadow-xs hover:border-indigo-400 hover:shadow-md transition-all flex flex-col justify-between"
+                className="group bg-white rounded-xl border border-slate-200 p-5 shadow-xs hover:border-zinc-400 hover:shadow-md transition-colors flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <span className={`inline-block px-2 py-0.5 text-[11px] font-semibold rounded-md border ${badge.bg} ${badge.text} ${badge.border}`}>
                       {badge.label}
                     </span>
-                    <span className="text-slate-400 group-hover:text-indigo-600 transition-colors">
+                    <span className="text-slate-400 group-hover:text-zinc-950 transition-colors">
                       <ChevronRight className="w-4 h-4" />
                     </span>
                   </div>
 
-                  <h2 className="text-base font-bold text-slate-900 group-hover:text-indigo-600 transition-colors mb-1.5">
+                  <h2 className="text-base font-bold text-slate-900 group-hover:text-zinc-950 transition-colors mb-1.5">
                     {page.title}
                   </h2>
 

@@ -22,6 +22,8 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { formatDocument } from "@/shared/cpf-cnpj";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<SupplierRecord[]>([]);
@@ -67,7 +69,7 @@ export default function SuppliersPage() {
         ? "Deseja realmente arquivar este fornecedor? Ele não poderá ser vinculado a novos custos, mas o histórico permanece preservado."
         : "Deseja reativar este fornecedor?";
 
-    if (!confirm(confirmMsg)) return;
+    if (!(await confirmAction({ title: action === "archive" ? "Arquivar fornecedor" : "Reativar fornecedor", message: confirmMsg, confirmLabel: action === "archive" ? "Arquivar" : "Reativar" }))) return;
 
     setActionLoadingId(id);
     try {
@@ -78,12 +80,12 @@ export default function SuppliersPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Erro na operação.");
+        toast.error(err.error || "Erro na operação.");
         return;
       }
       await loadSuppliers();
-    } catch (e) {
-      alert("Erro de comunicação ao alterar status.");
+    } catch {
+      toast.error("Erro de comunicação ao alterar status.");
     } finally {
       setActionLoadingId(null);
     }

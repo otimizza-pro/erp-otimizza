@@ -24,6 +24,8 @@ import {
 } from "lucide-react";
 import { formatDocument, validateDocument } from "@/shared/cpf-cnpj";
 import { formatFinancialStatus } from "@/shared/status-labels";
+import { toast } from "@/components/ui/toast-provider";
+import { confirmAction } from "@/components/ui/confirm-dialog";
 
 const SUPPLIER_CATEGORIES = [
   "Infraestrutura & Cloud",
@@ -130,7 +132,7 @@ export default function SupplierDetailPage({
         ? "Deseja arquivar este fornecedor? Ele não poderá ser selecionado em novos custos."
         : "Deseja reativar este fornecedor?";
 
-    if (!confirm(msg)) return;
+    if (!(await confirmAction({ title: action === "archive" ? "Arquivar fornecedor" : "Reativar fornecedor", message: msg, confirmLabel: action === "archive" ? "Arquivar" : "Reativar" }))) return;
 
     try {
       const res = await fetch(`/api/suppliers/${id}`, {
@@ -140,12 +142,12 @@ export default function SupplierDetailPage({
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || "Erro ao alterar status.");
+        toast.error(err.error || "Erro ao alterar status.");
         return;
       }
       await loadSupplierData();
-    } catch (e) {
-      alert("Erro na operação.");
+    } catch {
+      toast.error("Erro na operação.");
     }
   };
 

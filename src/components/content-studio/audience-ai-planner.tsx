@@ -99,7 +99,7 @@ export function AudienceAiPlanner({
 
       {open && (
         <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-zinc-950/45 p-4"
           onClick={() => setOpen(false)}
         >
           <section
@@ -128,7 +128,7 @@ export function AudienceAiPlanner({
             </p>
 
             {busy && (
-              <p className="text-xs text-emerald-600 font-medium animate-pulse">
+              <p className="text-xs text-emerald-600 font-medium">
                 Gerando públicos com base no nicho e DNA do cliente...
               </p>
             )}
